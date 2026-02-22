@@ -1,0 +1,20 @@
+{
+  "specversion": "1.0",
+  "id": "evt_fixture_argocd_degraded_001",
+  "source": "kubernetes",
+  "type": "k8s.health.degraded",
+  "time": "2026-02-16T12:41:00Z",
+  "subject": "payments-api",
+  "datacontenttype": "application/json",
+  "cluster": "eu-1",
+  "namespace": "prod-eu",
+  "initiator": "kube-controller-manager",
+  "commit_sha": "abc123",
+  "operation_id": "op-1",
+  "health_status": "degraded",
+  "supporting_observation": "true",
+  "data": {
+    "reason": "CrashLoopBackOff",
+    "result": "degraded"
+  }
+}

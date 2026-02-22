@@ -1,0 +1,15 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook-demo
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: demo
+  source:
+    repoURL: http://gitea-http.evidra-demo-gitops.svc.cluster.local:3000/evidra-demo/demo-app.git
+    targetRevision: main
+    path: app
+  syncPolicy: {}

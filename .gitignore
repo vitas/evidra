@@ -1,0 +1,49 @@
+# OS and editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local env and secrets
+.env
+.env.*
+*.local
+*.pem
+*.key
+
+# Build and cache
+node_modules/
+dist/
+dist-argocd-extension/
+build/
+coverage/
+*.log
+*.tsbuildinfo
+ui/playwright-report/
+ui/test-results/
+
+# Compiled binaries
+evidra
+evidra.exe
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Temporary files
+tmp/
+*.tmp
+var/
+
+# Private working docs
+__internal/
+
+# Kustomize secret env files
+deploy/k8s/overlays/*/secrets.env
+
+#AI stuff
+CLOUDE.*
+.cloude
+CLAUDE.md
+AGENTS.md
+.claude/

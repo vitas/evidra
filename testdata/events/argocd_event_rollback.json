@@ -1,0 +1,24 @@
+{
+  "specversion": "1.0",
+  "id": "evt_fixture_argocd_rollback_001",
+  "source": "argocd",
+  "type": "argo.sync.finished",
+  "time": "2026-02-16T12:45:00Z",
+  "subject": "payments-api",
+  "datacontenttype": "application/json",
+  "cluster": "eu-1",
+  "namespace": "prod-eu",
+  "initiator": "argocd-application-controller",
+  "commit_sha": "abc122",
+  "operation_id": "rollback-op-1",
+  "external_change_id": "CHG123456",
+  "ticket_id": "JIRA-42",
+  "approval_reference": "APR-7",
+  "health_status": "healthy",
+  "data": {
+    "result": "Succeeded",
+    "phase": "Succeeded",
+    "argocd_app": "payments-api",
+    "rollback": true
+  }
+}

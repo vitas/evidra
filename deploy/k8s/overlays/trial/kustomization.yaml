@@ -1,0 +1,57 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - ingress.yaml
+  - serviceaccount.yaml
+  - role.yaml
+  - rolebinding.yaml
+  - pvc.yaml
+
+nameSuffix: -trial
+
+labels:
+  - pairs:
+      app.kubernetes.io/environment: trial
+
+secretGenerator:
+  - name: evidra-secrets
+    envs:
+      - secrets.env
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+patches:
+  - target:
+      kind: Deployment
+      name: evidra
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: add
+        path: /spec/template/spec/serviceAccountName
+        value: evidra
+      - op: replace
+        path: /spec/template/spec/volumes/0
+        value:
+          name: evidra-data
+          persistentVolumeClaim:
+            claimName: evidra-data
+  - target:
+      kind: ConfigMap
+      name: evidra-config
+    patch: |-
+      - op: replace
+        path: /data/EVIDRA_ARGO_COLLECTOR_ENABLED
+        value: "false"
+      - op: add
+        path: /data/EVIDRA_DB_SSLMODE
+        value: "require"
+
+images:
+  - name: evidra
+    newName: evidra
+    newTag: trial

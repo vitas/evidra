@@ -1,0 +1,14 @@
+{
+  "ref": "refs/heads/main",
+  "after": "4b7f6f8c5d4a9f0ab1cd2345ef67890abc123def",
+  "head_commit": {
+    "timestamp": "2026-02-16T12:34:56Z"
+  },
+  "repository": {
+    "name": "payments-api",
+    "full_name": "org/payments-api"
+  },
+  "pusher": {
+    "name": "jane.doe"
+  }
+}

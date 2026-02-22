@@ -1,0 +1,14 @@
+name: boundaries
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-boundaries:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run boundary checks
+        run: bash scripts/check-internal-boundaries.sh

@@ -1,0 +1,21 @@
+name: auth-integration
+
+on:
+  workflow_dispatch:
+
+jobs:
+  auth-api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run auth integration tests
+        run: |
+          go test ./internal/api -run 'Test(ReadTokenAuth|OIDCRoleAuthReadAndExport|OIDCRoleAuthIngestAdmin|JWTRoleAuthReadAndExport|JWTRoleAuthIngestAdmin|AuthRateLimitRead|JWTRoleAuthReadWithJWKS)$'

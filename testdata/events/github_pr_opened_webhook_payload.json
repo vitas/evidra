@@ -1,0 +1,20 @@
+{
+  "action": "opened",
+  "repository": {
+    "name": "payments-api",
+    "full_name": "org/payments-api"
+  },
+  "sender": {
+    "login": "alice"
+  },
+  "pull_request": {
+    "number": 842,
+    "merged": false,
+    "merge_commit_sha": "",
+    "created_at": "2026-02-16T10:00:00Z",
+    "updated_at": "2026-02-16T10:00:00Z",
+    "head": {
+      "sha": "abc123"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "specversion": "1.0",
+  "id": "evt_fixture_invalid_001",
+  "type": "pull_request_merged",
+  "time": "2026-02-16T12:40:00Z",
+  "subject": "payments-api",
+  "datacontenttype": "application/json",
+  "data": {"commit_sha": "def456"}
+}

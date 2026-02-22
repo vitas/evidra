@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: evidra
+  labels:
+    app.kubernetes.io/name: evidra
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: evidra
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # Portable DNS rule: cluster DNS namespaces differ by platform.
+    - ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # HTTPS egress for external providers, endpoints, and API integrations.
+    - ports:
+        - protocol: TCP
+          port: 443
+    # Postgres egress kept broad in base for common shared/trial topologies.
+    # Tighten with namespace/pod selectors in stricter overlays.
+    - ports:
+        - protocol: TCP
+          port: 5432

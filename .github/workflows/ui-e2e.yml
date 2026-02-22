@@ -1,0 +1,97 @@
+name: ui-e2e
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ui-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Setup kind
+        uses: helm/kind-action@v1.10.0
+        with:
+          install_only: true
+
+      - name: Install UI dependencies
+        run: |
+          npm --prefix ui ci
+          npm --prefix ui run e2e:install
+
+      - name: Validate use case mapping
+        run: |
+          npm --prefix ui run e2e:use-cases-check
+
+      - name: Start Evidra demo service
+        run: |
+          make evidra-demo-up
+          make evidra-demo-seed
+          make evidra-demo-verify
+
+      - name: Start kind + Argo CD + extension
+        run: |
+          make evidra-demo-kind-argocd-up
+          make evidra-demo-kind-argocd-port-forward-start
+          for i in $(seq 1 30); do
+            if curl -kfsS https://localhost:8081 >/dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Argo CD UI did not become reachable on localhost:8081" >&2
+          exit 1
+
+      - name: Run UI E2E tests
+        env:
+          ARGO_BASE_URL: https://localhost:8081
+          ARGO_USERNAME: admin
+          EVIDRA_TAB_NAME: Evidra
+          E2E_TIMEOUT_SECONDS: "120"
+        run: |
+          ARGO_PASSWORD="$(make -s evidra-demo-kind-argocd-password)"
+          export ARGO_PASSWORD
+          npm --prefix ui run e2e
+
+      - name: Collect runtime logs on failure
+        if: failure()
+        run: |
+          mkdir -p artifacts
+          docker compose logs --no-color > artifacts/docker-compose.log || true
+          kubectl -n argocd get pods -o wide > artifacts/argocd-pods.txt || true
+          kubectl -n argocd logs deploy/argocd-server --tail=300 > artifacts/argocd-server.log || true
+          kubectl -n argocd logs deploy/argocd-repo-server --tail=300 > artifacts/argocd-repo-server.log || true
+          cp -f tmp/argocd/port-forward.log artifacts/argocd-port-forward.log || true
+
+      - name: Upload E2E artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-e2e-artifacts
+          path: |
+            ui/playwright-report
+            ui/test-results
+            artifacts
+          if-no-files-found: ignore
+
+      - name: Cleanup
+        if: always()
+        run: |
+          make evidra-demo-kind-argocd-port-forward-stop || true
+          make evidra-demo-kind-argocd-down || true
+          make evidra-demo-down || true

@@ -1,0 +1,10 @@
+.git
+.github
+__internal
+var
+tmp
+*.log
+*.tmp
+.DS_Store
+.vscode
+.idea

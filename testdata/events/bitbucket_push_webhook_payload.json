@@ -1,0 +1,22 @@
+{
+  "repository": {
+    "name": "payments-api",
+    "full_name": "workspace/payments-api"
+  },
+  "actor": {
+    "display_name": "Casey Dev"
+  },
+  "push": {
+    "changes": [
+      {
+        "new": {
+          "name": "main",
+          "target": {
+            "hash": "bbpushabc123",
+            "date": "2026-02-16T12:45:00Z"
+          }
+        }
+      }
+    ]
+  }
+}

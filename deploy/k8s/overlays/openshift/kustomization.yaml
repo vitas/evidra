@@ -1,0 +1,58 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - route.yaml
+
+nameSuffix: -ocp
+
+labels:
+  - pairs:
+      app.kubernetes.io/environment: openshift
+
+secretGenerator:
+  - name: evidra-secrets
+    envs:
+      - secrets.env
+
+generatorOptions:
+  disableNameSuffixHash: true
+
+patches:
+  - target:
+      kind: Deployment
+      name: evidra
+    patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: add
+        path: /spec/template/spec/securityContext
+        value:
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+      - op: add
+        path: /spec/template/spec/containers/0/securityContext
+        value:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+              - ALL
+  - target:
+      kind: ConfigMap
+      name: evidra-config
+    patch: |-
+      - op: replace
+        path: /data/EVIDRA_ARGO_COLLECTOR_ENABLED
+        value: "true"
+      - op: replace
+        path: /data/EVIDRA_ARGO_DEFAULT_ENV
+        value: "openshift"
+
+images:
+  - name: evidra
+    newName: image-registry.openshift-image-registry.svc:5000/evidra/evidra
+    newTag: latest

@@ -1,0 +1,20 @@
+{
+  "specversion": "1.0",
+  "id": "evt_fixture_git_001",
+  "source": "git",
+  "type": "pull_request_merged",
+  "time": "2026-02-16T12:34:56Z",
+  "subject": "payments-api",
+  "datacontenttype": "application/json",
+  "cluster": "eu-1",
+  "namespace": "prod-eu",
+  "initiator": "jane.doe",
+  "commit_sha": "abc123",
+  "pr_id": "842",
+  "repo": "org/payments",
+  "data": {
+    "repo": "org/payments",
+    "commit_sha": "abc123",
+    "pr_id": "842"
+  }
+}

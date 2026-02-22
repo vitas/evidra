@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: evidra
+      POSTGRES_USER: evidra
+      POSTGRES_PASSWORD: evidra
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evidra -d evidra"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  evidra:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      EVIDRA_ADDR: ":8080"
+      EVIDRA_EXPORT_DIR: "/tmp/evidra-exports"
+      EVIDRA_DB_DRIVER: "pgx"
+      EVIDRA_DB_DIALECT: "postgres"
+      EVIDRA_DB_DSN: "postgres://evidra:evidra@postgres:5432/evidra?sslmode=disable"
+      EVIDRA_DB_MIGRATE: "true"
+      EVIDRA_ARGO_COLLECTOR_ENABLED: "${EVIDRA_ARGO_COLLECTOR_ENABLED:-false}"
+      EVIDRA_ARGO_COLLECTOR_INTERVAL: "${EVIDRA_ARGO_COLLECTOR_INTERVAL:-30s}"
+      EVIDRA_ARGO_API_URL: "${EVIDRA_ARGO_API_URL:-}"
+      EVIDRA_ARGO_API_TOKEN: "${EVIDRA_ARGO_API_TOKEN:-}"
+      EVIDRA_ARGO_CHECKPOINT_FILE: "/tmp/evidra-argo-checkpoint.json"
+      EVIDRA_DEV_INSECURE: "${EVIDRA_DEV_INSECURE:-true}"
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:

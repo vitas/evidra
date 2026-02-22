@@ -1,0 +1,31 @@
+{
+  "specversion": "1.0",
+  "id": "evt_fixture_argocd_003",
+  "source": "argocd",
+  "type": "argo.sync.finished",
+  "time": "2026-02-16T14:22:40Z",
+  "subject": "payments-api",
+  "datacontenttype": "application/json",
+  "cluster": "eu-1",
+  "namespace": "prod-eu",
+  "initiator": "argocd-application-controller",
+  "commit_sha": "fed789",
+  "external_change_id": "CHG777000",
+  "ticket_id": "OPS-900",
+  "approval_reference": "APR-22",
+  "health_status": "degraded",
+  "data": {
+    "result": "Failed",
+    "phase": "Failed",
+    "argocd_app": "payments-api",
+    "approvals": [
+      {
+        "source": "itsm",
+        "identity": "cab",
+        "timestamp": "2026-02-16T14:00:00Z",
+        "reference": "APR-22",
+        "summary": "approved"
+      }
+    ]
+  }
+}

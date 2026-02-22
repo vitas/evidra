@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: gitea
+  namespace: evidra-demo-gitops
+  labels:
+    app.kubernetes.io/name: gitea
+spec:
+  serviceName: gitea-http
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gitea
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gitea
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: gitea
+          image: gitea/gitea:1.22.6
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: USER_UID
+              value: "1000"
+            - name: USER_GID
+              value: "1000"
+            - name: GITEA__database__DB_TYPE
+              value: sqlite3
+            - name: GITEA__database__PATH
+              value: /data/gitea/gitea.db
+            - name: GITEA__server__ROOT_URL
+              value: http://gitea-http.evidra-demo-gitops.svc.cluster.local:3000/
+            - name: GITEA__server__DOMAIN
+              value: gitea-http.evidra-demo-gitops.svc.cluster.local
+            - name: GITEA__security__INSTALL_LOCK
+              value: "true"
+            - name: GITEA__service__DISABLE_REGISTRATION
+              value: "true"
+            - name: GITEA_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-admin
+                  key: GITEA_ADMIN_USERNAME
+            - name: GITEA_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-admin
+                  key: GITEA_ADMIN_PASSWORD
+            - name: GITEA_ADMIN_EMAIL
+              valueFrom:
+                secretKeyRef:
+                  name: gitea-admin
+                  key: GITEA_ADMIN_EMAIL
+          ports:
+            - name: http
+              containerPort: 3000
+          volumeMounts:
+            - name: gitea-data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 3
+      volumes:
+        - name: gitea-data
+          persistentVolumeClaim:
+            claimName: gitea-data

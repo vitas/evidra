@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: evidra-config
+data:
+  EVIDRA_ADDR: ":8080"
+  EVIDRA_EXPORT_DIR: "/var/evidra/exports"
+  EVIDRA_DB_DRIVER: "pgx"
+  EVIDRA_DB_DIALECT: "postgres"
+  EVIDRA_DB_MIGRATE: "true"
+  EVIDRA_ARGO_COLLECTOR_ENABLED: "false"
+  EVIDRA_ARGO_COLLECTOR_INTERVAL: "30s"
+  EVIDRA_ARGO_API_URL: ""
+  EVIDRA_ARGO_DEFAULT_ENV: "unknown"
+  EVIDRA_ARGO_CHECKPOINT_FILE: "/var/evidra/argo_checkpoint.json"

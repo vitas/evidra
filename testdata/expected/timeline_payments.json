@@ -1,0 +1,56 @@
+{
+  "items": [
+    {
+      "data": {
+        "commit_sha": "abc123",
+        "pr_id": "842",
+        "repo": "org/payments"
+      },
+      "extensions": {
+        "cluster": "eu-1",
+        "commit_sha": "abc123",
+        "initiator": "jane.doe",
+        "namespace": "prod-eu",
+        "pr_id": "842",
+        "repo": "org/payments"
+      },
+      "id": "evt_fixture_git_001",
+      "source": "git",
+      "subject": "payments-api",
+      "time": "2026-02-16T12:34:56Z",
+      "type": "pull_request_merged"
+    },
+    {
+      "data": {
+        "approvals": [
+          {
+            "identity": "cab",
+            "reference": "APR-7",
+            "source": "itsm",
+            "summary": "approved",
+            "timestamp": "2026-02-16T11:50:00Z"
+          }
+        ]
+      },
+      "extensions": {
+        "approval_reference": "APR-7",
+        "cluster": "eu-1",
+        "commit_sha": "abc123",
+        "external_change_id": "CHG123456",
+        "initiator": "argocd-application-controller",
+        "namespace": "prod-eu",
+        "operation_id": "op-1",
+        "ticket_id": "JIRA-42"
+      },
+      "id": "evt_fixture_argocd_001",
+      "source": "argocd",
+      "subject": "payments-api",
+      "time": "2026-02-16T12:38:10Z",
+      "type": "argo.sync.finished"
+    }
+  ],
+  "page": {
+    "limit": 10,
+    "next_cursor": ""
+  }
+}

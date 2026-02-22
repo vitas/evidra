@@ -1,0 +1,20 @@
+{
+  "object_kind": "merge_request",
+  "project": {
+    "name": "payments-api",
+    "path_with_namespace": "group/payments-api"
+  },
+  "user": {
+    "username": "bob"
+  },
+  "object_attributes": {
+    "action": "close",
+    "iid": 51,
+    "merge_commit_sha": "",
+    "created_at": "2026-02-16T10:15:00Z",
+    "updated_at": "2026-02-16T11:20:00Z",
+    "last_commit": {
+      "id": "def456"
+    }
+  }
+}
