@@ -12,7 +12,6 @@ import (
 	"samebits.com/evidra-benchmark/internal/canon"
 	"samebits.com/evidra-benchmark/internal/risk"
 	"samebits.com/evidra-benchmark/pkg/evidence"
-	"samebits.com/evidra-benchmark/pkg/invocation"
 	"samebits.com/evidra-benchmark/pkg/version"
 )
 
@@ -25,9 +24,16 @@ type Options struct {
 	RetryTracker bool
 }
 
+// InputActor identifies the caller in a prescribe request.
+type InputActor struct {
+	Type   string `json:"type"`
+	ID     string `json:"id"`
+	Origin string `json:"origin"`
+}
+
 // PrescribeInput is the input schema for the prescribe tool.
 type PrescribeInput struct {
-	Actor           invocation.Actor       `json:"actor"`
+	Actor           InputActor             `json:"actor"`
 	Tool            string                 `json:"tool"`
 	Operation       string                 `json:"operation"`
 	RawArtifact     string                 `json:"raw_artifact"`

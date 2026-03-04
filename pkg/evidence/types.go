@@ -3,67 +3,9 @@ package evidence
 import (
 	"errors"
 	"fmt"
-	"time"
-
-	"samebits.com/evidra-benchmark/pkg/invocation"
 )
 
-type PolicyDecision struct {
-	Allow     bool     `json:"allow"`
-	RiskLevel string   `json:"risk_level"`
-	Reason    string   `json:"reason"`
-	Reasons   []string `json:"reasons,omitempty"`
-	Hints     []string `json:"hints,omitempty"`
-	RuleIDs   []string `json:"rule_ids,omitempty"`
-	Advisory  bool     `json:"advisory"`
-}
-
-type ExecutionResult struct {
-	Status          string `json:"status"`
-	ExitCode        *int   `json:"exit_code"`
-	Stdout          string `json:"stdout,omitempty"`
-	Stderr          string `json:"stderr,omitempty"`
-	StdoutTruncated bool   `json:"stdout_truncated,omitempty"`
-	StderrTruncated bool   `json:"stderr_truncated,omitempty"`
-}
-
-type EvidenceRecord struct {
-	EventID          string                 `json:"event_id"`
-	Timestamp        time.Time              `json:"timestamp"`
-	PolicyRef        string                 `json:"policy_ref"`
-	BundleRevision   string                 `json:"bundle_revision,omitempty"`
-	ProfileName      string                 `json:"profile_name,omitempty"`
-	EnvironmentLabel string                 `json:"environment_label,omitempty"`
-	InputHash        string                 `json:"input_hash,omitempty"`
-	Source           string                 `json:"source,omitempty"`
-	Actor            invocation.Actor       `json:"actor"`
-	Tool             string                 `json:"tool"`
-	Operation        string                 `json:"operation"`
-	Params           map[string]interface{} `json:"params"`
-	PolicyDecision   PolicyDecision         `json:"policy_decision"`
-	ExecutionResult  ExecutionResult        `json:"execution_result"`
-	PreviousHash     string                 `json:"previous_hash"`
-	Hash             string                 `json:"hash"`
-}
-
-type canonicalEvidenceRecord struct {
-	EventID          string                 `json:"event_id"`
-	Timestamp        time.Time              `json:"timestamp"`
-	PolicyRef        string                 `json:"policy_ref"`
-	BundleRevision   string                 `json:"bundle_revision,omitempty"`
-	ProfileName      string                 `json:"profile_name,omitempty"`
-	EnvironmentLabel string                 `json:"environment_label,omitempty"`
-	InputHash        string                 `json:"input_hash,omitempty"`
-	Source           string                 `json:"source,omitempty"`
-	Actor            invocation.Actor       `json:"actor"`
-	Tool             string                 `json:"tool"`
-	Operation        string                 `json:"operation"`
-	Params           map[string]interface{} `json:"params"`
-	PolicyDecision   PolicyDecision         `json:"policy_decision"`
-	ExecutionResult  ExecutionResult        `json:"execution_result"`
-	PreviousHash     string                 `json:"previous_hash"`
-}
-
+// StoreManifest describes the state of a segmented evidence store.
 type StoreManifest struct {
 	Format          string   `json:"format"`
 	CreatedAt       string   `json:"created_at"`
@@ -78,39 +20,11 @@ type StoreManifest struct {
 	Notes           string   `json:"notes"`
 }
 
-type ForwarderCursor struct {
-	Segment string `json:"segment"`
-	Line    int    `json:"line"`
-}
-
-type ForwarderDestination struct {
-	Type string `json:"type"`
-	ID   string `json:"id"`
-}
-
-type ForwarderState struct {
-	Format      string               `json:"format"`
-	UpdatedAt   string               `json:"updated_at"`
-	Cursor      ForwarderCursor      `json:"cursor"`
-	LastAckHash string               `json:"last_ack_hash"`
-	Destination ForwarderDestination `json:"destination"`
-	Notes       string               `json:"notes"`
-}
-
-type Metadata struct {
-	Records   int
-	LastHash  string
-	PolicyRef string
-}
-
-type Record = EvidenceRecord
-
 const (
 	defaultSegmentMaxBytes int64 = 5_000_000
 	segmentMaxBytesEnv           = "EVIDRA_EVIDENCE_SEGMENT_MAX_BYTES"
 	manifestFileName             = "manifest.json"
 	segmentsDirName              = "segments"
-	forwarderStateFileName       = "forwarder_state.json"
 	lockFileName                 = ".evidra.lock"
 	defaultLockTimeoutMS         = 2000
 	lockTimeoutEnv               = "EVIDRA_EVIDENCE_LOCK_TIMEOUT_MS"
@@ -119,13 +33,13 @@ const (
 var ErrChainInvalid = errors.New("evidence_chain_invalid")
 var ErrCursorSegmentNotFound = errors.New("cursor_segment_not_found")
 var ErrCursorLineOutOfRange = errors.New("cursor_line_out_of_range")
-var errCursorResolved = errors.New("cursor_resolved")
 
 const (
 	ErrorCodeStoreBusy               = "evidence_store_busy"
 	ErrorCodeLockNotSupportedWindows = "evidence_lock_not_supported_on_windows"
 )
 
+// StoreError represents an error from the evidence store with an error code.
 type StoreError struct {
 	Code    string
 	Message string
@@ -146,6 +60,7 @@ func (e *StoreError) Unwrap() error {
 	return e.Err
 }
 
+// ErrorCode extracts the error code from a StoreError, or returns empty string.
 func ErrorCode(err error) string {
 	var se *StoreError
 	if errors.As(err, &se) {
@@ -154,10 +69,12 @@ func ErrorCode(err error) string {
 	return ""
 }
 
+// IsStoreBusyError reports whether err is a store-busy error.
 func IsStoreBusyError(err error) bool {
 	return ErrorCode(err) == ErrorCodeStoreBusy
 }
 
+// ChainValidationError describes a hash-chain validation failure at a specific record index.
 type ChainValidationError struct {
 	Index   int
 	EventID string

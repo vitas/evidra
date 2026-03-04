@@ -2,8 +2,6 @@ package mcpserver
 
 import (
 	"testing"
-
-	"samebits.com/evidra-benchmark/pkg/invocation"
 )
 
 func TestPrescribe_SimpleK8s(t *testing.T) {
@@ -11,7 +9,7 @@ func TestPrescribe_SimpleK8s(t *testing.T) {
 
 	svc := &BenchmarkService{}
 	output := svc.Prescribe(PrescribeInput{
-		Actor:       invocation.Actor{Type: "agent", ID: "test"},
+		Actor:       InputActor{Type: "agent", ID: "test"},
 		Tool:        "kubectl",
 		Operation:   "apply",
 		RawArtifact: k8sDeployment,
@@ -48,7 +46,7 @@ func TestPrescribe_PrivilegedContainer(t *testing.T) {
 
 	svc := &BenchmarkService{}
 	output := svc.Prescribe(PrescribeInput{
-		Actor:       invocation.Actor{Type: "agent", ID: "test"},
+		Actor:       InputActor{Type: "agent", ID: "test"},
 		Tool:        "kubectl",
 		Operation:   "apply",
 		RawArtifact: k8sPrivileged,
@@ -65,7 +63,7 @@ func TestPrescribe_ParseError(t *testing.T) {
 
 	svc := &BenchmarkService{}
 	output := svc.Prescribe(PrescribeInput{
-		Actor:       invocation.Actor{Type: "agent", ID: "test"},
+		Actor:       InputActor{Type: "agent", ID: "test"},
 		Tool:        "terraform",
 		Operation:   "apply",
 		RawArtifact: "not valid json {{{",
@@ -101,7 +99,7 @@ func TestRetryTracker_CountsRetries(t *testing.T) {
 	}
 
 	input := PrescribeInput{
-		Actor:       invocation.Actor{Type: "agent", ID: "test"},
+		Actor:       InputActor{Type: "agent", ID: "test"},
 		Tool:        "kubectl",
 		Operation:   "apply",
 		RawArtifact: k8sDeployment,
