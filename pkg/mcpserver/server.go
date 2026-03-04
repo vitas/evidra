@@ -394,6 +394,30 @@ func (s *BenchmarkService) Report(input ReportInput) ReportOutput {
 			}
 		}
 		if !found {
+			// Emit unprescribed_action signal entry before rejecting
+			sigPayload, _ := json.Marshal(evidence.SignalPayload{
+				SignalName: "protocol_violation",
+				SubSignal:  "unprescribed_action",
+				EntryRefs:  []string{input.PrescriptionID},
+				Details:    "report references unknown prescription " + input.PrescriptionID,
+			})
+			sigActor := s.lastActor
+			if input.Actor.ID != "" {
+				sigActor = evidence.Actor{Type: input.Actor.Type, ID: input.Actor.ID, Provenance: input.Actor.Origin}
+			}
+			lastHash, _ := evidence.LastHashAtPath(s.evidencePath)
+			sigEntry, buildErr := evidence.BuildEntry(evidence.EntryBuildParams{
+				Type:           evidence.EntryTypeSignal,
+				TraceID:        evidence.GenerateTraceID(),
+				Actor:          sigActor,
+				Payload:        sigPayload,
+				PreviousHash:   lastHash,
+				SpecVersion:    "0.3.0",
+				AdapterVersion: version.Version,
+			})
+			if buildErr == nil {
+				evidence.AppendEntryAtPath(s.evidencePath, sigEntry)
+			}
 			return ReportOutput{
 				OK:    false,
 				Error: &ErrInfo{Code: "not_found", Message: "prescription_id not found"},

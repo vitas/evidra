@@ -560,6 +560,11 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 
 	evidencePath := resolveEvidencePath(*evidenceFlag)
 
+	actorID := *actorFlag
+	if actorID == "" {
+		actorID = "cli"
+	}
+
 	// Look up prescription
 	_, found, err := evidence.FindEntryByID(evidencePath, *prescriptionFlag)
 	if err != nil {
@@ -567,14 +572,30 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	if !found {
+		// Emit unprescribed_action signal entry before rejecting
+		sigPayload, _ := json.Marshal(evidence.SignalPayload{
+			SignalName: "protocol_violation",
+			SubSignal:  "unprescribed_action",
+			EntryRefs:  []string{*prescriptionFlag},
+			Details:    fmt.Sprintf("report references unknown prescription %s", *prescriptionFlag),
+		})
+		lastHash, _ := evidence.LastHashAtPath(evidencePath)
+		sigEntry, buildErr := evidence.BuildEntry(evidence.EntryBuildParams{
+			Type:           evidence.EntryTypeSignal,
+			TraceID:        evidence.GenerateTraceID(),
+			Actor:          evidence.Actor{Type: "cli", ID: actorID, Provenance: "cli"},
+			Payload:        sigPayload,
+			PreviousHash:   lastHash,
+			SpecVersion:    "0.3.0",
+			AdapterVersion: version.Version,
+		})
+		if buildErr == nil {
+			evidence.AppendEntryAtPath(evidencePath, sigEntry)
+		}
 		fmt.Fprintf(stderr, "prescription %s not found in evidence\n", *prescriptionFlag)
 		return 1
 	}
 
-	actorID := *actorFlag
-	if actorID == "" {
-		actorID = "cli"
-	}
 	actor := evidence.Actor{Type: "cli", ID: actorID, Provenance: "cli"}
 
 	reportID := evidence.GenerateTraceID()
