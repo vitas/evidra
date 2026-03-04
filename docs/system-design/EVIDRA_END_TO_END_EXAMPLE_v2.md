@@ -514,6 +514,35 @@ argocd app create → Application CRD YAML → K8s adapter (CRD as unstructured)
 ArgoCD adapter (v0.5.0+) will add sync-specific metadata
 (Application name, target revision) to actor_meta.
 
+### Pre-Canonicalized Integration (Pulumi, Ansible, etc.)
+
+Tools that already know their resource identity can bypass
+the adapter entirely. Example with Pulumi:
+
+```bash
+evidra prescribe \
+  --tool pulumi \
+  --operation update \
+  --artifact state.json \
+  --canonical-action '{
+    "resource_identity": [
+      {"type": "aws:ec2:Instance", "name": "web-server", "actions": ["update"]},
+      {"type": "aws:rds:Instance", "name": "main-db", "actions": ["update"]}
+    ],
+    "resource_count": 2,
+    "operation_class": "mutating",
+    "scope_class": "production"
+  }'
+```
+
+Evidra still computes artifact_digest from raw state.json,
+runs risk detectors on the raw content, writes evidence,
+and evaluates signals. The only difference: resource_identity
+comes from the tool, not from an Evidra adapter.
+
+This works today with the generic adapter fallback. No code
+changes needed in Evidra.
+
 ---
 
 End of worked example.

@@ -12,6 +12,58 @@ No exceptions.
 
 ---
 
+## Adapter Interface (Tool-Agnostic)
+
+Evidra's canonicalization is extensible. Any system that produces
+infrastructure artifacts can integrate by implementing one interface:
+
+```go
+type Adapter interface {
+    // Name returns the adapter identifier (e.g. "k8s/v1", "terraform/v1").
+    Name() string
+
+    // CanHandle returns true if this adapter can parse the given tool name.
+    CanHandle(tool string) bool
+
+    // Canonicalize transforms raw artifact bytes into a CanonResult.
+    Canonicalize(tool, operation string, rawArtifact []byte) (CanonResult, error)
+}
+```
+
+Adapter selection at prescribe time:
+
+```
+tool="kubectl" → K8s adapter (built-in)
+tool="terraform" → Terraform adapter (built-in)
+tool="pulumi" → no built-in adapter → generic fallback
+tool="pulumi" + registered PulumiAdapter → Pulumi adapter
+```
+
+External integrations have two paths:
+
+**Path A — implement Adapter.** For tools that produce raw artifacts
+Evidra should parse. The adapter extracts resource identity and
+computes shape hash from the artifact format.
+
+**Path B — pre-canonicalized prescribe.** For tools that already
+know their resource identity. They send canonical_action directly
+in the prescribe call. Evidra computes artifact_digest, runs risk
+detectors, writes evidence. The adapter is bypassed.
+
+Both paths produce identical evidence entries, signals, and scores.
+
+Built-in adapters shipped with Evidra:
+
+| Adapter | Tools handled | Delivery |
+|---------|--------------|----------|
+| k8s/v1 | kubectl, oc | v0.3.0 |
+| tf/v1 | terraform | v0.3.0 |
+| helm/v1 | helm (via k8s) | v0.3.0 |
+| generic/v1 | everything else | v0.3.0 |
+| argocd/v1 | argocd | v0.5.0 (spec reserved) |
+
+---
+
 ## 1. Two Digests, Two Purposes
 
 ```

@@ -616,17 +616,18 @@ meaningful without --force.
 
 ## 6. Protocol
 
-Same inspector protocol as before. Two tools.
+Two tools. Tool-agnostic. Any system that produces artifacts can
+integrate.
 
 ### prescribe
 
-Agent asks: "I want to do X. What should I know?"
+Agent/CI/automation asks: "I want to do X. What should I know?"
 
 ```
 Input:
-  tool: "kubectl"
-  operation: "apply"
-  raw_artifact: "<manifest>"
+  tool: "kubectl"              # any tool name — Evidra selects adapter
+  operation: "apply"           # tool-specific operation
+  raw_artifact: "<manifest>"   # the artifact in its native format
   actor: { type: "agent", id: "claude-code", origin: "mcp" }
   actor_meta: { agent_version: "v1.3", model_id: "...", prompt_id: "..." }
   environment: "production"
@@ -643,9 +644,35 @@ Output:
 No allow/deny. Every prescription says: "here's what I see."
 The agent decides.
 
+### Pre-canonicalized prescribe (for self-aware tools)
+
+Tools that already know their resource identity can bypass the
+adapter and send canonical_action directly:
+
+```
+Input:
+  tool: "pulumi"
+  operation: "update"
+  canonical_action: {          # tool provides its own canonicalization
+    resource_identity: [...],
+    resource_count: 5,
+    operation_class: "mutating",
+    scope_class: "production"
+  }
+  raw_artifact: "<state>"      # still needed for artifact_digest + detectors
+  actor: { ... }
+```
+
+Evidra computes artifact_digest, runs risk detectors on raw_artifact,
+writes evidence. The adapter step is skipped. Signals and scoring
+work identically.
+
+This path enables integration with any infrastructure tool without
+writing an Evidra adapter.
+
 ### report
 
-Agent reports: "I did Y."
+Agent/CI reports: "I did Y."
 
 ```
 Input:
@@ -666,6 +693,14 @@ Output:
 
 Two calls. prescribe before. report after. Everything else —
 signals, scores, comparisons — is computed from the evidence chain.
+
+### Integration surface
+
+| Integration method | Who | What they provide | What Evidra provides |
+|-------------------|-----|-------------------|---------------------|
+| Built-in adapter | K8s, Terraform users | raw_artifact | canonicalization + signals |
+| Pre-canonicalized | Any tool (Pulumi, Ansible, CF, custom) | canonical_action + raw_artifact | risk analysis + signals |
+| Evidence forward | External observability | nothing (consumer) | standard signal metrics |
 
 ---
 
@@ -815,43 +850,175 @@ This gives the "fire alarm" without the enforcement responsibility.
 
 ## 8. Architecture
 
+### Three Components, Three Boundaries
+
 ```
-                    ┌──────────────┐
-                    │   AI Agent   │
-                    └──────┬───────┘
-                           │ prescribe / report
-                    ┌──────▼───────┐
-                    │  Evidra MCP  │
-                    │  Server      │
-                    └──────┬───────┘
-                           │
-              ┌────────────┼────────────┐
-              ▼            ▼            ▼
-      ┌──────────┐  ┌───────────┐  ┌──────────┐
-      │ Risk     │  │ Signal    │  │ Evidence  │
-      │ Analysis │  │ Processor │  │ Chain     │
-      │          │  │           │  │ (JSONL)   │
-      │ matrix + │  │ 5 signals │  │           │
-      │ ~10      │  │ always on │  │ append    │
-      │ detectors│  │           │  │ hash-link │
-      │ (Go)     │  │           │  │ Ed25519   │
-      └──────────┘  └───────────┘  └──────────┘
-                           │
-                    ┌──────▼───────┐
-                    │  Scorecard   │
-                    │  + Benchmark │
-                    └──────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                        AI Agent Host                            │
+│                                                                 │
+│   ┌───────────┐      stdio/SSE       ┌──────────────────┐      │
+│   │  AI Agent  │◄────────────────────►│  evidra-mcp      │      │
+│   │ (Claude,   │   prescribe/report   │  (MCP server)    │      │
+│   │  Cursor,   │                      │                  │      │
+│   │  etc.)     │                      │  canon adapters  │      │
+│   └───────────┘                       │  risk analysis   │      │
+│                                       │  local evidence  │      │
+│                                       └────────┬─────────┘      │
+│                                                │ forward        │
+└────────────────────────────────────────────────┼────────────────┘
+                                                 │
+┌────────────────────────────────────────────────┼────────────────┐
+│                        CI Runner                │                │
+│                                                │                │
+│   ┌────────────┐                               │                │
+│   │ terraform  │                               │                │
+│   │ kubectl    │                               │                │
+│   │ helm       │                               │                │
+│   └─────┬──────┘                               │                │
+│         │                                      │                │
+│   ┌─────▼──────┐                               │                │
+│   │ evidra CLI │   prescribe/report            │                │
+│   │            │   (same protocol,             │                │
+│   │            │    shell wrapper)              │                │
+│   │            │                               │                │
+│   │ canon      │                               │                │
+│   │ risk       │                               │                │
+│   │ local      │                               │                │
+│   │ evidence   │───────────────────────────────┤                │
+│   └────────────┘              forward          │                │
+│                                                │                │
+└────────────────────────────────────────────────┼────────────────┘
+                                                 │
+                                                 ▼
+                              ┌──────────────────────────────┐
+                              │       evidra-api             │
+                              │       (backend)              │
+                              │                              │
+                              │  POST /v1/evidence/forward   │
+                              │  GET  /v1/scorecard          │
+                              │  GET  /v1/compare            │
+                              │  GET  /v1/fleet              │
+                              │  GET  /metrics               │
+                              │                              │
+                              │  evidence aggregation        │
+                              │  signal computation          │
+                              │  scorecard generation        │
+                              │  Prometheus export           │
+                              │  multi-tenant                │
+                              └──────────────────────────────┘
 ```
 
-No OPA. No Rego. No policy engine. No deny.
+### Component Responsibilities
+
+**evidra-mcp** — MCP server. Runs alongside the AI agent.
+Communicates via stdio or SSE transport. Exposes `prescribe` and
+`report` tools. Contains canonicalization adapters, risk analysis,
+and a local evidence JSONL. Forwards evidence entries to evidra-api
+if configured. Stateless except for the local evidence file.
+
+Deployment: sidecar process on the agent host. No network listener
+needed (stdio). One instance per agent.
+
+**evidra CLI** — Shell tool for CI pipelines. Same protocol as MCP
+(prescribe/report), same canonicalization, same risk analysis.
+Wraps around existing CI steps:
+
+```bash
+PRESCRIPTION=$(evidra prescribe --artifact plan.json --tool terraform)
+terraform apply tfplan
+evidra report --prescription $PRESCRIPTION --exit-code $?
+```
+
+Also provides scorecard/compare/fleet commands that can query
+evidra-api or compute locally from evidence files.
+
+Deployment: installed in CI runner image. Zero-config if evidence
+is local. Points to evidra-api URL for centralized scorecards.
+
+**evidra-api** — Backend server. Receives forwarded evidence from
+all agents and CI pipelines. Aggregates evidence, computes signals,
+generates scorecards, exports Prometheus metrics. Multi-tenant.
+
+Deployment: one instance per organization. Runs on internal
+infrastructure or as hosted service. Stores evidence in append-only
+storage (file or database).
+
+### Shared Core
+
+All three components share the same Go packages:
+
+```
+internal/canon/       → canonicalization adapters (k8s, terraform, generic)
+internal/risk/        → risk matrix + catastrophic detectors
+internal/signal/      → 5 signal detectors
+internal/evidence/    → evidence builder, signer, payload
+pkg/evidence/         → evidence store, JSONL I/O
+```
+
+The difference is the shell:
+- evidra-mcp wraps the core in MCP protocol
+- evidra CLI wraps the core in shell commands
+- evidra-api wraps the core in HTTP endpoints + aggregation
+
+### Data Flow
+
+```
+Agent/CI → prescribe → [canon → risk → evidence] → prescription
+Agent/CI → execute operation
+Agent/CI → report → [match → signals → evidence] → verdict
+                                    │
+                                    ▼
+                            local evidence.jsonl
+                                    │
+                              forward (push)
+                                    │
+                                    ▼
+                             evidra-api (aggregate)
+                                    │
+                         ┌──────────┼──────────┐
+                         ▼          ▼          ▼
+                    scorecard   compare    /metrics
+```
+
+Local evidence is always written, even without evidra-api.
+This means: agents and CI pipelines work fully offline.
+evidra-api adds centralized view, cross-agent comparison,
+and Prometheus metrics.
+
+### What Runs Where
+
+| Package | evidra-mcp | evidra CLI | evidra-api |
+|---------|:----------:|:----------:|:----------:|
+| internal/canon | yes | yes | no (receives canonical data) |
+| internal/risk | yes | yes | no (receives risk data) |
+| internal/signal | yes (local) | yes (local) | yes (aggregated) |
+| internal/evidence | yes | yes | yes |
+| internal/score | no | yes (local query) | yes (authoritative) |
+| pkg/mcpserver | yes | no | no |
+| pkg/evidence | yes | yes | yes |
+
+### Delivery Timeline
+
+| Component | Version | Scope |
+|-----------|---------|-------|
+| evidra CLI | v0.3.0 | prescribe, report, local scorecard |
+| evidra-mcp | v0.3.0 | prescribe, report tools for MCP agents |
+| evidra-api | v0.5.0 | centralized evidence, scorecards, metrics |
+
+v0.3.0 works entirely local. No server needed. Evidence is a JSONL
+file on disk. Scorecard reads from it directly.
+
+v0.5.0 adds the backend for teams that need centralized view across
+multiple agents and CI pipelines.
+
+### No OPA. No Rego. No Policy Engine. No Deny.
 
 Zero infrastructure privileges. Read-only. Analyzes what the
 agent sends. Records everything. Computes scores.
 
 ### Signal Processor
 
-Runs after every protocol entry. Five detectors, each a simple
-function:
+Runs after every report. Five detectors, each a simple function:
 
 ```go
 type SignalDetector interface {
@@ -861,7 +1028,7 @@ type SignalDetector interface {
 
 No background jobs. No streaming. No state machines. Each detector
 reads the evidence chain if needed (new scope checks history,
-retry loop checks recent denies). Evidence chain is the only
+retry loop checks recent entries). Evidence chain is the only
 state store.
 
 ### Scorecard Computation
@@ -870,40 +1037,48 @@ On-demand, not pre-computed. `evidra scorecard` reads the evidence
 chain, counts signals per window, applies the formula. Fast enough
 for tens of thousands of entries (JSONL scan + count).
 
-For the hosted platform: pre-aggregated daily, queryable via API.
+For the hosted platform (v0.5.0): pre-aggregated daily, queryable
+via API, Prometheus metrics.
 
 ---
 
 ## 9. What This Becomes
 
-**Short term:** a tool that teams install to measure their AI agents
-before putting them in production.
+**Short term:** A tool that teams install to measure AI agents
+and CI pipelines before putting them in production.
 
-**Medium term:** a standard set of reliability signals that agent
-frameworks (Anthropic, OpenAI, open-source) integrate natively.
-Like how libraries integrate OpenTelemetry — agents integrate
-Evidra signals. Same protocol extends to CI pipelines, GitOps
-controllers, and any infrastructure automation.
+**Medium term:** The standard behavioral telemetry layer for
+infrastructure automation. Like how Prometheus standardized metrics
+and OpenTelemetry standardized traces — Evidra standardizes
+automation behavior signals. Infrastructure tools emit Evidra
+signals natively. Security platforms (Wiz, Orca, Trivy) enrich
+signals with infrastructure context.
 
-**Long term:** the reliability benchmark for automated infrastructure
-operations. "What's your Evidra score?" becomes a meaningful question
-when evaluating any automation that touches production — AI agents
-today, all automation tomorrow.
+**Long term:** The reliability benchmark for all automated
+infrastructure operations. "What's your Evidra score?" becomes
+a meaningful question when evaluating any automation — AI agents,
+CI pipelines, GitOps controllers, internal tools.
 
 The path to standard:
 
 ```
-1. Open source the five signals and score formula.
-2. Agent frameworks integrate prescribe/report natively.
-3. Scores become comparable across organizations.
-4. Evidra score becomes a procurement criterion for AI agents.
-5. Same standard adopted for CI/CD and infrastructure automation.
+1. Open source the five signals, score formula, and adapter interface.
+2. Ship built-in adapters for K8s + Terraform (v0.3.0).
+3. Pre-canonicalized path lets any tool integrate without Evidra code changes.
+4. Agent frameworks integrate prescribe/report natively.
+5. Security platforms enrich signals with infrastructure context.
+6. Scores become comparable across organizations.
+7. Evidra score becomes a procurement criterion for AI agents.
+8. Same standard adopted for all infrastructure automation.
 ```
 
-Step 1 is a GitHub repo. Step 2 requires adoption. Step 3 requires
-the formula to be stable and trusted. Step 4 happens organically
-if 1-3 work. Step 5 is the natural extension — if the benchmark
-is trusted for AI agents, teams apply it to everything.
+Steps 1-3 ship in v0.3.0. Step 3 is the key: the pre-canonicalized
+prescribe path means Pulumi, Ansible, CloudFormation, custom tools
+integrate on day one without waiting for a dedicated adapter. The
+adapter interface is open for anyone to implement.
+
+The strategic position: **Evidra is to automation behavior what
+Prometheus is to infrastructure metrics.**
 
 ---
 

@@ -4,8 +4,47 @@
 Entry point. Start here. This document links to everything else.
 
 ## One-liner
-Evidra is a flight recorder and reliability benchmark for
-infrastructure automation.
+Evidra is the standard signal and metrics layer for infrastructure
+automation.
+
+---
+
+## Strategic Positioning
+
+Evidra is **behavioral telemetry for automation** — the same way
+Prometheus is metrics for infrastructure.
+
+```
+Infrastructure observability stack:
+  Metrics → Prometheus
+  Logs    → Loki / Elasticsearch
+  Traces  → OpenTelemetry
+  Automation behavior → Evidra          ← new layer
+```
+
+Evidra is NOT a policy engine. NOT a security scanner. NOT runtime
+enforcement. It measures, records, and scores automation behavior
+through standard signals.
+
+Any tool that modifies infrastructure can integrate:
+
+| Tool | Integration | v0.3.0? |
+|------|------------|---------|
+| kubectl / K8s | Built-in adapter (raw YAML) | Yes |
+| Terraform | Built-in adapter (plan JSON) | Yes |
+| Helm | Via K8s adapter (template output) | Yes |
+| Pulumi | Pre-canonicalized prescribe | Ready (no adapter needed) |
+| Ansible | Pre-canonicalized prescribe | Ready |
+| CloudFormation | Pre-canonicalized prescribe | Ready |
+| ArgoCD | Built-in adapter | v0.5.0 |
+| Custom tools | Pre-canonicalized prescribe | Ready |
+
+Two integration paths:
+- **Adapter path:** Evidra parses the tool's native artifact format
+- **Pre-canonicalized path:** Tool sends its own resource identity,
+  Evidra handles risk analysis, signals, scoring
+
+Both produce identical evidence, signals, and scores.
 
 ---
 
@@ -65,65 +104,42 @@ infrastructure automation.
 
 ## Architecture
 
+### Three Components
+
 ```
-                    ┌──────────────────┐
-                    │ Infrastructure   │
-                    │ Actors           │
-                    │                  │
-                    │ AI Agents (MCP)  │
-                    │ CI Pipelines     │
-                    │ Automation       │
-                    └────────┬─────────┘
-                             │
-                             │ prescribe(raw_artifact)
-                             │ report(result)
-                             │
-                    ┌────────▼─────────┐
-                    │   Evidra Core    │
-                    │                  │
-                    │ ┌──────────────┐ │
-                    │ │   Protocol   │ │     prescribe / report
-                    │ │   Handler    │ │     MCP tool (agents)
-                    │ └──────┬───────┘ │     CLI (CI pipelines)
-                    │        │         │
-                    │ ┌──────▼───────┐ │
-                    │ │   Domain     │ │     k8s.io/apimachinery
-                    │ │   Adapters   │ │     hashicorp/terraform-json
-                    │ └──────┬───────┘ │     generic fallback
-                    │        │         │
-                    │ ┌──────▼───────┐ │
-                    │ │ Canonical    │ │     canonical_action
-                    │ │ Engine       │ │     intent_digest
-                    │ │              │ │     resource_shape_hash
-                    │ └──────┬───────┘ │
-                    │        │         │
-                    │ ┌──────▼───────┐ │
-                    │ │ Risk         │ │     risk matrix (10 lines Go)
-                    │ │ Analysis     │ │     ~10 catastrophic detectors
-                    │ │              │ │     (200 lines Go)
-                    │ └──────┬───────┘ │
-                    │        │         │
-                    │ ┌──────▼───────┐ │
-                    │ │ Signal       │ │     5 signals
-                    │ │ Processor    │ │     always on
-                    │ └──────┬───────┘ │
-                    │        │         │
-                    │ ┌──────▼───────┐ │
-                    │ │ Evidence     │ │     append-only JSONL
-                    │ │ Chain        │ │     hash-linked
-                    │ └──────────────┘ │     Ed25519 signed
-                    │                  │
-                    └────────┬─────────┘
-                             │
-                    ┌────────▼─────────┐
-                    │     Outputs      │
-                    │                  │
-                    │ evidra scorecard │
-                    │ evidra compare   │
-                    │ evidra fleet     │
-                    │ /metrics (Prom)  │
-                    └──────────────────┘
+┌─────────────────────────┐
+│     AI Agent Host        │
+│                         │
+│  Agent ◄──► evidra-mcp  │──── forward ────┐
+│          (MCP server)   │                 │
+└─────────────────────────┘                 │
+                                            │
+┌─────────────────────────┐                 │
+│      CI Runner          │                 ▼
+│                         │     ┌────────────────────┐
+│  terraform / kubectl    │     │   evidra-api       │
+│       │                 │     │   (backend)        │
+│  evidra CLI             │──── │                    │
+│  (shell wrapper)        │     │  evidence agg.     │
+└─────────────────────────┘     │  scorecards        │
+                                │  /metrics (Prom)   │
+                                └────────────────────┘
 ```
+
+**evidra-mcp** — sidecar for AI agents. MCP protocol (stdio/SSE).
+Exposes prescribe + report tools. Local evidence JSONL. Forwards
+to evidra-api if configured. v0.3.0.
+
+**evidra CLI** — for CI pipelines. Same protocol, shell wrapper.
+`evidra prescribe`, `evidra report`, `evidra scorecard`. v0.3.0.
+
+**evidra-api** — centralized backend. Aggregates evidence from all
+sources. Scorecards, comparison, Prometheus metrics. Multi-tenant.
+v0.5.0.
+
+All three share the same core: canon adapters, risk analysis,
+signal detectors, evidence chain. v0.3.0 works fully local
+without evidra-api.
 
 No OPA. No Rego. No policy engine. No deny.
 
@@ -178,6 +194,16 @@ Details: [End-to-End Example](EVIDRA_END_TO_END_EXAMPLE_v2.md)
 ---
 
 ## Key Decisions
+
+### Tool-Agnostic Protocol
+The prescribe/report protocol doesn't know what tool it's talking to.
+The `tool` field is a string, not an enum. Any value is accepted.
+Built-in adapters handle known tools (kubectl, terraform, helm).
+Unknown tools fall through to the generic adapter or accept
+pre-canonicalized input. New tools integrate without code changes
+to Evidra core.
+
+Why: Evidra is a telemetry layer, not a tool-specific product.
 
 ### Inspector, Not Enforcer
 prescribe() never denies. Never blocks. Returns risk_level and
@@ -323,33 +349,37 @@ Details: [Benchmark](EVIDRA_AGENT_RELIABILITY_BENCHMARK.md) §11-12
 
 ## Implementation Roadmap
 
-### v0.3.0 — Foundation
+### v0.3.0 — Local (2 binaries, no server)
 1. Canonicalization contract (frozen)
 2. K8s adapter + golden corpus
 3. Terraform adapter + golden corpus
-4. prescribe/report MCP tools
-5. Evidence chain with canon versioning
-
-### v0.4.0 — Benchmark
+4. **evidra CLI**: prescribe, report, scorecard, compare
+5. **evidra-mcp**: prescribe + report MCP tools for agents
 6. Five signal detectors
-7. Reliability score computation
-8. actor_meta labels for comparison
-9. `evidra scorecard` CLI
-10. `evidra compare` CLI
-11. Prometheus /metrics endpoint
+7. Risk matrix + catastrophic detectors
+8. Reliability score computation
+9. Evidence chain with canon versioning
+10. Local-only: everything reads/writes JSONL on disk
 
-### v0.5.0 — Platform
-12. Hosted scorecard (web UI)
-13. Multi-agent comparison dashboard
-14. Signed PDF scorecard export
-15. Telemetry forwarder (push mode)
-16. API: GET /v1/scorecard, GET /v1/compare
+### v0.4.0 — Team (local + forward)
+11. Evidence forwarding (push to remote URL)
+12. `evidra fleet` — all agents at a glance (local)
+13. Prometheus /metrics endpoint (embedded in evidra-mcp)
+14. actor_meta labels for comparison
+15. CI integration: GitHub Actions, GitLab CI examples
+
+### v0.5.0 — Platform (3 binaries)
+16. **evidra-api**: HTTP backend, receives forwarded evidence
+17. Aggregated scorecards across agents and pipelines
+18. Multi-agent comparison dashboard (web UI)
+19. Multi-tenant with API keys
+20. Signed PDF scorecard export
 
 ### v0.6.0 — Ecosystem
-17. Agent framework SDKs
-18. Public benchmark registry (opt-in)
-19. LangSmith/Langfuse correlation
-20. Compliance report generation
+21. Agent framework SDKs
+22. Public benchmark registry (opt-in)
+23. LangSmith/Langfuse correlation
+24. Compliance report generation
 
 Details: [Benchmark](EVIDRA_AGENT_RELIABILITY_BENCHMARK.md) §10
 
@@ -369,14 +399,16 @@ Details: [Test Strategy](EVIDRA_CANONICALIZATION_TEST_STRATEGY.md)
 
 ## Design Principles
 
-1. **Inspector, not enforcer.** prescribe() never denies.
-2. **Signals over policies.** Five behavioral signals, not rules.
-3. **Canonicalization defines intent.** Frozen contract, versioned, golden-tested.
-4. **Evidence chain as source of truth.** Append-only, signed, hash-linked.
-5. **Scope-aware comparison.** Only compare agents doing the same work.
-6. **Catastrophic risk only.** Detectors cover outage patterns, not style.
-7. **Minimal dependencies.** Two external libraries, ~2.3MB total.
-8. **Simple tests.** ~65 tests catch the same bugs as 8000.
+1. **Tool-agnostic protocol.** Any automation tool integrates via prescribe/report.
+2. **Inspector, not enforcer.** prescribe() never denies.
+3. **Signals over policies.** Five behavioral signals, not rules.
+4. **Canonicalization defines intent.** Frozen contract, versioned, golden-tested.
+5. **Evidence chain as source of truth.** Append-only, signed, hash-linked.
+6. **Scope-aware comparison.** Only compare agents doing the same work.
+7. **Catastrophic risk only.** Detectors cover outage patterns, not style.
+8. **Minimal dependencies.** Two external libraries, ~2.3MB total.
+9. **Simple tests.** ~65 tests catch the same bugs as 8000.
+10. **Standard signals.** Same five signals for every tool, every actor.
 
 ---
 
