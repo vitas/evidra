@@ -275,7 +275,10 @@ func (s *BenchmarkService) Prescribe(input PrescribeInput) PrescribeOutput {
 
 	// Run risk detectors on raw artifact regardless of canonicalization path
 	riskTags := risk.RunAll(cr.CanonicalAction, rawArtifact)
-	riskLevel := risk.RiskLevel(cr.CanonicalAction.OperationClass, cr.CanonicalAction.ScopeClass)
+	riskLevel := risk.ElevateRiskLevel(
+		risk.RiskLevel(cr.CanonicalAction.OperationClass, cr.CanonicalAction.ScopeClass),
+		riskTags,
+	)
 
 	// Track retries
 	var retryCount int

@@ -74,6 +74,51 @@ func TestRiskLevel_UnknownDefaultsHigh(t *testing.T) {
 	}
 }
 
+// --- Elevation tests ---
+
+func TestElevateRiskLevel_NoTags(t *testing.T) {
+	t.Parallel()
+	got := ElevateRiskLevel("medium", nil)
+	if got != "medium" {
+		t.Errorf("ElevateRiskLevel(medium, nil) = %q, want medium", got)
+	}
+}
+
+func TestElevateRiskLevel_EmptyTags(t *testing.T) {
+	t.Parallel()
+	got := ElevateRiskLevel("medium", []string{})
+	if got != "medium" {
+		t.Errorf("ElevateRiskLevel(medium, []) = %q, want medium", got)
+	}
+}
+
+func TestElevateRiskLevel_WithTags(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		base     string
+		tags     []string
+		expected string
+	}{
+		{"low_to_medium", "low", []string{"k8s.privileged_container"}, "medium"},
+		{"medium_to_high", "medium", []string{"k8s.hostpath_mount"}, "high"},
+		{"high_to_critical", "high", []string{"aws_iam.wildcard_policy"}, "critical"},
+		{"critical_stays_critical", "critical", []string{"ops.mass_delete"}, "critical"},
+		{"multiple_tags", "low", []string{"k8s.privileged_container", "k8s.hostpath_mount"}, "medium"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := ElevateRiskLevel(tt.base, tt.tags)
+			if got != tt.expected {
+				t.Errorf("ElevateRiskLevel(%q, %v) = %q, want %q", tt.base, tt.tags, got, tt.expected)
+			}
+		})
+	}
+}
+
 // --- K8s detector tests ---
 
 func TestDetectPrivileged_Container(t *testing.T) {

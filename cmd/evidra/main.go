@@ -292,7 +292,10 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 
 	cr := canon.Canonicalize(*toolFlag, *operationFlag, *envFlag, data)
 	riskTags := risk.RunAll(cr.CanonicalAction, data)
-	riskLevel := risk.RiskLevel(cr.CanonicalAction.OperationClass, cr.CanonicalAction.ScopeClass)
+	riskLevel := risk.ElevateRiskLevel(
+		risk.RiskLevel(cr.CanonicalAction.OperationClass, cr.CanonicalAction.ScopeClass),
+		riskTags,
+	)
 
 	actorID := *actorFlag
 	if actorID == "" {
