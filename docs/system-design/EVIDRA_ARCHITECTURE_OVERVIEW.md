@@ -418,6 +418,115 @@ Includes canonicalization_version and adapter_version.
 Scorecard reads evidence chain on demand. Single-pass scan.
 No database. No aggregation service.
 
+### Evidence Entry Schema
+
+Every JSONL line is a single evidence entry. All entry types share
+the same envelope. This schema is **normative** — implementations
+MUST write entries conforming to it. Replay determinism depends on
+every entry having the same shape.
+
+```jsonc
+{
+  // === Envelope (all entry types) ===
+  "entry_id":      "01JNG...",         // ULID, globally unique
+  "type":          "prescription",     // see Entry Types below
+  "ts":            "2026-03-04T12:00:00.000Z",  // RFC 3339, UTC
+
+  // === Identity ===
+  "actor": {
+    "type":        "agent",            // "agent" | "ci" | "human"
+    "id":          "claude-code",      // stable identifier
+    "origin":      "mcp"              // "mcp" | "cli" | "api"
+  },
+  "tenant_id":     "",                 // empty in local mode, required in service mode (v0.5.0+)
+  "trace_id":      "01JNG...",         // correlation key for inspection session
+
+  // === Digests (present on prescription and report) ===
+  "artifact_digest": "sha256:abc...",  // SHA256 of raw artifact bytes
+  "intent_digest":   "sha256:def...", // SHA256 of canonical JSON (prescription only)
+
+  // === Payload (type-specific) ===
+  "payload":       { },                // see Payload by Type below
+
+  // === Chain integrity ===
+  "previous_hash": "sha256:...",       // hash of previous entry (empty for first)
+  "hash":          "sha256:...",       // hash of this entry (all fields except hash itself)
+  "signature":     "ed25519:...",      // Ed25519 signature of hash
+
+  // === Versions (mandatory) ===
+  "spec_version":       "1.0",
+  "canon_version":      "k8s/v1",     // adapter-specific, e.g. "k8s/v1", "terraform/v1"
+  "adapter_version":    "0.3.0",
+  "scoring_version":    "1.0"
+}
+```
+
+### Entry Types
+
+| Type | When written | Payload contains |
+|------|-------------|-----------------|
+| `prescription` | prescribe() processes an artifact | canonical_action, risk_level, risk_tags, risk_details, ttl_ms, canon_source |
+| `report` | report() records execution outcome | prescription_id, exit_code, verdict |
+| `canonicalization_failure` | Adapter fails to parse artifact | error_code, error_message, adapter, raw_digest |
+| `finding` | Scanner output attached to prescription | tool, rule_id, severity, resource, message |
+| `signal` | Signal detector fires (written at scorecard time) | signal_name, sub_signal, entry_refs, details |
+| `receipt` | evidra-api acknowledges forwarded batch (v0.5.0+) | batch_id, entry_count, server_ts |
+
+### Payload by Type
+
+**prescription:**
+```jsonc
+{
+  "prescription_id": "01JNG...",
+  "canonical_action": {
+    "tool":               "kubectl",
+    "operation":          "apply",
+    "operation_class":    "mutate",
+    "resource_identity":  [{"api_version": "apps/v1", "kind": "Deployment", "namespace": "prod", "name": "web"}],
+    "scope_class":        "production",
+    "resource_count":     1,
+    "resource_shape_hash": "sha256:..."
+  },
+  "risk_level":    "high",
+  "risk_tags":     ["privileged_container"],
+  "risk_details":  ["Container runs as privileged in production namespace"],
+  "ttl_ms":        600000,
+  "canon_source":  "adapter"           // "adapter" | "external"
+}
+```
+
+**report:**
+```jsonc
+{
+  "prescription_id": "01JNG...",
+  "exit_code":       0,
+  "verdict":         "success"         // "success" | "failure" | "error"
+}
+```
+
+**canonicalization_failure:**
+```jsonc
+{
+  "error_code":    "parse_error",
+  "error_message": "invalid YAML at line 42",
+  "adapter":       "k8s",
+  "raw_digest":    "sha256:..."        // always computable from raw bytes
+}
+```
+
+### Schema Rules
+
+1. **entry_id** is a ULID. Monotonically increasing within a single writer.
+2. **type** is a closed enum. Adding a new type requires a spec version bump.
+3. **ts** is always UTC. Clock skew between writers is accepted; ordering is by entry position in the chain, not by timestamp.
+4. **actor** is mandatory on prescription and report. MAY be empty on signal and receipt entries.
+5. **tenant_id** is empty string in local mode. In service mode (v0.5.0+), every entry MUST have a non-empty tenant_id derived from auth, not self-reported.
+6. **trace_id** correlates prescribe/report pairs within one inspection session. Same ULID for both entries of a pair.
+7. **Digests** use `sha256:` prefix. artifact_digest is present on both prescription and report (for drift detection). intent_digest is prescription-only.
+8. **Versions** are mandatory on every entry. If an entry is written by a component that doesn't know scoring_version (e.g. CLI prescribe), it writes `""` — never omits the field.
+9. **previous_hash** creates the append-only chain. First entry in a segment has `previous_hash: ""`.
+10. **Entries are immutable.** Corrections are new entries, not mutations.
+
 ---
 
 ## Strategic Positioning
