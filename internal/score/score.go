@@ -61,9 +61,37 @@ func Compute(results []signal.SignalResult, totalOps int) Scorecard {
 	}
 	sc.Penalty = penalty
 	sc.Score = 100 * (1 - penalty)
+
+	// Safety floors: cap score when specific signal rates exceed thresholds
+	if sc.Rates["protocol_violation"] > 0.10 && sc.Score > 90 {
+		sc.Score = 90
+	}
+	if sc.Rates["artifact_drift"] > 0.05 && sc.Score > 85 {
+		sc.Score = 85
+	}
+
 	sc.Band = scoreBand(sc.Score)
 
 	return sc
+}
+
+// Confidence represents the reliability of a computed score.
+type Confidence struct {
+	Level        string  `json:"level"`
+	ScoreCeiling float64 `json:"score_ceiling"`
+}
+
+// ComputeConfidence determines score confidence based on data quality indicators.
+// externalPct is the fraction of entries with canon_source="external" (pre-canonicalized).
+// violationRate is the protocol_violation rate (violations / total_ops).
+func ComputeConfidence(externalPct, violationRate float64) Confidence {
+	if violationRate > 0.10 {
+		return Confidence{Level: "low", ScoreCeiling: 85}
+	}
+	if externalPct > 0.50 {
+		return Confidence{Level: "medium", ScoreCeiling: 95}
+	}
+	return Confidence{Level: "high", ScoreCeiling: 100}
 }
 
 func scoreBand(score float64) string {

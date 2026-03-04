@@ -99,6 +99,73 @@ func TestCompute_ScoreBands(t *testing.T) {
 	}
 }
 
+func TestComputeConfidence_High(t *testing.T) {
+	t.Parallel()
+	conf := ComputeConfidence(0.0, 0.0)
+	if conf.Level != "high" {
+		t.Errorf("level: got %q, want high", conf.Level)
+	}
+	if conf.ScoreCeiling != 100 {
+		t.Errorf("ceiling: got %.0f, want 100", conf.ScoreCeiling)
+	}
+}
+
+func TestComputeConfidence_Medium(t *testing.T) {
+	t.Parallel()
+	conf := ComputeConfidence(0.6, 0.0)
+	if conf.Level != "medium" {
+		t.Errorf("level: got %q, want medium", conf.Level)
+	}
+	if conf.ScoreCeiling != 95 {
+		t.Errorf("ceiling: got %.0f, want 95", conf.ScoreCeiling)
+	}
+}
+
+func TestComputeConfidence_Low(t *testing.T) {
+	t.Parallel()
+	conf := ComputeConfidence(0.0, 0.15)
+	if conf.Level != "low" {
+		t.Errorf("level: got %q, want low", conf.Level)
+	}
+	if conf.ScoreCeiling != 85 {
+		t.Errorf("ceiling: got %.0f, want 85", conf.ScoreCeiling)
+	}
+}
+
+func TestCompute_SafetyFloor_ProtocolViolation(t *testing.T) {
+	t.Parallel()
+
+	// 15 violations out of 100 = 15% rate, exceeds 10% threshold
+	results := []signal.SignalResult{
+		{Name: "protocol_violation", Count: 15},
+		{Name: "artifact_drift", Count: 0},
+		{Name: "retry_loop", Count: 0},
+		{Name: "blast_radius", Count: 0},
+		{Name: "new_scope", Count: 0},
+	}
+	sc := Compute(results, 100)
+	if sc.Score > 90 {
+		t.Errorf("protocol_violation > 10%% should cap score at 90, got %.1f", sc.Score)
+	}
+}
+
+func TestCompute_SafetyFloor_ArtifactDrift(t *testing.T) {
+	t.Parallel()
+
+	// 8 drifts out of 100 = 8% rate, exceeds 5% threshold
+	results := []signal.SignalResult{
+		{Name: "protocol_violation", Count: 0},
+		{Name: "artifact_drift", Count: 8},
+		{Name: "retry_loop", Count: 0},
+		{Name: "blast_radius", Count: 0},
+		{Name: "new_scope", Count: 0},
+	}
+	sc := Compute(results, 100)
+	if sc.Score > 85 {
+		t.Errorf("artifact_drift > 5%% should cap score at 85, got %.1f", sc.Score)
+	}
+}
+
 func TestWorkloadOverlap_Identical(t *testing.T) {
 	t.Parallel()
 
