@@ -274,7 +274,7 @@ func TestDetectBlastRadius_Destructive(t *testing.T) {
 	t.Parallel()
 
 	entries := []Entry{
-		{EventID: "P1", IsPrescription: true, OperationClass: "destroy", ResourceCount: 15},
+		{EventID: "P1", IsPrescription: true, OperationClass: "destroy", ResourceCount: 6},
 	}
 	result := DetectBlastRadius(entries)
 	if result.Count != 1 {
@@ -286,7 +286,7 @@ func TestDetectBlastRadius_BelowThreshold(t *testing.T) {
 	t.Parallel()
 
 	entries := []Entry{
-		{EventID: "P1", IsPrescription: true, OperationClass: "destroy", ResourceCount: 5},
+		{EventID: "P1", IsPrescription: true, OperationClass: "destroy", ResourceCount: 4},
 	}
 	result := DetectBlastRadius(entries)
 	if result.Count != 0 {
@@ -294,15 +294,43 @@ func TestDetectBlastRadius_BelowThreshold(t *testing.T) {
 	}
 }
 
-func TestDetectBlastRadius_Mutating(t *testing.T) {
+func TestDetectBlastRadius_MutateDoesNotFire(t *testing.T) {
 	t.Parallel()
 
 	entries := []Entry{
 		{EventID: "P1", IsPrescription: true, OperationClass: "mutate", ResourceCount: 60},
 	}
 	result := DetectBlastRadius(entries)
-	if result.Count != 1 {
-		t.Errorf("count = %d, want 1", result.Count)
+	if result.Count != 0 {
+		t.Errorf("count = %d, want 0 (mutate does not fire blast_radius)", result.Count)
+	}
+}
+
+func TestBlastRadius_DestroyOnlyThreshold5(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		opClass string
+		count   int
+		want    int
+	}{
+		{"destroy above threshold", "destroy", 6, 1},
+		{"mutate high count", "mutate", 60, 0},
+		{"destroy below threshold", "destroy", 4, 0},
+		{"destroy at threshold", "destroy", 5, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			entries := []Entry{
+				{EventID: "P1", IsPrescription: true, OperationClass: tt.opClass, ResourceCount: tt.count},
+			}
+			result := DetectBlastRadius(entries)
+			if result.Count != tt.want {
+				t.Errorf("count = %d, want %d", result.Count, tt.want)
+			}
+		})
 	}
 }
 

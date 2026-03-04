@@ -1,21 +1,18 @@
 package signal
 
-// Blast radius thresholds by operation class.
-const (
-	BlastRadiusDestructive = 10
-	BlastRadiusMutating    = 50
-)
+// BlastRadiusThreshold is the resource count above which a destroy operation
+// triggers the blast_radius signal.
+const BlastRadiusThreshold = 5
 
-// DetectBlastRadius finds operations with resource_count exceeding the
-// threshold for their operation class.
+// DetectBlastRadius finds destroy operations with resource_count exceeding
+// the threshold. Only destroy operations are considered.
 func DetectBlastRadius(entries []Entry) SignalResult {
 	var eventIDs []string
 	for _, e := range entries {
 		if !e.IsPrescription || e.ResourceCount == 0 {
 			continue
 		}
-		threshold := blastThreshold(e.OperationClass)
-		if threshold > 0 && e.ResourceCount > threshold {
+		if e.OperationClass == "destroy" && e.ResourceCount > BlastRadiusThreshold {
 			eventIDs = append(eventIDs, e.EventID)
 		}
 	}
@@ -25,14 +22,4 @@ func DetectBlastRadius(entries []Entry) SignalResult {
 		Count:    len(eventIDs),
 		EventIDs: eventIDs,
 	}
-}
-
-func blastThreshold(opClass string) int {
-	switch opClass {
-	case "destroy":
-		return BlastRadiusDestructive
-	case "mutate":
-		return BlastRadiusMutating
-	}
-	return 0
 }
