@@ -61,7 +61,7 @@ func cmdScorecard(args []string, stdout, stderr io.Writer) int {
 	actorFlag := fs.String("actor", "", "Actor ID to generate scorecard for")
 	periodFlag := fs.String("period", "30d", "Time period (e.g. 30d)")
 	evidenceFlag := fs.String("evidence-dir", "", "Evidence directory")
-	ttlFlag := fs.String("ttl", "5m", "TTL for unreported prescription detection")
+	ttlFlag := fs.String("ttl", signal.DefaultTTL.String(), "TTL for unreported prescription detection")
 	toolFlag := fs.String("tool", "", "Filter by tool name")
 	scopeFlag := fs.String("scope", "", "Filter by scope class")
 	if err := fs.Parse(args); err != nil {
@@ -141,7 +141,7 @@ func cmdExplain(args []string, stdout, stderr io.Writer) int {
 	actorFlag := fs.String("actor", "", "Actor ID to explain")
 	periodFlag := fs.String("period", "30d", "Time period (e.g. 30d)")
 	evidenceFlag := fs.String("evidence-dir", "", "Evidence directory")
-	ttlFlag := fs.String("ttl", "5m", "TTL for unreported prescription detection")
+	ttlFlag := fs.String("ttl", signal.DefaultTTL.String(), "TTL for unreported prescription detection")
 	toolFlag := fs.String("tool", "", "Filter by tool name")
 	scopeFlag := fs.String("scope", "", "Filter by scope class")
 	if err := fs.Parse(args); err != nil {
