@@ -3,7 +3,6 @@ package mcpserver
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"samebits.com/evidra-benchmark/internal/risk"
 	"samebits.com/evidra-benchmark/pkg/evidence"
 	"samebits.com/evidra-benchmark/pkg/invocation"
+	"samebits.com/evidra-benchmark/pkg/version"
 )
 
 // Options configures the benchmark MCP server.
@@ -22,7 +22,6 @@ type Options struct {
 	Version      string
 	EvidencePath string
 	Environment  string
-	ForwardURL   string
 	RetryTracker bool
 }
 
@@ -86,6 +85,8 @@ type reportHandler struct {
 type BenchmarkService struct {
 	evidencePath string
 	retryTracker *RetryTracker
+	traceID      string
+	lastActor    evidence.Actor
 }
 
 const (
@@ -113,6 +114,7 @@ func NewServer(opts Options) *mcp.Server {
 
 	svc := &BenchmarkService{
 		evidencePath: opts.EvidencePath,
+		traceID:      evidence.GenerateTraceID(),
 	}
 	if opts.RetryTracker {
 		svc.retryTracker = NewRetryTracker(10 * time.Minute)
@@ -246,37 +248,65 @@ func (s *BenchmarkService) Prescribe(input PrescribeInput) PrescribeOutput {
 		retryCount = s.retryTracker.Record(cr.IntentDigest, cr.CanonicalAction.ResourceShapeHash)
 	}
 
-	// Build evidence record
-	eventID := ulid.Make().String()
-	rec := evidence.Record{
-		EventID:   eventID,
-		Timestamp: time.Now().UTC(),
-		Actor:     input.Actor,
-		Tool:      input.Tool,
-		Operation: input.Operation,
-		Params: map[string]interface{}{
-			"artifact_digest":     cr.ArtifactDigest,
-			"intent_digest":       cr.IntentDigest,
-			"resource_shape_hash": cr.CanonicalAction.ResourceShapeHash,
-			"canon_version":       cr.CanonVersion,
-			"resource_count":      cr.CanonicalAction.ResourceCount,
-			"risk_tags":           riskTags,
-		},
-		PolicyDecision: evidence.PolicyDecision{
-			Allow:     true,
-			RiskLevel: riskLevel,
-			Reason:    "prescribed",
-			RuleIDs:   riskTags,
-		},
-		Source: "local",
-	}
-	if input.Environment != "" {
-		rec.EnvironmentLabel = input.Environment
+	// Determine canon_source
+	canonSource := "adapter"
+	if input.CanonicalAction != nil {
+		canonSource = "external"
 	}
 
-	// Write to evidence chain
+	// Build prescription payload
+	prescriptionID := ulid.Make().String()
+	prescPayload := evidence.PrescriptionPayload{
+		PrescriptionID:  prescriptionID,
+		CanonicalAction: cr.RawAction,
+		RiskLevel:       riskLevel,
+		RiskTags:        riskTags,
+		TTLMs:           evidence.DefaultTTLMs,
+		CanonSource:     canonSource,
+	}
+	payloadJSON, err := json.Marshal(prescPayload)
+	if err != nil {
+		return PrescribeOutput{
+			OK:    false,
+			Error: &ErrInfo{Code: "internal_error", Message: "failed to marshal prescription payload"},
+		}
+	}
+
+	// Map invocation.Actor to evidence.Actor (Origin -> Provenance)
+	actor := evidence.Actor{
+		Type:       input.Actor.Type,
+		ID:         input.Actor.ID,
+		Provenance: input.Actor.Origin,
+	}
+
+	// Get last hash for chain
+	lastHash, _ := evidence.LastHashAtPath(s.evidencePath)
+
+	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
+		Type:           evidence.EntryTypePrescribe,
+		TraceID:        s.traceID,
+		Actor:          actor,
+		IntentDigest:   cr.IntentDigest,
+		ArtifactDigest: cr.ArtifactDigest,
+		Payload:        payloadJSON,
+		PreviousHash:   lastHash,
+		SpecVersion:    "0.3.0",
+		CanonVersion:   cr.CanonVersion,
+		AdapterVersion: version.Version,
+	})
+	if err != nil {
+		return PrescribeOutput{
+			OK:    false,
+			Error: &ErrInfo{Code: "internal_error", Message: err.Error()},
+		}
+	}
+
+	// Store actor for subsequent report calls
+	s.lastActor = actor
+
+	// Write to evidence store
 	if s.evidencePath != "" {
-		if _, err := evidence.AppendAtPath(s.evidencePath, rec); err != nil {
+		if err := evidence.AppendEntryAtPath(s.evidencePath, entry); err != nil {
 			return PrescribeOutput{
 				OK:    false,
 				Error: &ErrInfo{Code: "evidence_write_failed", Message: err.Error()},
@@ -286,7 +316,7 @@ func (s *BenchmarkService) Prescribe(input PrescribeInput) PrescribeOutput {
 
 	return PrescribeOutput{
 		OK:             true,
-		PrescriptionID: eventID,
+		PrescriptionID: entry.EntryID,
 		RiskLevel:      riskLevel,
 		RiskTags:       riskTags,
 		ArtifactDigest: cr.ArtifactDigest,
@@ -309,9 +339,9 @@ func (s *BenchmarkService) Report(input ReportInput) ReportOutput {
 		}
 	}
 
-	// Look up prescription
+	// Look up prescription in the new entry store
 	if s.evidencePath != "" {
-		_, found, err := evidence.FindByEventID(s.evidencePath, input.PrescriptionID)
+		_, found, err := evidence.FindEntryByID(s.evidencePath, input.PrescriptionID)
 		if err != nil {
 			return ReportOutput{
 				OK:    false,
@@ -326,38 +356,44 @@ func (s *BenchmarkService) Report(input ReportInput) ReportOutput {
 		}
 	}
 
-	// Build report record
-	eventID := ulid.Make().String()
-	exitCode := input.ExitCode
-	status := "completed"
-	if exitCode != 0 {
-		status = "failed"
+	// Build report payload
+	reportID := ulid.Make().String()
+	reportPayload := evidence.ReportPayload{
+		ReportID:       reportID,
+		PrescriptionID: input.PrescriptionID,
+		ExitCode:       input.ExitCode,
+		Verdict:        evidence.VerdictFromExitCode(input.ExitCode),
+	}
+	payloadJSON, err := json.Marshal(reportPayload)
+	if err != nil {
+		return ReportOutput{
+			OK:    false,
+			Error: &ErrInfo{Code: "internal_error", Message: "failed to marshal report payload"},
+		}
 	}
 
-	rec := evidence.Record{
-		EventID:   eventID,
-		Timestamp: time.Now().UTC(),
-		Tool:      "report",
-		Operation: "outcome",
-		Params: map[string]interface{}{
-			"prescription_id": input.PrescriptionID,
-			"artifact_digest": input.ArtifactDigest,
-		},
-		ExecutionResult: evidence.ExecutionResult{
-			Status:   status,
-			ExitCode: &exitCode,
-		},
-		PolicyDecision: evidence.PolicyDecision{
-			Allow:     true,
-			RiskLevel: "low",
-			Reason:    "reported",
-		},
-		Source: "local",
+	lastHash, _ := evidence.LastHashAtPath(s.evidencePath)
+
+	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
+		Type:           evidence.EntryTypeReport,
+		TraceID:        s.traceID,
+		Actor:          s.lastActor,
+		ArtifactDigest: evidence.FormatDigest(input.ArtifactDigest),
+		Payload:        payloadJSON,
+		PreviousHash:   lastHash,
+		SpecVersion:    "0.3.0",
+		AdapterVersion: version.Version,
+	})
+	if err != nil {
+		return ReportOutput{
+			OK:    false,
+			Error: &ErrInfo{Code: "internal_error", Message: err.Error()},
+		}
 	}
 
-	// Write to evidence chain
+	// Write to evidence store
 	if s.evidencePath != "" {
-		if _, err := evidence.AppendAtPath(s.evidencePath, rec); err != nil {
+		if err := evidence.AppendEntryAtPath(s.evidencePath, entry); err != nil {
 			return ReportOutput{
 				OK:    false,
 				Error: &ErrInfo{Code: "evidence_write_failed", Message: err.Error()},
@@ -365,10 +401,9 @@ func (s *BenchmarkService) Report(input ReportInput) ReportOutput {
 		}
 	}
 
-	// Signals will be computed in Phase 5
 	return ReportOutput{
 		OK:       true,
-		ReportID: eventID,
+		ReportID: entry.EntryID,
 	}
 }
 
@@ -382,10 +417,11 @@ type getEventInput struct {
 	EventID string `json:"event_id"`
 }
 
+// GetEventOutput is returned by the get_event tool.
 type GetEventOutput struct {
-	OK     bool             `json:"ok"`
-	Record *evidence.Record `json:"record,omitempty"`
-	Error  *ErrInfo         `json:"error,omitempty"`
+	OK    bool                    `json:"ok"`
+	Entry *evidence.EvidenceEntry `json:"entry,omitempty"`
+	Error *ErrInfo                `json:"error,omitempty"`
 }
 
 func (h *getEventHandler) Handle(
@@ -404,17 +440,14 @@ func (s *BenchmarkService) GetEvent(eventID string) GetEventOutput {
 	if s.evidencePath == "" {
 		return GetEventOutput{OK: false, Error: &ErrInfo{Code: "no_evidence_path", Message: "evidence path not configured"}}
 	}
-	rec, found, err := evidence.FindByEventID(s.evidencePath, eventID)
+	entry, found, err := evidence.FindEntryByID(s.evidencePath, eventID)
 	if err != nil {
-		if errors.Is(err, evidence.ErrChainInvalid) {
-			return GetEventOutput{OK: false, Error: &ErrInfo{Code: "evidence_chain_invalid", Message: "evidence chain validation failed"}}
-		}
 		return GetEventOutput{OK: false, Error: &ErrInfo{Code: "internal_error", Message: "failed to read evidence"}}
 	}
 	if !found {
 		return GetEventOutput{OK: false, Error: &ErrInfo{Code: "not_found", Message: "event_id not found"}}
 	}
-	return GetEventOutput{OK: true, Record: &rec}
+	return GetEventOutput{OK: true, Entry: &entry}
 }
 
 // --- resource handlers ---
@@ -427,11 +460,11 @@ func (s *BenchmarkService) readResourceEvent(_ context.Context, req *mcp.ReadRes
 	if s.evidencePath == "" {
 		return nil, mcp.ResourceNotFoundError(req.Params.URI)
 	}
-	rec, found, err := evidence.FindByEventID(s.evidencePath, eventID)
+	entry, found, err := evidence.FindEntryByID(s.evidencePath, eventID)
 	if err != nil || !found {
 		return nil, mcp.ResourceNotFoundError(req.Params.URI)
 	}
-	b, err := json.MarshalIndent(rec, "", "  ")
+	b, err := json.MarshalIndent(entry, "", "  ")
 	if err != nil {
 		return nil, err
 	}

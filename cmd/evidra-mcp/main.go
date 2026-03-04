@@ -26,7 +26,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 	showVersion := fs.Bool("version", false, "Print version information and exit")
 	evidenceFlag := fs.String("evidence-dir", "", "Path to store evidence records")
 	environmentFlag := fs.String("environment", "", "Environment label (production, staging, development)")
-	forwardURL := fs.String("forward-url", "", "URL to forward evidence (optional, for evidra-api)")
 	retryFlag := fs.Bool("retry-tracker", false, "Enable retry loop tracking")
 	helpFlag := fs.Bool("help", false, "Show help")
 
@@ -45,14 +44,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	evidencePath := resolveEvidencePath(*evidenceFlag)
 	environment := resolveEnvironment(*environmentFlag)
-	fwdURL := resolveForwardURL(*forwardURL)
 
 	server := mcpserver.NewServer(mcpserver.Options{
 		Name:         "evidra-benchmark",
 		Version:      version.Version,
 		EvidencePath: evidencePath,
 		Environment:  environment,
-		ForwardURL:   fwdURL,
 		RetryTracker: *retryFlag || envBool("EVIDRA_RETRY_TRACKER", false),
 	})
 
@@ -90,16 +87,6 @@ func resolveEnvironment(explicit string) string {
 	return ""
 }
 
-func resolveForwardURL(explicit string) string {
-	if explicit != "" {
-		return explicit
-	}
-	if v := strings.TrimSpace(os.Getenv("EVIDRA_API_URL")); v != "" {
-		return v
-	}
-	return ""
-}
-
 func envBool(key string, fallback bool) bool {
 	v := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
 	switch v {
@@ -120,7 +107,6 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "FLAGS:")
 	fmt.Fprintln(w, "  --evidence-dir <dir>    Where to store evidence chain (default: ~/.evidra/evidence)")
 	fmt.Fprintln(w, "  --environment <label>   Environment label (production, staging, development)")
-	fmt.Fprintln(w, "  --forward-url <url>     URL to forward evidence (optional, for evidra-api)")
 	fmt.Fprintln(w, "  --retry-tracker         Enable retry loop tracking")
 	fmt.Fprintln(w, "  --version               Print version and exit")
 	fmt.Fprintln(w, "  --help                  Show this help")
@@ -128,7 +114,6 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "ENVIRONMENT:")
 	fmt.Fprintln(w, "  EVIDRA_EVIDENCE_DIR     Override evidence directory")
 	fmt.Fprintln(w, "  EVIDRA_ENVIRONMENT      Default environment label")
-	fmt.Fprintln(w, "  EVIDRA_API_URL          Forward evidence to this URL")
 	fmt.Fprintln(w, "  EVIDRA_RETRY_TRACKER    Enable retry tracking (true/false)")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "TOOLS:")
