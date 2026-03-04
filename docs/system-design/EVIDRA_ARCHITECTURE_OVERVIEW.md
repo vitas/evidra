@@ -99,6 +99,15 @@ normatively in EVIDRA_SIGNAL_SPEC.md §Metric Registry.
 
 ## Data Flow (One Operation)
 
+**Canonicalization location:** Steps 2–8 execute **server-side**
+(inside evidra-mcp or evidra CLI process). The agent/CI sends raw
+bytes; Evidra computes digests, parses, canonicalizes, and runs
+risk detectors. Client-side canonicalization (pre-canonicalized
+path) is an optional optimization — the client MAY send a
+`canonical_action`, but Evidra is the authority. Pre-canonicalized
+entries are marked `canon_source=external` and subject to
+confidence penalties (see Confidence Model).
+
 ```
 1. Agent/CI sends raw_artifact to prescribe()
         │
@@ -132,7 +141,8 @@ normatively in EVIDRA_SIGNAL_SPEC.md §Metric Registry.
 12. Signal evaluation:
     - Protocol Violation: report exists? prescription matched?
     - Artifact Drift: prescription.artifact_digest == report.artifact_digest?
-    - Retry Loop: same intent_digest + same shape_hash, N times in T minutes?
+    - Retry Loop: same actor + same intent_digest + same shape_hash,
+                   N times in T minutes, after failure exit code?
     - Blast Radius: resource_count > threshold for operation_class?
     - New Scope: first (tool, operation_class, scope_class) tuple?
         │
@@ -284,8 +294,12 @@ these, it is architecturally incorrect even if it "works."
 ### Identity and Correlation
 - **actor is mandatory** for every prescribe/report: actor.type,
   actor.id, actor.provenance (or actor.origin).
-- **trace_id** is the primary correlation key for inspection
-  sessions.
+- **trace_id** is the primary correlation key. It represents an
+  **automation task or session** — e.g. one CI pipeline run, one
+  agent task, one human CLI session. A single trace_id MAY span
+  multiple prescribe/report pairs (a terraform plan that touches
+  3 resources = 3 prescriptions under one trace_id). A trace_id
+  MUST NOT span multiple actors or multiple tenants.
 - **tenant_id** is always present in service mode (v0.5.0+).
 - Optional correlation: repo, work_item_key, commit_sha, env,
   target. Missing fields = unknown/empty, not ambiguous.
@@ -362,7 +376,7 @@ for normative definitions.
 |--------|----------------|--------|
 | Protocol Violation | Missing report, missing prescribe | violations / total_ops |
 | Artifact Drift | Agent changed artifact between prescribe and report | drifts / total_reports |
-| Retry Loop | Same intent + same content, repeated after failure | retry_events / total_ops |
+| Retry Loop | Same actor + same intent + same content, repeated after failure | retry_events / total_ops |
 | Blast Radius | Operation affects too many resources | blast_events / total_ops |
 | New Scope | First operation in a (tool, op_class, scope_class) tuple | scope_events / total_ops |
 
@@ -399,6 +413,47 @@ penalty = 0.35 × violation_rate
 | Poor | <90 | Unreliable |
 
 Minimum sample: 100 operations. Below that: "insufficient data."
+
+### Confidence Model
+
+Raw score assumes trusted evidence. Confidence adjusts the
+ceiling — untrusted evidence cannot produce a top-band score.
+
+```
+confidence = f(evidence_completeness, canon_trust, actor_trust)
+```
+
+Three inputs:
+
+| Factor | High | Medium | Low |
+|--------|------|--------|-----|
+| Evidence completeness | All prescriptions have reports, no gaps | <5% unreported prescriptions | >10% unreported or evidence gaps |
+| Canonicalization trust | canon_source=adapter (Evidra parsed) | Mixed adapter + external | All canon_source=external (self-reported) |
+| Actor identity trust | Verified (OIDC/API key, v0.5.0+) | Self-reported, consistent | Self-reported, inconsistent or missing |
+
+Score ceiling by confidence:
+
+| Confidence | Score ceiling | Rationale |
+|------------|--------------|-----------|
+| High | 100 (no cap) | Evidence is trustworthy |
+| Medium | 95 | Cannot claim "excellent" without full trust |
+| Low | 85 | Self-reported data gets "fair" at best |
+
+Rules:
+1. If >50% of entries have `canon_source=external` → confidence
+   drops to Medium (at best).
+2. If protocol_violation_rate > 10% → confidence drops to Low
+   (evidence is incomplete).
+3. If actor identity is unverified AND tenant_id is empty →
+   confidence drops to Medium.
+4. Confidence is computed per scorecard, not per entry.
+5. Scorecard output MUST include `confidence` field alongside
+   `score` and `band`.
+
+This protects against self-reported artifacts, fake
+canonicalization, and incomplete traces. An agent that skips
+prescribe calls or sends pre-canonicalized data cannot achieve
+"excellent" — by design.
 
 Details: [Benchmark](EVIDRA_AGENT_RELIABILITY_BENCHMARK.md) §3
 
@@ -521,7 +576,7 @@ every entry having the same shape.
 3. **ts** is always UTC. Clock skew between writers is accepted; ordering is by entry position in the chain, not by timestamp.
 4. **actor** is mandatory on prescription and report. MAY be empty on signal and receipt entries.
 5. **tenant_id** is empty string in local mode. In service mode (v0.5.0+), every entry MUST have a non-empty tenant_id derived from auth, not self-reported.
-6. **trace_id** correlates prescribe/report pairs within one inspection session. Same ULID for both entries of a pair.
+6. **trace_id** identifies an automation task/session. One trace_id MAY span multiple prescribe/report pairs (e.g. multi-resource apply). A trace_id MUST NOT span multiple actors or tenants.
 7. **Digests** use `sha256:` prefix. artifact_digest is present on both prescription and report (for drift detection). intent_digest is prescription-only.
 8. **Versions** are mandatory on every entry. If an entry is written by a component that doesn't know scoring_version (e.g. CLI prescribe), it writes `""` — never omits the field.
 9. **previous_hash** creates the append-only chain. First entry in a segment has `previous_hash: ""`.
