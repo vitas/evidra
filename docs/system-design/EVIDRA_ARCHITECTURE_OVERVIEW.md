@@ -74,6 +74,77 @@ without evidra-api.
 
 No OPA. No Rego. No policy engine. No deny.
 
+### Core Pipeline Architecture
+
+The three components above are deployment shells. Inside each one
+lives the same core pipeline:
+
+```
+Agent / CI
+    │
+    │ prescribe(raw_artifact)
+    ▼
+┌──────────────────────────────────────────────────────────┐
+│                    Inspector API                         │
+│  ┌────────────────────────────────────────────────────┐  │
+│  │              Canonicalization                      │  │
+│  │  raw artifact → adapter → CanonicalAction          │  │
+│  │  artifact_digest (raw bytes)                       │  │
+│  │  intent_digest (canonical JSON)                    │  │
+│  │  resource_shape_hash (normalized spec)             │  │
+│  └──────────────────────┬─────────────────────────────┘  │
+│                         │                                │
+│  ┌──────────────────────▼─────────────────────────────┐  │
+│  │              Risk Analysis                         │  │
+│  │  risk matrix (op_class × scope_class → risk_level) │  │
+│  │  catastrophic detectors (raw artifact → risk_tags) │  │
+│  └──────────────────────┬─────────────────────────────┘  │
+│                         │                                │
+│                         ▼                                │
+│               Prescription returned                      │
+│               (risk_level, risk_details)                  │
+└──────────────────────────┬───────────────────────────────┘
+                           │
+                    Agent executes
+                           │
+    │ report(prescription_id, exit_code, artifact_digest)
+    ▼
+┌──────────────────────────────────────────────────────────┐
+│                   Evidence Store                         │
+│  append-only JSONL, hash-linked, Ed25519 signed          │
+│  prescription → report → protocol_entry                  │
+└──────────────────────────┬───────────────────────────────┘
+                           │
+                           │ on demand (scorecard / explain)
+                           ▼
+┌──────────────────────────────────────────────────────────┐
+│                   Signals Engine                         │
+│  protocol_violation │ artifact_drift │ retry_loop        │
+│  blast_radius       │ new_scope                          │
+└──────────────────────────┬───────────────────────────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────┐
+│                Score + Explain                           │
+│  penalty = Σ(weight × rate)                              │
+│  score = 100 × (1 - penalty)                             │
+│  confidence = f(completeness, canon_trust, actor_trust)  │
+│  band = excellent | good | fair | poor                   │
+└──────────────────────────┬───────────────────────────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────┐
+│                   Export Plane                            │
+│  /metrics (Prom)  │  OTLP (OTel)  │  JSONL  │  SIEM     │
+└──────────────────────────────────────────────────────────┘
+```
+
+Key properties of this pipeline:
+- **Canonicalization and risk analysis are synchronous** (on prescribe call)
+- **Evidence write is synchronous** (prescription and report are written immediately)
+- **Signals and scoring are lazy** (computed on demand, not real-time)
+- **Export is a read path** (consumes evidence, never writes back)
+
 ### Fourth Component: Signal Export
 
 ```
