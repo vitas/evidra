@@ -162,7 +162,7 @@ func computeK8sShapeHash(objects []identifiedK8sObject) string {
 	}
 
 	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:])
+	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
 // deepCopyMap creates a deep copy of a map[string]interface{}.
