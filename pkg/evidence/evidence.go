@@ -9,8 +9,6 @@ import (
 	"strings"
 )
 
-// TODO(PR-7): Reimplement ValidateChainAtPath for EvidenceEntry types.
-
 func detectStoreMode(path string) (string, string, error) {
 	clean := filepath.Clean(path)
 	info, err := os.Stat(clean)

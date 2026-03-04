@@ -150,3 +150,53 @@ func LastHashAtPath(path string) (string, error) {
 	}
 	return lastHash, nil
 }
+
+// ValidateChainAtPath reads all entries and verifies hash chain integrity.
+// For each entry it checks that previous_hash links correctly and that the
+// stored hash matches a recomputed hash over the entry fields.
+func ValidateChainAtPath(root string) error {
+	entries, err := ReadAllEntriesAtPath(root)
+	if err != nil {
+		return fmt.Errorf("validate chain: %w", err)
+	}
+
+	for i, entry := range entries {
+		// Verify previous_hash link.
+		if i == 0 {
+			if entry.PreviousHash != "" {
+				return &ChainValidationError{
+					Index:   i,
+					EventID: entry.EntryID,
+					Message: "first entry should have empty previous_hash",
+				}
+			}
+		} else {
+			if entry.PreviousHash != entries[i-1].Hash {
+				return &ChainValidationError{
+					Index:   i,
+					EventID: entry.EntryID,
+					Message: fmt.Sprintf("previous_hash mismatch: got %s, want %s", entry.PreviousHash, entries[i-1].Hash),
+				}
+			}
+		}
+
+		// Recompute hash and verify.
+		recomputed, hashErr := computeEntryHash(entry)
+		if hashErr != nil {
+			return &ChainValidationError{
+				Index:   i,
+				EventID: entry.EntryID,
+				Message: fmt.Sprintf("hash computation failed: %v", hashErr),
+			}
+		}
+		if entry.Hash != recomputed {
+			return &ChainValidationError{
+				Index:   i,
+				EventID: entry.EntryID,
+				Message: fmt.Sprintf("hash mismatch: stored %s, computed %s", entry.Hash, recomputed),
+			}
+		}
+	}
+
+	return nil
+}
