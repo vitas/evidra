@@ -17,8 +17,10 @@ import (
 // K8sAdapter handles kubectl and oc artifacts.
 type K8sAdapter struct{}
 
-func (a *K8sAdapter) Name() string               { return "k8s/v1" }
-func (a *K8sAdapter) CanHandle(tool string) bool { return tool == "kubectl" || tool == "oc" }
+func (a *K8sAdapter) Name() string { return "k8s/v1" }
+func (a *K8sAdapter) CanHandle(tool string) bool {
+	return tool == "kubectl" || tool == "oc" || tool == "helm"
+}
 func (a *K8sAdapter) Canonicalize(tool, operation, environment string, rawArtifact []byte) (CanonResult, error) {
 	r := canonicalizeK8s(tool, operation, environment, rawArtifact)
 	return r, r.ParseError
