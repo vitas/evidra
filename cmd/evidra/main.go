@@ -13,6 +13,7 @@ import (
 	"samebits.com/evidra-benchmark/internal/canon"
 	"samebits.com/evidra-benchmark/internal/pipeline"
 	"samebits.com/evidra-benchmark/internal/risk"
+	"samebits.com/evidra-benchmark/internal/sarif"
 	"samebits.com/evidra-benchmark/internal/score"
 	"samebits.com/evidra-benchmark/internal/signal"
 	"samebits.com/evidra-benchmark/pkg/evidence"
@@ -232,6 +233,7 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 	toolFlag := fs.String("tool", "", "Tool name (kubectl, terraform)")
 	operationFlag := fs.String("operation", "apply", "Operation (apply, delete, plan)")
 	envFlag := fs.String("environment", "", "Environment (production, staging, development)")
+	scannerFlag := fs.String("scanner-report", "", "SARIF scanner report file")
 	evidenceFlag := fs.String("evidence-dir", "", "Evidence directory")
 	actorFlag := fs.String("actor", "", "Actor ID (e.g. ci-pipeline-123)")
 	if err := fs.Parse(args); err != nil {
@@ -347,6 +349,42 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 		"operation_class": cr.CanonicalAction.OperationClass,
 		"scope_class":     cr.CanonicalAction.ScopeClass,
 		"canon_version":   cr.CanonVersion,
+	}
+
+	// Write scanner findings as evidence entries.
+	if *scannerFlag != "" {
+		evidencePath := resolveEvidencePath(*evidenceFlag)
+		actor := *actorFlag
+
+		sarifData, err := os.ReadFile(*scannerFlag)
+		if err != nil {
+			fmt.Fprintf(stderr, "read scanner report: %v\n", err)
+			return 1
+		}
+		findings, err := sarif.Parse(sarifData)
+		if err != nil {
+			fmt.Fprintf(stderr, "parse scanner report: %v\n", err)
+			return 1
+		}
+		for _, f := range findings {
+			findingPayload, _ := json.Marshal(f)
+			lastHash, _ := evidence.LastHashAtPath(evidencePath)
+			findingEntry, err := evidence.BuildEntry(evidence.EntryBuildParams{
+				Type:           evidence.EntryTypeFinding,
+				TraceID:        cr.ArtifactDigest,
+				Actor:          evidence.Actor{Type: "cli", ID: actor},
+				ArtifactDigest: cr.ArtifactDigest,
+				Payload:        findingPayload,
+				PreviousHash:   lastHash,
+				SpecVersion:    "0.3.0",
+				AdapterVersion: version.Version,
+			})
+			if err != nil {
+				continue
+			}
+			evidence.AppendEntryAtPath(evidencePath, findingEntry)
+		}
+		result["findings_count"] = len(findings)
 	}
 
 	enc := json.NewEncoder(stdout)

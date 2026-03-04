@@ -1,3 +1,37 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/evidra-mcp
+/evidra-api
+/evidra
+
+# Test binary, coverage
+*.test
+*.out
+coverage.out
+tests/simulations/
+
+# Go workspace / module caches (optional local)
+.gocache/
+.gomodcache/
+
+# Build artifacts
+bin/
+dist/
+/release/
+.tmp/
+
+# Node
+node_modules/
+
+# IDE/editor
+.vscode/
+.idea/
+.DS_Store
+
 CLAUDE.md
 GEMINI.md
 .claude/
