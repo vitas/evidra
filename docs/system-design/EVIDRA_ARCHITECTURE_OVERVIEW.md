@@ -29,6 +29,52 @@ That's it. Two calls (prescribe, report). Five signals. One score.
 
 ## Strategic Positioning
 
+See **EVIDRA_STRATEGIC_MOAT_AND_STANDARDIZATION.md** for the full
+strategic analysis. Key points below.
+
+### What is defensible
+
+| Layer | Defensibility | Why |
+|-------|--------------|-----|
+| Canonicalization contract | **High** | Cross-tool ABI. Hard to replicate correctly. Golden corpus = compatibility history. |
+| Signal semantics | **High** | Shared vocabulary. If "retry_loop" becomes industry term, Evidra is the reference. |
+| Golden corpus | **High** | Years of curated artifacts, mutations, version transitions. Grows with every adapter. |
+| Ecosystem integrations | **High** | Once embedded (GH Action, TF plugin, agent SDKs), switching cost is real. |
+| Benchmark dataset | **Medium→High** | Cross-org comparison data. Grows with adoption. |
+
+### What is NOT defensible
+
+| Layer | Defensibility | Accept it |
+|-------|--------------|-----------|
+| Five signals | Low | Any vendor can implement similar counters |
+| Score formula | Low | Weighted sum is trivial to replicate |
+| CLI / MCP / API | Low | Standard engineering practice |
+| Evidence log | Low | Append-only JSONL is not proprietary |
+
+**Investment follows defensibility.** Canonicalization correctness
+and ecosystem distribution get the most attention. Score formula
+gets the least.
+
+### Signal Export as independent layer
+
+Benchmark scoring is **one consumer** of the signal layer. Not the
+only one. The spec stack:
+
+```
+Canonicalization Contract → produces canonical intent
+Signal Spec              → defines signals and metrics
+Signal Export            → Prometheus, OTel, SIEM, JSONL
+        │
+        ├── Benchmark (scoring, comparison)
+        ├── Dashboards (Grafana)
+        ├── SIEM (security correlation)
+        ├── Data warehouse (historical analysis)
+        └── Agent frameworks (runtime decisions)
+```
+
+Evidra's value is in the bottom two layers (canonicalization +
+signals). Everything above is a consumer that can be replaced.
+
 Evidra is **behavioral telemetry for automation** — the same way
 Prometheus is metrics for infrastructure, and OpenTelemetry is
 the standard for distributed traces.
@@ -53,6 +99,12 @@ Evidra spec stack:
 Evidra is NOT a policy engine. NOT a security scanner. NOT runtime
 enforcement. It measures, records, and scores automation behavior
 through standard signals.
+
+**Evidra integrates with security scanners, not replaces them.**
+Checkov, Trivy, tfsec produce security findings. Evidra consumes
+their SARIF output as risk context on prescriptions. Scanners
+provide point-in-time validation; Evidra provides longitudinal
+behavioral telemetry. The combination is stronger than either alone.
 
 Any tool that modifies infrastructure can integrate:
 
@@ -126,6 +178,8 @@ Both produce identical evidence, signals, and scores.
 | 14 | [EVIDRA_SIGNALS_ENGINE_architect_review.md](EVIDRA_SIGNALS_ENGINE_architect_review.md) | Signals engine review. Reduced from 10 signals to 5. Introduced baselines discussion. | Historical |
 | 15 | [CANONICALIZATION_CONTRACT_architect_review.md](CANONICALIZATION_CONTRACT_architect_review.md) | Review of the original canonicalization draft. Led to v1 contract. | Historical |
 | 16 | [EVIDRA_STRATEGIC_DIRECTION.md](EVIDRA_STRATEGIC_DIRECTION.md) | Product strategy. Prometheus analogy, ecosystem positioning. | Strategic |
+| 17 | [EVIDRA_STRATEGIC_MOAT_AND_STANDARDIZATION.md](EVIDRA_STRATEGIC_MOAT_AND_STANDARDIZATION.md) | Moat analysis. What's defensible, what's not. Standardization path. | Strategic |
+| 18 | [EVIDRA_INTEGRATION_ROADMAP.md](EVIDRA_INTEGRATION_ROADMAP.md) | Integration plan. GH Action, GitLab CI, Docker, MCP registry, SDKs. Tiered by version. | Active |
 
 ### Documents Not in Repo (referenced only)
 
@@ -404,39 +458,43 @@ Details: [Benchmark](EVIDRA_AGENT_RELIABILITY_BENCHMARK.md) §11-12
 
 ## Implementation Roadmap
 
-### v0.3.0 — Local (2 binaries, no server)
+### v0.3.0 — Launch (cover 80% of market)
 1. Canonicalization contract (frozen)
-2. K8s adapter + golden corpus
-3. Terraform adapter + golden corpus
-4. **evidra CLI**: prescribe, report, scorecard, compare
-5. **evidra-mcp**: prescribe + report MCP tools for agents
-6. Five signal detectors
-7. Risk matrix + catastrophic detectors
-8. Reliability score computation
-9. Evidence chain with canon versioning
-10. Local-only: everything reads/writes JSONL on disk
+2. Terraform adapter + golden corpus
+3. K8s adapter + golden corpus (covers kubectl + Helm)
+4. Generic adapter (pre-canonicalized: Ansible, Pulumi, CF, custom)
+5. **SARIF scanner integration** (Checkov, Trivy, tfsec, KICS, Terrascan, Snyk)
+6. Five signal detectors + risk matrix + catastrophic detectors
+7. Reliability score + evidence chain
+8. **evidra CLI**: prescribe, report, scorecard, compare
+9. **evidra-mcp**: MCP tools (Claude Code, Cursor, Windsurf)
+10. **GitHub Action** on Marketplace
+11. **GitLab CI template** in repo
+12. **Docker images** on GHCR (multi-arch)
+13. **MCP registry** entry
 
-### v0.4.0 — Team (local + forward)
-11. Evidence forwarding (push to remote URL)
-12. `evidra fleet` — all agents at a glance (local)
-13. Prometheus /metrics endpoint (embedded in evidra-mcp)
-14. actor_meta labels for comparison
-15. CI integration: GitHub Actions, GitLab CI examples
+### v0.3.x — Distribution (no features, only reach)
+14. Homebrew tap + curl install script
+15. Terraform External Data Source example
+16. Blog: "Checkov + Evidra" and "Pipeline reliability in 5 minutes"
 
-### v0.5.0 — Platform (3 binaries)
-16. **evidra-api**: HTTP backend, receives forwarded evidence
-17. Aggregated scorecards across agents and pipelines
-18. Multi-agent comparison dashboard (web UI)
-19. Multi-tenant with API keys
-20. Signed PDF scorecard export
+### v0.4.0 — Team + SDKs
+17. Evidence forwarding (push to remote URL)
+18. Prometheus /metrics endpoint
+19. **Python SDK** on PyPI (LangChain, CrewAI, AutoGen)
+20. **TypeScript SDK** on npm (Vercel AI SDK, LangChain.js)
+21. **risk_ignorance signal** (agent ignored scanner findings)
+22. Grafana dashboard + ArgoCD notification example
+23. CircleCI Orb
 
-### v0.6.0 — Ecosystem
-21. Agent framework SDKs
-22. Public benchmark registry (opt-in)
-23. LangSmith/Langfuse correlation
-24. Compliance report generation
+### v0.5.0 — Platform
+24. **evidra-api**: HTTP backend
+25. OpenTelemetry export
+26. Multi-tenant, API keys, aggregated scorecards
+27. Spacelift / env0 integration
+28. Slack / PagerDuty alerts
 
-Details: [Benchmark](EVIDRA_AGENT_RELIABILITY_BENCHMARK.md) §10
+Details: [Integration Roadmap](EVIDRA_INTEGRATION_ROADMAP.md)
 
 ---
 

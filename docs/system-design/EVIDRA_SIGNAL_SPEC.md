@@ -197,6 +197,21 @@ Evidence plane: append. hash-link. sign. read. That's all.
 Aggregation, querying, and indexing happen in evidra-api (v0.5.0),
 not in the evidence plane itself. The evidence plane is a file.
 
+### Scoring Transparency (MUST maintain)
+
+Scoring MUST remain transparent and deterministic.
+
+| MUST NOT use | Why |
+|-------------|-----|
+| Machine learning | Scores must be explainable without a model |
+| Adaptive thresholds | Same evidence → same score, always |
+| Statistical baselines | Adds complexity, reduces trust |
+| Hidden weights | All weights visible and configurable |
+
+Every score MUST be reproducible: given the same evidence chain
+and the same parameters, any implementation MUST produce the
+exact same score. No randomness. No learned parameters.
+
 ---
 
 Every signal follows the same structure:

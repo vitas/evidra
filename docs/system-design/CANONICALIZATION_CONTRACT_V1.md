@@ -76,6 +76,15 @@ The schema, digest rules, and noise lists are tool-agnostic.
 If a new tool requires a schema change to CanonicalAction, that
 is a signal the schema is wrong — fix the schema, don't fork it.
 
+### Primary Risk: Canonicalization Complexity
+
+If the contract becomes too complex, tool authors cannot implement
+it, ecosystem adoption slows, and standardization fails. The
+contract MUST remain: small, deterministic, testable.
+
+Complexity test: can a developer implement a new adapter in one
+afternoon? If no → the contract is too complex.
+
 ### Breaking Changes (MUST bump version)
 
 Any change that alters intent_digest or resource_shape_hash for
@@ -1174,7 +1183,19 @@ golden with new version tag.
 
 ## 15. Golden Corpus
 
-### 13.1 Structure
+The golden corpus is both a **test suite** and a **strategic asset**.
+
+As a test suite: it verifies that canonicalization produces stable
+digests across releases. Any code change that breaks golden files
+is a breaking change.
+
+As a strategic asset: over time, the corpus accumulates curated
+artifacts from real-world infrastructure across tool versions,
+schema evolutions, and edge cases. This compatibility history is
+extremely difficult for competitors to reproduce. It IS the proof
+that the contract works.
+
+### 15.1 Structure
 
 ```
 tests/corpus/
