@@ -680,8 +680,8 @@ lifecycle: findings may arrive before, during, or after execution.
 
 ## Strategic Positioning
 
-See **EVIDRA_STRATEGIC_MOAT_AND_STANDARDIZATION.md** for the full
-strategic analysis. Key points below.
+Consolidated from the strategic moat analysis (archived in `done/`).
+Key points below.
 
 ### What is defensible
 
@@ -705,6 +705,13 @@ strategic analysis. Key points below.
 **Investment follows defensibility.** Canonicalization correctness
 and ecosystem distribution get the most attention. Score formula
 gets the least.
+
+### Primary failure risk
+
+Canonicalization complexity. If the contract becomes too complex,
+tool authors cannot implement it, ecosystem adoption slows, and
+standardization fails. The contract must remain small,
+deterministic, and testable.
 
 ### Signal Export as independent layer
 
@@ -776,6 +783,73 @@ Two integration paths:
   Evidra handles risk analysis, signals, scoring
 
 Both produce identical evidence, signals, and scores.
+
+---
+
+## Inspector Model
+
+### Why This Model
+
+Evidra is NOT an admission controller (Gatekeeper, Kyverno), NOT
+an execution proxy (Spacelift, Terraform Cloud), NOT a runtime
+scanner (Trivy, Falco), NOT a post-execution verifier (AWS Config).
+All of these exist. Competing with them is a losing strategy.
+
+Evidra is an **independent inspector** for AI agent infrastructure
+operations. The primary customer is **the team building the agent**
+— their problem is "How do I prove my agent behaves correctly?"
+
+### The Accountability Chain
+
+```
+Agent wants to act
+       ↓
+Agent asks Evidra: "I want to do X"
+       ↓
+Evidra evaluates risk, issues signed Prescription
+       ↓
+Agent acts (with its own tools, its own credentials)
+       ↓
+Agent reports back: "I did Y"
+       ↓
+Evidra records Report, compares to Prescription
+       ↓
+Evidence: prescription → report → verdict
+```
+
+If the agent lies in its report — that's the agent developer's
+problem. Evidra recorded what it prescribed. If the agent doesn't
+report back — that's a protocol violation, also recorded.
+
+### What Evidra Does NOT Do
+
+| Concern | Who handles it | Why not Evidra |
+|---------|---------------|----------------|
+| Block bad deployments | Gatekeeper, Kyverno | They sit in the API path |
+| Verify agent did what it reported | K8s audit log, CloudTrail | They have API-level visibility |
+| Remediate violations | Agent framework, gitops | Evidra has no write access |
+| Scan running workloads | Falco, Trivy | Runtime security is different |
+| Enforce prescription compliance | Nobody — advisory | Agent developers fix their agents |
+
+Evidra's value is precisely that it does NONE of these things.
+An enforcer's logs are self-serving. An independent inspector's
+protocol is not.
+
+### Zero-Privilege Model
+
+Evidra has **zero infrastructure privileges**:
+- No kubeconfig, no AWS credentials, no terraform state
+- Reads the artifact the agent sends, evaluates risk, writes
+  local evidence
+- Attack surface: MCP stdio + local filesystem + signing key
+
+### Value Proposition
+
+| Customer | Value |
+|----------|-------|
+| Agent developers | Deviation rate as a quality metric. Bug discovery from prescription/report mismatches. |
+| Enterprise security | 90-day pilot protocol for AI agent approval. Signed evidence for security review. |
+| Compliance auditors | Independently verifiable prescriptions. Hash-linked, tamper-evident evidence chain. |
 
 ---
 
@@ -857,7 +931,7 @@ immunity (50 subtests) + shape_hash sensitivity (1 test).
 
 Version bump: `EVIDRA_UPDATE_GOLDEN=1 go test -run TestGolden -update`
 
-Details: [Test Strategy](EVIDRA_CANONICALIZATION_TEST_STRATEGY.md)
+Details: [Canonicalization Contract §19](CANONICALIZATION_CONTRACT_V1.md)
 
 ---
 
@@ -899,7 +973,67 @@ Details: [Test Strategy](EVIDRA_CANONICALIZATION_TEST_STRATEGY.md)
 27. Spacelift / env0 integration
 28. Slack / PagerDuty alerts
 
-Details: [Integration Roadmap](EVIDRA_INTEGRATION_ROADMAP.md)
+### Scanner Integration Strategy
+
+Evidra does NOT validate infrastructure. Checkov, Trivy, tfsec
+already do this. Instead, **Evidra consumes their SARIF output**
+as risk context on prescriptions.
+
+```
+terraform plan → tfplan.json
+         │
+    ┌────┼────┐
+    ▼    ▼    ▼
+ checkov trivy tfsec    →  scanner_report.sarif
+                                  │
+                                  ▼
+                    evidra prescribe --scanner-report scanner_report.sarif
+```
+
+One `--scanner-report` flag. Any SARIF-compatible scanner. No
+per-scanner integration code. Scanner findings become risk_tags
+on the prescription, elevate risk_level, and are recorded as
+independent evidence entries (type=finding).
+
+### Integration Priority Matrix
+
+**Infrastructure tools** (by market adoption):
+
+| Tool | Integration | Version |
+|------|------------|---------|
+| Terraform / OpenTofu | Built-in adapter (plan JSON) | v0.3.0 |
+| Kubernetes (kubectl) | Built-in adapter (YAML) | v0.3.0 |
+| Helm | Via K8s adapter (template output) | v0.3.0 |
+| Ansible, Pulumi, CloudFormation | Pre-canonicalized (no adapter code) | v0.3.0 (ready) |
+| ArgoCD | Built-in adapter | v0.5.0 |
+
+**Scanners** (all via SARIF — one parser covers all):
+Checkov, Trivy, tfsec, KICS, Terrascan, Snyk — all v0.3.0.
+
+**CI/CD:** GitHub Action + GitLab CI template (v0.3.0). Jenkins
+and Azure DevOps work with bare CLI.
+
+**Agent frameworks:** MCP-native (Claude Code, Cursor, Windsurf)
+via evidra-mcp (v0.3.0). Python/TypeScript SDKs at v0.4.0.
+
+### What NOT to Build
+
+- Full Terraform provider (External Data Source is enough)
+- Kubernetes operator (Evidra is CLI/sidecar, not a controller)
+- Web dashboard before v0.5.0 (scorecard CLI is sufficient)
+- Per-scanner integration code (SARIF is the standard)
+- Custom agent protocol (MCP is the standard)
+- Chef / Puppet / SaltStack adapters (pre-canonicalized path covers them)
+
+### Publication Surface (v0.3.0)
+
+| Registry | Package |
+|----------|---------|
+| GitHub Marketplace | evidra-io/setup-evidra Action |
+| GHCR | evidra, evidra-mcp images (multi-arch) |
+| MCP Registry | evidra server entry |
+| Homebrew | evidra-io/tap/evidra |
+| GitLab CI catalog | evidra template |
 
 ---
 
@@ -910,61 +1044,41 @@ Details: [Integration Roadmap](EVIDRA_INTEGRATION_ROADMAP.md)
                     │  ARCHITECTURE OVERVIEW (this doc) │
                     └──────────────────┬───────────────┘
                                        │
-       ┌───────────────────┬───────────┼───────────┬──────────────────┐
-       ▼                   ▼           ▼           ▼                  ▼
-┌────────────┐   ┌──────────────┐  ┌────────┐  ┌──────────┐  ┌────────────┐
-│ DESIGN     │   │ CONTRACTS    │  │ SPECS  │  │ EXAMPLES │  │ OPERATIONS │
-│            │   │              │  │        │  │          │  │            │
-│ Benchmark  │   │ Canon v1 [2] │  │ Signal │  │ E2E [8]  │  │ Baseline   │
-│ [4]        │   │ Data Mdl [3] │  │ Spec   │  │          │  │ Migration  │
-│ Inspector  │   │ Tests [7]    │  │ [1]    │  │          │  │ Bootstrap  │
-│ [6]        │   │              │  │        │  │          │  │ Post-Migr. │
-└────────────┘   └──────────────┘  └────────┘  └──────────┘  └────────────┘
+       ┌───────────────────┬───────────┼───────────────────┐
+       ▼                   ▼           ▼                   ▼
+┌────────────┐   ┌──────────────┐  ┌────────────┐  ┌────────────┐
+│ CONTRACTS  │   │ SPECS        │  │ CONSUMER   │  │ EXAMPLES   │
+│            │   │              │  │            │  │            │
+│ Canon [1]  │   │ Signal [2]   │  │ Benchmark  │  │ E2E [5]    │
+│ Data Mdl   │   │              │  │ [4]        │  │            │
+│ [3]        │   │              │  │            │  │            │
+└────────────┘   └──────────────┘  └────────────┘  └────────────┘
 ```
 
-### Active Documents (current architecture)
+### Active Documents (6 total)
 
 | # | Document | Role | Type |
 |---|----------|------|------|
-| 1 | [EVIDRA_SIGNAL_SPEC.md](EVIDRA_SIGNAL_SPEC.md) | **Signal definitions, metric contracts, scoring formula, conformance** | **Normative** |
-| 2 | [CANONICALIZATION_CONTRACT_V1.md](CANONICALIZATION_CONTRACT_V1.md) | **Adapter interface, digest rules, noise lists, compatibility** | **Normative** |
+| 1 | [CANONICALIZATION_CONTRACT_V1.md](CANONICALIZATION_CONTRACT_V1.md) | **Adapter interface, digest rules, noise lists, compatibility, testing** | **Normative** |
+| 2 | [EVIDRA_SIGNAL_SPEC.md](EVIDRA_SIGNAL_SPEC.md) | **Signal definitions, metric contracts, scoring formula, conformance** | **Normative** |
 | 3 | [EVIDRA_CORE_DATA_MODEL.md](EVIDRA_CORE_DATA_MODEL.md) | **Core data model: CanonicalAction, Prescription, Report, EvidenceEntry, Signal, Scorecard** | **Normative** |
 | 4 | [EVIDRA_AGENT_RELIABILITY_BENCHMARK.md](EVIDRA_AGENT_RELIABILITY_BENCHMARK.md) | Scoring, comparison, benchmark methodology, protocol, risk analysis | Consumer |
-| 5 | [EVIDRA_ARCHITECTURE_OVERVIEW.md](EVIDRA_ARCHITECTURE_OVERVIEW.md) | Entry point, document map, component overview | Non-normative |
-| 6 | [EVIDRA_INSPECTOR_MODEL_ARCHITECTURE.md](EVIDRA_INSPECTOR_MODEL_ARCHITECTURE.md) | Inspector model rationale | Non-normative |
-| 7 | [EVIDRA_CANONICALIZATION_TEST_STRATEGY.md](EVIDRA_CANONICALIZATION_TEST_STRATEGY.md) | Golden corpus, test approach | Non-normative |
-| 8 | [EVIDRA_END_TO_END_EXAMPLE_v2.md](EVIDRA_END_TO_END_EXAMPLE_v2.md) | Worked examples, failure cases | Non-normative |
+| 5 | [EVIDRA_ARCHITECTURE_OVERVIEW.md](EVIDRA_ARCHITECTURE_OVERVIEW.md) | Entry point, strategic positioning, inspector model, roadmap, document map | Non-normative |
+| 6 | [EVIDRA_END_TO_END_EXAMPLE_v2.md](EVIDRA_END_TO_END_EXAMPLE_v2.md) | Worked examples, failure cases | Non-normative |
 
-### Operational Documents
+### Archived Documents (in `done/`)
 
-| # | Document | Purpose | Status |
-|---|----------|---------|--------|
-| 9 | [EVIDRA_CURRENT_STATE_BASELINE.md](EVIDRA_CURRENT_STATE_BASELINE.md) | v0.2.0 codebase inventory | Reference |
-| 10 | [EVIDRA_MIGRATION_MAP.md](EVIDRA_MIGRATION_MAP.md) | Migration instructions: file-by-file | Reference |
-| 11 | [EVIDRA_BOOTSTRAP_PROMPT.md](EVIDRA_BOOTSTRAP_PROMPT.md) | Claude Code prompt for migration | Reference |
-| 12 | [EVIDRA_POST_MIGRATION_UPDATE.md](EVIDRA_POST_MIGRATION_UPDATE.md) | Post-migration: Dockerfiles, MCP schemas, prompts | Active |
+Consolidated into the active documents above.
 
-### Historical Documents (design evolution)
-
-| # | Document | Purpose | Status |
-|---|----------|---------|--------|
-| 13 | [EVIDRA_TELEMETRY_PLANE_architect_review.md](EVIDRA_TELEMETRY_PLANE_architect_review.md) | Telemetry plane review. Led to tiered metrics. | Historical |
-| 14 | [EVIDRA_SIGNALS_ENGINE_architect_review.md](EVIDRA_SIGNALS_ENGINE_architect_review.md) | Signals engine review. Reduced from 10 signals to 5. | Historical |
-| 15 | [CANONICALIZATION_CONTRACT_architect_review.md](CANONICALIZATION_CONTRACT_architect_review.md) | Review of canonicalization draft. Led to v1 contract. | Historical |
-| 16 | [EVIDRA_STRATEGIC_DIRECTION.md](EVIDRA_STRATEGIC_DIRECTION.md) | Product strategy. Prometheus analogy. | Strategic |
-| 17 | [EVIDRA_STRATEGIC_MOAT_AND_STANDARDIZATION.md](EVIDRA_STRATEGIC_MOAT_AND_STANDARDIZATION.md) | Moat analysis. Defensibility, standardization path. | Strategic |
-| 18 | [EVIDRA_INTEGRATION_ROADMAP.md](EVIDRA_INTEGRATION_ROADMAP.md) | Integration plan. GH Action, GitLab CI, Docker, MCP registry, SDKs. | Active |
-
-### Archived Documents (consolidated into this overview)
-
-Moved to `done/`. Resolved items captured in Key Decisions and
-Architecture Invariants above. Unresolved items in Known Gaps.
-
-| Document | Original role |
-|----------|--------------|
-| [EVIDRA_ARCHITECTURE_REVIEW.md](done/EVIDRA_ARCHITECTURE_REVIEW.md) | Gap analysis, overengineering review |
-| [EVIDRA_ARCHITECTURE_RECOMMENTATION_V1.md](done/EVIDRA_ARCHITECTURE_RECOMMENTATION_V1.md) | PO triage with P0/P1/P2 items |
-| [EVIDRA_ARCHITECTURE_INVARIANTS.md](done/EVIDRA_ARCHITECTURE_INVARIANTS.md) | Non-negotiable invariants |
+| Document | Merged into |
+|----------|------------|
+| [EVIDRA_ARCHITECTURE_REVIEW.md](done/EVIDRA_ARCHITECTURE_REVIEW.md) | Architecture Overview (Key Decisions, Known Gaps) |
+| [EVIDRA_ARCHITECTURE_RECOMMENTATION_V1.md](done/EVIDRA_ARCHITECTURE_RECOMMENTATION_V1.md) | Architecture Overview (Key Decisions, Known Gaps) |
+| [EVIDRA_ARCHITECTURE_INVARIANTS.md](done/EVIDRA_ARCHITECTURE_INVARIANTS.md) | Architecture Overview (Architecture Invariants) |
+| [EVIDRA_STRATEGIC_MOAT_AND_STANDARDIZATION.md](done/EVIDRA_STRATEGIC_MOAT_AND_STANDARDIZATION.md) | Architecture Overview (Strategic Positioning) |
+| [EVIDRA_INSPECTOR_MODEL_ARCHITECTURE.md](done/EVIDRA_INSPECTOR_MODEL_ARCHITECTURE.md) | Architecture Overview (Inspector Model) |
+| [EVIDRA_INTEGRATION_ROADMAP.md](done/EVIDRA_INTEGRATION_ROADMAP.md) | Architecture Overview (Implementation Roadmap) |
+| [EVIDRA_CANONICALIZATION_TEST_STRATEGY.md](done/EVIDRA_CANONICALIZATION_TEST_STRATEGY.md) | Canonicalization Contract §19 (Testing) |
 
 ### Documents Not in Repo (referenced only)
 
@@ -991,6 +1105,9 @@ Architecture Invariants above. Unresolved items in Known Gaps.
 | How does comparison work? | Benchmark §4-5 | Consumer |
 | What does prescribe/report look like? | End-to-End Example | Non-normative |
 | What fields are noise? | Canon Contract §4.5 | Normative |
-| How are adapters tested? | Test Strategy §1 | Non-normative |
-| Why inspector model? | Inspector Model §3 | Non-normative |
+| How are adapters tested? | Canon Contract §19 | Normative |
+| Why inspector model? | Architecture Overview §Inspector Model | Non-normative |
 | How is CI integrated? | Benchmark §12 | Non-normative |
+| What's in Prescription/Report? | **Data Model** §2-3 | Normative |
+| What's in EvidenceEntry? | **Data Model** §5 | Normative |
+| What's the confidence model? | Architecture Overview §Confidence Model | Non-normative |

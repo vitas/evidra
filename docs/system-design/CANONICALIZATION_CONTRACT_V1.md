@@ -1309,3 +1309,108 @@ parsing.
   type + actions.
 - Do not write custom YAML/JSON parsers. Use the official
   libraries from the tool creators.
+
+---
+
+## 19. Testing
+
+Simplified testing contract. One test type per guarantee. No test
+infrastructure that costs more to maintain than the code it tests.
+
+### Test A: Golden Corpus (10 cases)
+
+Each case has an input file and a digest file. 3-5 key cases also
+have a full canonical_action snapshot to catch regressions in
+resource_count, scope_class, operation_class that a digest-only
+check would miss.
+
+```
+tests/golden/
+  k8s_deployment.yaml           → k8s_deployment_digest.txt
+  k8s_multidoc.yaml             → k8s_multidoc_digest.txt
+                                  k8s_multidoc_action.json     ← snapshot
+  k8s_privileged.yaml           → k8s_privileged_digest.txt
+                                  k8s_privileged_action.json   ← snapshot
+  k8s_rbac.yaml                 → k8s_rbac_digest.txt
+  k8s_crd.yaml                  → k8s_crd_digest.txt
+  tf_create.json                → tf_create_digest.txt
+  tf_destroy.json               → tf_destroy_digest.txt
+  tf_mixed.json                 → tf_mixed_digest.txt
+                                  tf_mixed_action.json         ← snapshot
+  tf_module.json                → tf_module_digest.txt
+                                  tf_module_action.json        ← snapshot
+  helm_output.yaml              → helm_output_digest.txt
+```
+
+Test logic: parse input, compare intent_digest against golden
+digest file. If action snapshot exists, compare canonical_action
+fields with JSONEq. Update requires `EVIDRA_UPDATE_GOLDEN=1`
+env var — prevents accidental overwrites in CI.
+
+### Test B: Noise Immunity (5 mutators × 10 inputs = 50 subtests)
+
+Take each golden input. Mutate 5 ways. Assert same intent_digest.
+
+| Mutator | What it does |
+|---------|-------------|
+| reorder_fields | Shuffle YAML field order |
+| reorder_docs | Shuffle multi-doc order |
+| add_whitespace | Insert random whitespace |
+| add_noise_annotations | Add kubectl.kubernetes.io/* annotations |
+| add_status | Append status block |
+
+**Mutator safety:** Text-level operations only. Do NOT round-trip
+through yaml.v3 — the parser may alter types. Terraform JSON
+inputs skip YAML-only mutators automatically.
+
+### Test C: Shape Hash Sensitivity (1 test)
+
+One test proving resource_shape_hash reacts to spec changes:
+change image tag → intent_digest MUST stay the same,
+resource_shape_hash MUST change.
+
+### Test D: Crash Safety Fuzz (P1, not P0)
+
+Go native fuzz seeded from golden inputs. Goal: no panics, no
+hangs, no OOM. Not correctness — just stability.
+
+```go
+func FuzzCanonicalize(f *testing.F) {
+    // seed from golden inputs
+    f.Fuzz(func(t *testing.T, input []byte) {
+        Canonicalize(input)  // must not panic
+    })
+}
+```
+
+Add when adapter is stable. Run with
+`go test -fuzz=FuzzCanonicalize -fuzztime=30s`.
+
+### Version Bump Process
+
+```
+1. Change the adapter code
+2. go test → golden tests fail
+3. EVIDRA_UPDATE_GOLDEN=1 go test -run TestGolden -update
+4. git diff tests/golden/ → review: are changes expected?
+5. Bump canonicalization_version in adapter
+6. git commit -m "canon: bump k8s/v2, reason: ..."
+```
+
+### When to Add More Tests
+
+- New golden case: new resource type with unusual structure, or
+  bug fix where digest was wrong.
+- New noise mutator: new noise field discovered in production.
+- Fuzz testing: crash found in production.
+- Do not add tests preemptively.
+
+### Totals
+
+| Test | Cases | Lines of code |
+|------|-------|---------------|
+| Golden corpus (digest + action snapshot) | 10 + 4 | ~40 |
+| Noise immunity | 50 | ~40 |
+| Shape hash sensitivity | 1 | ~15 |
+| Crash fuzz (P1) | 1 | ~10 |
+| **Total** | **~65** | **~105** |
