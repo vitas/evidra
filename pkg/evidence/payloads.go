@@ -39,13 +39,20 @@ type PrescriptionPayload struct {
 	CanonSource     string          `json:"canon_source"`
 }
 
+// ExternalRef is an external reference attached to a report entry.
+type ExternalRef struct {
+	Type string `json:"type"`
+	ID   string `json:"id"`
+}
+
 // ReportPayload is the typed payload for EntryTypeReport entries.
 // It records the post-execution outcome linked back to a prescription.
 type ReportPayload struct {
-	ReportID       string  `json:"report_id"`
-	PrescriptionID string  `json:"prescription_id"`
-	ExitCode       int     `json:"exit_code"`
-	Verdict        Verdict `json:"verdict"`
+	ReportID       string        `json:"report_id"`
+	PrescriptionID string        `json:"prescription_id"`
+	ExitCode       int           `json:"exit_code"`
+	Verdict        Verdict       `json:"verdict"`
+	ExternalRefs   []ExternalRef `json:"external_refs,omitempty"`
 }
 
 // FindingPayload is the typed payload for EntryTypeFinding entries.

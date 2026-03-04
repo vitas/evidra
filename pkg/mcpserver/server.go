@@ -60,10 +60,11 @@ type PrescribeOutput struct {
 
 // ReportInput is the input schema for the report tool.
 type ReportInput struct {
-	PrescriptionID string     `json:"prescription_id"`
-	ExitCode       int        `json:"exit_code"`
-	ArtifactDigest string     `json:"artifact_digest,omitempty"`
-	Actor          InputActor `json:"actor"`
+	PrescriptionID string                 `json:"prescription_id"`
+	ExitCode       int                    `json:"exit_code"`
+	ArtifactDigest string                 `json:"artifact_digest,omitempty"`
+	Actor          InputActor             `json:"actor"`
+	ExternalRefs   []evidence.ExternalRef `json:"external_refs,omitempty"`
 }
 
 // ReportOutput is returned by the report tool.
@@ -401,6 +402,7 @@ func (s *BenchmarkService) Report(input ReportInput) ReportOutput {
 		PrescriptionID: input.PrescriptionID,
 		ExitCode:       input.ExitCode,
 		Verdict:        evidence.VerdictFromExitCode(input.ExitCode),
+		ExternalRefs:   input.ExternalRefs,
 	}
 	payloadJSON, err := json.Marshal(reportPayload)
 	if err != nil {

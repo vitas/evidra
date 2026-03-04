@@ -373,6 +373,7 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 	scannerFlag := fs.String("scanner-report", "", "SARIF scanner report file")
 	evidenceFlag := fs.String("evidence-dir", "", "Evidence directory")
 	actorFlag := fs.String("actor", "", "Actor ID (e.g. ci-pipeline-123)")
+	canonicalActionFlag := fs.String("canonical-action", "", "Pre-canonicalized action JSON (bypasses adapter)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -389,6 +390,27 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 	}
 
 	cr := canon.Canonicalize(*toolFlag, *operationFlag, *envFlag, data)
+
+	if *canonicalActionFlag != "" {
+		var preCanon canon.CanonicalAction
+		if err := json.Unmarshal([]byte(*canonicalActionFlag), &preCanon); err != nil {
+			fmt.Fprintf(stderr, "parse --canonical-action: %v\n", err)
+			return 1
+		}
+		// Keep tool from flag if not in pre-canon
+		if preCanon.Tool == "" {
+			preCanon.Tool = *toolFlag
+		}
+		if preCanon.Operation == "" {
+			preCanon.Operation = *operationFlag
+		}
+		cr.CanonicalAction = preCanon
+		cr.RawAction, _ = json.Marshal(preCanon)
+		cr.IntentDigest = canon.ComputeIntentDigest(preCanon)
+		cr.CanonVersion = "external"
+		cr.ParseError = nil
+	}
+
 	riskTags := risk.RunAll(cr.CanonicalAction, data)
 	riskLevel := risk.ElevateRiskLevel(
 		risk.RiskLevel(cr.CanonicalAction.OperationClass, cr.CanonicalAction.ScopeClass),
@@ -446,13 +468,18 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 		canonActionJSON, _ = json.Marshal(cr.CanonicalAction)
 	}
 
+	canonSource := "adapter"
+	if *canonicalActionFlag != "" {
+		canonSource = "external"
+	}
+
 	prescPayload := evidence.PrescriptionPayload{
 		PrescriptionID:  traceID,
 		CanonicalAction: canonActionJSON,
 		RiskLevel:       riskLevel,
 		RiskTags:        riskTags,
 		TTLMs:           evidence.DefaultTTLMs,
-		CanonSource:     "adapter",
+		CanonSource:     canonSource,
 	}
 	payloadJSON, _ := json.Marshal(prescPayload)
 
@@ -544,6 +571,7 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 	evidenceFlag := fs.String("evidence-dir", "", "Evidence directory")
 	actorFlag := fs.String("actor", "", "Actor ID")
 	artifactDigestFlag := fs.String("artifact-digest", "", "Artifact digest for drift detection")
+	externalRefsFlag := fs.String("external-refs", "", "External references JSON array (e.g. '[{\"type\":\"github_run\",\"id\":\"123\"}]')")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -579,6 +607,16 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 		ExitCode:       *exitCodeFlag,
 		Verdict:        evidence.VerdictFromExitCode(*exitCodeFlag),
 	}
+
+	if *externalRefsFlag != "" {
+		var refs []evidence.ExternalRef
+		if err := json.Unmarshal([]byte(*externalRefsFlag), &refs); err != nil {
+			fmt.Fprintf(stderr, "parse --external-refs: %v\n", err)
+			return 1
+		}
+		reportPayload.ExternalRefs = refs
+	}
+
 	payloadJSON, _ := json.Marshal(reportPayload)
 
 	lastHash, _ := evidence.LastHashAtPath(evidencePath)
