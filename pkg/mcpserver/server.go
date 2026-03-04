@@ -60,9 +60,10 @@ type PrescribeOutput struct {
 
 // ReportInput is the input schema for the report tool.
 type ReportInput struct {
-	PrescriptionID string `json:"prescription_id"`
-	ExitCode       int    `json:"exit_code"`
-	ArtifactDigest string `json:"artifact_digest,omitempty"`
+	PrescriptionID string     `json:"prescription_id"`
+	ExitCode       int        `json:"exit_code"`
+	ArtifactDigest string     `json:"artifact_digest,omitempty"`
+	Actor          InputActor `json:"actor"`
 }
 
 // ReportOutput is returned by the report tool.
@@ -406,12 +407,22 @@ func (s *BenchmarkService) Report(input ReportInput) ReportOutput {
 		}
 	}
 
+	// Use actor from input if provided, fall back to lastActor from prescribe
+	actor := s.lastActor
+	if input.Actor.ID != "" {
+		actor = evidence.Actor{
+			Type:       input.Actor.Type,
+			ID:         input.Actor.ID,
+			Provenance: input.Actor.Origin,
+		}
+	}
+
 	lastHash, _ := evidence.LastHashAtPath(s.evidencePath)
 
 	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
 		Type:           evidence.EntryTypeReport,
 		TraceID:        s.traceID,
-		Actor:          s.lastActor,
+		Actor:          actor,
 		ArtifactDigest: evidence.FormatDigest(input.ArtifactDigest),
 		Payload:        payloadJSON,
 		PreviousHash:   lastHash,

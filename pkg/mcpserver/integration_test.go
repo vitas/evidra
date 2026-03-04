@@ -63,6 +63,46 @@ func TestPrescribeReport_Lifecycle(t *testing.T) {
 	}
 }
 
+func TestReport_ExplicitActor(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	svc := &BenchmarkService{
+		evidencePath: dir,
+		traceID:      "01TRACE_ACTOR",
+	}
+
+	prescOutput := svc.Prescribe(PrescribeInput{
+		Actor:       InputActor{Type: "ai_agent", ID: "agent-1", Origin: "mcp"},
+		Tool:        "kubectl",
+		Operation:   "apply",
+		RawArtifact: "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test\n  namespace: default",
+	})
+
+	if !prescOutput.OK {
+		t.Fatalf("prescribe failed: %v", prescOutput.Error)
+	}
+
+	// Report with explicit different actor
+	reportOutput := svc.Report(ReportInput{
+		PrescriptionID: prescOutput.PrescriptionID,
+		ExitCode:       0,
+		Actor:          InputActor{Type: "ai_agent", ID: "agent-2", Origin: "mcp"},
+	})
+
+	if !reportOutput.OK {
+		t.Fatalf("report failed: %v", reportOutput.Error)
+	}
+
+	entries, _ := evidence.ReadAllEntriesAtPath(dir)
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(entries))
+	}
+	if entries[1].Actor.ID != "agent-2" {
+		t.Errorf("report actor: got %q, want agent-2", entries[1].Actor.ID)
+	}
+}
+
 func TestPrescribeReport_ChainIntegrity(t *testing.T) {
 	t.Parallel()
 
