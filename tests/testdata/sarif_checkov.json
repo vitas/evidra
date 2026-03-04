@@ -1,0 +1,62 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Checkov",
+          "version": "2.3.0",
+          "rules": [
+            {
+              "id": "CKV_K8S_1",
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "CKV_K8S_22",
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CKV_K8S_1",
+          "level": "error",
+          "message": {
+            "text": "Ensure that CPU limits are set"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "deployment.yaml"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CKV_K8S_22",
+          "level": "warning",
+          "message": {
+            "text": "Ensure that readOnlyRootFilesystem is set"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "deployment.yaml"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
