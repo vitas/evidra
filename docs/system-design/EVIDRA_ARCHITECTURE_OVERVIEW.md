@@ -3,6 +3,10 @@
 ## Status
 Entry point. Start here. This document links to everything else.
 
+This is the **single architecture reference** for Evidra. It consolidates
+content from the architecture review and PO recommendation documents
+(archived in `done/`).
+
 ## Document Type
 **Non-normative.** This is an overview for orientation. It does
 not define contracts. Normative sources:
@@ -26,167 +30,6 @@ Signals produce reliability score.
 ```
 
 That's it. Two calls (prescribe, report). Five signals. One score.
-
-## Strategic Positioning
-
-See **EVIDRA_STRATEGIC_MOAT_AND_STANDARDIZATION.md** for the full
-strategic analysis. Key points below.
-
-### What is defensible
-
-| Layer | Defensibility | Why |
-|-------|--------------|-----|
-| Canonicalization contract | **High** | Cross-tool ABI. Hard to replicate correctly. Golden corpus = compatibility history. |
-| Signal semantics | **High** | Shared vocabulary. If "retry_loop" becomes industry term, Evidra is the reference. |
-| Golden corpus | **High** | Years of curated artifacts, mutations, version transitions. Grows with every adapter. |
-| Ecosystem integrations | **High** | Once embedded (GH Action, TF plugin, agent SDKs), switching cost is real. |
-| Benchmark dataset | **Medium→High** | Cross-org comparison data. Grows with adoption. |
-
-### What is NOT defensible
-
-| Layer | Defensibility | Accept it |
-|-------|--------------|-----------|
-| Five signals | Low | Any vendor can implement similar counters |
-| Score formula | Low | Weighted sum is trivial to replicate |
-| CLI / MCP / API | Low | Standard engineering practice |
-| Evidence log | Low | Append-only JSONL is not proprietary |
-
-**Investment follows defensibility.** Canonicalization correctness
-and ecosystem distribution get the most attention. Score formula
-gets the least.
-
-### Signal Export as independent layer
-
-Benchmark scoring is **one consumer** of the signal layer. Not the
-only one. The spec stack:
-
-```
-Canonicalization Contract → produces canonical intent
-Signal Spec              → defines signals and metrics
-Signal Export            → Prometheus, OTel, SIEM, JSONL
-        │
-        ├── Benchmark (scoring, comparison)
-        ├── Dashboards (Grafana)
-        ├── SIEM (security correlation)
-        ├── Data warehouse (historical analysis)
-        └── Agent frameworks (runtime decisions)
-```
-
-Evidra's value is in the bottom two layers (canonicalization +
-signals). Everything above is a consumer that can be replaced.
-
-Evidra is **behavioral telemetry for automation** — the same way
-Prometheus is metrics for infrastructure, and OpenTelemetry is
-the standard for distributed traces.
-
-```
-Infrastructure observability stack:
-  Metrics → Prometheus
-  Logs    → Loki / Elasticsearch
-  Traces  → OpenTelemetry
-  Automation behavior → Evidra Signal Spec     ← new layer
-```
-
-The spec stack:
-
-```
-Evidra spec stack:
-  EVIDRA_SIGNAL_SPEC.md         = OpenTelemetry Semantic Conventions
-  CANONICALIZATION_CONTRACT.md  = Protocol Buffers / schema definition
-  Benchmark                     = Consumer (like Jaeger consumes OTel)
-```
-
-Evidra is NOT a policy engine. NOT a security scanner. NOT runtime
-enforcement. It measures, records, and scores automation behavior
-through standard signals.
-
-**Evidra integrates with security scanners, not replaces them.**
-Checkov, Trivy, tfsec produce security findings. Evidra consumes
-their SARIF output as risk context on prescriptions. Scanners
-provide point-in-time validation; Evidra provides longitudinal
-behavioral telemetry. The combination is stronger than either alone.
-
-Any tool that modifies infrastructure can integrate:
-
-| Tool | Integration | v0.3.0? |
-|------|------------|---------|
-| kubectl / K8s | Built-in adapter (raw YAML) | Yes |
-| Terraform | Built-in adapter (plan JSON) | Yes |
-| Helm | Via K8s adapter (template output) | Yes |
-| Pulumi | Pre-canonicalized prescribe | Ready (no adapter needed) |
-| Ansible | Pre-canonicalized prescribe | Ready |
-| CloudFormation | Pre-canonicalized prescribe | Ready |
-| ArgoCD | Built-in adapter | v0.5.0 |
-| Custom tools | Pre-canonicalized prescribe | Ready |
-
-Two integration paths:
-- **Adapter path:** Evidra parses the tool's native artifact format
-- **Pre-canonicalized path:** Tool sends its own resource identity,
-  Evidra handles risk analysis, signals, scoring
-
-Both produce identical evidence, signals, and scores.
-
----
-
-## Document Map
-
-```
-                    ┌──────────────────────────────────┐
-                    │  ARCHITECTURE OVERVIEW (this doc) │
-                    └──────────────────┬───────────────┘
-                                       │
-       ┌───────────────────┬───────────┼───────────┬──────────────────┐
-       ▼                   ▼           ▼           ▼                  ▼
-┌────────────┐   ┌──────────────┐  ┌────────┐  ┌──────────┐  ┌────────────┐
-│ DESIGN     │   │ CONTRACTS    │  │ SPECS  │  │ EXAMPLES │  │ OPERATIONS │
-│            │   │              │  │        │  │          │  │            │
-│ Benchmark  │   │ Canon v1 [3] │  │ Signal │  │ E2E [5]  │  │ Baseline   │
-│ [1]        │   │ Tests [4]    │  │ Spec   │  │          │  │ Migration  │
-│ Inspector  │   │              │  │ [6]    │  │          │  │ Bootstrap  │
-│ [2]        │   │              │  │        │  │          │  │ Post-Migr. │
-│ Review [7] │   │              │  │        │  │          │  │            │
-└────────────┘   └──────────────┘  └────────┘  └──────────┘  └────────────┘
-```
-
-### Active Documents (current architecture)
-
-| # | Document | Role | Type |
-|---|----------|------|------|
-| 1 | [EVIDRA_SIGNAL_SPEC.md](EVIDRA_SIGNAL_SPEC.md) | **Signal definitions, metric contracts, scoring formula, conformance** | **Normative** |
-| 2 | [CANONICALIZATION_CONTRACT_V1.md](CANONICALIZATION_CONTRACT_V1.md) | **Adapter interface, digest rules, noise lists, compatibility** | **Normative** |
-| 3 | [EVIDRA_AGENT_RELIABILITY_BENCHMARK.md](EVIDRA_AGENT_RELIABILITY_BENCHMARK.md) | Scoring, comparison, benchmark methodology, protocol, risk analysis | Consumer |
-| 4 | [EVIDRA_ARCHITECTURE_OVERVIEW.md](EVIDRA_ARCHITECTURE_OVERVIEW.md) | Entry point, document map, component overview | Non-normative |
-| 5 | [EVIDRA_INSPECTOR_MODEL_ARCHITECTURE.md](EVIDRA_INSPECTOR_MODEL_ARCHITECTURE.md) | Inspector model rationale | Non-normative |
-| 6 | [EVIDRA_CANONICALIZATION_TEST_STRATEGY.md](EVIDRA_CANONICALIZATION_TEST_STRATEGY.md) | Golden corpus, test approach | Non-normative |
-| 7 | [EVIDRA_END_TO_END_EXAMPLE_v2.md](EVIDRA_END_TO_END_EXAMPLE_v2.md) | Worked examples, failure cases | Non-normative |
-
-### Operational Documents
-
-| # | Document | Purpose | Status |
-|---|----------|---------|--------|
-| 8 | [EVIDRA_CURRENT_STATE_BASELINE.md](EVIDRA_CURRENT_STATE_BASELINE.md) | v0.2.0 codebase inventory. Every module, its purpose, fate in new architecture. | Reference |
-| 9 | [EVIDRA_MIGRATION_MAP.md](EVIDRA_MIGRATION_MAP.md) | Migration instructions: what to copy, drop, create. File-by-file. | Reference |
-| 10 | [EVIDRA_BOOTSTRAP_PROMPT.md](EVIDRA_BOOTSTRAP_PROMPT.md) | Claude Code prompt for executing migration. | Reference |
-| 11 | [EVIDRA_POST_MIGRATION_UPDATE.md](EVIDRA_POST_MIGRATION_UPDATE.md) | Post-migration: Dockerfiles, MCP schemas, prompts, adapter interface. | Active |
-
-### Historical Documents (design evolution)
-
-| # | Document | Purpose | Status |
-|---|----------|---------|--------|
-| 12 | [EVIDRA_ARCHITECTURE_REVIEW.md](EVIDRA_ARCHITECTURE_REVIEW.md) | Gap analysis, overengineering review. Most issues resolved. | Historical snapshot |
-| 13 | [EVIDRA_TELEMETRY_PLANE_architect_review.md](EVIDRA_TELEMETRY_PLANE_architect_review.md) | Telemetry plane review. Led to tiered metrics, agent scorecard concept. | Historical |
-| 14 | [EVIDRA_SIGNALS_ENGINE_architect_review.md](EVIDRA_SIGNALS_ENGINE_architect_review.md) | Signals engine review. Reduced from 10 signals to 5. Introduced baselines discussion. | Historical |
-| 15 | [CANONICALIZATION_CONTRACT_architect_review.md](CANONICALIZATION_CONTRACT_architect_review.md) | Review of the original canonicalization draft. Led to v1 contract. | Historical |
-| 16 | [EVIDRA_STRATEGIC_DIRECTION.md](EVIDRA_STRATEGIC_DIRECTION.md) | Product strategy. Prometheus analogy, ecosystem positioning. | Strategic |
-| 17 | [EVIDRA_STRATEGIC_MOAT_AND_STANDARDIZATION.md](EVIDRA_STRATEGIC_MOAT_AND_STANDARDIZATION.md) | Moat analysis. What's defensible, what's not. Standardization path. | Strategic |
-| 18 | [EVIDRA_INTEGRATION_ROADMAP.md](EVIDRA_INTEGRATION_ROADMAP.md) | Integration plan. GH Action, GitLab CI, Docker, MCP registry, SDKs. Tiered by version. | Active |
-
-### Documents Not in Repo (referenced only)
-
-| Document | Where | Notes |
-|----------|-------|-------|
-| ANTI_GOODHART_BACKLOG_ADDENDUM.md | Backlog | Accepted for v0.5.0+. Not implemented in v1. |
-| EVIDRA_END_TO_END_EXAMPLE.md | Superseded | Replaced by v2. |
 
 ---
 
@@ -360,21 +203,156 @@ limits — not detectors.
 
 Details: [Benchmark](EVIDRA_AGENT_RELIABILITY_BENCHMARK.md) §7
 
+### Detectors Receive Both Canonical Action AND Raw Artifact
+Detectors receive BOTH canonical_action (for identity and scope
+context) AND raw artifact bytes (for content inspection). The
+canonical_action tells them "what kind of resource." The raw
+artifact tells them "what's inside."
+
+Source: Architecture Review §3.2
+
+### risk_tags Belong to Prescription, Not CanonicalAction
+risk_tags are computed by catastrophic risk detectors AFTER
+canonicalization. They live in Prescription, not CanonicalAction.
+canonical_action is adapter output (deterministic, testable).
+risk_tags are detector output (separate concern).
+
+Source: Architecture Review §3.1
+
+### TTL Detection at Scorecard Time, Not Real-Time
+TTL detection happens when `evidra scorecard` scans the evidence
+chain — it finds prescriptions without matching reports and
+retroactively marks them as protocol violations. No background
+process needed. Real-time TTL detection is a v0.5.0 feature of
+evidra-api (long-running, can run periodic scans).
+
+Source: Architecture Review §1.1
+
+### Prescription Matching: 1:1, ULID-Keyed, Four Violation Types
+- prescription_id is globally unique (ULID)
+- First report wins; second report → duplicate_report violation
+- Unknown prescription_id → unprescribed_action violation
+- Cross-actor report → cross_actor_report violation
+- Batched apply (e.g. terraform apply with 10 resources) = one
+  prescription with resource_count=10, one report
+
+Source: PO Recommendation §2.2
+
+### Pre-Canonicalized Path: Accepted Trade-Off
+When a tool sends its own canonical_action, Evidra trusts the
+resource identity. Pre-canonicalized path trades accuracy for reach.
+Signals are only as good as the input. Entries are marked with
+`canon_source=external` so scorecards can show what percentage of
+data is self-reported. Blast radius may be inaccurate for
+pre-canonicalized input — documented as a known limitation.
+
+Source: PO Recommendation §2.5
+
 ---
 
-## Libraries (2 external dependencies)
+## Architecture Invariants
 
-| Adapter | Library | Binary cost | Delivery |
-|---------|---------|-------------|----------|
-| Kubernetes | `k8s.io/apimachinery` (unstructured) | ~2MB | v0.3.0 |
-| Terraform | `github.com/hashicorp/terraform-json` | ~200KB | v0.3.0 |
-| Helm | reuses K8s adapter | 0 | v0.3.0 (via K8s) |
-| ArgoCD | reuses K8s adapter (CRD) | 0 | Spec reserved (v0.5.0+) |
-| Generic | stdlib + `gopkg.in/yaml.v3` | ~100KB | v0.3.0 |
+Non-negotiable properties. If an implementation violates any of
+these, it is architecturally incorrect even if it "works."
 
-Total: ~2.3MB. Compare: OPA alone was ~15MB.
+### Evidence Is Single Source of Truth
+- **Evidence-first computation:** All signals, scores, and
+  explanations MUST be derived from recorded evidence entries.
+  No side-channel state affects scoring.
+- **Replay determinism:** Same evidence log + configuration +
+  versions → same signals and scores.
 
-Details: [Canonicalization Contract v1](CANONICALIZATION_CONTRACT_V1.md) §16
+### Evidence Store Is Append-Only and Tamper-Evident
+- Evidence entries MUST NOT be mutated or deleted. Corrections
+  are new entries.
+- Hash-linked chain: insertion, reordering, or modification is
+  detectable during verification (offline-capable).
+- Server receipts (if any) are also evidence entries — no
+  parallel evidence model.
+
+### Inspector Protocol (Prescribe/Report Lifecycle)
+- Lifecycle states: PRESCRIBED → REPORTED → CLOSED, or
+  EXPIRED (no report within TTL), or UNPRESCRIBED (report
+  without preceding prescribe).
+- prescribe/report are the protocol. No approve, cancel, deny.
+
+### TTL Is Data
+- TTL MUST be a field of the prescription (`ttl_ms`).
+- Default TTL is allowed but MUST be materialized into the
+  stored prescription data (replay determinism).
+
+### Identity and Correlation
+- **actor is mandatory** for every prescribe/report: actor.type,
+  actor.id, actor.provenance (or actor.origin).
+- **trace_id** is the primary correlation key for inspection
+  sessions.
+- **tenant_id** is always present in service mode (v0.5.0+).
+- Optional correlation: repo, work_item_key, commit_sha, env,
+  target. Missing fields = unknown/empty, not ambiguous.
+
+### Canonicalization Is Mandatory
+- Follows the versioned contract (CANONICALIZATION_CONTRACT_V1).
+- intent_digest (canonical semantic hash) ≠ artifact_digest
+  (raw bytes hash). They MUST NOT be treated as interchangeable.
+- Canonicalization failures MUST produce evidence entries
+  (type=canonicalization_failure), not silent drops.
+
+### Signals Are Behavioral, Not Policy Rules
+- Signals model behaviors: drift, retries, scope expansion,
+  protocol violations, blast radius.
+- Evidra MUST NOT evolve into a policy engine or scanner rule
+  system.
+- Signals are derived from evidence + configuration, no hidden
+  inputs.
+
+### Scoring Is Stable, Simple, and Versioned
+- Score computation is versioned and replayable.
+- Bands are deterministic given score + config.
+- Safety floors: score ceilings for untrusted evidence; floor
+  overrides for catastrophic risk signals (if configured).
+
+### Validators Are External
+- Evidra does not run validators (v1). Validators produce
+  findings; Evidra records them as evidence and may transform
+  them into behavioral signals.
+- Validator outputs normalized into a stable finding schema:
+  tool, rule_id, severity, resource, message, artifact_digest.
+
+### Multi-Tenancy Is Strict (v0.5.0+)
+- Tenant isolation for storage and queries — no cross-tenant
+  reads, explains, or benchmarks.
+- tenant_id derived from auth middleware, not guessed.
+
+### Versioning Is Visible Everywhere
+- Every record and output carries: spec_version,
+  canonical_version, adapter_version, scoring_version.
+- Mandatory for benchmark reproducibility.
+
+---
+
+## Design Principles
+
+1. **Tool-agnostic protocol.** Any automation tool integrates via prescribe/report.
+2. **Inspector, not enforcer.** prescribe() never denies.
+3. **Signals over policies.** Five behavioral signals, not rules.
+4. **Canonicalization defines intent.** Frozen contract, versioned, golden-tested.
+5. **Evidence chain as source of truth.** Append-only, signed, hash-linked.
+6. **Scope-aware comparison.** Only compare agents doing the same work.
+7. **Catastrophic risk only.** Detectors cover outage patterns, not style.
+8. **Minimal dependencies.** Two external libraries, ~2.3MB total.
+9. **Simple tests.** ~65 tests catch the same bugs as 8000.
+10. **Standard signals.** Same five signals for every tool, every actor.
+
+### Drift Guards
+
+Three boundaries that MUST NOT be crossed. See EVIDRA_SIGNAL_SPEC.md
+for normative definitions.
+
+| Boundary | Rule | Violation smell |
+|----------|------|-----------------|
+| Adapter growth | Contract defines schema, adapters are libraries. Contract MUST NOT grow per tool. | "Let's add a Pulumi section to the contract" |
+| Detector scope | Detectors produce signal context, not policy. Max 15. | "Let's add a compliance detector" |
+| Evidence simplicity | Evidence is append-only log. Not a database. Not a queue. | "Let's add indexing to evidence" |
 
 ---
 
@@ -442,6 +420,147 @@ No database. No aggregation service.
 
 ---
 
+## Strategic Positioning
+
+See **EVIDRA_STRATEGIC_MOAT_AND_STANDARDIZATION.md** for the full
+strategic analysis. Key points below.
+
+### What is defensible
+
+| Layer | Defensibility | Why |
+|-------|--------------|-----|
+| Canonicalization contract | **High** | Cross-tool ABI. Hard to replicate correctly. Golden corpus = compatibility history. |
+| Signal semantics | **High** | Shared vocabulary. If "retry_loop" becomes industry term, Evidra is the reference. |
+| Golden corpus | **High** | Years of curated artifacts, mutations, version transitions. Grows with every adapter. |
+| Ecosystem integrations | **High** | Once embedded (GH Action, TF plugin, agent SDKs), switching cost is real. |
+| Benchmark dataset | **Medium→High** | Cross-org comparison data. Grows with adoption. |
+
+### What is NOT defensible
+
+| Layer | Defensibility | Accept it |
+|-------|--------------|-----------|
+| Five signals | Low | Any vendor can implement similar counters |
+| Score formula | Low | Weighted sum is trivial to replicate |
+| CLI / MCP / API | Low | Standard engineering practice |
+| Evidence log | Low | Append-only JSONL is not proprietary |
+
+**Investment follows defensibility.** Canonicalization correctness
+and ecosystem distribution get the most attention. Score formula
+gets the least.
+
+### Signal Export as independent layer
+
+Benchmark scoring is **one consumer** of the signal layer. Not the
+only one. The spec stack:
+
+```
+Canonicalization Contract → produces canonical intent
+Signal Spec              → defines signals and metrics
+Signal Export            → Prometheus, OTel, SIEM, JSONL
+        │
+        ├── Benchmark (scoring, comparison)
+        ├── Dashboards (Grafana)
+        ├── SIEM (security correlation)
+        ├── Data warehouse (historical analysis)
+        └── Agent frameworks (runtime decisions)
+```
+
+Evidra's value is in the bottom two layers (canonicalization +
+signals). Everything above is a consumer that can be replaced.
+
+Evidra is **behavioral telemetry for automation** — the same way
+Prometheus is metrics for infrastructure, and OpenTelemetry is
+the standard for distributed traces.
+
+```
+Infrastructure observability stack:
+  Metrics → Prometheus
+  Logs    → Loki / Elasticsearch
+  Traces  → OpenTelemetry
+  Automation behavior → Evidra Signal Spec     ← new layer
+```
+
+The spec stack:
+
+```
+Evidra spec stack:
+  EVIDRA_SIGNAL_SPEC.md         = OpenTelemetry Semantic Conventions
+  CANONICALIZATION_CONTRACT.md  = Protocol Buffers / schema definition
+  Benchmark                     = Consumer (like Jaeger consumes OTel)
+```
+
+Evidra is NOT a policy engine. NOT a security scanner. NOT runtime
+enforcement. It measures, records, and scores automation behavior
+through standard signals.
+
+**Evidra integrates with security scanners, not replaces them.**
+Checkov, Trivy, tfsec produce security findings. Evidra consumes
+their SARIF output as risk context on prescriptions. Scanners
+provide point-in-time validation; Evidra provides longitudinal
+behavioral telemetry. The combination is stronger than either alone.
+
+Any tool that modifies infrastructure can integrate:
+
+| Tool | Integration | v0.3.0? |
+|------|------------|---------|
+| kubectl / K8s | Built-in adapter (raw YAML) | Yes |
+| Terraform | Built-in adapter (plan JSON) | Yes |
+| Helm | Via K8s adapter (template output) | Yes |
+| Pulumi | Pre-canonicalized prescribe | Ready (no adapter needed) |
+| Ansible | Pre-canonicalized prescribe | Ready |
+| CloudFormation | Pre-canonicalized prescribe | Ready |
+| ArgoCD | Built-in adapter | v0.5.0 |
+| Custom tools | Pre-canonicalized prescribe | Ready |
+
+Two integration paths:
+- **Adapter path:** Evidra parses the tool's native artifact format
+- **Pre-canonicalized path:** Tool sends its own resource identity,
+  Evidra handles risk analysis, signals, scoring
+
+Both produce identical evidence, signals, and scores.
+
+---
+
+## Known Gaps
+
+Consolidated from architecture review and PO recommendation.
+Resolved items are captured in Key Decisions above.
+
+### Open for v0.3.0
+
+| Gap | Source | Priority | Effort |
+|-----|--------|----------|--------|
+| Wire CLI to evidence store | RECOMMENDATION §11.1 | P0 | 2 days |
+| `evidra explain` command | RECOMMENDATION §11.2 | P0 | 1 day |
+| Parse failures as evidence entries | RECOMMENDATION §3.4 | P1 | 0.5 day |
+| canon_source field: adapter/external | RECOMMENDATION §2.5 | P1 | 0.5 day |
+| SARIF scanner integration | RECOMMENDATION §8.2 | P1 | 3 days |
+| Scorecard run metadata / version in all outputs | RECOMMENDATION §7.1, §11.3 | P1 | 1 day |
+| Required fields table in docs | RECOMMENDATION §6.2 | P1 | 0.5 day |
+| Safety floor in scoring | RECOMMENDATION §4.3 | P2 | 0.5 day |
+| Scorecard breakdown by tool/scope | RECOMMENDATION §7.3 | P2 | 1 day |
+| TF unknown values marker | RECOMMENDATION §3.3 | P2 | 0.5 day |
+| Security section in README | RECOMMENDATION §9.1 | P2 | 0.5 day |
+
+### Deferred to v0.5.0+
+
+| Gap | Source | Reason |
+|-----|--------|--------|
+| Actor auth_context / OIDC | RECOMMENDATION §2.4 | Requires evidra-api |
+| Forward integrity + server receipts | RECOMMENDATION §2.3 | Requires evidra-api |
+| Label provenance | RECOMMENDATION §5.1 | Requires verification source |
+| Intent fingerprinting beyond operation_class | RECOMMENDATION §5.2 | Enhancement, not blocking |
+
+### Explicitly Rejected
+
+| Item | Source | Reason |
+|------|--------|--------|
+| Learning mode / baselines | RECOMMENDATION §4.1 | Violates "no ML, no adaptive thresholds" principle |
+| Batch signing replacing per-entry | RECOMMENDATION §10 | Already built, no benefit from ripping out |
+| Remove resource_shape_hash | RECOMMENDATION §10 | Needed for retry_loop, already built |
+
+---
+
 ## Outputs
 
 | Output | Command | Purpose |
@@ -453,6 +572,34 @@ No database. No aggregation service.
 | CI check | GitHub Actions workflow | Score on PR, fail below threshold |
 
 Details: [Benchmark](EVIDRA_AGENT_RELIABILITY_BENCHMARK.md) §11-12
+
+---
+
+## Libraries (2 external dependencies)
+
+| Adapter | Library | Binary cost | Delivery |
+|---------|---------|-------------|----------|
+| Kubernetes | `k8s.io/apimachinery` (unstructured) | ~2MB | v0.3.0 |
+| Terraform | `github.com/hashicorp/terraform-json` | ~200KB | v0.3.0 |
+| Helm | reuses K8s adapter | 0 | v0.3.0 (via K8s) |
+| ArgoCD | reuses K8s adapter (CRD) | 0 | Spec reserved (v0.5.0+) |
+| Generic | stdlib + `gopkg.in/yaml.v3` | ~100KB | v0.3.0 |
+
+Total: ~2.3MB. Compare: OPA alone was ~15MB.
+
+Details: [Canonicalization Contract v1](CANONICALIZATION_CONTRACT_V1.md) §16
+
+---
+
+## Testing
+
+Golden corpus (10 cases) + action snapshots (4 cases) + noise
+immunity (50 subtests) + shape_hash sensitivity (1 test).
+~65 tests, ~105 lines of code.
+
+Version bump: `EVIDRA_UPDATE_GOLDEN=1 go test -run TestGolden -update`
+
+Details: [Test Strategy](EVIDRA_CANONICALIZATION_TEST_STRATEGY.md)
 
 ---
 
@@ -498,41 +645,74 @@ Details: [Integration Roadmap](EVIDRA_INTEGRATION_ROADMAP.md)
 
 ---
 
-## Testing
+## Document Map
 
-Golden corpus (10 cases) + action snapshots (4 cases) + noise
-immunity (50 subtests) + shape_hash sensitivity (1 test).
-~65 tests, ~105 lines of code.
+```
+                    ┌──────────────────────────────────┐
+                    │  ARCHITECTURE OVERVIEW (this doc) │
+                    └──────────────────┬───────────────┘
+                                       │
+       ┌───────────────────┬───────────┼───────────┬──────────────────┐
+       ▼                   ▼           ▼           ▼                  ▼
+┌────────────┐   ┌──────────────┐  ┌────────┐  ┌──────────┐  ┌────────────┐
+│ DESIGN     │   │ CONTRACTS    │  │ SPECS  │  │ EXAMPLES │  │ OPERATIONS │
+│            │   │              │  │        │  │          │  │            │
+│ Benchmark  │   │ Canon v1 [2] │  │ Signal │  │ E2E [4]  │  │ Baseline   │
+│ [1]        │   │ Tests [3]    │  │ Spec   │  │          │  │ Migration  │
+│ Inspector  │   │              │  │ [5]    │  │          │  │ Bootstrap  │
+│ [6]        │   │              │  │        │  │          │  │ Post-Migr. │
+└────────────┘   └──────────────┘  └────────┘  └──────────┘  └────────────┘
+```
 
-Version bump: `EVIDRA_UPDATE_GOLDEN=1 go test -run TestGolden -update`
+### Active Documents (current architecture)
 
-Details: [Test Strategy](EVIDRA_CANONICALIZATION_TEST_STRATEGY.md)
+| # | Document | Role | Type |
+|---|----------|------|------|
+| 1 | [EVIDRA_SIGNAL_SPEC.md](EVIDRA_SIGNAL_SPEC.md) | **Signal definitions, metric contracts, scoring formula, conformance** | **Normative** |
+| 2 | [CANONICALIZATION_CONTRACT_V1.md](CANONICALIZATION_CONTRACT_V1.md) | **Adapter interface, digest rules, noise lists, compatibility** | **Normative** |
+| 3 | [EVIDRA_AGENT_RELIABILITY_BENCHMARK.md](EVIDRA_AGENT_RELIABILITY_BENCHMARK.md) | Scoring, comparison, benchmark methodology, protocol, risk analysis | Consumer |
+| 4 | [EVIDRA_ARCHITECTURE_OVERVIEW.md](EVIDRA_ARCHITECTURE_OVERVIEW.md) | Entry point, document map, component overview | Non-normative |
+| 5 | [EVIDRA_INSPECTOR_MODEL_ARCHITECTURE.md](EVIDRA_INSPECTOR_MODEL_ARCHITECTURE.md) | Inspector model rationale | Non-normative |
+| 6 | [EVIDRA_CANONICALIZATION_TEST_STRATEGY.md](EVIDRA_CANONICALIZATION_TEST_STRATEGY.md) | Golden corpus, test approach | Non-normative |
+| 7 | [EVIDRA_END_TO_END_EXAMPLE_v2.md](EVIDRA_END_TO_END_EXAMPLE_v2.md) | Worked examples, failure cases | Non-normative |
 
----
+### Operational Documents
 
-## Design Principles
+| # | Document | Purpose | Status |
+|---|----------|---------|--------|
+| 8 | [EVIDRA_CURRENT_STATE_BASELINE.md](EVIDRA_CURRENT_STATE_BASELINE.md) | v0.2.0 codebase inventory | Reference |
+| 9 | [EVIDRA_MIGRATION_MAP.md](EVIDRA_MIGRATION_MAP.md) | Migration instructions: file-by-file | Reference |
+| 10 | [EVIDRA_BOOTSTRAP_PROMPT.md](EVIDRA_BOOTSTRAP_PROMPT.md) | Claude Code prompt for migration | Reference |
+| 11 | [EVIDRA_POST_MIGRATION_UPDATE.md](EVIDRA_POST_MIGRATION_UPDATE.md) | Post-migration: Dockerfiles, MCP schemas, prompts | Active |
 
-1. **Tool-agnostic protocol.** Any automation tool integrates via prescribe/report.
-2. **Inspector, not enforcer.** prescribe() never denies.
-3. **Signals over policies.** Five behavioral signals, not rules.
-4. **Canonicalization defines intent.** Frozen contract, versioned, golden-tested.
-5. **Evidence chain as source of truth.** Append-only, signed, hash-linked.
-6. **Scope-aware comparison.** Only compare agents doing the same work.
-7. **Catastrophic risk only.** Detectors cover outage patterns, not style.
-8. **Minimal dependencies.** Two external libraries, ~2.3MB total.
-9. **Simple tests.** ~65 tests catch the same bugs as 8000.
-10. **Standard signals.** Same five signals for every tool, every actor.
+### Historical Documents (design evolution)
 
-### Drift Guards
+| # | Document | Purpose | Status |
+|---|----------|---------|--------|
+| 12 | [EVIDRA_TELEMETRY_PLANE_architect_review.md](EVIDRA_TELEMETRY_PLANE_architect_review.md) | Telemetry plane review. Led to tiered metrics. | Historical |
+| 13 | [EVIDRA_SIGNALS_ENGINE_architect_review.md](EVIDRA_SIGNALS_ENGINE_architect_review.md) | Signals engine review. Reduced from 10 signals to 5. | Historical |
+| 14 | [CANONICALIZATION_CONTRACT_architect_review.md](CANONICALIZATION_CONTRACT_architect_review.md) | Review of canonicalization draft. Led to v1 contract. | Historical |
+| 15 | [EVIDRA_STRATEGIC_DIRECTION.md](EVIDRA_STRATEGIC_DIRECTION.md) | Product strategy. Prometheus analogy. | Strategic |
+| 16 | [EVIDRA_STRATEGIC_MOAT_AND_STANDARDIZATION.md](EVIDRA_STRATEGIC_MOAT_AND_STANDARDIZATION.md) | Moat analysis. Defensibility, standardization path. | Strategic |
+| 17 | [EVIDRA_INTEGRATION_ROADMAP.md](EVIDRA_INTEGRATION_ROADMAP.md) | Integration plan. GH Action, GitLab CI, Docker, MCP registry, SDKs. | Active |
 
-Three boundaries that MUST NOT be crossed. See EVIDRA_SIGNAL_SPEC.md
-for normative definitions.
+### Archived Documents (consolidated into this overview)
 
-| Boundary | Rule | Violation smell |
-|----------|------|-----------------|
-| Adapter growth | Contract defines schema, adapters are libraries. Contract MUST NOT grow per tool. | "Let's add a Pulumi section to the contract" |
-| Detector scope | Detectors produce signal context, not policy. Max 15. | "Let's add a compliance detector" |
-| Evidence simplicity | Evidence is append-only log. Not a database. Not a queue. | "Let's add indexing to evidence" |
+Moved to `done/`. Resolved items captured in Key Decisions and
+Architecture Invariants above. Unresolved items in Known Gaps.
+
+| Document | Original role |
+|----------|--------------|
+| [EVIDRA_ARCHITECTURE_REVIEW.md](done/EVIDRA_ARCHITECTURE_REVIEW.md) | Gap analysis, overengineering review |
+| [EVIDRA_ARCHITECTURE_RECOMMENTATION_V1.md](done/EVIDRA_ARCHITECTURE_RECOMMENTATION_V1.md) | PO triage with P0/P1/P2 items |
+| [EVIDRA_ARCHITECTURE_INVARIANTS.md](done/EVIDRA_ARCHITECTURE_INVARIANTS.md) | Non-negotiable invariants |
+
+### Documents Not in Repo (referenced only)
+
+| Document | Where | Notes |
+|----------|-------|-------|
+| ANTI_GOODHART_BACKLOG_ADDENDUM.md | Backlog | Accepted for v0.5.0+. Not implemented in v1. |
+| EVIDRA_END_TO_END_EXAMPLE.md | Superseded | Replaced by v2. |
 
 ---
 
