@@ -132,14 +132,27 @@ func DetectUnreported(entries []Entry, ttl time.Duration) []SignalEvent {
 	return events
 }
 
-// classifyUnreported determines whether an unreported prescription
-// is a stalled operation (later activity from same actor) or a crash
-// (no later activity from same actor).
+// classifyUnreported determines whether an unreported prescription is:
+//   - crash_before_report: the last report from the same actor had exit_code != 0
+//   - stalled_operation: no crash indicator — agent simply stopped working
 func classifyUnreported(p Entry, entries []Entry) string {
-	for _, e := range entries {
-		if e.Timestamp.After(p.Timestamp) && e.ActorID == p.ActorID && e.ActorID != "" {
-			return "stalled_operation"
+	if p.ActorID == "" {
+		return "stalled_operation"
+	}
+
+	// Find the most recent report from the same actor before or near this prescription.
+	var lastReport *Entry
+	for i := range entries {
+		e := &entries[i]
+		if e.IsReport && e.ActorID == p.ActorID {
+			if lastReport == nil || e.Timestamp.After(lastReport.Timestamp) {
+				lastReport = e
+			}
 		}
 	}
-	return "crash_before_report"
+
+	if lastReport != nil && lastReport.ExitCode != nil && *lastReport.ExitCode != 0 {
+		return "crash_before_report"
+	}
+	return "stalled_operation"
 }

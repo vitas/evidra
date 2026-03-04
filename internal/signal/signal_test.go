@@ -88,6 +88,23 @@ func TestDetectUnreported_TTLExpired(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(events))
 	}
+	if events[0].SubSignal != "stalled_operation" {
+		t.Errorf("sub_signal = %q, want stalled_operation", events[0].SubSignal)
+	}
+}
+
+func TestDetectUnreported_CrashBeforeReport(t *testing.T) {
+	t.Parallel()
+
+	old := time.Now().Add(-20 * time.Minute)
+	entries := []Entry{
+		{EventID: "R0", IsReport: true, PrescriptionID: "P0", ActorID: "alice", ExitCode: intPtr(1), Timestamp: old.Add(-5 * time.Minute)},
+		{EventID: "P1", IsPrescription: true, ActorID: "alice", Timestamp: old},
+	}
+	events := DetectUnreported(entries, DefaultTTL)
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
 	if events[0].SubSignal != "crash_before_report" {
 		t.Errorf("sub_signal = %q, want crash_before_report", events[0].SubSignal)
 	}
