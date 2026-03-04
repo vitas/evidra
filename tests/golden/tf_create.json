@@ -1,0 +1,23 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.7.0",
+  "planned_values": {},
+  "resource_changes": [
+    {
+      "address": "aws_instance.web",
+      "type": "aws_instance",
+      "name": "web",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "ami": "ami-0c55b159cbfafe1f0",
+          "instance_type": "t2.micro",
+          "tags": {"Name": "web-server"}
+        },
+        "after_unknown": {}
+      }
+    }
+  ]
+}

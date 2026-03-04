@@ -1,0 +1,15 @@
+{
+  "type": "object",
+  "required": ["prescription_id", "exit_code"],
+  "properties": {
+    "prescription_id": { "type": "string", "description": "Event ID of the prescription to report on" },
+    "exit_code": { "type": "integer", "description": "Exit code of the tool execution (0 = success)" },
+    "artifact_digest": { "type": "string", "description": "SHA256 of the post-execution artifact (optional)" },
+    "external_refs": {
+      "type": "array",
+      "description": "External references (e.g. PR URLs, ticket IDs)",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}

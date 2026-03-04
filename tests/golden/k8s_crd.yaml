@@ -1,0 +1,21 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: reviews-route
+  namespace: bookinfo
+spec:
+  hosts:
+  - reviews
+  http:
+  - match:
+    - headers:
+        end-user:
+          exact: jason
+    route:
+    - destination:
+        host: reviews
+        subset: v2
+  - route:
+    - destination:
+        host: reviews
+        subset: v3

@@ -1,0 +1,3 @@
+Report the result of an infrastructure operation.
+Provide prescription ID and exit code.
+Always call after the operation completes.

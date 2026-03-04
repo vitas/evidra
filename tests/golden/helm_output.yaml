@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-release-nginx
+  namespace: default
+  labels:
+    app.kubernetes.io/name: nginx
+    app.kubernetes.io/instance: my-release
+    helm.sh/chart: nginx-15.0.0
+  annotations:
+    meta.helm.sh/release-name: my-release
+    meta.helm.sh/release-namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nginx
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nginx
+        app.kubernetes.io/instance: my-release
+    spec:
+      containers:
+      - name: nginx
+        image: docker.io/bitnami/nginx:1.25.3
+        ports:
+        - containerPort: 8080

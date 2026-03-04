@@ -1,0 +1,10 @@
+services:
+  evidra-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./evidence:/evidence
+    environment:
+      - EVIDRA_EVIDENCE_DIR=/evidence
+      - EVIDRA_ENVIRONMENT=development

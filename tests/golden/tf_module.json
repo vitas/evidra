@@ -1,0 +1,33 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.7.0",
+  "planned_values": {},
+  "resource_changes": [
+    {
+      "address": "module.vpc.aws_vpc.main",
+      "module_address": "module.vpc",
+      "type": "aws_vpc",
+      "name": "main",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {"cidr_block": "10.0.0.0/16"},
+        "after_unknown": {}
+      }
+    },
+    {
+      "address": "module.vpc.aws_subnet.public",
+      "module_address": "module.vpc",
+      "type": "aws_subnet",
+      "name": "public",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {"cidr_block": "10.0.1.0/24"},
+        "after_unknown": {}
+      }
+    }
+  ]
+}

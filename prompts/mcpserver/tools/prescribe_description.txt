@@ -1,0 +1,3 @@
+Record intent before an infrastructure operation.
+Returns risk assessment and prescription ID.
+Always call before kubectl apply, terraform apply, helm upgrade, etc.

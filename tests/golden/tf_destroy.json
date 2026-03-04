@@ -1,0 +1,22 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.7.0",
+  "planned_values": {},
+  "resource_changes": [
+    {
+      "address": "aws_instance.web",
+      "type": "aws_instance",
+      "name": "web",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["delete"],
+        "before": {
+          "ami": "ami-0c55b159cbfafe1f0",
+          "instance_type": "t2.micro"
+        },
+        "after": null,
+        "after_unknown": {}
+      }
+    }
+  ]
+}

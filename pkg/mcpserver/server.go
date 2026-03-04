@@ -1,0 +1,458 @@
+package mcpserver
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"strings"
+	"time"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+	"github.com/oklog/ulid/v2"
+
+	"samebits.com/evidra-benchmark/internal/canon"
+	"samebits.com/evidra-benchmark/internal/risk"
+	"samebits.com/evidra-benchmark/pkg/evidence"
+	"samebits.com/evidra-benchmark/pkg/invocation"
+)
+
+// Options configures the benchmark MCP server.
+type Options struct {
+	Name         string
+	Version      string
+	EvidencePath string
+	Environment  string
+	ForwardURL   string
+	RetryTracker bool
+}
+
+// PrescribeInput is the input schema for the prescribe tool.
+type PrescribeInput struct {
+	Actor           invocation.Actor       `json:"actor"`
+	Tool            string                 `json:"tool"`
+	Operation       string                 `json:"operation"`
+	RawArtifact     string                 `json:"raw_artifact"`
+	Environment     string                 `json:"environment,omitempty"`
+	CanonicalAction *canon.CanonicalAction `json:"canonical_action,omitempty"`
+}
+
+// PrescribeOutput is returned by the prescribe tool.
+type PrescribeOutput struct {
+	OK             bool     `json:"ok"`
+	PrescriptionID string   `json:"prescription_id"`
+	RiskLevel      string   `json:"risk_level"`
+	RiskTags       []string `json:"risk_tags,omitempty"`
+	ArtifactDigest string   `json:"artifact_digest"`
+	IntentDigest   string   `json:"intent_digest"`
+	ShapeHash      string   `json:"resource_shape_hash"`
+	ResourceCount  int      `json:"resource_count"`
+	OperationClass string   `json:"operation_class"`
+	ScopeClass     string   `json:"scope_class"`
+	CanonVersion   string   `json:"canon_version"`
+	RetryCount     int      `json:"retry_count,omitempty"`
+	Error          *ErrInfo `json:"error,omitempty"`
+}
+
+// ReportInput is the input schema for the report tool.
+type ReportInput struct {
+	PrescriptionID string `json:"prescription_id"`
+	ExitCode       int    `json:"exit_code"`
+	ArtifactDigest string `json:"artifact_digest,omitempty"`
+}
+
+// ReportOutput is returned by the report tool.
+type ReportOutput struct {
+	OK       bool     `json:"ok"`
+	ReportID string   `json:"report_id"`
+	Signals  []string `json:"signals,omitempty"`
+	Error    *ErrInfo `json:"error,omitempty"`
+}
+
+// ErrInfo represents an error in tool output.
+type ErrInfo struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+type prescribeHandler struct {
+	service *BenchmarkService
+}
+
+type reportHandler struct {
+	service *BenchmarkService
+}
+
+// BenchmarkService provides prescribe and report operations.
+type BenchmarkService struct {
+	evidencePath string
+	retryTracker *RetryTracker
+}
+
+const (
+	prescribeToolDescription = "Analyze an infrastructure artifact BEFORE execution. " +
+		"Returns risk level, canonical digests, and a prescription ID. " +
+		"Call this BEFORE running kubectl apply, terraform apply, or similar commands."
+
+	reportToolDescription = "Report the outcome of an infrastructure operation AFTER execution. " +
+		"Provide the prescription_id from a previous prescribe call and the exit code."
+
+	getEventToolDescription = "Look up an evidence record by event_id."
+
+	initializeInstructions = "Evidra Benchmark — flight recorder for infrastructure automation. " +
+		"Call `prescribe` BEFORE any infrastructure operation and `report` AFTER."
+)
+
+// NewServer creates a new benchmark MCP server with prescribe and report tools.
+func NewServer(opts Options) *mcp.Server {
+	if opts.Name == "" {
+		opts.Name = "evidra-benchmark"
+	}
+	if opts.Version == "" {
+		opts.Version = "v0.3.0-dev"
+	}
+
+	svc := &BenchmarkService{
+		evidencePath: opts.EvidencePath,
+	}
+	if opts.RetryTracker {
+		svc.retryTracker = NewRetryTracker(10 * time.Minute)
+	}
+
+	prescribe := &prescribeHandler{service: svc}
+	report := &reportHandler{service: svc}
+	getEvent := &getEventHandler{service: svc}
+
+	server := mcp.NewServer(
+		&mcp.Implementation{Name: opts.Name, Version: opts.Version},
+		&mcp.ServerOptions{
+			Instructions: initializeInstructions,
+		},
+	)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "prescribe",
+		Title:       "Prescribe Infrastructure Operation",
+		Description: prescribeToolDescription,
+		Annotations: &mcp.ToolAnnotations{
+			Title:           "Prescribe",
+			ReadOnlyHint:    true,
+			IdempotentHint:  true,
+			DestructiveHint: boolPtr(false),
+			OpenWorldHint:   boolPtr(false),
+		},
+		InputSchema: mustLoadInputSchema(prescribeSchemaBytes, "schemas/prescribe.schema.json"),
+	}, prescribe.Handle)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "report",
+		Title:       "Report Operation Outcome",
+		Description: reportToolDescription,
+		Annotations: &mcp.ToolAnnotations{
+			Title:           "Report",
+			ReadOnlyHint:    false,
+			IdempotentHint:  false,
+			DestructiveHint: boolPtr(false),
+			OpenWorldHint:   boolPtr(false),
+		},
+		InputSchema: mustLoadInputSchema(reportSchemaBytes, "schemas/report.schema.json"),
+	}, report.Handle)
+
+	mcp.AddTool(server, &mcp.Tool{
+		Name:        "get_event",
+		Title:       "Get Evidence Event",
+		Description: getEventToolDescription,
+		Annotations: &mcp.ToolAnnotations{
+			Title:           "Evidence Lookup",
+			ReadOnlyHint:    true,
+			IdempotentHint:  true,
+			DestructiveHint: boolPtr(false),
+			OpenWorldHint:   boolPtr(false),
+		},
+		InputSchema: mustLoadInputSchema(getEventSchemaBytes, "schemas/get_event.schema.json"),
+	}, getEvent.Handle)
+
+	// Evidence resources
+	server.AddResourceTemplate(&mcp.ResourceTemplate{
+		Name:        "evidra-event",
+		Title:       "Evidence Event Record",
+		Description: "Read a specific evidence record by event_id.",
+		MIMEType:    "application/json",
+		URITemplate: "evidra://event/{event_id}",
+	}, svc.readResourceEvent)
+	server.AddResource(&mcp.Resource{
+		Name:        "evidra-evidence-manifest",
+		Title:       "Evidence Manifest",
+		Description: "Read evidence manifest for segmented store.",
+		MIMEType:    "application/json",
+		URI:         "evidra://evidence/manifest",
+	}, svc.readResourceManifest)
+
+	return server
+}
+
+func (h *prescribeHandler) Handle(
+	_ context.Context,
+	_ *mcp.CallToolRequest,
+	input PrescribeInput,
+) (*mcp.CallToolResult, PrescribeOutput, error) {
+	output := h.service.Prescribe(input)
+	return &mcp.CallToolResult{}, output, nil
+}
+
+func (h *reportHandler) Handle(
+	_ context.Context,
+	_ *mcp.CallToolRequest,
+	input ReportInput,
+) (*mcp.CallToolResult, ReportOutput, error) {
+	output := h.service.Report(input)
+	return &mcp.CallToolResult{}, output, nil
+}
+
+// Prescribe canonicalizes the artifact, runs risk detectors, and records
+// a prescription in the evidence chain.
+func (s *BenchmarkService) Prescribe(input PrescribeInput) PrescribeOutput {
+	rawArtifact := []byte(input.RawArtifact)
+
+	var cr canon.CanonResult
+
+	if input.CanonicalAction != nil {
+		// Pre-canonicalized path: caller already computed the canonical action.
+		actionJSON, _ := json.Marshal(input.CanonicalAction)
+		cr = canon.CanonResult{
+			ArtifactDigest:  canon.SHA256Hex(rawArtifact),
+			IntentDigest:    canon.SHA256Hex(actionJSON),
+			CanonicalAction: *input.CanonicalAction,
+			CanonVersion:    "external/v1",
+			RawAction:       actionJSON,
+		}
+	} else {
+		// Standard path: run adapter.
+		cr = canon.Canonicalize(input.Tool, input.Operation, rawArtifact)
+		if cr.ParseError != nil {
+			return PrescribeOutput{
+				OK:    false,
+				Error: &ErrInfo{Code: "parse_error", Message: cr.ParseError.Error()},
+			}
+		}
+	}
+
+	// Run risk detectors on raw artifact regardless of canonicalization path
+	riskTags := risk.RunAll(rawArtifact)
+	riskLevel := risk.RiskLevel(cr.CanonicalAction.OperationClass, cr.CanonicalAction.ScopeClass)
+
+	// Track retries
+	var retryCount int
+	if s.retryTracker != nil {
+		retryCount = s.retryTracker.Record(cr.IntentDigest, cr.CanonicalAction.ResourceShapeHash)
+	}
+
+	// Build evidence record
+	eventID := ulid.Make().String()
+	rec := evidence.Record{
+		EventID:   eventID,
+		Timestamp: time.Now().UTC(),
+		Actor:     input.Actor,
+		Tool:      input.Tool,
+		Operation: input.Operation,
+		Params: map[string]interface{}{
+			"artifact_digest":     cr.ArtifactDigest,
+			"intent_digest":       cr.IntentDigest,
+			"resource_shape_hash": cr.CanonicalAction.ResourceShapeHash,
+			"canon_version":       cr.CanonVersion,
+			"resource_count":      cr.CanonicalAction.ResourceCount,
+			"risk_tags":           riskTags,
+		},
+		PolicyDecision: evidence.PolicyDecision{
+			Allow:     true,
+			RiskLevel: riskLevel,
+			Reason:    "prescribed",
+			RuleIDs:   riskTags,
+		},
+		Source: "local",
+	}
+	if input.Environment != "" {
+		rec.EnvironmentLabel = input.Environment
+	}
+
+	// Write to evidence chain
+	if s.evidencePath != "" {
+		if _, err := evidence.AppendAtPath(s.evidencePath, rec); err != nil {
+			return PrescribeOutput{
+				OK:    false,
+				Error: &ErrInfo{Code: "evidence_write_failed", Message: err.Error()},
+			}
+		}
+	}
+
+	return PrescribeOutput{
+		OK:             true,
+		PrescriptionID: eventID,
+		RiskLevel:      riskLevel,
+		RiskTags:       riskTags,
+		ArtifactDigest: cr.ArtifactDigest,
+		IntentDigest:   cr.IntentDigest,
+		ShapeHash:      cr.CanonicalAction.ResourceShapeHash,
+		ResourceCount:  cr.CanonicalAction.ResourceCount,
+		OperationClass: cr.CanonicalAction.OperationClass,
+		ScopeClass:     cr.CanonicalAction.ScopeClass,
+		CanonVersion:   cr.CanonVersion,
+		RetryCount:     retryCount,
+	}
+}
+
+// Report records the outcome of an operation, matching it to a prescription.
+func (s *BenchmarkService) Report(input ReportInput) ReportOutput {
+	if input.PrescriptionID == "" {
+		return ReportOutput{
+			OK:    false,
+			Error: &ErrInfo{Code: "invalid_input", Message: "prescription_id is required"},
+		}
+	}
+
+	// Look up prescription
+	if s.evidencePath != "" {
+		_, found, err := evidence.FindByEventID(s.evidencePath, input.PrescriptionID)
+		if err != nil {
+			return ReportOutput{
+				OK:    false,
+				Error: &ErrInfo{Code: "evidence_read_failed", Message: err.Error()},
+			}
+		}
+		if !found {
+			return ReportOutput{
+				OK:    false,
+				Error: &ErrInfo{Code: "not_found", Message: "prescription_id not found"},
+			}
+		}
+	}
+
+	// Build report record
+	eventID := ulid.Make().String()
+	exitCode := input.ExitCode
+	status := "completed"
+	if exitCode != 0 {
+		status = "failed"
+	}
+
+	rec := evidence.Record{
+		EventID:   eventID,
+		Timestamp: time.Now().UTC(),
+		Tool:      "report",
+		Operation: "outcome",
+		Params: map[string]interface{}{
+			"prescription_id": input.PrescriptionID,
+			"artifact_digest": input.ArtifactDigest,
+		},
+		ExecutionResult: evidence.ExecutionResult{
+			Status:   status,
+			ExitCode: &exitCode,
+		},
+		PolicyDecision: evidence.PolicyDecision{
+			Allow:     true,
+			RiskLevel: "low",
+			Reason:    "reported",
+		},
+		Source: "local",
+	}
+
+	// Write to evidence chain
+	if s.evidencePath != "" {
+		if _, err := evidence.AppendAtPath(s.evidencePath, rec); err != nil {
+			return ReportOutput{
+				OK:    false,
+				Error: &ErrInfo{Code: "evidence_write_failed", Message: err.Error()},
+			}
+		}
+	}
+
+	// Signals will be computed in Phase 5
+	return ReportOutput{
+		OK:       true,
+		ReportID: eventID,
+	}
+}
+
+// --- get_event tool ---
+
+type getEventHandler struct {
+	service *BenchmarkService
+}
+
+type getEventInput struct {
+	EventID string `json:"event_id"`
+}
+
+type GetEventOutput struct {
+	OK     bool             `json:"ok"`
+	Record *evidence.Record `json:"record,omitempty"`
+	Error  *ErrInfo         `json:"error,omitempty"`
+}
+
+func (h *getEventHandler) Handle(
+	_ context.Context,
+	_ *mcp.CallToolRequest,
+	input getEventInput,
+) (*mcp.CallToolResult, GetEventOutput, error) {
+	output := h.service.GetEvent(input.EventID)
+	return &mcp.CallToolResult{}, output, nil
+}
+
+func (s *BenchmarkService) GetEvent(eventID string) GetEventOutput {
+	if eventID == "" {
+		return GetEventOutput{OK: false, Error: &ErrInfo{Code: "invalid_input", Message: "event_id is required"}}
+	}
+	if s.evidencePath == "" {
+		return GetEventOutput{OK: false, Error: &ErrInfo{Code: "no_evidence_path", Message: "evidence path not configured"}}
+	}
+	rec, found, err := evidence.FindByEventID(s.evidencePath, eventID)
+	if err != nil {
+		if errors.Is(err, evidence.ErrChainInvalid) {
+			return GetEventOutput{OK: false, Error: &ErrInfo{Code: "evidence_chain_invalid", Message: "evidence chain validation failed"}}
+		}
+		return GetEventOutput{OK: false, Error: &ErrInfo{Code: "internal_error", Message: "failed to read evidence"}}
+	}
+	if !found {
+		return GetEventOutput{OK: false, Error: &ErrInfo{Code: "not_found", Message: "event_id not found"}}
+	}
+	return GetEventOutput{OK: true, Record: &rec}
+}
+
+// --- resource handlers ---
+
+func (s *BenchmarkService) readResourceEvent(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+	eventID := strings.TrimPrefix(req.Params.URI, "evidra://event/")
+	if eventID == "" || eventID == req.Params.URI {
+		return nil, mcp.ResourceNotFoundError(req.Params.URI)
+	}
+	if s.evidencePath == "" {
+		return nil, mcp.ResourceNotFoundError(req.Params.URI)
+	}
+	rec, found, err := evidence.FindByEventID(s.evidencePath, eventID)
+	if err != nil || !found {
+		return nil, mcp.ResourceNotFoundError(req.Params.URI)
+	}
+	b, err := json.MarshalIndent(rec, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{URI: req.Params.URI, MIMEType: "application/json", Text: string(b)}}}, nil
+}
+
+func (s *BenchmarkService) readResourceManifest(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+	if s.evidencePath == "" {
+		return nil, mcp.ResourceNotFoundError(req.Params.URI)
+	}
+	m, err := evidence.LoadManifest(s.evidencePath)
+	if err != nil {
+		return nil, mcp.ResourceNotFoundError(req.Params.URI)
+	}
+	b, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{URI: "evidra://evidence/manifest", MIMEType: "application/json", Text: string(b)}}}, nil
+}
+
+func boolPtr(v bool) *bool {
+	return &v
+}

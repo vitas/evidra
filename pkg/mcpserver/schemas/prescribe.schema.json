@@ -1,0 +1,38 @@
+{
+  "type": "object",
+  "required": ["actor", "tool", "operation", "raw_artifact"],
+  "properties": {
+    "actor": {
+      "type": "object",
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "type": "string", "enum": ["agent", "human", "ci"] },
+        "id": { "type": "string" },
+        "origin": { "type": "string" }
+      }
+    },
+    "tool": { "type": "string", "description": "Tool name (e.g. kubectl, terraform)" },
+    "operation": { "type": "string", "description": "Operation (e.g. apply, delete, plan)" },
+    "raw_artifact": { "type": "string", "description": "Raw YAML or JSON artifact to analyze" },
+    "environment": { "type": "string", "description": "Environment label (e.g. production, staging)" },
+    "actor_meta": {
+      "type": "object",
+      "description": "Additional metadata about the actor (optional, free-form)"
+    },
+    "canonical_action": {
+      "type": "object",
+      "description": "Pre-canonicalized action. When provided, the adapter step is skipped.",
+      "properties": {
+        "tool": { "type": "string" },
+        "operation": { "type": "string" },
+        "operation_class": { "type": "string" },
+        "resource_identity": { "type": "array", "items": { "type": "object" } },
+        "scope_class": { "type": "string" },
+        "resource_count": { "type": "integer" },
+        "resource_shape_hash": { "type": "string" },
+        "risk_tags": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,6 @@
+Evidra reliability benchmark is active.
+Call `prescribe` before infrastructure operations.
+Call `report` after execution completes.
+Evidra never blocks — it records and measures.
+Risk level in prescribe response is informational.
+High risk does not mean stop — it means consider carefully.
