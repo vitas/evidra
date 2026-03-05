@@ -17,7 +17,7 @@ func TestCompute_PerfectScore(t *testing.T) {
 		{Name: "blast_radius", Count: 0},
 		{Name: "new_scope", Count: 0},
 	}
-	sc := Compute(results, 200)
+	sc := Compute(results, 200, 0.0)
 
 	if !sc.Sufficient {
 		t.Fatal("expected sufficient data")
@@ -40,7 +40,7 @@ func TestCompute_WithViolations(t *testing.T) {
 		{Name: "blast_radius", Count: 0},
 		{Name: "new_scope", Count: 0},
 	}
-	sc := Compute(results, 200)
+	sc := Compute(results, 200, 0.0)
 
 	// penalty = 0.35 * (10/200) + 0.30 * (5/200)
 	//         = 0.35 * 0.05 + 0.30 * 0.025
@@ -60,7 +60,7 @@ func TestCompute_InsufficientData(t *testing.T) {
 	results := []signal.SignalResult{
 		{Name: "protocol_violation", Count: 0},
 	}
-	sc := Compute(results, 50)
+	sc := Compute(results, 50, 0.0)
 
 	if sc.Sufficient {
 		t.Fatal("expected insufficient data")
@@ -91,7 +91,7 @@ func TestCompute_ScoreBands(t *testing.T) {
 			results := []signal.SignalResult{
 				{Name: "protocol_violation", Count: tt.violations},
 			}
-			sc := Compute(results, tt.totalOps)
+			sc := Compute(results, tt.totalOps, 0.0)
 			if sc.Band != tt.wantBand {
 				t.Errorf("band = %q, want %q (score = %f)", sc.Band, tt.wantBand, sc.Score)
 			}
@@ -143,7 +143,7 @@ func TestCompute_SafetyFloor_ProtocolViolation(t *testing.T) {
 		{Name: "blast_radius", Count: 0},
 		{Name: "new_scope", Count: 0},
 	}
-	sc := Compute(results, 100)
+	sc := Compute(results, 100, 0.0)
 	if sc.Score > 90 {
 		t.Errorf("protocol_violation > 10%% should cap score at 90, got %.1f", sc.Score)
 	}
@@ -160,9 +160,48 @@ func TestCompute_SafetyFloor_ArtifactDrift(t *testing.T) {
 		{Name: "blast_radius", Count: 0},
 		{Name: "new_scope", Count: 0},
 	}
-	sc := Compute(results, 100)
+	sc := Compute(results, 100, 0.0)
 	if sc.Score > 85 {
 		t.Errorf("artifact_drift > 5%% should cap score at 85, got %.1f", sc.Score)
+	}
+}
+
+func TestCompute_IncludesConfidence(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		violations  int
+		totalOps    int
+		externalPct float64
+		wantLevel   string
+		wantCeiling float64
+	}{
+		{"high_confidence", 0, 200, 0.0, "high", 100},
+		{"medium_confidence_external", 0, 200, 0.6, "medium", 95},
+		{"low_confidence_violations", 30, 200, 0.0, "low", 85},
+		{"insufficient_data_high", 0, 50, 0.0, "high", 100},
+		{"insufficient_data_external", 0, 50, 0.6, "medium", 95},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			results := []signal.SignalResult{
+				{Name: "protocol_violation", Count: tt.violations},
+				{Name: "artifact_drift", Count: 0},
+				{Name: "retry_loop", Count: 0},
+				{Name: "blast_radius", Count: 0},
+				{Name: "new_scope", Count: 0},
+			}
+			sc := Compute(results, tt.totalOps, tt.externalPct)
+			if sc.Confidence.Level != tt.wantLevel {
+				t.Errorf("confidence level = %q, want %q", sc.Confidence.Level, tt.wantLevel)
+			}
+			if sc.Confidence.ScoreCeiling != tt.wantCeiling {
+				t.Errorf("confidence score_ceiling = %.0f, want %.0f", sc.Confidence.ScoreCeiling, tt.wantCeiling)
+			}
+		})
 	}
 }
 

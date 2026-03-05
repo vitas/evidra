@@ -112,7 +112,7 @@ func cmdScorecard(args []string, stdout, stderr io.Writer) int {
 
 	totalOps := countPrescriptions(signalEntries)
 	results := signal.AllSignals(signalEntries, ttlDuration)
-	sc := score.Compute(results, totalOps)
+	sc := score.Compute(results, totalOps, 0.0)
 
 	output := struct {
 		score.Scorecard
@@ -195,7 +195,7 @@ func cmdExplain(args []string, stdout, stderr io.Writer) int {
 
 	totalOps := countPrescriptions(signalEntries)
 	results := signal.AllSignals(signalEntries, ttlDuration)
-	sc := score.Compute(results, totalOps)
+	sc := score.Compute(results, totalOps, 0.0)
 
 	type SignalDetail struct {
 		Signal     string         `json:"signal"`
@@ -313,7 +313,7 @@ func cmdCompare(args []string, stdout, stderr io.Writer) int {
 		}
 		totalOps := countPrescriptions(signalEntries)
 		results := signal.AllSignals(signalEntries, signal.DefaultTTL)
-		sc := score.Compute(results, totalOps)
+		sc := score.Compute(results, totalOps, 0.0)
 		profile := score.BuildProfile(signalEntries)
 
 		scorecards = append(scorecards, actorScore{

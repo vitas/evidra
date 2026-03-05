@@ -23,10 +23,12 @@ type Scorecard struct {
 	Score           float64            `json:"score"`
 	Band            string             `json:"band"`
 	Sufficient      bool               `json:"sufficient"`
+	Confidence      Confidence         `json:"confidence"`
 }
 
 // Compute calculates a reliability scorecard from signal results.
-func Compute(results []signal.SignalResult, totalOps int) Scorecard {
+// externalPct is the fraction of entries canonicalized externally (0.0 when all are adapter-canonicalized).
+func Compute(results []signal.SignalResult, totalOps int, externalPct float64) Scorecard {
 	sc := Scorecard{
 		TotalOperations: totalOps,
 		Signals:         make(map[string]int),
@@ -40,6 +42,7 @@ func Compute(results []signal.SignalResult, totalOps int) Scorecard {
 	if totalOps < MinOperations {
 		sc.Score = -1
 		sc.Band = "insufficient_data"
+		sc.Confidence = ComputeConfidence(externalPct, 0)
 		return sc
 	}
 
@@ -71,6 +74,7 @@ func Compute(results []signal.SignalResult, totalOps int) Scorecard {
 	}
 
 	sc.Band = scoreBand(sc.Score)
+	sc.Confidence = ComputeConfidence(externalPct, sc.Rates["protocol_violation"])
 
 	return sc
 }
