@@ -366,6 +366,11 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
+	sessionID := *sessionIDFlag
+	if sessionID == "" {
+		sessionID = evidence.GenerateSessionID()
+	}
+
 	if *artifactFlag == "" || *toolFlag == "" {
 		fmt.Fprintln(stderr, "prescribe requires --artifact and --tool")
 		return 2
@@ -484,7 +489,7 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 	lastHash, _ := evidence.LastHashAtPath(evidencePath)
 	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
 		Type:           evidence.EntryTypePrescribe,
-		SessionID:      *sessionIDFlag,
+		SessionID:      sessionID,
 		OperationID:    *operationIDFlag,
 		Attempt:        *attemptFlag,
 		TraceID:        traceID,
@@ -522,6 +527,7 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 	result := map[string]interface{}{
 		"ok":              true,
 		"prescription_id": entry.EntryID,
+		"session_id":      sessionID,
 		"risk_level":      riskLevel,
 		"risk_tags":       riskTags,
 		"artifact_digest": cr.ArtifactDigest,
@@ -595,6 +601,11 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 	signingKeyPathFlag := fs.String("signing-key-path", "", "Path to PEM-encoded Ed25519 signing key")
 	if err := fs.Parse(args); err != nil {
 		return 2
+	}
+
+	sessionID := *sessionIDFlag
+	if sessionID == "" {
+		sessionID = evidence.GenerateSessionID()
 	}
 
 	if *prescriptionFlag == "" {
@@ -673,7 +684,7 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 	lastHash, _ := evidence.LastHashAtPath(evidencePath)
 	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
 		Type:           evidence.EntryTypeReport,
-		SessionID:      *sessionIDFlag,
+		SessionID:      sessionID,
 		OperationID:    *operationIDFlag,
 		TraceID:        reportID,
 		Actor:          actor,
@@ -847,6 +858,11 @@ func cmdIngestFindings(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
+	sessionID := *sessionIDFlag
+	if sessionID == "" {
+		sessionID = evidence.GenerateSessionID()
+	}
+
 	if *sarifFlag == "" {
 		fmt.Fprintln(stderr, "ingest-findings requires --sarif")
 		return 2
@@ -900,7 +916,7 @@ func cmdIngestFindings(args []string, stdout, stderr io.Writer) int {
 		lastHash, _ := evidence.LastHashAtPath(evidencePath)
 		entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
 			Type:           evidence.EntryTypeFinding,
-			SessionID:      *sessionIDFlag,
+			SessionID:      sessionID,
 			TraceID:        artifactDigest,
 			Actor:          actor,
 			ArtifactDigest: artifactDigest,

@@ -9,3 +9,8 @@ import (
 func GenerateTraceID() string {
 	return ulid.Make().String()
 }
+
+// GenerateSessionID creates a new session_id as a ULID.
+func GenerateSessionID() string {
+	return ulid.Make().String()
+}
