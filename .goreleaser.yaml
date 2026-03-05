@@ -1,0 +1,106 @@
+version: 2
+
+project_name: evidra-benchmark
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: evidra
+    main: ./cmd/evidra
+    binary: evidra
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X samebits.com/evidra-benchmark/pkg/version.Version={{.Version}}
+      - -X samebits.com/evidra-benchmark/pkg/version.Commit={{.Commit}}
+      - -X samebits.com/evidra-benchmark/pkg/version.Date={{.Date}}
+
+  - id: evidra-mcp
+    main: ./cmd/evidra-mcp
+    binary: evidra-mcp
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X samebits.com/evidra-benchmark/pkg/version.Version={{.Version}}
+      - -X samebits.com/evidra-benchmark/pkg/version.Commit={{.Commit}}
+      - -X samebits.com/evidra-benchmark/pkg/version.Date={{.Date}}
+
+archives:
+  - id: evidra
+    builds:
+      - evidra
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "evidra_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+  - id: evidra-mcp
+    builds:
+      - evidra-mcp
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "evidra-mcp_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+release:
+  mode: replace
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: git
+  sort: asc
+
+brews:
+  - name: evidra-mcp
+    ids:
+      - evidra-mcp
+    skip_upload: false
+    repository:
+      owner: samebits
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: "https://github.com/vitas/evidra-benchmark"
+    description: "Flight recorder and reliability benchmark for infrastructure automation."
+    license: "Apache-2.0"
+    install: |
+      bin.install "evidra-mcp"
+    test: |
+      system bin/"evidra-mcp", "--version"
+
+  - name: evidra
+    ids:
+      - evidra
+    skip_upload: false
+    repository:
+      owner: samebits
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: "https://github.com/vitas/evidra-benchmark"
+    description: "CLI for Evidra reliability benchmark — scorecard, compare, prescribe, report."
+    license: "Apache-2.0"
+    install: |
+      bin.install "evidra"
+    test: |
+      system bin/"evidra", "--version"
