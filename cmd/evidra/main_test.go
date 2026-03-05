@@ -323,3 +323,172 @@ func TestScorecard_SessionIDFilter(t *testing.T) {
 		t.Fatalf("session_id = %v, want session-A", sid)
 	}
 }
+
+func TestResolveSigner_OptionalWithoutKey(t *testing.T) {
+	t.Setenv("EVIDRA_SIGNING_KEY", "")
+	t.Setenv("EVIDRA_SIGNING_KEY_PATH", "")
+	s, err := resolveSigner("", "", "optional")
+	if err != nil {
+		t.Fatalf("resolveSigner(optional): %v", err)
+	}
+	if s == nil {
+		t.Fatal("expected signer in optional mode")
+	}
+}
+
+func TestResolveSigner_StrictWithoutKeyFails(t *testing.T) {
+	t.Setenv("EVIDRA_SIGNING_KEY", "")
+	t.Setenv("EVIDRA_SIGNING_KEY_PATH", "")
+	if _, err := resolveSigner("", "", "strict"); err == nil {
+		t.Fatal("expected strict mode error when no key configured")
+	}
+}
+
+func TestRunPrescribe_OptionalSigningModeWithoutKey(t *testing.T) {
+	t.Setenv("EVIDRA_SIGNING_KEY", "")
+	t.Setenv("EVIDRA_SIGNING_KEY_PATH", "")
+
+	tmp := t.TempDir()
+	artifact := filepath.Join(tmp, "artifact.json")
+	if err := os.WriteFile(artifact, []byte(`{"noop":true}`), 0o644); err != nil {
+		t.Fatalf("write artifact: %v", err)
+	}
+
+	var out, errBuf bytes.Buffer
+	code := run([]string{
+		"prescribe",
+		"--tool", "terraform",
+		"--artifact", artifact,
+		"--canonical-action", testCanonicalAction,
+		"--signing-mode", "optional",
+		"--evidence-dir", filepath.Join(tmp, "evidence"),
+	}, &out, &errBuf)
+	if code != 0 {
+		t.Fatalf("prescribe optional mode failed: code=%d stderr=%s", code, errBuf.String())
+	}
+}
+
+func TestRunReport_DerivesSessionFromPrescriptionWhenOmitted(t *testing.T) {
+	t.Parallel()
+	signingKey := testutil.TestSigningKeyBase64(t)
+
+	tmp := t.TempDir()
+	artifact := filepath.Join(tmp, "artifact.json")
+	if err := os.WriteFile(artifact, []byte(`{"noop":true}`), 0o644); err != nil {
+		t.Fatalf("write artifact: %v", err)
+	}
+	evidenceDir := filepath.Join(tmp, "evidence")
+
+	var out, errBuf bytes.Buffer
+	code := run([]string{
+		"prescribe",
+		"--tool", "terraform",
+		"--artifact", artifact,
+		"--canonical-action", testCanonicalAction,
+		"--session-id", "session-presc",
+		"--evidence-dir", evidenceDir,
+		"--signing-key", signingKey,
+	}, &out, &errBuf)
+	if code != 0 {
+		t.Fatalf("prescribe exit %d: %s", code, errBuf.String())
+	}
+
+	var presc map[string]interface{}
+	if err := json.Unmarshal(out.Bytes(), &presc); err != nil {
+		t.Fatalf("decode prescribe output: %v", err)
+	}
+	prescriptionID, ok := presc["prescription_id"].(string)
+	if !ok || prescriptionID == "" {
+		t.Fatalf("invalid prescription_id: %#v", presc["prescription_id"])
+	}
+
+	out.Reset()
+	errBuf.Reset()
+	code = run([]string{
+		"report",
+		"--prescription", prescriptionID,
+		"--exit-code", "0",
+		"--evidence-dir", evidenceDir,
+		"--signing-key", signingKey,
+	}, &out, &errBuf)
+	if code != 0 {
+		t.Fatalf("report exit %d: %s", code, errBuf.String())
+	}
+
+	var report map[string]interface{}
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("decode report output: %v", err)
+	}
+	reportID, ok := report["report_id"].(string)
+	if !ok || reportID == "" {
+		t.Fatalf("invalid report_id: %#v", report["report_id"])
+	}
+
+	reportEntry, found, err := evidence.FindEntryByID(evidenceDir, reportID)
+	if err != nil {
+		t.Fatalf("FindEntryByID report: %v", err)
+	}
+	if !found {
+		t.Fatalf("report entry %s not found", reportID)
+	}
+	if reportEntry.SessionID != "session-presc" {
+		t.Fatalf("report session_id=%q, want session-presc", reportEntry.SessionID)
+	}
+}
+
+func TestRunReport_SessionMismatchFails(t *testing.T) {
+	t.Parallel()
+	signingKey := testutil.TestSigningKeyBase64(t)
+
+	tmp := t.TempDir()
+	artifact := filepath.Join(tmp, "artifact.json")
+	if err := os.WriteFile(artifact, []byte(`{"noop":true}`), 0o644); err != nil {
+		t.Fatalf("write artifact: %v", err)
+	}
+	evidenceDir := filepath.Join(tmp, "evidence")
+
+	var out, errBuf bytes.Buffer
+	code := run([]string{
+		"prescribe",
+		"--tool", "terraform",
+		"--artifact", artifact,
+		"--canonical-action", testCanonicalAction,
+		"--session-id", "session-A",
+		"--evidence-dir", evidenceDir,
+		"--signing-key", signingKey,
+	}, &out, &errBuf)
+	if code != 0 {
+		t.Fatalf("prescribe exit %d: %s", code, errBuf.String())
+	}
+
+	var presc map[string]interface{}
+	if err := json.Unmarshal(out.Bytes(), &presc); err != nil {
+		t.Fatalf("decode prescribe output: %v", err)
+	}
+	prescriptionID := presc["prescription_id"].(string)
+
+	out.Reset()
+	errBuf.Reset()
+	code = run([]string{
+		"report",
+		"--prescription", prescriptionID,
+		"--exit-code", "0",
+		"--session-id", "session-B",
+		"--evidence-dir", evidenceDir,
+		"--signing-key", signingKey,
+	}, &out, &errBuf)
+	if code == 0 {
+		t.Fatalf("expected non-zero exit for session mismatch, got 0; stdout=%s", out.String())
+	}
+	if !strings.Contains(errBuf.String(), "does not match prescription session_id") {
+		t.Fatalf("stderr missing session mismatch message: %s", errBuf.String())
+	}
+
+	entries, err := evidence.ReadAllEntriesAtPath(evidenceDir)
+	if err != nil {
+		t.Fatalf("ReadAllEntriesAtPath: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("entry count=%d, want 1 (report must not be written)", len(entries))
+	}
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -11,9 +12,10 @@ import (
 	"time"
 
 	"samebits.com/evidra-benchmark/internal/canon"
+	"samebits.com/evidra-benchmark/internal/config"
 	ievsigner "samebits.com/evidra-benchmark/internal/evidence"
+	"samebits.com/evidra-benchmark/internal/lifecycle"
 	"samebits.com/evidra-benchmark/internal/pipeline"
-	"samebits.com/evidra-benchmark/internal/risk"
 	"samebits.com/evidra-benchmark/internal/sarif"
 	"samebits.com/evidra-benchmark/internal/score"
 	"samebits.com/evidra-benchmark/internal/signal"
@@ -364,21 +366,19 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 	attemptFlag := fs.Int("attempt", 0, "Retry attempt counter")
 	signingKeyFlag := fs.String("signing-key", "", "Base64-encoded Ed25519 signing key")
 	signingKeyPathFlag := fs.String("signing-key-path", "", "Path to PEM-encoded Ed25519 signing key")
+	signingModeFlag := fs.String("signing-mode", "", "Signing mode: strict (default) or optional")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 
 	sessionID := *sessionIDFlag
-	if sessionID == "" {
-		sessionID = evidence.GenerateSessionID()
-	}
 
 	if *artifactFlag == "" || *toolFlag == "" {
 		fmt.Fprintln(stderr, "prescribe requires --artifact and --tool")
 		return 2
 	}
 
-	signer, err := resolveSigner(*signingKeyFlag, *signingKeyPathFlag)
+	signer, err := resolveSigner(*signingKeyFlag, *signingKeyPathFlag, *signingModeFlag)
 	if err != nil {
 		fmt.Fprintf(stderr, "resolve signer: %v\n", err)
 		return 1
@@ -390,34 +390,6 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	cr := canon.Canonicalize(*toolFlag, *operationFlag, *envFlag, data)
-
-	if *canonicalActionFlag != "" {
-		var preCanon canon.CanonicalAction
-		if err := json.Unmarshal([]byte(*canonicalActionFlag), &preCanon); err != nil {
-			fmt.Fprintf(stderr, "parse --canonical-action: %v\n", err)
-			return 1
-		}
-		// Keep tool from flag if not in pre-canon
-		if preCanon.Tool == "" {
-			preCanon.Tool = *toolFlag
-		}
-		if preCanon.Operation == "" {
-			preCanon.Operation = *operationFlag
-		}
-		cr.CanonicalAction = preCanon
-		cr.RawAction, _ = json.Marshal(preCanon)
-		cr.IntentDigest = canon.ComputeIntentDigest(preCanon)
-		cr.CanonVersion = "external/v1"
-		cr.ParseError = nil
-	}
-
-	riskTags := risk.RunAll(cr.CanonicalAction, data)
-	riskLevel := risk.ElevateRiskLevel(
-		risk.RiskLevel(cr.CanonicalAction.OperationClass, cr.CanonicalAction.ScopeClass),
-		riskTags,
-	)
-
 	actorID := *actorFlag
 	if actorID == "" {
 		actorID = "cli"
@@ -425,118 +397,58 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 	actor := evidence.Actor{Type: "cli", ID: actorID, Provenance: "cli"}
 
 	evidencePath := resolveEvidencePath(*evidenceFlag)
-
-	// Handle parse error
-	if cr.ParseError != nil {
-		// Write canon failure entry
-		failPayload, _ := json.Marshal(evidence.CanonFailurePayload{
-			ErrorCode:    "parse_error",
-			ErrorMessage: cr.ParseError.Error(),
-			Adapter:      cr.CanonVersion,
-			RawDigest:    cr.ArtifactDigest,
-		})
-		lastHash, _ := evidence.LastHashAtPath(evidencePath)
-		entry, buildErr := evidence.BuildEntry(evidence.EntryBuildParams{
-			Type:           evidence.EntryTypeCanonFailure,
-			TraceID:        evidence.GenerateTraceID(),
-			Actor:          actor,
-			ArtifactDigest: cr.ArtifactDigest,
-			Payload:        failPayload,
-			PreviousHash:   lastHash,
-			SpecVersion:    version.SpecVersion,
-			AdapterVersion: version.Version,
-			Signer:         signer,
-		})
-		if buildErr == nil {
-			if appendErr := evidence.AppendEntryAtPath(evidencePath, entry); appendErr != nil {
-				fmt.Fprintf(stderr, "warning: failed to append canonicalization_failure entry: %v\n", appendErr)
-			}
-		}
-
-		result := map[string]interface{}{
-			"ok":          false,
-			"parse_error": cr.ParseError.Error(),
-		}
-		enc := json.NewEncoder(stdout)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(result); err != nil {
-			fmt.Fprintf(stderr, "warning: failed to encode result: %v\n", err)
-		}
-		return 1
-	}
-
-	// Build prescription payload
-	traceID := evidence.GenerateTraceID()
-	var canonActionJSON json.RawMessage
-	if cr.RawAction != nil {
-		canonActionJSON = cr.RawAction
-	} else {
-		canonActionJSON, _ = json.Marshal(cr.CanonicalAction)
-	}
-
-	canonSource := "adapter"
+	var preCanon *canon.CanonicalAction
 	if *canonicalActionFlag != "" {
-		canonSource = "external"
+		preCanon = &canon.CanonicalAction{}
+		if err := json.Unmarshal([]byte(*canonicalActionFlag), preCanon); err != nil {
+			fmt.Fprintf(stderr, "parse --canonical-action: %v\n", err)
+			return 1
+		}
 	}
 
-	prescPayload := evidence.PrescriptionPayload{
-		CanonicalAction: canonActionJSON,
-		RiskLevel:       riskLevel,
-		RiskTags:        riskTags,
-		TTLMs:           evidence.DefaultTTLMs,
-		CanonSource:     canonSource,
-	}
-	payloadJSON, _ := json.Marshal(prescPayload)
-
-	lastHash, _ := evidence.LastHashAtPath(evidencePath)
-	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
-		Type:           evidence.EntryTypePrescribe,
-		SessionID:      sessionID,
-		OperationID:    *operationIDFlag,
-		Attempt:        *attemptFlag,
-		TraceID:        traceID,
-		Actor:          actor,
-		IntentDigest:   cr.IntentDigest,
-		ArtifactDigest: cr.ArtifactDigest,
-		Payload:        payloadJSON,
-		PreviousHash:   lastHash,
-		SpecVersion:    version.SpecVersion,
-		CanonVersion:   cr.CanonVersion,
-		AdapterVersion: version.Version,
-		Signer:         signer,
+	svc := lifecycle.NewService(lifecycle.Options{
+		EvidencePath: evidencePath,
+		Signer:       signer,
+	})
+	prescOut, err := svc.Prescribe(context.Background(), lifecycle.PrescribeInput{
+		Actor:           actor,
+		Tool:            *toolFlag,
+		Operation:       *operationFlag,
+		RawArtifact:     data,
+		Environment:     *envFlag,
+		CanonicalAction: preCanon,
+		SessionID:       sessionID,
+		OperationID:     *operationIDFlag,
+		Attempt:         *attemptFlag,
 	})
 	if err != nil {
-		fmt.Fprintf(stderr, "build entry: %v\n", err)
-		return 1
-	}
-
-	// Set prescription_id = entry_id for consistent identity
-	prescPayload.PrescriptionID = entry.EntryID
-	payloadJSON, _ = json.Marshal(prescPayload)
-	entry.Payload = payloadJSON
-
-	// Recompute hash and signature after payload mutation.
-	if err := evidence.RehashEntry(&entry, signer); err != nil {
-		fmt.Fprintf(stderr, "rehash entry: %v\n", err)
-		return 1
-	}
-
-	if err := evidence.AppendEntryAtPath(evidencePath, entry); err != nil {
-		fmt.Fprintf(stderr, "write evidence: %v\n", err)
+		if lifecycle.ErrorCode(err) == lifecycle.ErrCodeParseError {
+			result := map[string]interface{}{
+				"ok":          false,
+				"parse_error": err.Error(),
+			}
+			enc := json.NewEncoder(stdout)
+			enc.SetIndent("", "  ")
+			if encodeErr := enc.Encode(result); encodeErr != nil {
+				fmt.Fprintf(stderr, "warning: failed to encode result: %v\n", encodeErr)
+			}
+			return 1
+		}
+		fmt.Fprintf(stderr, "prescribe: %v\n", err)
 		return 1
 	}
 
 	result := map[string]interface{}{
 		"ok":              true,
-		"prescription_id": entry.EntryID,
-		"session_id":      sessionID,
-		"risk_level":      riskLevel,
-		"risk_tags":       riskTags,
-		"artifact_digest": cr.ArtifactDigest,
-		"intent_digest":   cr.IntentDigest,
-		"operation_class": cr.CanonicalAction.OperationClass,
-		"scope_class":     cr.CanonicalAction.ScopeClass,
-		"canon_version":   cr.CanonVersion,
+		"prescription_id": prescOut.PrescriptionID,
+		"session_id":      prescOut.SessionID,
+		"risk_level":      prescOut.RiskLevel,
+		"risk_tags":       prescOut.RiskTags,
+		"artifact_digest": prescOut.ArtifactDigest,
+		"intent_digest":   prescOut.IntentDigest,
+		"operation_class": prescOut.OperationClass,
+		"scope_class":     prescOut.ScopeClass,
+		"canon_version":   prescOut.CanonVersion,
 	}
 
 	// Write scanner findings as evidence entries.
@@ -557,12 +469,12 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 			lastHash, _ := evidence.LastHashAtPath(evidencePath)
 			findingEntry, err := evidence.BuildEntry(evidence.EntryBuildParams{
 				Type:           evidence.EntryTypeFinding,
-				SessionID:      sessionID,
+				SessionID:      prescOut.SessionID,
 				OperationID:    *operationIDFlag,
 				Attempt:        *attemptFlag,
-				TraceID:        traceID,
-				Actor:          actor,
-				ArtifactDigest: cr.ArtifactDigest,
+				TraceID:        prescOut.TraceID,
+				Actor:          prescOut.Actor,
+				ArtifactDigest: prescOut.ArtifactDigest,
 				Payload:        findingPayload,
 				PreviousHash:   lastHash,
 				SpecVersion:    version.SpecVersion,
@@ -604,21 +516,19 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 	operationIDFlag := fs.String("operation-id", "", "Operation identifier")
 	signingKeyFlag := fs.String("signing-key", "", "Base64-encoded Ed25519 signing key")
 	signingKeyPathFlag := fs.String("signing-key-path", "", "Path to PEM-encoded Ed25519 signing key")
+	signingModeFlag := fs.String("signing-mode", "", "Signing mode: strict (default) or optional")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 
 	sessionID := *sessionIDFlag
-	if sessionID == "" {
-		sessionID = evidence.GenerateSessionID()
-	}
 
 	if *prescriptionFlag == "" {
 		fmt.Fprintln(stderr, "report requires --prescription")
 		return 2
 	}
 
-	signer, err := resolveSigner(*signingKeyFlag, *signingKeyPathFlag)
+	signer, err := resolveSigner(*signingKeyFlag, *signingKeyPathFlag, *signingModeFlag)
 	if err != nil {
 		fmt.Fprintf(stderr, "resolve signer: %v\n", err)
 		return 1
@@ -631,91 +541,44 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 		actorID = "cli"
 	}
 
-	// Look up prescription
-	_, found, err := evidence.FindEntryByID(evidencePath, *prescriptionFlag)
-	if err != nil {
-		fmt.Fprintf(stderr, "read evidence: %v\n", err)
-		return 1
-	}
-	if !found {
-		// Emit unprescribed_action signal entry before rejecting
-		sigPayload, _ := json.Marshal(evidence.SignalPayload{
-			SignalName: "protocol_violation",
-			SubSignal:  "unprescribed_action",
-			EntryRefs:  []string{*prescriptionFlag},
-			Details:    fmt.Sprintf("report references unknown prescription %s", *prescriptionFlag),
-		})
-		lastHash, _ := evidence.LastHashAtPath(evidencePath)
-		sigEntry, buildErr := evidence.BuildEntry(evidence.EntryBuildParams{
-			Type:           evidence.EntryTypeSignal,
-			TraceID:        evidence.GenerateTraceID(),
-			Actor:          evidence.Actor{Type: "cli", ID: actorID, Provenance: "cli"},
-			Payload:        sigPayload,
-			PreviousHash:   lastHash,
-			SpecVersion:    version.SpecVersion,
-			AdapterVersion: version.Version,
-			Signer:         signer,
-		})
-		if buildErr == nil {
-			if appendErr := evidence.AppendEntryAtPath(evidencePath, sigEntry); appendErr != nil {
-				fmt.Fprintf(stderr, "warning: failed to append signal entry: %v\n", appendErr)
-			}
-		}
-		fmt.Fprintf(stderr, "prescription %s not found in evidence\n", *prescriptionFlag)
-		return 1
-	}
-
 	actor := evidence.Actor{Type: "cli", ID: actorID, Provenance: "cli"}
 
-	reportID := evidence.GenerateTraceID()
-	reportPayload := evidence.ReportPayload{
-		ReportID:       reportID,
-		PrescriptionID: *prescriptionFlag,
-		ExitCode:       *exitCodeFlag,
-		Verdict:        evidence.VerdictFromExitCode(*exitCodeFlag),
-	}
-
+	var externalRefs []evidence.ExternalRef
 	if *externalRefsFlag != "" {
-		var refs []evidence.ExternalRef
-		if err := json.Unmarshal([]byte(*externalRefsFlag), &refs); err != nil {
+		if err := json.Unmarshal([]byte(*externalRefsFlag), &externalRefs); err != nil {
 			fmt.Fprintf(stderr, "parse --external-refs: %v\n", err)
 			return 1
 		}
-		reportPayload.ExternalRefs = refs
 	}
 
-	payloadJSON, _ := json.Marshal(reportPayload)
-
-	lastHash, _ := evidence.LastHashAtPath(evidencePath)
-	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
-		Type:           evidence.EntryTypeReport,
+	svc := lifecycle.NewService(lifecycle.Options{
+		EvidencePath: evidencePath,
+		Signer:       signer,
+	})
+	reportOut, err := svc.Report(context.Background(), lifecycle.ReportInput{
+		PrescriptionID: *prescriptionFlag,
+		ExitCode:       *exitCodeFlag,
+		ArtifactDigest: *artifactDigestFlag,
+		Actor:          actor,
+		ExternalRefs:   externalRefs,
 		SessionID:      sessionID,
 		OperationID:    *operationIDFlag,
-		TraceID:        reportID,
-		Actor:          actor,
-		ArtifactDigest: *artifactDigestFlag,
-		Payload:        payloadJSON,
-		PreviousHash:   lastHash,
-		SpecVersion:    version.SpecVersion,
-		AdapterVersion: version.Version,
-		Signer:         signer,
 	})
 	if err != nil {
-		fmt.Fprintf(stderr, "build entry: %v\n", err)
-		return 1
-	}
-
-	if err := evidence.AppendEntryAtPath(evidencePath, entry); err != nil {
-		fmt.Fprintf(stderr, "write evidence: %v\n", err)
+		if lifecycle.ErrorCode(err) == lifecycle.ErrCodeNotFound {
+			fmt.Fprintf(stderr, "prescription %s not found in evidence\n", *prescriptionFlag)
+			return 1
+		}
+		fmt.Fprintf(stderr, "report: %v\n", err)
 		return 1
 	}
 
 	result := map[string]interface{}{
 		"ok":              true,
-		"report_id":       entry.EntryID,
+		"report_id":       reportOut.ReportID,
 		"prescription_id": *prescriptionFlag,
 		"exit_code":       *exitCodeFlag,
-		"verdict":         reportPayload.Verdict,
+		"verdict":         evidence.VerdictFromExitCode(*exitCodeFlag),
 	}
 	enc := json.NewEncoder(stdout)
 	enc.SetIndent("", "  ")
@@ -727,20 +590,29 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 }
 
 // resolveSigner creates a Signer from explicit flags or environment variables.
-// Returns an error if no signing key is configured.
-func resolveSigner(keyBase64, keyPath string) (evidence.Signer, error) {
+// Returns an error when mode is strict and no key is configured.
+func resolveSigner(keyBase64, keyPath, modeRaw string) (evidence.Signer, error) {
+	mode, err := config.ResolveSigningMode(modeRaw)
+	if err != nil {
+		return nil, err
+	}
+
 	if keyBase64 == "" {
 		keyBase64 = strings.TrimSpace(os.Getenv("EVIDRA_SIGNING_KEY"))
 	}
 	if keyPath == "" {
 		keyPath = strings.TrimSpace(os.Getenv("EVIDRA_SIGNING_KEY_PATH"))
 	}
-	if keyBase64 == "" && keyPath == "" {
-		return nil, fmt.Errorf("signing key required: set --signing-key, --signing-key-path, EVIDRA_SIGNING_KEY, or EVIDRA_SIGNING_KEY_PATH")
+
+	noKey := keyBase64 == "" && keyPath == ""
+	if noKey && mode == config.SigningModeStrict {
+		return nil, fmt.Errorf("signing key required in strict mode: set --signing-key, --signing-key-path, EVIDRA_SIGNING_KEY, EVIDRA_SIGNING_KEY_PATH, or use --signing-mode optional")
 	}
+
 	s, err := ievsigner.NewSigner(ievsigner.SignerConfig{
 		KeyBase64: keyBase64,
 		KeyPath:   keyPath,
+		DevMode:   noKey && mode == config.SigningModeOptional,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("resolveSigner: %w", err)
@@ -859,6 +731,7 @@ func cmdIngestFindings(args []string, stdout, stderr io.Writer) int {
 	sessionIDFlag := fs.String("session-id", "", "Session/run boundary ID")
 	signingKeyFlag := fs.String("signing-key", "", "Base64-encoded Ed25519 signing key")
 	signingKeyPathFlag := fs.String("signing-key-path", "", "Path to PEM-encoded Ed25519 signing key")
+	signingModeFlag := fs.String("signing-mode", "", "Signing mode: strict (default) or optional")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -873,7 +746,7 @@ func cmdIngestFindings(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	signer, err := resolveSigner(*signingKeyFlag, *signingKeyPathFlag)
+	signer, err := resolveSigner(*signingKeyFlag, *signingKeyPathFlag, *signingModeFlag)
 	if err != nil {
 		fmt.Fprintf(stderr, "resolve signer: %v\n", err)
 		return 1

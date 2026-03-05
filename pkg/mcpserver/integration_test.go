@@ -144,3 +144,44 @@ func TestPrescribeReport_ChainIntegrity(t *testing.T) {
 			allEntries[1].PreviousHash, allEntries[0].Hash)
 	}
 }
+
+func TestReport_SessionMismatchRejected(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	svc := &BenchmarkService{
+		evidencePath: dir,
+		signer:       testutil.TestSigner(t),
+	}
+
+	presc := svc.Prescribe(PrescribeInput{
+		Actor:       InputActor{Type: "ai_agent", ID: "agent-1", Origin: "mcp"},
+		Tool:        "kubectl",
+		Operation:   "apply",
+		RawArtifact: "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test\n  namespace: default",
+		SessionID:   "session-a",
+	})
+	if !presc.OK {
+		t.Fatalf("prescribe failed: %v", presc.Error)
+	}
+
+	report := svc.Report(ReportInput{
+		PrescriptionID: presc.PrescriptionID,
+		ExitCode:       0,
+		SessionID:      "session-b",
+	})
+	if report.OK {
+		t.Fatalf("expected session mismatch error, got success report_id=%s", report.ReportID)
+	}
+	if report.Error == nil || report.Error.Code != "invalid_input" {
+		t.Fatalf("expected invalid_input error, got %+v", report.Error)
+	}
+
+	entries, err := evidence.ReadAllEntriesAtPath(dir)
+	if err != nil {
+		t.Fatalf("ReadAllEntriesAtPath: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("entry count=%d, want 1 (report must not be written)", len(entries))
+	}
+}

@@ -125,6 +125,10 @@ Rules:
 - `trace_id` groups related events
 - `span_id` identifies a step in execution
 - `parent_span_id` allows hierarchical workflows
+- `report` without explicit `session_id` MUST inherit `session_id` from the referenced `prescribe`
+- `report` with explicit `session_id` that does not match the referenced `prescribe` MUST be rejected (`invalid_input`)
+- `canonicalization_failure` and `signal` entries SHOULD inherit `session_id`/`trace_id` from the originating operation when available
+- when no originating trace exists, integrations SHOULD generate a new `trace_id` instead of leaving it empty
 
 This model allows compatibility with **OpenTelemetry** style tracing.
 
@@ -348,6 +352,12 @@ Every stored evidence entry MUST include:
 | timestamp |
 | hash |
 | previous_hash |
+
+Protocol invariants for write paths:
+
+- every persisted entry MUST have session linkage (`session_id`)
+- every persisted entry SHOULD include a non-empty `trace_id`
+- validator/internal auxiliary entries (`signal`, `canonicalization_failure`) MUST preserve originating correlation fields when known
 
 Optional:
 
