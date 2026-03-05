@@ -555,7 +555,10 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 			lastHash, _ := evidence.LastHashAtPath(evidencePath)
 			findingEntry, err := evidence.BuildEntry(evidence.EntryBuildParams{
 				Type:           evidence.EntryTypeFinding,
-				TraceID:        cr.ArtifactDigest,
+				SessionID:      sessionID,
+				OperationID:    *operationIDFlag,
+				Attempt:        *attemptFlag,
+				TraceID:        traceID,
 				Actor:          actor,
 				ArtifactDigest: cr.ArtifactDigest,
 				Payload:        findingPayload,
@@ -910,6 +913,7 @@ func cmdIngestFindings(args []string, stdout, stderr io.Writer) int {
 	}
 	actor := evidence.Actor{Type: "cli", ID: actorID, Provenance: "cli"}
 
+	traceID := evidence.GenerateTraceID()
 	written := 0
 	for _, f := range findings {
 		findingPayload, _ := json.Marshal(f)
@@ -917,7 +921,7 @@ func cmdIngestFindings(args []string, stdout, stderr io.Writer) int {
 		entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
 			Type:           evidence.EntryTypeFinding,
 			SessionID:      sessionID,
-			TraceID:        artifactDigest,
+			TraceID:        traceID,
 			Actor:          actor,
 			ArtifactDigest: artifactDigest,
 			Payload:        findingPayload,
