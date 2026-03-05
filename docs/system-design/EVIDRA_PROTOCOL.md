@@ -61,29 +61,47 @@ Properties:
 
 # 2. Operation / Event Model
 
-Each step of automation produces an **event**.
+Each step of automation produces an **event** stored as an evidence entry.
 
-Examples:
+## 2.1 Internal Entry Types (Normative)
 
-- agent started
-- tool invoked
-- tool finished
-- error occurred
-- validator findings
-
-Event types:
+The `EntryType` enum in code (`pkg/evidence/entry.go`) defines the canonical
+set of entry types persisted in the evidence chain:
 
 ```
-session_start
-session_end
-agent_start
-agent_end
-tool_start
-tool_end
-tool_error
-annotation
-validator_findings
+prescribe                  # pre-execution risk assessment
+report                     # post-execution outcome report
+finding                    # inspector/scanner-generated finding
+signal                     # behavioral signal detection result
+receipt                    # acknowledgement from a remote system
+canonicalization_failure   # canonicalization error record
+session_start              # session lifecycle: begin
+session_end                # session lifecycle: end
+annotation                 # human or system annotation
 ```
+
+All evidence entries MUST use one of these values in the `type` field.
+
+## 2.2 Conceptual Event Taxonomy
+
+The [Session/Operation Event Model](EVIDRA_SESSION_OPERATION_EVENT_MODEL.md)
+defines a higher-level conceptual taxonomy for describing automation workflows:
+
+| Conceptual event | Internal `EntryType` | Notes |
+|------------------|----------------------|-------|
+| `operation.start` | `prescribe` | Pre-execution assessment |
+| `operation.end` | `report` (verdict=success) | Successful completion |
+| `operation.error` | `report` (verdict=failure) | Failed/aborted operation |
+| `validator.findings` | `finding` | External scanner results |
+| `session.start` | `session_start` | Session lifecycle |
+| `session.end` | `session_end` | Session lifecycle |
+| `annotation` | `annotation` | Human/system annotation |
+
+The `signal`, `receipt`, and `canonicalization_failure` entry types are
+internal to the Evidra pipeline and have no conceptual event counterpart.
+
+For CloudEvents type mapping (e.g., `evidra.operation.start`), see
+[EVIDRA_CNCF_STANDARDS_ALIGNMENT.md](EVIDRA_CNCF_STANDARDS_ALIGNMENT.md).
 
 ---
 
