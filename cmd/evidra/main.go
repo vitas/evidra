@@ -347,6 +347,7 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 	evidenceFlag := fs.String("evidence-dir", "", "Evidence directory")
 	actorFlag := fs.String("actor", "", "Actor ID (e.g. ci-pipeline-123)")
 	canonicalActionFlag := fs.String("canonical-action", "", "Pre-canonicalized action JSON (bypasses adapter)")
+	sessionIDFlag := fs.String("session-id", "", "Session/run boundary ID (generated if omitted)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -458,6 +459,7 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 	lastHash, _ := evidence.LastHashAtPath(evidencePath)
 	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
 		Type:           evidence.EntryTypePrescribe,
+		SessionID:      *sessionIDFlag,
 		TraceID:        traceID,
 		Actor:          actor,
 		IntentDigest:   cr.IntentDigest,
@@ -552,6 +554,7 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 	actorFlag := fs.String("actor", "", "Actor ID")
 	artifactDigestFlag := fs.String("artifact-digest", "", "Artifact digest for drift detection")
 	externalRefsFlag := fs.String("external-refs", "", "External references JSON array (e.g. '[{\"type\":\"github_run\",\"id\":\"123\"}]')")
+	sessionIDFlag := fs.String("session-id", "", "Session/run boundary ID")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -623,6 +626,7 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 	lastHash, _ := evidence.LastHashAtPath(evidencePath)
 	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
 		Type:           evidence.EntryTypeReport,
+		SessionID:      *sessionIDFlag,
 		TraceID:        reportID,
 		Actor:          actor,
 		ArtifactDigest: *artifactDigestFlag,
