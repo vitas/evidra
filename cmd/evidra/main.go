@@ -790,7 +790,7 @@ func cmdIngestFindings(args []string, stdout, stderr io.Writer) int {
 	}
 	actor := evidence.Actor{Type: "cli", ID: actorID, Provenance: "cli"}
 
-	traceID := evidence.GenerateTraceID()
+	traceID := sessionID
 	written := 0
 	for _, f := range findings {
 		findingPayload, _ := json.Marshal(f)

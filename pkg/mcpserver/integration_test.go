@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"testing"
 
+	"samebits.com/evidra-benchmark/internal/canon"
 	"samebits.com/evidra-benchmark/internal/testutil"
 	"samebits.com/evidra-benchmark/pkg/evidence"
 )
@@ -183,5 +184,79 @@ func TestReport_SessionMismatchRejected(t *testing.T) {
 	}
 	if len(entries) != 1 {
 		t.Fatalf("entry count=%d, want 1 (report must not be written)", len(entries))
+	}
+}
+
+func TestPrescribe_DefaultTraceIDMatchesSessionIDWhenOmitted(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	svc := &BenchmarkService{
+		evidencePath: dir,
+		signer:       testutil.TestSigner(t),
+	}
+
+	presc := svc.Prescribe(PrescribeInput{
+		Actor:       InputActor{Type: "ai_agent", ID: "agent-1", Origin: "mcp"},
+		Tool:        "kubectl",
+		Operation:   "apply",
+		RawArtifact: "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test\n  namespace: default",
+		SessionID:   "session-mcp-default-trace",
+	})
+	if !presc.OK {
+		t.Fatalf("prescribe failed: %v", presc.Error)
+	}
+
+	entries, err := evidence.ReadAllEntriesAtPath(dir)
+	if err != nil {
+		t.Fatalf("ReadAllEntriesAtPath: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("entry count=%d, want 1", len(entries))
+	}
+	if entries[0].SessionID != "session-mcp-default-trace" {
+		t.Fatalf("session_id=%q, want session-mcp-default-trace", entries[0].SessionID)
+	}
+	if entries[0].TraceID != "session-mcp-default-trace" {
+		t.Fatalf("trace_id=%q, want session-mcp-default-trace", entries[0].TraceID)
+	}
+}
+
+func TestPrescribe_InvalidCanonicalScopeClassRejected(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	svc := &BenchmarkService{
+		evidencePath: dir,
+		signer:       testutil.TestSigner(t),
+	}
+
+	presc := svc.Prescribe(PrescribeInput{
+		Actor:       InputActor{Type: "ai_agent", ID: "agent-1", Origin: "mcp"},
+		Tool:        "terraform",
+		Operation:   "apply",
+		RawArtifact: `{"noop":true}`,
+		CanonicalAction: &canon.CanonicalAction{
+			Tool:              "terraform",
+			Operation:         "apply",
+			OperationClass:    "mutate",
+			ScopeClass:        "prod-eu",
+			ResourceCount:     1,
+			ResourceShapeHash: "sha256:test",
+		},
+	})
+	if presc.OK {
+		t.Fatal("expected invalid_input error")
+	}
+	if presc.Error == nil || presc.Error.Code != "invalid_input" {
+		t.Fatalf("expected invalid_input error, got %+v", presc.Error)
+	}
+
+	entries, err := evidence.ReadAllEntriesAtPath(dir)
+	if err != nil {
+		t.Fatalf("ReadAllEntriesAtPath: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("entry count=%d, want 0", len(entries))
 	}
 }

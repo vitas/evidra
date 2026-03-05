@@ -102,6 +102,100 @@ func TestServicePrescribe_CanonicalActionNormalizesToolOperation(t *testing.T) {
 	}
 }
 
+func TestServicePrescribe_DefaultsTraceIDToSessionIDWhenOmitted(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	svc := NewService(Options{
+		EvidencePath: dir,
+		Signer:       testutil.TestSigner(t),
+	})
+
+	out, err := svc.Prescribe(context.Background(), PrescribeInput{
+		Actor:       evidence.Actor{Type: "agent", ID: "agent-1", Provenance: "mcp"},
+		Tool:        "kubectl",
+		Operation:   "apply",
+		RawArtifact: []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: cm1\n  namespace: default\n"),
+		SessionID:   "session-trace-default",
+	})
+	if err != nil {
+		t.Fatalf("Prescribe: %v", err)
+	}
+	if out.TraceID != out.SessionID {
+		t.Fatalf("trace_id=%q, want session_id=%q", out.TraceID, out.SessionID)
+	}
+}
+
+func TestServicePrescribe_CanonicalActionScopeAliasNormalizes(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	svc := NewService(Options{
+		EvidencePath: dir,
+		Signer:       testutil.TestSigner(t),
+	})
+
+	preCanon := &canon.CanonicalAction{
+		OperationClass:    "mutate",
+		ScopeClass:        "prod",
+		ResourceCount:     1,
+		ResourceShapeHash: "sha256:test-shape",
+		ResourceIdentity: []canon.ResourceID{
+			{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default", Name: "demo"},
+		},
+	}
+
+	out, err := svc.Prescribe(context.Background(), PrescribeInput{
+		Actor:           evidence.Actor{Type: "agent", ID: "agent-1", Provenance: "mcp"},
+		Tool:            "kubectl",
+		Operation:       "apply",
+		RawArtifact:     []byte(`{"noop":true}`),
+		CanonicalAction: preCanon,
+		SessionID:       "session-1",
+	})
+	if err != nil {
+		t.Fatalf("Prescribe: %v", err)
+	}
+	if out.ScopeClass != "production" {
+		t.Fatalf("scope_class=%q, want production", out.ScopeClass)
+	}
+}
+
+func TestServicePrescribe_CanonicalActionScopeRejectsInvalid(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	svc := NewService(Options{
+		EvidencePath: dir,
+		Signer:       testutil.TestSigner(t),
+	})
+
+	preCanon := &canon.CanonicalAction{
+		OperationClass:    "mutate",
+		ScopeClass:        "prod-east",
+		ResourceCount:     1,
+		ResourceShapeHash: "sha256:test-shape",
+		ResourceIdentity: []canon.ResourceID{
+			{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default", Name: "demo"},
+		},
+	}
+
+	_, err := svc.Prescribe(context.Background(), PrescribeInput{
+		Actor:           evidence.Actor{Type: "agent", ID: "agent-1", Provenance: "mcp"},
+		Tool:            "kubectl",
+		Operation:       "apply",
+		RawArtifact:     []byte(`{"noop":true}`),
+		CanonicalAction: preCanon,
+		SessionID:       "session-1",
+	})
+	if err == nil {
+		t.Fatal("expected invalid_input error")
+	}
+	if ErrorCode(err) != ErrCodeInvalidInput {
+		t.Fatalf("error code=%q, want %q", ErrorCode(err), ErrCodeInvalidInput)
+	}
+}
+
 func TestServiceReport_UnknownPrescriptionWritesSignal(t *testing.T) {
 	t.Parallel()
 

@@ -29,13 +29,16 @@ func (s *Service) Prescribe(_ context.Context, input PrescribeInput) (PrescribeO
 	}
 	traceID := strings.TrimSpace(input.TraceID)
 	if traceID == "" {
-		traceID = evidence.GenerateTraceID()
+		traceID = sessionID
 	}
 	actor := normalizeActor(input.Actor)
 
 	var cr canon.CanonResult
 	if input.CanonicalAction != nil {
-		preCanon := normalizeCanonicalAction(*input.CanonicalAction, tool, operation)
+		preCanon, err := normalizeCanonicalAction(*input.CanonicalAction, tool, operation)
+		if err != nil {
+			return PrescribeOutput{}, err
+		}
 		actionJSON, err := json.Marshal(preCanon)
 		if err != nil {
 			return PrescribeOutput{}, wrapError(ErrCodeInternal, "failed to marshal canonical action", err)
@@ -350,7 +353,7 @@ func (s *Service) lastHash() (string, error) {
 	return lastHash, nil
 }
 
-func normalizeCanonicalAction(action canon.CanonicalAction, tool, operation string) canon.CanonicalAction {
+func normalizeCanonicalAction(action canon.CanonicalAction, tool, operation string) (canon.CanonicalAction, error) {
 	action.Tool = normalizeToken(action.Tool)
 	action.Operation = normalizeToken(action.Operation)
 	if action.Tool == "" {
@@ -359,7 +362,31 @@ func normalizeCanonicalAction(action canon.CanonicalAction, tool, operation stri
 	if action.Operation == "" {
 		action.Operation = operation
 	}
-	return action
+	scopeClass, err := normalizeIngressScopeClass(action.ScopeClass)
+	if err != nil {
+		return canon.CanonicalAction{}, err
+	}
+	action.ScopeClass = scopeClass
+	return action, nil
+}
+
+func normalizeIngressScopeClass(raw string) (string, error) {
+	v := strings.TrimSpace(raw)
+	if v == "" {
+		return "unknown", nil
+	}
+	normalized := canon.NormalizeScopeClass(v)
+	if normalized != "unknown" || strings.EqualFold(v, "unknown") {
+		return normalized, nil
+	}
+	return "", wrapError(
+		ErrCodeInvalidInput,
+		fmt.Sprintf(
+			"invalid canonical_action.scope_class %q; expected one of production, staging, development, unknown (aliases: prod, stage, dev, test, sandbox)",
+			v,
+		),
+		nil,
+	)
 }
 
 func normalizeActor(actor evidence.Actor) evidence.Actor {

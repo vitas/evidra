@@ -117,6 +117,52 @@ func TestRunPrescribe_ScannerReportCountsWrittenFindings(t *testing.T) {
 	}
 }
 
+func TestRunIngestFindings_DefaultsTraceIDToSessionID(t *testing.T) {
+	t.Parallel()
+
+	signingKey := testutil.TestSigningKeyBase64(t)
+	tmp := t.TempDir()
+	evidenceDir := filepath.Join(tmp, "evidence")
+	scannerReport, err := filepath.Abs("../../tests/testdata/sarif_trivy.json")
+	if err != nil {
+		t.Fatalf("resolve scanner report path: %v", err)
+	}
+
+	var out, errBuf bytes.Buffer
+	code := run([]string{
+		"ingest-findings",
+		"--sarif", scannerReport,
+		"--session-id", "session-findings-1",
+		"--evidence-dir", evidenceDir,
+		"--signing-key", signingKey,
+	}, &out, &errBuf)
+	if code != 0 {
+		t.Fatalf("ingest-findings exit %d: %s", code, errBuf.String())
+	}
+
+	entries, err := evidence.ReadAllEntriesAtPath(evidenceDir)
+	if err != nil {
+		t.Fatalf("ReadAllEntriesAtPath: %v", err)
+	}
+
+	findingCount := 0
+	for _, e := range entries {
+		if e.Type != evidence.EntryTypeFinding {
+			continue
+		}
+		findingCount++
+		if e.SessionID != "session-findings-1" {
+			t.Fatalf("finding session_id=%q, want session-findings-1", e.SessionID)
+		}
+		if e.TraceID != "session-findings-1" {
+			t.Fatalf("finding trace_id=%q, want session-findings-1", e.TraceID)
+		}
+	}
+	if findingCount == 0 {
+		t.Fatal("expected at least one finding entry")
+	}
+}
+
 func TestRunPrescribe_WithSigningKey(t *testing.T) {
 	t.Parallel()
 
