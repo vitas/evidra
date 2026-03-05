@@ -152,13 +152,6 @@ Three binaries:
 - [Strategic Moat & Standardization](docs/system-design/done/EVIDRA_STRATEGIC_MOAT_AND_STANDARDIZATION.md) — competitive positioning
 - [Integration Roadmap](docs/system-design/done/EVIDRA_INTEGRATION_ROADMAP.md) — tool integration plan
 - [Scanner SARIF Quickstart](docs/integrations/SCANNER_SARIF_QUICKSTART.md) — Trivy + Kubescape defaults with one contract
-
-### Migration & History
-
-- [Migration Map](docs/system-design/done/EVIDRA_MIGRATION_MAP.md) — how evidra-benchmark was bootstrapped from evidra v0.2.0
-- [Codebase Review](docs/system-design/done/EVIDRA_CODEBASE_REVIEW.md) — pre-migration code analysis
-- [Current State Baseline](docs/system-design/done/EVIDRA_CURRENT_STATE_BASELINE.md) — state at migration start
-
 ### Backlog
 
 - [Threat Model](docs/system-design/backlog/EVIDRA_THREAT_MODEL.md) — security considerations
