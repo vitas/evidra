@@ -16,7 +16,7 @@ func streamFileEntries(path string, fn func(EvidenceEntry, int) error) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
 	lineNo := 0
@@ -47,7 +47,7 @@ func appendEntryLine(path string, entry EvidenceEntry) error {
 	if err != nil {
 		return fmt.Errorf("open evidence log: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	line, err := json.Marshal(entry)
 	if err != nil {

@@ -40,7 +40,7 @@ func TestE2E_PrescribeReportLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("client connect: %v", err)
 	}
-	defer session.Close()
+	defer func() { _ = session.Close() }()
 
 	// List tools — verify all 3 registered
 	tools, err := session.ListTools(ctx, nil)
@@ -168,7 +168,7 @@ func TestE2E_UnprescribedReport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("client connect: %v", err)
 	}
-	defer session.Close()
+	defer func() { _ = session.Close() }()
 
 	// Report with unknown prescription
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{
@@ -220,7 +220,7 @@ func TestE2E_ListResources(t *testing.T) {
 	if err != nil {
 		t.Fatalf("client connect: %v", err)
 	}
-	defer session.Close()
+	defer func() { _ = session.Close() }()
 
 	// List resources
 	resources, err := session.ListResources(ctx, nil)
@@ -268,7 +268,7 @@ func TestE2E_ProtocolV1Fields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("client connect: %v", err)
 	}
-	defer session.Close()
+	defer func() { _ = session.Close() }()
 
 	// Prescribe with all protocol v1.0 fields
 	prescribeResult, err := session.CallTool(ctx, &mcp.CallToolParams{
