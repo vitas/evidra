@@ -42,11 +42,12 @@ runs:
       shell: bash
       run: |
         VERSION="${{ inputs.evidra-version }}"
+        REPO="samebits/evidra-benchmark"
         if [ "$VERSION" = "latest" ]; then
-          VERSION=$(gh release view --repo ${{ github.repository }} --json tagName -q .tagName 2>/dev/null || echo "v0.3.1")
+          VERSION=$(curl -sL "https://api.github.com/repos/${REPO}/releases/latest" | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4 || echo "v0.3.1")
         fi
         ARCHIVE="evidra_${VERSION#v}_linux_amd64.tar.gz"
-        URL="https://github.com/${{ github.repository }}/releases/download/${VERSION}/${ARCHIVE}"
+        URL="https://github.com/${REPO}/releases/download/${VERSION}/${ARCHIVE}"
         echo "Downloading evidra ${VERSION}..."
         curl -sL "$URL" -o /tmp/evidra.tar.gz && tar -xzf /tmp/evidra.tar.gz -C /tmp/ && chmod +x /tmp/evidra || {
           echo "::warning::Could not download release, building from source"
@@ -78,8 +79,8 @@ runs:
         OUTPUT=$(/tmp/evidra scorecard \
           --evidence-dir "${{ inputs.evidence-dir }}" \
           --session-id "${{ inputs.session-id }}" 2>/dev/null || echo '{"score":0,"band":"unknown"}')
-        SCORE=$(echo "$OUTPUT" | jq -r '.score // 0')
-        BAND=$(echo "$OUTPUT" | jq -r '.band // "unknown"')
+        SCORE=$(echo "$OUTPUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('score',0))" 2>/dev/null || echo "0")
+        BAND=$(echo "$OUTPUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('band','unknown'))" 2>/dev/null || echo "unknown")
         echo "score=$SCORE" >> "$GITHUB_OUTPUT"
         echo "band=$BAND" >> "$GITHUB_OUTPUT"
 
@@ -96,7 +97,7 @@ runs:
         <details><summary>Full scorecard</summary>
 
         \`\`\`json
-        $(echo "$OUTPUT" | jq .)
+        ${OUTPUT}
         \`\`\`
 
         </details>
