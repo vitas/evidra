@@ -97,7 +97,9 @@ Request (MCP → Evidra):
 - tool: `kubectl`
 - operation: `apply`
 - raw_artifact: the YAML bytes above
-- actor: `{"type":"ai_agent","id":"claude-code","origin":"mcp"}`
+- actor: `{"type":"ai_agent","id":"claude-code","provenance":"mcp","instance_id":"pod-abc123","version":"v1.3"}`
+- session_id: `"session-20260304-staging"` (optional, auto-generated if omitted)
+- scope_dimensions: `{"cluster":"staging-us-east","namespace":"staging"}`
 
 Evidra computes `artifact_digest` immediately from raw bytes:
 
@@ -170,8 +172,10 @@ Evidence JSONL entry (actual `EvidenceEntry` envelope):
   "hash": "sha256:...",
   "signature": "",
   "type": "prescribe",
+  "session_id": "session-20260304-staging",
   "trace_id": "01JD7KX9M1...",
-  "actor": {"type":"ai_agent","id":"claude-code","provenance":"mcp"},
+  "span_id": "span-prescribe-001",
+  "actor": {"type":"ai_agent","id":"claude-code","provenance":"mcp","instance_id":"pod-abc123","version":"v1.3"},
   "timestamp": "2026-03-04T10:12:10Z",
   "intent_digest": "sha256:...",
   "artifact_digest": "sha256:...",
@@ -183,6 +187,7 @@ Evidence JSONL entry (actual `EvidenceEntry` envelope):
     "ttl_ms": 300000,
     "canon_source": "adapter"
   },
+  "scope_dimensions": {"cluster":"staging-us-east","namespace":"staging"},
   "spec_version": "0.3.0",
   "canonical_version": "k8s/v1",
   "adapter_version": "dev"
@@ -236,8 +241,11 @@ Report entry:
   "hash": "sha256:...",
   "signature": "",
   "type": "report",
+  "session_id": "session-20260304-staging",
   "trace_id": "01JD7KZ1A2...",
-  "actor": {"type":"ai_agent","id":"claude-code","provenance":"mcp"},
+  "span_id": "span-report-001",
+  "parent_span_id": "span-prescribe-001",
+  "actor": {"type":"ai_agent","id":"claude-code","provenance":"mcp","instance_id":"pod-abc123","version":"v1.3"},
   "timestamp": "2026-03-04T10:12:30Z",
   "artifact_digest": "sha256:...",
   "payload": {
@@ -246,6 +254,7 @@ Report entry:
     "exit_code": 0,
     "verdict": "success"
   },
+  "scope_dimensions": {"cluster":"staging-us-east","namespace":"staging"},
   "spec_version": "0.3.0",
   "adapter_version": "dev"
 }
@@ -449,8 +458,9 @@ Low overlap (0%) means comparison is not meaningful — agents operate
 on different tools and scopes. Filter by shared dimensions for fair
 comparison using `--tool` and `--scope` flags.
 
-Version comparison (same agent, different versions) requires
-`actor_meta.agent_version` tracking (v0.5.0+).
+Version comparison (same agent, different versions) uses
+`actor.version` (protocol v1.0) or `actor_meta.agent_version`
+for finer-grained variant tracking.
 
 ---
 

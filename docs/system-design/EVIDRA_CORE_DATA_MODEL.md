@@ -91,6 +91,8 @@ Prescription records intent before execution.
 | type | string | MUST | ai_agent, ci, human, unknown |
 | id | string | MUST | Stable identifier |
 | provenance | string | MUST | mcp, cli, api, oidc, git, manual |
+| instance_id | string | MAY | Runtime instance identifier (e.g. pod name, process ID) |
+| version | string | MAY | Agent or tool version (e.g. "v1.3", "claude-sonnet-4-5") |
 
 ---
 
@@ -139,14 +141,22 @@ computed by Evidra. This table defines the wire contract.
 | actor.type | MUST | string | ai_agent, ci, human, unknown |
 | actor.id | MUST | string | Stable identifier for the actor |
 | actor.provenance | MUST | string | mcp, cli, api, oidc, git, manual |
+| actor.instance_id | MAY | string | Runtime instance identifier |
+| actor.version | MAY | string | Agent or tool version |
+| session_id | MAY | string | Run/session boundary identifier (auto-generated if omitted) |
+| trace_id | MAY | string | Caller-provided correlation ID (auto-generated if omitted) |
+| span_id | MAY | string | Span identifier for hierarchical tracing |
+| parent_span_id | MAY | string | Parent span for multi-step agent workflows |
+| scope_dimensions | MAY | object | Environment metadata map (cluster, namespace, account, region) |
 | environment | MAY | string | Explicit environment label (overrides namespace-based scope resolution) |
 | canonical_action | MAY | object | Pre-canonicalized action for self-aware tools (sets canon_source=external) |
 | actor_meta | MAY | object | Comparison dimensions (agent_version, model_id, prompt_id) |
 
 Evidra computes and adds to the stored Prescription:
-prescription_id, trace_id, tenant_id, canonical_action (if not
-pre-provided), intent_digest, artifact_digest, risk_level,
-risk_tags, risk_details, ttl_ms, canon_source, timestamp.
+prescription_id, trace_id (if not caller-provided), tenant_id,
+canonical_action (if not pre-provided), intent_digest,
+artifact_digest, risk_level, risk_tags, risk_details, ttl_ms,
+canon_source, timestamp.
 
 #### report tool input
 
@@ -155,10 +165,14 @@ risk_tags, risk_details, ttl_ms, canon_source, timestamp.
 | prescription_id | MUST | string | ID from prescribe response |
 | exit_code | MUST | integer | Tool exit code (0 = success) |
 | artifact_digest | MAY | string | SHA256 of artifact actually applied (for drift detection) |
+| session_id | MAY | string | Run/session boundary (should match prescribe if same session) |
+| span_id | MAY | string | Span identifier for this report |
+| parent_span_id | MAY | string | Parent span for multi-step workflows |
 
 Evidra computes and adds to the stored Report:
-report_id, trace_id, actor (from corresponding prescription),
-verdict (from exit_code), timestamp.
+report_id, trace_id (from corresponding prescription), actor
+(from corresponding prescription), verdict (from exit_code),
+timestamp.
 
 If `artifact_digest` is omitted, Evidra uses the prescription's
 artifact_digest (no drift possible). If provided and different
@@ -208,12 +222,16 @@ All entry types share the same envelope.
 | signature | string | MUST | Ed25519 signature of hash |
 | type | string | MUST | Closed enum (see Entry Types) |
 | tenant_id | string | MUST (service mode) | Empty in local mode |
+| session_id | string | MAY | Run/session boundary identifier |
 | trace_id | string | MUST | Automation task/session correlation key |
+| span_id | string | MAY | Span identifier for hierarchical tracing |
+| parent_span_id | string | MAY | Parent span for multi-step workflows |
 | actor | Actor | MUST (prescribe, report) | MAY be empty on signal, receipt |
 | timestamp | datetime | MUST | RFC 3339, UTC |
 | intent_digest | string | conditional | Present on prescription entries |
 | artifact_digest | string | conditional | Present on prescription, report, finding entries |
 | payload | object | MUST | Type-specific content |
+| scope_dimensions | object | MAY | Environment metadata map (cluster, namespace, account, region) |
 | spec_version | string | MUST | Signal spec version |
 | canonical_version | string | MUST | Adapter canon version (e.g. "k8s/v1") |
 | adapter_version | string | MUST | Evidra adapter version |

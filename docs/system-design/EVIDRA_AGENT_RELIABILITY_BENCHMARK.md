@@ -352,15 +352,21 @@ prescribe:
   actor:
     type: agent
     id: claude-code          # agent identity
-    origin: mcp
-  actor_meta:                # comparison dimensions
-    agent_version: "v1.3"
+    provenance: mcp
+    instance_id: "pod-abc123"   # runtime instance (protocol v1.0)
+    version: "v1.3"             # agent version (protocol v1.0)
+  session_id: "session-20260304"  # run boundary (protocol v1.0)
+  scope_dimensions:               # environment metadata (protocol v1.0)
+    cluster: "staging-us-east"
+    namespace: "staging"
+  actor_meta:                # comparison dimensions (finer-grained)
     model_id: "claude-sonnet-4-5-20250929"
     prompt_id: "ops-mode"
 ```
 
 `actor.id` identifies the agent.
-`actor_meta.*` identifies the variant (version, model, prompt).
+`actor.version` identifies the agent version (protocol v1.0).
+`actor_meta.*` identifies finer-grained variants (model, prompt).
 
 ### Workload profile is automatic
 
@@ -427,8 +433,10 @@ Input:
   tool: "kubectl"              # any tool name — Evidra selects adapter
   operation: "apply"           # tool-specific operation
   raw_artifact: "<manifest>"   # the artifact in its native format
-  actor: { type: "agent", id: "claude-code", origin: "mcp" }
-  actor_meta: { agent_version: "v1.3", model_id: "...", prompt_id: "..." }
+  actor: { type: "agent", id: "claude-code", provenance: "mcp", version: "v1.3" }
+  session_id: "session-..."    # optional run boundary
+  scope_dimensions: { cluster: "prod-us", namespace: "default" }
+  actor_meta: { model_id: "...", prompt_id: "..." }
   environment: "production"
 
 Output:
@@ -999,9 +1007,18 @@ CI provides data that MCP agents can't:
   branch Y, PR Z. Richer context for the evidence chain.
 
 ```yaml
-actor_meta:
+actor:
+  type: ci
+  id: github-actions
+  provenance: cli
+  instance_id: "runner-12345"      # runtime instance (protocol v1.0)
+  version: "deploy-v2.1"          # pipeline version (protocol v1.0)
+session_id: "gh-run-12345"        # CI run as session boundary
+scope_dimensions:
+  account: "prod-aws-123"
+  region: "us-east-1"
+actor_meta:                        # finer-grained comparison dimensions
   pipeline_id: "deploy-production"
-  run_id: "gh-actions-12345"
   commit_sha: "abc123"
   branch: "main"
   pr_number: "456"
