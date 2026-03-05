@@ -1,0 +1,229 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate tag and version alignment
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_REF:-}" != refs/tags/* ]]; then
+            echo "::error::Release workflow must run from a tag ref."
+            exit 1
+          fi
+
+          tag="${GITHUB_REF#refs/tags/}"
+          if ! [[ "${tag}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Invalid tag '${tag}'. Expected semver like v0.3.0."
+            exit 1
+          fi
+
+          tag_sha="$(git rev-list -n1 "${tag}")"
+          if [ "${tag_sha}" != "${GITHUB_SHA}" ]; then
+            echo "::error::Tag ${tag} points to ${tag_sha}, but workflow SHA is ${GITHUB_SHA}."
+            exit 1
+          fi
+
+          code_version="$(sed -nE 's/^[[:space:]]*Version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' pkg/version/version.go | head -n1)"
+          if [ -z "${code_version}" ]; then
+            echo "::error::Could not parse Version from pkg/version/version.go."
+            exit 1
+          fi
+
+          tag_mm="$(echo "${tag#v}" | cut -d. -f1-2)"
+          code_mm="$(echo "${code_version}" | sed -E 's/^([0-9]+)\.([0-9]+).*/\1.\2/')"
+
+          if [ "${code_mm}" != "${tag_mm}" ]; then
+            echo "::error::Tag ${tag} is ${tag_mm}, but pkg/version is ${code_version}."
+            exit 1
+          fi
+
+          echo "Release guard passed for ${tag} (code=${code_version})."
+
+  test:
+    needs: [release-guard]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Check formatting
+        run: |
+          files=$(gofmt -l .)
+          if [ -n "$files" ]; then
+            echo "Unformatted files:" >&2
+            echo "$files" >&2
+            exit 1
+          fi
+
+      - name: Run tests
+        run: go test ./... -count=1
+
+      - name: Race detector
+        run: go test -race ./... -count=1
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64
+          args: --timeout=5m
+
+  snapshot:
+    needs: [test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: GoReleaser snapshot
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --snapshot --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker:
+    needs: [test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/vitas/evidra-mcp
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: evidra-mcp:smoke
+
+      - name: Smoke test
+        run: |
+          docker run --rm evidra-mcp:smoke --version \
+            || { echo "FAIL: --version failed"; exit 1; }
+          echo "PASS: smoke test ok"
+
+      - name: Push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  goreleaser:
+    needs: [snapshot]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify Homebrew tap token
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HOMEBREW_TAP_TOKEN:-}" ]; then
+            echo "::error::Missing HOMEBREW_TAP_TOKEN secret."
+            exit 1
+          fi
+          repo_code=$(curl -sS -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer ${HOMEBREW_TAP_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/samebits/homebrew-tap")
+          if [ "${repo_code}" != "200" ]; then
+            echo "::error::HOMEBREW_TAP_TOKEN cannot access samebits/homebrew-tap (HTTP ${repo_code})."
+            exit 1
+          fi
+          echo "Homebrew tap token verified."
+
+      - name: Reset existing release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF#refs/tags/}"
+          if gh release view "${tag}" -R "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Deleting existing release for ${tag}."
+            gh release delete "${tag}" -R "${GITHUB_REPOSITORY}" --yes
+          fi
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
