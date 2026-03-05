@@ -197,6 +197,7 @@ evidence entries (type=finding), NOT embedded in Report.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | tool | string | MUST | Scanner name (checkov, trivy, tfsec, ...) |
+| tool_version | string | MAY | Scanner version |
 | rule_id | string | MUST | Scanner rule identifier |
 | severity | string | MUST | high, medium, low, info |
 | resource | string | MUST | Affected resource identifier |
@@ -226,6 +227,8 @@ All entry types share the same envelope.
 | trace_id | string | MUST | Automation task/session correlation key |
 | span_id | string | MAY | Span identifier for hierarchical tracing |
 | parent_span_id | string | MAY | Parent span for multi-step workflows |
+| operation_id | string | MAY | Operation identifier, unique within session |
+| attempt | integer | MAY | Retry attempt counter |
 | actor | Actor | MUST (prescribe, report) | MAY be empty on signal, receipt |
 | timestamp | datetime | MUST | RFC 3339, UTC |
 | intent_digest | string | conditional | Present on prescription entries |
@@ -247,6 +250,9 @@ All entry types share the same envelope.
 | `signal` | Signal detector fires (at scorecard time) | signal_name, sub_signal, entry_refs, details |
 | `receipt` | evidra-api acknowledges forwarded batch (v0.5.0+) | batch_id, entry_count, server_ts |
 | `canonicalization_failure` | Adapter fails to parse artifact | error_code, error_message, adapter, raw_digest |
+| `session_start` | Session begins | Labels |
+| `session_end` | Session ends | Status |
+| `annotation` | Human or system annotation | Key, value, message |
 
 ### Schema Rules
 
@@ -300,7 +306,7 @@ Scorecard summarizes reliability over a dataset.
 | total_operations | integer | MUST | Operation count in period |
 | score | float | MUST | 0-100, computed from penalty |
 | band | string | MUST | excellent, good, fair, poor, insufficient_data |
-| confidence | float | MUST | Scorecard-level confidence (see Confidence Model) |
+| confidence | float | MUST | Scorecard-level confidence, embedded and computed by `Compute()` (see Confidence Model) |
 | signals | SignalRates | MUST | Per-signal rates |
 | top_signals | []string | MUST | Top contributing signals to penalty |
 | evidence_refs | []entry_id | MUST | Supporting evidence entries |
@@ -426,6 +432,9 @@ version bump.
 | `signal` | Signal detector (at scorecard time) |
 | `receipt` | evidra-api acknowledgment (v0.5.0+) |
 | `canonicalization_failure` | Adapter parse failure |
+| `session_start` | Session begins |
+| `session_end` | Session ends |
+| `annotation` | Human or system annotation |
 
 ### verdict (on report)
 

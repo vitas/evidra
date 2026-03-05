@@ -98,6 +98,8 @@ To support complex agent workflows, the protocol supports hierarchical tracing.
 | trace_id | SHOULD |
 | span_id | SHOULD |
 | parent_span_id | MAY |
+| operation_id | SHOULD |
+| attempt | MAY |
 
 Rules:
 

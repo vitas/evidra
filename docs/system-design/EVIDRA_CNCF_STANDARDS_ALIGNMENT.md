@@ -69,23 +69,15 @@ It is a **separate namespace** from the internal entry type enum defined in
 | `evidra.operation.end` | `report` (verdict=success) | Maps 1:1 |
 | `evidra.operation.error` | `report` (verdict=failure\|error) | Maps 1:1 |
 | `evidra.validator.findings` | `finding` | Maps 1:1 |
-| `evidra.annotation` | — | No internal entry type exists yet |
-| `evidra.session.start` | — | No internal entry type exists yet |
-| `evidra.session.end` | — | No internal entry type exists yet |
-
-**Important:** `evidra.session.start`, `evidra.session.end`, and
-`evidra.annotation` are defined in the CloudEvents taxonomy for external
-interoperability, but do **not** have corresponding internal entry types
-in the current implementation. They are future additions — the internal
-entry type enum is a closed set that requires a spec version bump to extend
-([EVIDRA_CORE_DATA_MODEL.md, §5 EvidenceEntry](EVIDRA_CORE_DATA_MODEL.md#5-evidenceentry)).
+| `evidra.annotation` | `annotation` | Maps 1:1 |
+| `evidra.session.start` | `session_start` | Maps 1:1 |
+| `evidra.session.end` | `session_end` | Maps 1:1 |
 
 The mapping for `prescribe`, `report`, and `findings` is defined in
 [evidra-session-operation-event-model-v1.md, Section 6](evidra-session-operation-event-model-v1.md#6-mapping-to-evidra-concepts).
 The session lifecycle types (`evidra.session.start/end`) and `evidra.annotation`
-are defined in the event taxonomy (§4) of that document but do not yet have
-a §6-style mapping — they will be specified when the corresponding internal
-entry types are added.
+map 1:1 to their corresponding internal entry types (`session_start`,
+`session_end`, `annotation`).
 
 **Ambiguity note:** The session/operation event model informally lists
 `evidra.operation.start|end|error|finding` as CloudEvents types. This
@@ -241,13 +233,9 @@ Evidra's evidence chain already provides:
 These properties make Evidra evidence suitable as an in-toto predicate payload
 without any internal format changes.
 
-**Note on signing:** The normative data model
-([EVIDRA_CORE_DATA_MODEL.md, §5](EVIDRA_CORE_DATA_MODEL.md#5-evidenceentry))
-specifies `signature` as a MUST field on every `EvidenceEntry`. The current
-runtime implementation treats signing as opt-in (entries are unsigned when
-no `Signer` is configured). This is a known conformance gap. For in-toto
-export, signing MUST be enabled to produce verifiable attestations —
-unsigned entries cannot satisfy supply chain verification requirements.
+**Signing:** Ed25519 signing is required. `BuildEntry` and `RehashEntry`
+fail if no `Signer` is configured. This satisfies both the normative model
+and in-toto export requirements.
 
 ### Export mapping
 
@@ -319,20 +307,10 @@ policy engines**, compliance frameworks, or automation gates.
 
 The scorecard JSON structure used below matches the current runtime output
 (see `internal/score/score.go`). `rates` is a map keyed by signal name.
-`confidence` is computed separately via `ComputeConfidence` in the current
-runtime implementation (`internal/score/score.go`), though the normative
-data model ([EVIDRA_CORE_DATA_MODEL.md, §7](EVIDRA_CORE_DATA_MODEL.md#7-scorecard))
-specifies `confidence` as a MUST field on Scorecard. This gap exists because
-the runtime has not yet been updated to embed confidence in the scorecard
-JSON output.
-
-**Known gap for external consumers:** The inputs to `ComputeConfidence`
-(`externalPct`, `violationRate`) are not currently exposed in the scorecard
-JSON. Until the runtime embeds confidence into the scorecard output (as
-required by the normative model), external consumers such as OPA cannot
-evaluate confidence. The OPA example below intentionally omits confidence
-checks for this reason. When the runtime is updated, consumers should add:
-`input.scorecard.confidence.level != "low"`.
+The normative model and runtime are now aligned — `Confidence` is embedded
+in the `Scorecard` struct and computed by `Compute()`. External consumers
+such as OPA can evaluate confidence directly from the scorecard JSON
+(e.g. `input.scorecard.confidence.level != "low"`).
 
 ```rego
 package evidra.gate
