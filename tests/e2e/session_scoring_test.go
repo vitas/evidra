@@ -10,7 +10,9 @@ import (
 
 func TestE2E_SessionFilteredScoring(t *testing.T) {
 	bin := evidraBinary(t)
-	evidenceDir := t.TempDir()
+	tmpDir := t.TempDir()
+	evidenceDir := filepath.Join(tmpDir, "evidence")
+	privPath, _ := generateKeyPair(t, tmpDir)
 	artifactPath := filepath.Join("..", "..", "tests", "e2e", "fixtures", "k8s_deployment.yaml")
 
 	// --- Session A: clean run (exit_code=0) ---
@@ -21,6 +23,7 @@ func TestE2E_SessionFilteredScoring(t *testing.T) {
 		"--artifact", artifactPath,
 		"--session-id", "session-A",
 		"--evidence-dir", evidenceDir,
+		"--signing-key-path", privPath,
 	)
 	if exitCode != 0 {
 		t.Fatalf("session-A prescribe failed: exit=%d stderr=%s", exitCode, stderr)
@@ -41,6 +44,7 @@ func TestE2E_SessionFilteredScoring(t *testing.T) {
 		"--exit-code", "0",
 		"--session-id", "session-A",
 		"--evidence-dir", evidenceDir,
+		"--signing-key-path", privPath,
 	)
 	if exitCode != 0 {
 		t.Fatalf("session-A report failed: exit=%d stderr=%s", exitCode, stderr)
@@ -54,6 +58,7 @@ func TestE2E_SessionFilteredScoring(t *testing.T) {
 		"--artifact", artifactPath,
 		"--session-id", "session-B",
 		"--evidence-dir", evidenceDir,
+		"--signing-key-path", privPath,
 	)
 	if exitCode != 0 {
 		t.Fatalf("session-B prescribe failed: exit=%d stderr=%s", exitCode, stderr)
@@ -75,6 +80,7 @@ func TestE2E_SessionFilteredScoring(t *testing.T) {
 		"--artifact-digest", "sha256:different_from_prescription",
 		"--session-id", "session-B",
 		"--evidence-dir", evidenceDir,
+		"--signing-key-path", privPath,
 	)
 	if exitCode != 0 {
 		t.Fatalf("session-B report failed: exit=%d stderr=%s", exitCode, stderr)

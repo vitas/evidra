@@ -3,6 +3,7 @@ package mcpserver
 import (
 	"testing"
 
+	"samebits.com/evidra-benchmark/internal/testutil"
 	"samebits.com/evidra-benchmark/pkg/evidence"
 )
 
@@ -12,6 +13,7 @@ func TestPrescribeReport_Lifecycle(t *testing.T) {
 	dir := t.TempDir()
 	svc := &BenchmarkService{
 		evidencePath: dir,
+		signer:       testutil.TestSigner(t),
 	}
 
 	// Prescribe
@@ -68,6 +70,7 @@ func TestReport_ExplicitActor(t *testing.T) {
 	dir := t.TempDir()
 	svc := &BenchmarkService{
 		evidencePath: dir,
+		signer:       testutil.TestSigner(t),
 	}
 
 	prescOutput := svc.Prescribe(PrescribeInput{
@@ -107,6 +110,7 @@ func TestPrescribeReport_ChainIntegrity(t *testing.T) {
 	dir := t.TempDir()
 	svc := &BenchmarkService{
 		evidencePath: dir,
+		signer:       testutil.TestSigner(t),
 	}
 
 	// Prescribe

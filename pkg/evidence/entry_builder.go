@@ -54,13 +54,16 @@ type EntryBuildParams struct {
 	CanonVersion    string
 	AdapterVersion  string
 	ScoringVersion  string
-	Signer          Signer // optional: signs the entry hash if provided
+	Signer          Signer // required: signs the entry hash
 }
 
 // BuildEntry constructs a complete EvidenceEntry from the given parameters.
 // It generates a ULID entry_id, timestamps the entry, formats digests with
 // sha256: prefix, and computes the hash chain.
 func BuildEntry(p EntryBuildParams) (EvidenceEntry, error) {
+	if p.Signer == nil {
+		return EvidenceEntry{}, fmt.Errorf("evidence.BuildEntry: Signer is required")
+	}
 	if !p.Type.Valid() {
 		return EvidenceEntry{}, fmt.Errorf("evidence.BuildEntry: invalid entry type %q", p.Type)
 	}
@@ -92,29 +95,27 @@ func BuildEntry(p EntryBuildParams) (EvidenceEntry, error) {
 	}
 	entry.Hash = hash
 
-	if p.Signer != nil {
-		sig := p.Signer.Sign([]byte(hash))
-		entry.Signature = base64.StdEncoding.EncodeToString(sig)
-	}
+	sig := p.Signer.Sign([]byte(hash))
+	entry.Signature = base64.StdEncoding.EncodeToString(sig)
 
 	return entry, nil
 }
 
-// RehashEntry recomputes the hash (and optionally the signature) of an entry
-// after its payload has been mutated. This is needed when fields like
-// prescription_id are set after initial BuildEntry.
+// RehashEntry recomputes the hash and signature of an entry after its payload
+// has been mutated. This is needed when fields like prescription_id are set
+// after initial BuildEntry.
 func RehashEntry(entry *EvidenceEntry, signer Signer) error {
+	if signer == nil {
+		return fmt.Errorf("evidence.RehashEntry: Signer is required")
+	}
 	hash, err := computeEntryHash(*entry)
 	if err != nil {
 		return fmt.Errorf("evidence.RehashEntry: %w", err)
 	}
 	entry.Hash = hash
-	entry.Signature = ""
 
-	if signer != nil {
-		sig := signer.Sign([]byte(hash))
-		entry.Signature = base64.StdEncoding.EncodeToString(sig)
-	}
+	sig := signer.Sign([]byte(hash))
+	entry.Signature = base64.StdEncoding.EncodeToString(sig)
 	return nil
 }
 

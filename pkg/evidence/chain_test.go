@@ -16,6 +16,7 @@ func TestChainIntegrity_AppendAndValidate(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
+	signer := newTestSigner(t)
 
 	var lastHash string
 	for i := 0; i < 3; i++ {
@@ -29,6 +30,7 @@ func TestChainIntegrity_AppendAndValidate(t *testing.T) {
 			SpecVersion:    "0.3.0",
 			CanonVersion:   "test/v1",
 			AdapterVersion: "0.3.0",
+			Signer:         signer,
 		})
 		if err != nil {
 			t.Fatalf("BuildEntry %d: %v", i, err)
@@ -171,6 +173,7 @@ func TestChainIntegrity_TamperDetection(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
+	signer := newTestSigner(t)
 
 	payload, _ := json.Marshal(map[string]string{"data": "first"})
 	entry1, _ := BuildEntry(EntryBuildParams{
@@ -178,6 +181,7 @@ func TestChainIntegrity_TamperDetection(t *testing.T) {
 		Actor:   Actor{Type: "ci", ID: "t", Provenance: "cli"},
 		Payload: payload, SpecVersion: "0.3.0",
 		CanonVersion: "test/v1", AdapterVersion: "0.3.0",
+		Signer: signer,
 	})
 	if err := AppendEntryAtPath(dir, entry1); err != nil {
 		t.Fatalf("AppendEntryAtPath entry1: %v", err)
@@ -188,6 +192,7 @@ func TestChainIntegrity_TamperDetection(t *testing.T) {
 		Actor:   Actor{Type: "ci", ID: "t", Provenance: "cli"},
 		Payload: payload, PreviousHash: entry1.Hash,
 		SpecVersion: "0.3.0", CanonVersion: "test/v1", AdapterVersion: "0.3.0",
+		Signer: signer,
 	})
 	if err := AppendEntryAtPath(dir, entry2); err != nil {
 		t.Fatalf("AppendEntryAtPath entry2: %v", err)

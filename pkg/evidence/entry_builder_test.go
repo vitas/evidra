@@ -30,8 +30,21 @@ func TestFormatDigest(t *testing.T) {
 	}
 }
 
+func TestBuildEntry_RequiresSigner(t *testing.T) {
+	t.Parallel()
+	_, err := BuildEntry(EntryBuildParams{
+		Type:    EntryTypePrescribe,
+		TraceID: "trace-1",
+		Payload: json.RawMessage(`{}`),
+	})
+	if err == nil {
+		t.Fatal("expected error when Signer is nil")
+	}
+}
+
 func TestBuildEntry_Prescribe(t *testing.T) {
 	t.Parallel()
+	signer := newTestSigner(t)
 
 	payload, err := json.Marshal(PrescriptionPayload{
 		PrescriptionID: "rx-001",
@@ -54,6 +67,7 @@ func TestBuildEntry_Prescribe(t *testing.T) {
 		SpecVersion:    "0.3.0",
 		CanonVersion:   "1.0.0",
 		AdapterVersion: "k8s-1.0.0",
+		Signer:         signer,
 	})
 	if err != nil {
 		t.Fatalf("BuildEntry: %v", err)
@@ -84,6 +98,7 @@ func TestBuildEntry_Prescribe(t *testing.T) {
 
 func TestBuildEntry_HashChain(t *testing.T) {
 	t.Parallel()
+	signer := newTestSigner(t)
 
 	payload := json.RawMessage(`{"prescription_id":"rx-001"}`)
 
@@ -95,6 +110,7 @@ func TestBuildEntry_HashChain(t *testing.T) {
 		SpecVersion:    "0.3.0",
 		CanonVersion:   "1.0.0",
 		AdapterVersion: "k8s-1.0.0",
+		Signer:         signer,
 	})
 	if err != nil {
 		t.Fatalf("BuildEntry entry1: %v", err)
@@ -109,6 +125,7 @@ func TestBuildEntry_HashChain(t *testing.T) {
 		SpecVersion:    "0.3.0",
 		CanonVersion:   "1.0.0",
 		AdapterVersion: "k8s-1.0.0",
+		Signer:         signer,
 	})
 	if err != nil {
 		t.Fatalf("BuildEntry entry2: %v", err)
@@ -124,6 +141,7 @@ func TestBuildEntry_HashChain(t *testing.T) {
 
 func TestBuildEntry_InvalidType(t *testing.T) {
 	t.Parallel()
+	signer := newTestSigner(t)
 
 	_, err := BuildEntry(EntryBuildParams{
 		Type:           EntryType("bogus"),
@@ -133,6 +151,7 @@ func TestBuildEntry_InvalidType(t *testing.T) {
 		SpecVersion:    "0.3.0",
 		CanonVersion:   "1.0.0",
 		AdapterVersion: "k8s-1.0.0",
+		Signer:         signer,
 	})
 	if err == nil {
 		t.Fatal("expected error for invalid entry type, got nil")

@@ -7,6 +7,7 @@ import (
 
 func buildTestEntry(t *testing.T, typ EntryType, previousHash string) EvidenceEntry {
 	t.Helper()
+	signer := newTestSigner(t)
 	payload, err := json.Marshal(PrescriptionPayload{
 		PrescriptionID:  "presc-001",
 		CanonicalAction: json.RawMessage(`{"tool":"kubectl","operation":"apply"}`),
@@ -26,6 +27,7 @@ func buildTestEntry(t *testing.T, typ EntryType, previousHash string) EvidenceEn
 		SpecVersion:    "0.3.0",
 		CanonVersion:   "1",
 		AdapterVersion: "k8s-1",
+		Signer:         signer,
 	})
 	if err != nil {
 		t.Fatalf("BuildEntry: %v", err)

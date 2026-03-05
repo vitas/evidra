@@ -2,12 +2,14 @@ package mcpserver
 
 import (
 	"testing"
+
+	"samebits.com/evidra-benchmark/internal/testutil"
 )
 
 func TestPrescribe_SimpleK8s(t *testing.T) {
 	t.Parallel()
 
-	svc := &BenchmarkService{}
+	svc := &BenchmarkService{signer: testutil.TestSigner(t)}
 	output := svc.Prescribe(PrescribeInput{
 		Actor:       InputActor{Type: "agent", ID: "test"},
 		Tool:        "kubectl",
@@ -44,7 +46,7 @@ func TestPrescribe_SimpleK8s(t *testing.T) {
 func TestPrescribe_PrivilegedContainer(t *testing.T) {
 	t.Parallel()
 
-	svc := &BenchmarkService{}
+	svc := &BenchmarkService{signer: testutil.TestSigner(t)}
 	output := svc.Prescribe(PrescribeInput{
 		Actor:       InputActor{Type: "agent", ID: "test"},
 		Tool:        "kubectl",
@@ -61,7 +63,7 @@ func TestPrescribe_PrivilegedContainer(t *testing.T) {
 func TestPrescribe_ParseError(t *testing.T) {
 	t.Parallel()
 
-	svc := &BenchmarkService{}
+	svc := &BenchmarkService{signer: testutil.TestSigner(t)}
 	output := svc.Prescribe(PrescribeInput{
 		Actor:       InputActor{Type: "agent", ID: "test"},
 		Tool:        "terraform",
@@ -80,7 +82,7 @@ func TestPrescribe_ParseError(t *testing.T) {
 func TestReport_MissingPrescriptionID(t *testing.T) {
 	t.Parallel()
 
-	svc := &BenchmarkService{}
+	svc := &BenchmarkService{signer: testutil.TestSigner(t)}
 	output := svc.Report(ReportInput{ExitCode: 0})
 
 	if output.OK {
@@ -96,6 +98,7 @@ func TestRetryTracker_CountsRetries(t *testing.T) {
 
 	svc := &BenchmarkService{
 		retryTracker: NewRetryTracker(10 * 60 * 1e9), // 10 minutes
+		signer:       testutil.TestSigner(t),
 	}
 
 	input := PrescribeInput{

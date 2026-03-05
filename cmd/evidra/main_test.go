@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"samebits.com/evidra-benchmark/internal/testutil"
 	"samebits.com/evidra-benchmark/pkg/evidence"
 )
 
@@ -19,6 +20,7 @@ const testCanonicalAction = `{"tool":"terraform","operation":"apply","operation_
 
 func TestRunPrescribe_ScannerReportParseError(t *testing.T) {
 	t.Parallel()
+	signingKey := testutil.TestSigningKeyBase64(t)
 
 	tmp := t.TempDir()
 	artifact := filepath.Join(tmp, "artifact.json")
@@ -38,6 +40,7 @@ func TestRunPrescribe_ScannerReportParseError(t *testing.T) {
 		"--canonical-action", testCanonicalAction,
 		"--scanner-report", badSarif,
 		"--evidence-dir", tmp,
+		"--signing-key", signingKey,
 	}
 
 	var out, errBuf bytes.Buffer
@@ -52,6 +55,7 @@ func TestRunPrescribe_ScannerReportParseError(t *testing.T) {
 
 func TestRunPrescribe_ScannerReportCountsWrittenFindings(t *testing.T) {
 	t.Parallel()
+	signingKey := testutil.TestSigningKeyBase64(t)
 
 	tmp := t.TempDir()
 	artifact := filepath.Join(tmp, "artifact.json")
@@ -71,6 +75,7 @@ func TestRunPrescribe_ScannerReportCountsWrittenFindings(t *testing.T) {
 		"--canonical-action", testCanonicalAction,
 		"--scanner-report", scannerReport,
 		"--evidence-dir", tmp,
+		"--signing-key", signingKey,
 	}
 
 	var out, errBuf bytes.Buffer
@@ -216,6 +221,7 @@ func TestRunPrescribe_WithSigningKey(t *testing.T) {
 
 func TestScorecard_SessionIDFilter(t *testing.T) {
 	t.Parallel()
+	signingKey := testutil.TestSigningKeyBase64(t)
 
 	tmp := t.TempDir()
 	artifact := filepath.Join(tmp, "artifact.json")
@@ -233,6 +239,7 @@ func TestScorecard_SessionIDFilter(t *testing.T) {
 		"--canonical-action", testCanonicalAction,
 		"--session-id", "session-A",
 		"--evidence-dir", evidenceDir,
+		"--signing-key", signingKey,
 	}, &out, &errBuf)
 	if code != 0 {
 		t.Fatalf("prescribe session-A exit %d: %s", code, errBuf.String())
@@ -251,6 +258,7 @@ func TestScorecard_SessionIDFilter(t *testing.T) {
 		"--exit-code", "0",
 		"--session-id", "session-A",
 		"--evidence-dir", evidenceDir,
+		"--signing-key", signingKey,
 	}, &out, &errBuf)
 	if code != 0 {
 		t.Fatalf("report session-A exit %d: %s", code, errBuf.String())
@@ -266,6 +274,7 @@ func TestScorecard_SessionIDFilter(t *testing.T) {
 		"--canonical-action", testCanonicalAction,
 		"--session-id", "session-B",
 		"--evidence-dir", evidenceDir,
+		"--signing-key", signingKey,
 	}, &out, &errBuf)
 	if code != 0 {
 		t.Fatalf("prescribe session-B exit %d: %s", code, errBuf.String())
@@ -284,6 +293,7 @@ func TestScorecard_SessionIDFilter(t *testing.T) {
 		"--exit-code", "0",
 		"--session-id", "session-B",
 		"--evidence-dir", evidenceDir,
+		"--signing-key", signingKey,
 	}, &out, &errBuf)
 	if code != 0 {
 		t.Fatalf("report session-B exit %d: %s", code, errBuf.String())

@@ -14,6 +14,7 @@ func TestE2E_FindingsIngestion(t *testing.T) {
 	bin := evidraBinary(t)
 	tmpDir := t.TempDir()
 	evidenceDir := filepath.Join(tmpDir, "evidence")
+	privPath, _ := generateKeyPair(t, tmpDir)
 
 	artifactPath := filepath.Join("..", "..", "tests", "e2e", "fixtures", "k8s_deployment.yaml")
 	trivySarif := filepath.Join("..", "..", "tests", "e2e", "fixtures", "trivy.sarif")
@@ -29,6 +30,7 @@ func TestE2E_FindingsIngestion(t *testing.T) {
 		"--evidence-dir", evidenceDir,
 		"--session-id", sessionID,
 		"--actor", "scanner-trivy",
+		"--signing-key-path", privPath,
 	)
 	if exitCode != 0 {
 		t.Fatalf("trivy ingest exit code = %d, stderr = %s", exitCode, stderr)
@@ -58,6 +60,7 @@ func TestE2E_FindingsIngestion(t *testing.T) {
 		"--artifact", artifactPath,
 		"--session-id", sessionID,
 		"--evidence-dir", evidenceDir,
+		"--signing-key-path", privPath,
 	)
 	if exitCode != 0 {
 		t.Fatalf("prescribe exit code = %d, stderr = %s", exitCode, stderr)
@@ -91,6 +94,7 @@ func TestE2E_FindingsIngestion(t *testing.T) {
 		"--exit-code", "0",
 		"--session-id", sessionID,
 		"--evidence-dir", evidenceDir,
+		"--signing-key-path", privPath,
 	)
 	if exitCode != 0 {
 		t.Fatalf("report exit code = %d, stderr = %s", exitCode, stderr)
@@ -104,6 +108,7 @@ func TestE2E_FindingsIngestion(t *testing.T) {
 		"--evidence-dir", evidenceDir,
 		"--session-id", sessionID,
 		"--actor", "scanner-kubescape",
+		"--signing-key-path", privPath,
 	)
 	if exitCode != 0 {
 		t.Fatalf("kubescape ingest exit code = %d, stderr = %s", exitCode, stderr)

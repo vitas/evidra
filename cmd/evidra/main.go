@@ -705,7 +705,7 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 }
 
 // resolveSigner creates a Signer from explicit flags or environment variables.
-// Returns nil, nil if no signing key is configured.
+// Returns an error if no signing key is configured.
 func resolveSigner(keyBase64, keyPath string) (evidence.Signer, error) {
 	if keyBase64 == "" {
 		keyBase64 = strings.TrimSpace(os.Getenv("EVIDRA_SIGNING_KEY"))
@@ -714,7 +714,7 @@ func resolveSigner(keyBase64, keyPath string) (evidence.Signer, error) {
 		keyPath = strings.TrimSpace(os.Getenv("EVIDRA_SIGNING_KEY_PATH"))
 	}
 	if keyBase64 == "" && keyPath == "" {
-		return nil, nil
+		return nil, fmt.Errorf("signing key required: set --signing-key, --signing-key-path, EVIDRA_SIGNING_KEY, or EVIDRA_SIGNING_KEY_PATH")
 	}
 	s, err := ievsigner.NewSigner(ievsigner.SignerConfig{
 		KeyBase64: keyBase64,

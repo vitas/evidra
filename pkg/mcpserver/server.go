@@ -22,7 +22,7 @@ type Options struct {
 	EvidencePath string
 	Environment  string
 	RetryTracker bool
-	Signer       evidence.Signer // optional: signs evidence entries if provided
+	Signer       evidence.Signer // required: signs evidence entries
 }
 
 // InputActor identifies the caller in a prescribe request.

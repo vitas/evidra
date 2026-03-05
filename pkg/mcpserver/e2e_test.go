@@ -22,6 +22,7 @@ func TestE2E_PrescribeReportLifecycle(t *testing.T) {
 		Version:      "0.0.1",
 		EvidencePath: dir,
 		Environment:  "test",
+		Signer:       newTestSigner(t),
 	})
 	if serverErr != nil {
 		t.Fatalf("NewServer: %v", serverErr)
@@ -155,6 +156,7 @@ func TestE2E_UnprescribedReport(t *testing.T) {
 		Name:         "test",
 		Version:      "0.0.1",
 		EvidencePath: dir,
+		Signer:       newTestSigner(t),
 	})
 	if serverErr != nil {
 		t.Fatalf("NewServer: %v", serverErr)
@@ -210,6 +212,7 @@ func TestE2E_ListResources(t *testing.T) {
 		Name:         "test",
 		Version:      "0.0.1",
 		EvidencePath: dir,
+		Signer:       newTestSigner(t),
 	})
 	if serverErr != nil {
 		t.Fatalf("NewServer: %v", serverErr)
@@ -259,6 +262,7 @@ func TestE2E_ProtocolV1Fields(t *testing.T) {
 		Version:      "0.0.1",
 		EvidencePath: dir,
 		Environment:  "test",
+		Signer:       newTestSigner(t),
 	})
 	if serverErr != nil {
 		t.Fatalf("NewServer: %v", serverErr)

@@ -112,12 +112,12 @@ func envBool(key string, fallback bool) bool {
 }
 
 // resolveSigner creates a Signer from environment variables.
-// Returns nil, nil if no signing key is configured.
+// Returns an error if no signing key is configured.
 func resolveSigner() (evidence.Signer, error) {
 	keyBase64 := strings.TrimSpace(os.Getenv("EVIDRA_SIGNING_KEY"))
 	keyPath := strings.TrimSpace(os.Getenv("EVIDRA_SIGNING_KEY_PATH"))
 	if keyBase64 == "" && keyPath == "" {
-		return nil, nil
+		return nil, fmt.Errorf("signing key required: set EVIDRA_SIGNING_KEY or EVIDRA_SIGNING_KEY_PATH")
 	}
 	s, err := ievsigner.NewSigner(ievsigner.SignerConfig{
 		KeyBase64: keyBase64,
