@@ -42,7 +42,7 @@ First public release of Evidra Benchmark.
 - Go 1.23 minimum (broad adoption)
 - Cross-platform binaries via GoReleaser (linux/darwin/windows, amd64/arm64)
 - Homebrew: `brew install samebits/tap/evidra-mcp`
-- Docker: `ghcr.io/vitas/evidra-mcp:0.3.0`
+- Docker: `ghcr.io/samebits/evidra-mcp:0.3.0`
 
 ### Known Limitations
 - ArgoCD uses generic adapter (no Argo-specific metadata)

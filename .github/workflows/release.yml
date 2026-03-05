@@ -136,7 +136,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/vitas/evidra-mcp
+          images: ghcr.io/samebits/evidra-mcp
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}

@@ -7,7 +7,7 @@
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/vitas/evidra-mcp:0.3.0",
+      "identifier": "ghcr.io/samebits/evidra-mcp:0.3.0",
       "transport": { "type": "stdio" },
       "environmentVariables": [
         {
