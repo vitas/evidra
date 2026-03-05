@@ -128,8 +128,8 @@ func cmdScorecard(args []string, stdout, stderr io.Writer) int {
 		ActorID:        *actorFlag,
 		SessionID:      *sessionIDFlag,
 		Period:         *periodFlag,
-		ScoringVersion: "0.3.0",
-		SpecVersion:    "0.3.0",
+		ScoringVersion: version.SpecVersion,
+		SpecVersion:    version.SpecVersion,
 		EvidraVersion:  version.Version,
 		GeneratedAt:    time.Now().UTC().Format(time.RFC3339),
 	}
@@ -436,7 +436,7 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 			ArtifactDigest: cr.ArtifactDigest,
 			Payload:        failPayload,
 			PreviousHash:   lastHash,
-			SpecVersion:    "0.3.0",
+			SpecVersion:    version.SpecVersion,
 			AdapterVersion: version.Version,
 			Signer:         signer,
 		})
@@ -493,7 +493,7 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 		ArtifactDigest: cr.ArtifactDigest,
 		Payload:        payloadJSON,
 		PreviousHash:   lastHash,
-		SpecVersion:    "0.3.0",
+		SpecVersion:    version.SpecVersion,
 		CanonVersion:   cr.CanonVersion,
 		AdapterVersion: version.Version,
 		Signer:         signer,
@@ -554,7 +554,7 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 				ArtifactDigest: cr.ArtifactDigest,
 				Payload:        findingPayload,
 				PreviousHash:   lastHash,
-				SpecVersion:    "0.3.0",
+				SpecVersion:    version.SpecVersion,
 				AdapterVersion: version.Version,
 				Signer:         signer,
 			})
@@ -636,7 +636,7 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 			Actor:          evidence.Actor{Type: "cli", ID: actorID, Provenance: "cli"},
 			Payload:        sigPayload,
 			PreviousHash:   lastHash,
-			SpecVersion:    "0.3.0",
+			SpecVersion:    version.SpecVersion,
 			AdapterVersion: version.Version,
 			Signer:         signer,
 		})
@@ -680,7 +680,7 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 		ArtifactDigest: *artifactDigestFlag,
 		Payload:        payloadJSON,
 		PreviousHash:   lastHash,
-		SpecVersion:    "0.3.0",
+		SpecVersion:    version.SpecVersion,
 		AdapterVersion: version.Version,
 		Signer:         signer,
 	})
@@ -906,7 +906,7 @@ func cmdIngestFindings(args []string, stdout, stderr io.Writer) int {
 			ArtifactDigest: artifactDigest,
 			Payload:        findingPayload,
 			PreviousHash:   lastHash,
-			SpecVersion:    "0.3.0",
+			SpecVersion:    version.SpecVersion,
 			AdapterVersion: version.Version,
 			Signer:         signer,
 		})

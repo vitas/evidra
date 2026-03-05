@@ -288,7 +288,7 @@ func (s *BenchmarkService) Prescribe(input PrescribeInput) PrescribeOutput {
 					ArtifactDigest: cr.ArtifactDigest,
 					Payload:        failPayload,
 					PreviousHash:   lastHash,
-					SpecVersion:    "0.3.0",
+					SpecVersion:    version.SpecVersion,
 					AdapterVersion: version.Version,
 					Signer:         s.signer,
 				})
@@ -370,7 +370,7 @@ func (s *BenchmarkService) Prescribe(input PrescribeInput) PrescribeOutput {
 		Payload:         payloadJSON,
 		PreviousHash:    lastHash,
 		ScopeDimensions: input.ScopeDimensions,
-		SpecVersion:     "0.3.0",
+		SpecVersion:     version.SpecVersion,
 		CanonVersion:    cr.CanonVersion,
 		AdapterVersion:  version.Version,
 		Signer:          s.signer,
@@ -462,7 +462,7 @@ func (s *BenchmarkService) Report(input ReportInput) ReportOutput {
 				Actor:          sigActor,
 				Payload:        sigPayload,
 				PreviousHash:   lastHash,
-				SpecVersion:    "0.3.0",
+				SpecVersion:    version.SpecVersion,
 				AdapterVersion: version.Version,
 				Signer:         s.signer,
 			})
@@ -524,7 +524,7 @@ func (s *BenchmarkService) Report(input ReportInput) ReportOutput {
 		ArtifactDigest: evidence.FormatDigest(input.ArtifactDigest),
 		Payload:        payloadJSON,
 		PreviousHash:   lastHash,
-		SpecVersion:    "0.3.0",
+		SpecVersion:    version.SpecVersion,
 		AdapterVersion: version.Version,
 		Signer:         s.signer,
 	})
