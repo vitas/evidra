@@ -1,6 +1,8 @@
 package evidence
 
 import (
+	"crypto/ed25519"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -196,6 +198,48 @@ func ValidateChainAtPath(root string) error {
 				Message: fmt.Sprintf("hash mismatch: stored %s, computed %s", entry.Hash, recomputed),
 			}
 		}
+	}
+
+	return nil
+}
+
+// ValidateChainWithSignatures validates hash chain integrity AND verifies
+// Ed25519 signatures on all entries that have a non-empty Signature field.
+func ValidateChainWithSignatures(root string, pubKey ed25519.PublicKey) error {
+	if err := ValidateChainAtPath(root); err != nil {
+		return err
+	}
+
+	entries, err := ReadAllEntriesAtPath(root)
+	if err != nil {
+		return fmt.Errorf("validate signatures: %w", err)
+	}
+
+	signed := 0
+	for i, entry := range entries {
+		if entry.Signature == "" {
+			continue
+		}
+		sig, decErr := base64.StdEncoding.DecodeString(entry.Signature)
+		if decErr != nil {
+			return &ChainValidationError{
+				Index:   i,
+				EventID: entry.EntryID,
+				Message: fmt.Sprintf("invalid base64 signature: %v", decErr),
+			}
+		}
+		if !ed25519.Verify(pubKey, []byte(entry.Hash), sig) {
+			return &ChainValidationError{
+				Index:   i,
+				EventID: entry.EntryID,
+				Message: "signature verification failed",
+			}
+		}
+		signed++
+	}
+
+	if signed == 0 && len(entries) > 0 {
+		return fmt.Errorf("validate signatures: no signed entries found (chain has %d entries)", len(entries))
 	}
 
 	return nil

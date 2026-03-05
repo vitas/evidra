@@ -15,12 +15,15 @@ func TestE2E_PrescribeReportLifecycle(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 
-	server := NewServer(Options{
+	server, serverErr := NewServer(Options{
 		Name:         "test",
 		Version:      "0.0.1",
 		EvidencePath: dir,
 		Environment:  "test",
 	})
+	if serverErr != nil {
+		t.Fatalf("NewServer: %v", serverErr)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -146,11 +149,14 @@ func TestE2E_UnprescribedReport(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 
-	server := NewServer(Options{
+	server, serverErr := NewServer(Options{
 		Name:         "test",
 		Version:      "0.0.1",
 		EvidencePath: dir,
 	})
+	if serverErr != nil {
+		t.Fatalf("NewServer: %v", serverErr)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -198,11 +204,14 @@ func TestE2E_ListResources(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 
-	server := NewServer(Options{
+	server, serverErr := NewServer(Options{
 		Name:         "test",
 		Version:      "0.0.1",
 		EvidencePath: dir,
 	})
+	if serverErr != nil {
+		t.Fatalf("NewServer: %v", serverErr)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -243,12 +252,15 @@ func TestE2E_ProtocolV1Fields(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 
-	server := NewServer(Options{
+	server, serverErr := NewServer(Options{
 		Name:         "test",
 		Version:      "0.0.1",
 		EvidencePath: dir,
 		Environment:  "test",
 	})
+	if serverErr != nil {
+		t.Fatalf("NewServer: %v", serverErr)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

@@ -1,7 +1,9 @@
 package evidence
 
 import (
+	"crypto/ed25519"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -10,6 +12,14 @@ import (
 
 	"github.com/oklog/ulid/v2"
 )
+
+// Signer signs evidence entry hashes. When provided to BuildEntry,
+// the entry's Signature field is populated with a base64-encoded Ed25519 signature.
+type Signer interface {
+	Sign(payload []byte) []byte
+	Verify(payload, sig []byte) bool
+	PublicKey() ed25519.PublicKey
+}
 
 // DefaultTTLMs is the default time-to-live for a prescription in milliseconds (5 minutes).
 const DefaultTTLMs = 300000
@@ -44,6 +54,7 @@ type EntryBuildParams struct {
 	CanonVersion    string
 	AdapterVersion  string
 	ScoringVersion  string
+	Signer          Signer // optional: signs the entry hash if provided
 }
 
 // BuildEntry constructs a complete EvidenceEntry from the given parameters.
@@ -80,6 +91,11 @@ func BuildEntry(p EntryBuildParams) (EvidenceEntry, error) {
 		return EvidenceEntry{}, fmt.Errorf("evidence.BuildEntry: %w", err)
 	}
 	entry.Hash = hash
+
+	if p.Signer != nil {
+		sig := p.Signer.Sign([]byte(hash))
+		entry.Signature = base64.StdEncoding.EncodeToString(sig)
+	}
 
 	return entry, nil
 }

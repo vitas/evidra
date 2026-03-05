@@ -117,7 +117,7 @@ exit code + prescription_id ─────────────────�
                                                               evidence chain → signals → scorecard
 ```
 
-Three binaries:
+Two binaries:
 
 | Binary | Purpose |
 |---|---|

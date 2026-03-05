@@ -45,13 +45,17 @@ func run(args []string, stdout, stderr io.Writer) int {
 	evidencePath := resolveEvidencePath(*evidenceFlag)
 	environment := resolveEnvironment(*environmentFlag)
 
-	server := mcpserver.NewServer(mcpserver.Options{
+	server, err := mcpserver.NewServer(mcpserver.Options{
 		Name:         "evidra-benchmark",
 		Version:      version.Version,
 		EvidencePath: evidencePath,
 		Environment:  environment,
 		RetryTracker: *retryFlag || envBool("EVIDRA_RETRY_TRACKER", false),
 	})
+	if err != nil {
+		fmt.Fprintf(stderr, "initialize server: %v\n", err)
+		return 1
+	}
 
 	logger := log.New(stderr, "", log.LstdFlags)
 	logger.Printf("evidra-mcp running (evidence: %s, env: %s)", evidencePath, environment)

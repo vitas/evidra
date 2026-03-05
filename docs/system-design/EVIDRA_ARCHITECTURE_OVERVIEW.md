@@ -63,7 +63,8 @@ Exposes prescribe + report tools. Local evidence JSONL. Forwards
 to evidra-api if configured. v0.3.0.
 
 **evidra CLI** — for CI pipelines. Same protocol, shell wrapper.
-`evidra prescribe`, `evidra report`, `evidra scorecard`. v0.3.0.
+`evidra prescribe`, `evidra report`, `evidra scorecard`, `evidra validate`,
+`evidra ingest-findings`. v0.3.0.
 
 **evidra-api** — centralized backend. Aggregates evidence from all
 sources. Scorecards, comparison, Prometheus metrics. Multi-tenant.
@@ -359,10 +360,26 @@ correlation model.
 `lastActor` from the preceding prescribe call in MCP server. CLI
 requires explicit `--actor` or defaults to "cli".
 
-### Signature Field Is Placeholder (v0.3.0)
-`EvidenceEntry.Signature` is always empty. The Ed25519 `Signer` module
-exists in `internal/evidence/signer.go` (149 LOC, 14 tests) but is not
-integrated. Signing integration is deferred to v0.5.0.
+### Signing Is Wired (v0.3.0)
+`BuildEntry` accepts an optional `Signer` interface. When provided,
+the entry's hash is Ed25519-signed and stored in the `signature` field
+(base64-encoded). The `Signer` module lives in `internal/evidence/signer.go`.
+Key sources: `EVIDRA_SIGNING_KEY` (base64), `EVIDRA_SIGNING_KEY_PATH` (PEM),
+or ephemeral dev mode. Validation via `evidra validate --public-key <pem>`.
+`ValidateChainWithSignatures()` verifies both hash chain and signatures.
+
+### Standalone Findings Ingestion (v0.3.0)
+`evidra ingest-findings --sarif <file>` ingests scanner findings (SARIF)
+as evidence entries without requiring a prescribe call. This supports
+pre-merge scanner workflows (e.g. Trivy, Kubescape in CI) where no
+artifact execution occurs.
+
+### Session and Scoring Boundary (v0.3.0)
+v0.3.0 scorecard is scoped by **actor + time period**. `session_id` is
+recorded in evidence entries but does NOT affect scoring grouping in v0.3.0.
+Per-session scorecards are a v0.5.0 feature that requires evidra-api for
+session lifecycle management. The data is captured now so future scoring
+can leverage it without re-ingestion.
 
 ### Compare Command Requires Evidence History
 `evidra compare` reads evidence, builds per-actor workload profiles
@@ -963,6 +980,7 @@ evidence files that do not conform to the v0.3.0 schema.
 | Forward integrity + server receipts | RECOMMENDATION §2.3 | Requires evidra-api |
 | Label provenance | RECOMMENDATION §5.1 | Requires verification source |
 | Intent fingerprinting beyond operation_class | RECOMMENDATION §5.2 | Enhancement, not blocking |
+| Per-session scorecard grouping | Architecture review P0-A | session_id captured in v0.3.0, scoring grouped by actor+period only |
 
 ### Explicitly Rejected
 
@@ -979,7 +997,10 @@ evidence files that do not conform to the v0.3.0 schema.
 | Output | Command | Purpose |
 |--------|---------|---------|
 | Scorecard | `evidra scorecard --actor X --period 30d` | Per-agent reliability report |
+| Explain | `evidra explain --actor X` | Signal-level breakdown with weights |
 | Comparison | `evidra compare --actors X,Y --tool kubectl` | Side-by-side agent comparison |
+| Validate | `evidra validate --public-key key.pem` | Evidence chain + signature verification |
+| Ingest | `evidra ingest-findings --sarif report.sarif` | Standalone SARIF findings ingestion |
 | Fleet | `evidra fleet --period 30d` | All agents at a glance |
 | Metrics | `GET /metrics` | Prometheus counters (low cardinality) |
 | CI check | GitHub Actions workflow | Score on PR, fail below threshold |

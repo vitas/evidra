@@ -33,7 +33,7 @@ type SignerConfig struct {
 	KeyPath string
 
 	// When true, generate an ephemeral in-memory key if no key is provided.
-	// Only allowed when EVIDRA_ENV=development.
+	// Only allowed when EVIDRA_ENVIRONMENT=development.
 	DevMode bool
 }
 
@@ -82,6 +82,31 @@ func (s *Signer) PublicKeyPEM() ([]byte, error) {
 		Type:  "PUBLIC KEY",
 		Bytes: der,
 	}), nil
+}
+
+// LoadPublicKeyPEM reads a PEM-encoded Ed25519 public key from a file.
+func LoadPublicKeyPEM(path string) (ed25519.PublicKey, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("evidence.LoadPublicKeyPEM: read file: %w", err)
+	}
+
+	block, _ := pem.Decode(data)
+	if block == nil || block.Type != "PUBLIC KEY" {
+		return nil, fmt.Errorf("evidence.LoadPublicKeyPEM: PEM block is not a PUBLIC KEY")
+	}
+
+	key, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("evidence.LoadPublicKeyPEM: parse PKIX: %w", err)
+	}
+
+	pub, ok := key.(ed25519.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("evidence.LoadPublicKeyPEM: key is not Ed25519")
+	}
+
+	return pub, nil
 }
 
 func signerFromBase64(encoded string) (*Signer, error) {

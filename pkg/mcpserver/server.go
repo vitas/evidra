@@ -122,7 +122,7 @@ const (
 )
 
 // NewServer creates a new benchmark MCP server with prescribe and report tools.
-func NewServer(opts Options) *mcp.Server {
+func NewServer(opts Options) (*mcp.Server, error) {
 	if opts.Name == "" {
 		opts.Name = "evidra-benchmark"
 	}
@@ -140,6 +140,19 @@ func NewServer(opts Options) *mcp.Server {
 	prescribe := &prescribeHandler{service: svc}
 	report := &reportHandler{service: svc}
 	getEvent := &getEventHandler{service: svc}
+
+	prescribeSchema, err := loadInputSchema(prescribeSchemaBytes, "schemas/prescribe.schema.json")
+	if err != nil {
+		return nil, err
+	}
+	reportSchema, err := loadInputSchema(reportSchemaBytes, "schemas/report.schema.json")
+	if err != nil {
+		return nil, err
+	}
+	getEventSchema, err := loadInputSchema(getEventSchemaBytes, "schemas/get_event.schema.json")
+	if err != nil {
+		return nil, err
+	}
 
 	server := mcp.NewServer(
 		&mcp.Implementation{Name: opts.Name, Version: opts.Version},
@@ -159,7 +172,7 @@ func NewServer(opts Options) *mcp.Server {
 			DestructiveHint: boolPtr(false),
 			OpenWorldHint:   boolPtr(false),
 		},
-		InputSchema: mustLoadInputSchema(prescribeSchemaBytes, "schemas/prescribe.schema.json"),
+		InputSchema: prescribeSchema,
 	}, prescribe.Handle)
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -173,7 +186,7 @@ func NewServer(opts Options) *mcp.Server {
 			DestructiveHint: boolPtr(false),
 			OpenWorldHint:   boolPtr(false),
 		},
-		InputSchema: mustLoadInputSchema(reportSchemaBytes, "schemas/report.schema.json"),
+		InputSchema: reportSchema,
 	}, report.Handle)
 
 	mcp.AddTool(server, &mcp.Tool{
@@ -187,7 +200,7 @@ func NewServer(opts Options) *mcp.Server {
 			DestructiveHint: boolPtr(false),
 			OpenWorldHint:   boolPtr(false),
 		},
-		InputSchema: mustLoadInputSchema(getEventSchemaBytes, "schemas/get_event.schema.json"),
+		InputSchema: getEventSchema,
 	}, getEvent.Handle)
 
 	// Evidence resources
@@ -206,7 +219,7 @@ func NewServer(opts Options) *mcp.Server {
 		URI:         "evidra://evidence/manifest",
 	}, svc.readResourceManifest)
 
-	return server
+	return server, nil
 }
 
 func (h *prescribeHandler) Handle(

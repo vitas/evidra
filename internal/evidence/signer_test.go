@@ -250,6 +250,64 @@ func TestPublicKeyPEM(t *testing.T) {
 	}
 }
 
+func TestLoadPublicKeyPEM_RoundTrip(t *testing.T) {
+	t.Parallel()
+	s := testSigner(t)
+
+	pemData, err := s.PublicKeyPEM()
+	if err != nil {
+		t.Fatalf("PublicKeyPEM: %v", err)
+	}
+
+	path := filepath.Join(t.TempDir(), "pub.pem")
+	if err := os.WriteFile(path, pemData, 0600); err != nil {
+		t.Fatal(err)
+	}
+
+	pub, err := LoadPublicKeyPEM(path)
+	if err != nil {
+		t.Fatalf("LoadPublicKeyPEM: %v", err)
+	}
+
+	if !pub.Equal(s.PublicKey()) {
+		t.Fatal("loaded public key does not match original")
+	}
+}
+
+func TestLoadPublicKeyPEM_FileNotFound(t *testing.T) {
+	t.Parallel()
+	_, err := LoadPublicKeyPEM("/nonexistent/pub.pem")
+	if err == nil {
+		t.Fatal("expected error for missing file")
+	}
+}
+
+func TestLoadPublicKeyPEM_InvalidPEM(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "bad.pem")
+	if err := os.WriteFile(path, []byte("not a pem"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := LoadPublicKeyPEM(path)
+	if err == nil {
+		t.Fatal("expected error for invalid PEM")
+	}
+}
+
+func TestLoadPublicKeyPEM_PrivateKeyReject(t *testing.T) {
+	t.Parallel()
+	_, priv, _ := ed25519.GenerateKey(rand.Reader)
+	pemBytes := marshalPrivateKeyPEM(t, priv)
+	path := filepath.Join(t.TempDir(), "priv.pem")
+	if err := os.WriteFile(path, pemBytes, 0600); err != nil {
+		t.Fatal(err)
+	}
+	_, err := LoadPublicKeyPEM(path)
+	if err == nil {
+		t.Fatal("expected error when loading private key as public")
+	}
+}
+
 func marshalPrivateKeyPEM(t *testing.T, priv ed25519.PrivateKey) []byte {
 	t.Helper()
 	der, err := x509.MarshalPKCS8PrivateKey(priv)

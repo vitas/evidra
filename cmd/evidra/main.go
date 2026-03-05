@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"samebits.com/evidra-benchmark/internal/canon"
+	ievsigner "samebits.com/evidra-benchmark/internal/evidence"
 	"samebits.com/evidra-benchmark/internal/pipeline"
 	"samebits.com/evidra-benchmark/internal/risk"
 	"samebits.com/evidra-benchmark/internal/sarif"
@@ -45,6 +46,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdPrescribe(args[1:], stdout, stderr)
 	case "report":
 		return cmdReport(args[1:], stdout, stderr)
+	case "validate":
+		return cmdValidate(args[1:], stdout, stderr)
+	case "ingest-findings":
+		return cmdIngestFindings(args[1:], stdout, stderr)
 	case "help", "--help", "-h":
 		printUsage(stdout)
 		return 0
@@ -730,16 +735,138 @@ func countPrescriptions(entries []signal.Entry) int {
 	return count
 }
 
+func cmdValidate(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("validate", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	evidenceFlag := fs.String("evidence-dir", "", "Evidence directory")
+	pubKeyFlag := fs.String("public-key", "", "PEM file with Ed25519 public key (enables signature verification)")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	evidencePath := resolveEvidencePath(*evidenceFlag)
+
+	// Always validate hash chain
+	if err := evidence.ValidateChainAtPath(evidencePath); err != nil {
+		fmt.Fprintf(stderr, "chain validation failed: %v\n", err)
+		return 1
+	}
+
+	if *pubKeyFlag != "" {
+		pubKey, err := ievsigner.LoadPublicKeyPEM(*pubKeyFlag)
+		if err != nil {
+			fmt.Fprintf(stderr, "load public key: %v\n", err)
+			return 1
+		}
+		if err := evidence.ValidateChainWithSignatures(evidencePath, pubKey); err != nil {
+			fmt.Fprintf(stderr, "signature validation failed: %v\n", err)
+			return 1
+		}
+		fmt.Fprintln(stdout, "chain valid: hashes and signatures verified")
+	} else {
+		fmt.Fprintln(stdout, "chain valid: hashes verified (no public key provided, signatures not checked)")
+	}
+	return 0
+}
+
+func cmdIngestFindings(args []string, stdout, stderr io.Writer) int {
+	fs := flag.NewFlagSet("ingest-findings", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	sarifFlag := fs.String("sarif", "", "Path to SARIF scanner report")
+	artifactFlag := fs.String("artifact", "", "Path to artifact file (for artifact_digest linking)")
+	evidenceFlag := fs.String("evidence-dir", "", "Evidence directory")
+	actorFlag := fs.String("actor", "", "Actor ID")
+	sessionIDFlag := fs.String("session-id", "", "Session/run boundary ID")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	if *sarifFlag == "" {
+		fmt.Fprintln(stderr, "ingest-findings requires --sarif")
+		return 2
+	}
+
+	sarifData, err := os.ReadFile(*sarifFlag)
+	if err != nil {
+		fmt.Fprintf(stderr, "read sarif: %v\n", err)
+		return 1
+	}
+	findings, err := sarif.Parse(sarifData)
+	if err != nil {
+		fmt.Fprintf(stderr, "parse sarif: %v\n", err)
+		return 1
+	}
+
+	// Compute artifact digest if artifact provided
+	var artifactDigest string
+	if *artifactFlag != "" {
+		artifactData, err := os.ReadFile(*artifactFlag)
+		if err != nil {
+			fmt.Fprintf(stderr, "read artifact: %v\n", err)
+			return 1
+		}
+		artifactDigest = canon.ComputeArtifactDigest(artifactData)
+	}
+
+	evidencePath := resolveEvidencePath(*evidenceFlag)
+	actorID := *actorFlag
+	if actorID == "" {
+		actorID = "cli"
+	}
+	actor := evidence.Actor{Type: "cli", ID: actorID, Provenance: "cli"}
+
+	written := 0
+	for _, f := range findings {
+		findingPayload, _ := json.Marshal(f)
+		lastHash, _ := evidence.LastHashAtPath(evidencePath)
+		entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
+			Type:           evidence.EntryTypeFinding,
+			SessionID:      *sessionIDFlag,
+			TraceID:        artifactDigest,
+			Actor:          actor,
+			ArtifactDigest: artifactDigest,
+			Payload:        findingPayload,
+			PreviousHash:   lastHash,
+			SpecVersion:    "0.3.0",
+			AdapterVersion: version.Version,
+		})
+		if err != nil {
+			fmt.Fprintf(stderr, "warning: build finding entry failed for rule %s: %v\n", f.RuleID, err)
+			continue
+		}
+		if err := evidence.AppendEntryAtPath(evidencePath, entry); err != nil {
+			fmt.Fprintf(stderr, "warning: write finding entry failed for rule %s: %v\n", f.RuleID, err)
+			continue
+		}
+		written++
+	}
+
+	result := map[string]interface{}{
+		"ok":              true,
+		"findings_count":  written,
+		"artifact_digest": artifactDigest,
+	}
+	enc := json.NewEncoder(stdout)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(result); err != nil {
+		fmt.Fprintf(stderr, "encode result: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
 func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "evidra-benchmark — flight recorder for infrastructure automation")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "COMMANDS:")
-	fmt.Fprintln(w, "  scorecard   Generate reliability scorecard for an actor")
-	fmt.Fprintln(w, "  explain     Explain signals contributing to a score")
-	fmt.Fprintln(w, "  compare     Compare reliability scores between actors")
-	fmt.Fprintln(w, "  prescribe   Analyze artifact before execution")
-	fmt.Fprintln(w, "  report      Record outcome after execution")
-	fmt.Fprintln(w, "  version     Print version information")
+	fmt.Fprintln(w, "  scorecard         Generate reliability scorecard for an actor")
+	fmt.Fprintln(w, "  explain           Explain signals contributing to a score")
+	fmt.Fprintln(w, "  compare           Compare reliability scores between actors")
+	fmt.Fprintln(w, "  prescribe         Analyze artifact before execution")
+	fmt.Fprintln(w, "  report            Record outcome after execution")
+	fmt.Fprintln(w, "  validate          Validate evidence chain integrity and signatures")
+	fmt.Fprintln(w, "  ingest-findings   Ingest SARIF scanner findings as evidence entries")
+	fmt.Fprintln(w, "  version           Print version information")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Run 'evidra <command> --help' for command-specific flags.")
 }

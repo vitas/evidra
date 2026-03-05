@@ -51,6 +51,11 @@ func SHA256Hex(data []byte) string {
 	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
+// ComputeArtifactDigest returns the sha256:<hex> digest of raw artifact bytes.
+func ComputeArtifactDigest(data []byte) string {
+	return SHA256Hex(data)
+}
+
 // keep unexported alias for internal use
 func sha256Hex(data []byte) string {
 	return SHA256Hex(data)
