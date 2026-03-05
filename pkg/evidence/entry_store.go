@@ -14,9 +14,13 @@ import (
 // The entry must already have Hash computed (via BuildEntry).
 // Updates manifest RecordsTotal, LastHash, and UpdatedAt.
 func AppendEntryAtPath(path string, entry EvidenceEntry) error {
-	return withStoreLock(path, func() error {
+	if err := withStoreLock(path, func() error {
 		return appendEntryUnlocked(path, entry)
-	})
+	}); err != nil {
+		return err
+	}
+	cacheEntryByID(path, entry)
+	return nil
 }
 
 func appendEntryUnlocked(path string, entry EvidenceEntry) error {
@@ -129,6 +133,10 @@ func forEachEntryAtPathUnlocked(path string, fn func(EvidenceEntry) error) error
 
 // FindEntryByID finds an entry by its entry_id in the segmented store.
 func FindEntryByID(path string, entryID string) (EvidenceEntry, bool, error) {
+	if cached, ok := lookupCachedEntryByID(path, entryID); ok {
+		return cached, true, nil
+	}
+
 	var out EvidenceEntry
 	found := false
 	errFound := errors.New("entry_found")
@@ -142,6 +150,9 @@ func FindEntryByID(path string, entryID string) (EvidenceEntry, bool, error) {
 	})
 	if err != nil && !errors.Is(err, errFound) {
 		return EvidenceEntry{}, false, err
+	}
+	if found {
+		cacheEntryByID(path, out)
 	}
 	return out, found, nil
 }
