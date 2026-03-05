@@ -12,6 +12,7 @@ content from the architecture review and PO recommendation documents
 not define contracts. Normative sources:
 - **EVIDRA_SIGNAL_SPEC.md** — signal definitions, metric contracts
 - **CANONICALIZATION_CONTRACT_V1.md** — adapter interface, digests
+- **EVIDRA_PROTOCOL.md** — integration contract (session, correlation, scope, actor, findings)
 
 ## One-liner
 Evidra is the standard signal and metrics layer for infrastructure
@@ -336,11 +337,22 @@ MCP server was the sole evidence writer in early v0.3.0. CLI commands
 (`prescribe`, `report`) now also write evidence entries. Both paths
 produce identical `EvidenceEntry` format with the same hash chain.
 
-### trace_id = Process/Invocation Lifetime
-MCP server: ULID generated at `NewServer()`, shared across the entire
-session. CLI: ULID generated per command invocation. This means MCP
-sessions naturally group related operations; CLI invocations are
-independent.
+### Session and Correlation Model
+Every evidence entry supports hierarchical correlation:
+
+- **session_id** (MAY) — run/session boundary. Groups all operations
+  within a single automation run (LangChain agent run, CI pipeline
+  execution, Terraform apply workflow). If not provided, Evidra does
+  not generate one — operations are independent.
+- **trace_id** (MUST) — per-operation correlation. MCP server: ULID
+  generated per prescribe call. CLI: ULID generated per invocation.
+  Caller may provide their own trace_id for OpenTelemetry integration.
+- **span_id / parent_span_id** (MAY) — hierarchical tracing for
+  multi-step agent workflows. Allows tree-structured correlation
+  compatible with OpenTelemetry span model.
+
+See [Integration Protocol](EVIDRA_PROTOCOL.md) §3 for the full
+correlation model.
 
 ### Report Actor Resolution
 `ReportInput` accepts an optional `actor` field. Falls back to
@@ -398,13 +410,21 @@ these, it is architecturally incorrect even if it "works."
 
 ### Identity and Correlation
 - **actor is mandatory** for every prescribe/report: actor.type,
-  actor.id, actor.provenance (or actor.origin).
-- **trace_id** is the primary correlation key. It represents an
-  **automation task or session** — e.g. one CI pipeline run, one
-  agent task, one human CLI session. A single trace_id MAY span
-  multiple prescribe/report pairs (a terraform plan that touches
-  3 resources = 3 prescriptions under one trace_id). A trace_id
-  MUST NOT span multiple actors or multiple tenants.
+  actor.id, actor.provenance (or actor.origin). Optional fields:
+  actor.instance_id (runner/pod/container — NOT used in metrics)
+  and actor.version (agent software version).
+- **session_id** (MAY) is the run/session boundary. Groups all
+  operations in one automation run (agent run, CI pipeline, etc.).
+  Defines the boundary for metrics and scorecards.
+- **trace_id** is the per-operation correlation key. A single
+  trace_id MAY span multiple prescribe/report pairs (a terraform
+  plan that touches 3 resources = 3 prescriptions under one
+  trace_id). A trace_id MUST NOT span multiple actors or tenants.
+- **span_id / parent_span_id** (MAY) support hierarchical agent
+  workflows (OpenTelemetry compatible).
+- **scope_dimensions** (MAY) is a map of detailed environment
+  metadata (cluster, namespace, account, region). Not used in
+  metrics — scope_class remains the low-cardinality dimension.
 - **tenant_id** is always present in service mode (v0.5.0+).
 - Optional correlation: repo, work_item_key, commit_sha, env,
   target. Missing fields = unknown/empty, not ambiguous.
@@ -600,11 +620,18 @@ every entry having the same shape.
   // === Identity ===
   "actor": {
     "type":        "agent",            // "agent" | "ci" | "human"
-    "id":          "claude-code",      // stable identifier
-    "origin":      "mcp"              // "mcp" | "cli" | "api"
+    "id":          "claude-code",      // stable, low-cardinality identifier
+    "origin":      "mcp",             // "mcp" | "cli" | "api"
+    "instance_id": "runner-234",      // (MAY) pod/container/runner — NOT in metrics
+    "version":     "1.4.2"            // (MAY) actor software version
   },
   "tenant_id":     "",                 // empty in local mode, required in service mode (v0.5.0+)
-  "trace_id":      "01JNG...",         // correlation key for inspection session
+
+  // === Correlation ===
+  "session_id":    "01JNG...",         // (MAY) run/session boundary
+  "trace_id":      "01JNG...",         // per-operation correlation key
+  "span_id":       "01JNG...",         // (MAY) step within a trace
+  "parent_span_id": "01JNG...",        // (MAY) parent span for hierarchical workflows
 
   // === Digests (present on prescription and report) ===
   "artifact_digest": "sha256:abc...",  // SHA256 of raw artifact bytes
@@ -612,6 +639,14 @@ every entry having the same shape.
 
   // === Payload (type-specific) ===
   "payload":       { },                // see Payload by Type below
+
+  // === Scope ===
+  "scope_dimensions": {                // (MAY) detailed environment metadata
+    "cluster":   "prod-cluster-1",
+    "namespace": "payments",
+    "account":   "aws-prod",
+    "region":    "eu-central-1"
+  },
 
   // === Chain integrity ===
   "previous_hash": "sha256:...",       // hash of previous entry (empty for first)
@@ -1095,13 +1130,13 @@ via evidra-mcp (v0.3.0). Python/TypeScript SDKs at v0.4.0.
 ┌────────────┐   ┌──────────────┐  ┌────────────┐  ┌────────────┐
 │ CONTRACTS  │   │ SPECS        │  │ CONSUMER   │  │ EXAMPLES   │
 │            │   │              │  │            │  │            │
-│ Canon [1]  │   │ Signal [2]   │  │ Benchmark  │  │ E2E [5]    │
-│ Data Mdl   │   │              │  │ [4]        │  │            │
+│ Canon [1]  │   │ Signal [2]   │  │ Benchmark  │  │ E2E [6]    │
+│ Data Mdl   │   │ Protocol [5] │  │ [4]        │  │            │
 │ [3]        │   │              │  │            │  │            │
 └────────────┘   └──────────────┘  └────────────┘  └────────────┘
 ```
 
-### Active Documents (6 total)
+### Active Documents (7 total)
 
 | # | Document | Role | Type |
 |---|----------|------|------|
@@ -1109,8 +1144,9 @@ via evidra-mcp (v0.3.0). Python/TypeScript SDKs at v0.4.0.
 | 2 | [EVIDRA_SIGNAL_SPEC.md](EVIDRA_SIGNAL_SPEC.md) | **Signal definitions, metric contracts, scoring formula, conformance** | **Normative** |
 | 3 | [EVIDRA_CORE_DATA_MODEL.md](EVIDRA_CORE_DATA_MODEL.md) | **Core data model: CanonicalAction, Prescription, Report, EvidenceEntry, Signal, Scorecard** | **Normative** |
 | 4 | [EVIDRA_AGENT_RELIABILITY_BENCHMARK.md](EVIDRA_AGENT_RELIABILITY_BENCHMARK.md) | Scoring, comparison, benchmark methodology, protocol, risk analysis | Consumer |
-| 5 | [EVIDRA_ARCHITECTURE_OVERVIEW.md](EVIDRA_ARCHITECTURE_OVERVIEW.md) | Entry point, strategic positioning, inspector model, roadmap, document map | Non-normative |
-| 6 | [EVIDRA_END_TO_END_EXAMPLE_v2.md](EVIDRA_END_TO_END_EXAMPLE_v2.md) | Worked examples, failure cases | Non-normative |
+| 5 | [EVIDRA_PROTOCOL.md](EVIDRA_PROTOCOL.md) | **Integration protocol: session/run lifecycle, correlation model, scope dimensions, actor identity, findings ingestion** | **Normative** |
+| 6 | [EVIDRA_ARCHITECTURE_OVERVIEW.md](EVIDRA_ARCHITECTURE_OVERVIEW.md) | Entry point, strategic positioning, inspector model, roadmap, document map | Non-normative |
+| 7 | [EVIDRA_END_TO_END_EXAMPLE_v2.md](EVIDRA_END_TO_END_EXAMPLE_v2.md) | Worked examples, failure cases | Non-normative |
 
 ### Archived Documents (in `done/`)
 
@@ -1156,4 +1192,7 @@ Consolidated into the active documents above.
 | How is CI integrated? | Benchmark §12 | Non-normative |
 | What's in Prescription/Report? | **Data Model** §2-3 | Normative |
 | What's in EvidenceEntry? | **Data Model** §5 | Normative |
+| What is session_id / span model? | **Protocol** §1-3 | Normative |
+| What are scope dimensions? | **Protocol** §5 | Normative |
+| How do validators ingest findings? | **Protocol** §7 | Normative |
 | What's the confidence model? | Architecture Overview §Confidence Model | Non-normative |
