@@ -15,7 +15,8 @@ type sarifReport struct {
 type sarifRun struct {
 	Tool struct {
 		Driver struct {
-			Name string `json:"name"`
+			Name    string `json:"name"`
+			Version string `json:"version"`
 		} `json:"driver"`
 	} `json:"tool"`
 	Results []sarifResult `json:"results"`
@@ -49,17 +50,19 @@ func Parse(data []byte) ([]evidence.FindingPayload, error) {
 		if toolName == "" {
 			toolName = "unknown"
 		}
+		toolVersion := strings.TrimSpace(run.Tool.Driver.Version)
 		for _, result := range run.Results {
 			resource := ""
 			if len(result.Locations) > 0 {
 				resource = result.Locations[0].PhysicalLocation.ArtifactLocation.URI
 			}
 			findings = append(findings, evidence.FindingPayload{
-				Tool:     toolName,
-				RuleID:   result.RuleID,
-				Severity: mapSeverity(result.Level),
-				Resource: resource,
-				Message:  result.Message.Text,
+				Tool:        toolName,
+				ToolVersion: toolVersion,
+				RuleID:      result.RuleID,
+				Severity:    mapSeverity(result.Level),
+				Resource:    resource,
+				Message:     result.Message.Text,
 			})
 		}
 	}

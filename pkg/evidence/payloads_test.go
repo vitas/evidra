@@ -135,11 +135,12 @@ func TestFindingPayload_Marshal(t *testing.T) {
 	t.Parallel()
 
 	original := FindingPayload{
-		Tool:     "trivy",
-		RuleID:   "CVE-2024-1234",
-		Severity: "critical",
-		Resource: "docker.io/nginx:latest",
-		Message:  "Known vulnerability in libssl",
+		Tool:        "trivy",
+		ToolVersion: "0.50.1",
+		RuleID:      "CVE-2024-1234",
+		Severity:    "critical",
+		Resource:    "docker.io/nginx:latest",
+		Message:     "Known vulnerability in libssl",
 	}
 
 	data, err := json.Marshal(original)
@@ -155,8 +156,45 @@ func TestFindingPayload_Marshal(t *testing.T) {
 	if decoded.Tool != "trivy" {
 		t.Errorf("tool = %q, want %q", decoded.Tool, "trivy")
 	}
+	if decoded.ToolVersion != "0.50.1" {
+		t.Errorf("tool_version = %q, want %q", decoded.ToolVersion, "0.50.1")
+	}
 	if decoded.RuleID != "CVE-2024-1234" {
 		t.Errorf("rule_id = %q, want %q", decoded.RuleID, "CVE-2024-1234")
+	}
+
+	// Verify tool_version appears in JSON output.
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("raw unmarshal: %v", err)
+	}
+	if _, ok := raw["tool_version"]; !ok {
+		t.Error("missing JSON key tool_version")
+	}
+}
+
+func TestFindingPayload_ToolVersionOmitEmpty(t *testing.T) {
+	t.Parallel()
+
+	p := FindingPayload{
+		Tool:     "trivy",
+		RuleID:   "CVE-2024-1234",
+		Severity: "critical",
+		Resource: "docker.io/nginx:latest",
+		Message:  "Known vulnerability in libssl",
+	}
+
+	data, err := json.Marshal(p)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("raw unmarshal: %v", err)
+	}
+	if _, ok := raw["tool_version"]; ok {
+		t.Error("tool_version should be omitted when empty")
 	}
 }
 

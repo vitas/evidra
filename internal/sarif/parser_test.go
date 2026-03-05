@@ -91,6 +91,61 @@ func TestParseSARIF_InvalidJSON(t *testing.T) {
 	}
 }
 
+func TestParseSARIF_ToolVersion(t *testing.T) {
+	t.Parallel()
+
+	data := []byte(`{
+		"version": "2.1.0",
+		"runs": [{
+			"tool": {"driver": {"name": "Trivy", "version": "0.50.1"}},
+			"results": [{
+				"ruleId": "CVE-2024-0001",
+				"level": "error",
+				"message": {"text": "test vuln"},
+				"locations": [{"physicalLocation": {"artifactLocation": {"uri": "Dockerfile"}}}]
+			}]
+		}]
+	}`)
+
+	findings, err := Parse(data)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if len(findings) != 1 {
+		t.Fatalf("expected 1 finding, got %d", len(findings))
+	}
+	if findings[0].ToolVersion != "0.50.1" {
+		t.Errorf("tool_version: got %q, want %q", findings[0].ToolVersion, "0.50.1")
+	}
+}
+
+func TestParseSARIF_ToolVersionEmpty(t *testing.T) {
+	t.Parallel()
+
+	data := []byte(`{
+		"version": "2.1.0",
+		"runs": [{
+			"tool": {"driver": {"name": "scanner"}},
+			"results": [{
+				"ruleId": "R1",
+				"level": "warning",
+				"message": {"text": "msg"}
+			}]
+		}]
+	}`)
+
+	findings, err := Parse(data)
+	if err != nil {
+		t.Fatalf("Parse: %v", err)
+	}
+	if len(findings) != 1 {
+		t.Fatalf("expected 1 finding, got %d", len(findings))
+	}
+	if findings[0].ToolVersion != "" {
+		t.Errorf("tool_version: got %q, want empty", findings[0].ToolVersion)
+	}
+}
+
 func TestParseSARIF_MissingToolNameDefaultsUnknown(t *testing.T) {
 	t.Parallel()
 

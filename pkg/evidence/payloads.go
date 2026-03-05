@@ -58,11 +58,12 @@ type ReportPayload struct {
 // FindingPayload is the typed payload for EntryTypeFinding entries.
 // It captures a single finding from an external inspection tool.
 type FindingPayload struct {
-	Tool     string `json:"tool"`
-	RuleID   string `json:"rule_id"`
-	Severity string `json:"severity"`
-	Resource string `json:"resource"`
-	Message  string `json:"message"`
+	Tool        string `json:"tool"`
+	ToolVersion string `json:"tool_version,omitempty"`
+	RuleID      string `json:"rule_id"`
+	Severity    string `json:"severity"`
+	Resource    string `json:"resource"`
+	Message     string `json:"message"`
 }
 
 // SignalPayload is the typed payload for EntryTypeSignal entries.

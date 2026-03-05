@@ -837,6 +837,7 @@ func cmdIngestFindings(args []string, stdout, stderr io.Writer) int {
 	fs.SetOutput(stderr)
 	sarifFlag := fs.String("sarif", "", "Path to SARIF scanner report")
 	artifactFlag := fs.String("artifact", "", "Path to artifact file (for artifact_digest linking)")
+	toolVersionFlag := fs.String("tool-version", "", "Override tool version for all ingested findings")
 	evidenceFlag := fs.String("evidence-dir", "", "Evidence directory")
 	actorFlag := fs.String("actor", "", "Actor ID")
 	sessionIDFlag := fs.String("session-id", "", "Session/run boundary ID")
@@ -866,6 +867,13 @@ func cmdIngestFindings(args []string, stdout, stderr io.Writer) int {
 	if err != nil {
 		fmt.Fprintf(stderr, "parse sarif: %v\n", err)
 		return 1
+	}
+
+	// Override tool_version from CLI flag if provided.
+	if *toolVersionFlag != "" {
+		for i := range findings {
+			findings[i].ToolVersion = *toolVersionFlag
+		}
 	}
 
 	// Compute artifact digest if artifact provided
