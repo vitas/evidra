@@ -92,6 +92,28 @@ for file in "${expected_files[@]}"; do
   artifact_path="$(dirname "$file")/$artifact_ref"
   [[ -f "$artifact_path" ]] || fail "$file artifact_ref does not resolve: $artifact_ref"
 
+  contract_path="$(dirname "$file")/golden/contract.json"
+  [[ -f "$contract_path" ]] || fail "$file missing golden contract: $(dirname "$file")/golden/contract.json"
+  jq -e '
+    .case_id and
+    .risk_level and
+    .risk_details and
+    (.risk_details | type=="array") and
+    .artifact_digest and
+    .evidra_version and
+    .processing and
+    .processing.dataset_evidra_version and
+    .processing.processed_at and
+    .processing.tool and
+    .processing.operation
+  ' "$contract_path" >/dev/null || fail "$contract_path missing required contract fields"
+
+  expected_digest="$(jq -r '.artifact_digest // empty' "$file")"
+  contract_digest="$(jq -r '.artifact_digest // empty' "$contract_path")"
+  if [[ -n "$expected_digest" && "$expected_digest" != "TODO" && "$expected_digest" != "$contract_digest" ]]; then
+    fail "$contract_path artifact_digest mismatch (expected.json=$expected_digest contract=$contract_digest)"
+  fi
+
   source_ids=()
   while IFS= read -r source_id; do
     source_ids+=("$source_id")

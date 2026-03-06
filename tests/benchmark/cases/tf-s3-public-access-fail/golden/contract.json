@@ -1,0 +1,20 @@
+{
+  "ground_truth_pattern": "",
+  "risk_level": "high",
+  "risk_details": [],
+  "operation_class": "unknown",
+  "scope_class": "unknown",
+  "resource_count": 0,
+  "canon_version": "generic/v1",
+  "artifact_digest": "sha256:32934e1c1f8dbdeeab853913f45983154b7d17318bb6019b971be8291a54712a",
+  "intent_digest": "sha256:068563dc1e4e881afcf784bdc7ecd93195269904695adcdbe57333ff2d469bb7",
+  "prescription_id": "01KK1FN5T8GT2MK8PK5PJ9XPXP",
+  "evidra_version": "0.3.1",
+  "processing": {
+    "dataset_evidra_version": "v0.3.x",
+    "processed_at": "2026-03-06T11:48:48Z",
+    "tool": "generic",
+    "operation": "apply"
+  },
+  "case_id": "tf-s3-public-access-fail"
+}

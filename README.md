@@ -327,6 +327,7 @@ make test           # go test ./... -v -count=1
 make benchmark-validate  # validate tests/benchmark metadata, case structure, source provenance gates
 make benchmark-coverage  # generate tests/benchmark/COVERAGE.md coverage snapshot
 make benchmark-process-artifact ARTIFACT=<path> [TOOL=kubectl] [OPERATION=apply] [OUT=/tmp/contract.json]
+make benchmark-refresh-contracts [CASE_ID=<id>] [OPERATION=apply] [EVIDRA_BIN=bin/evidra]
 make bench-add CASE_ID=<id> [ARTIFACT=<path>] [SOURCE=<source-id>] [TOOL=kubectl] [EVIDRA_BIN=bin/evidra] [NO_PROCESS=1]
 make lint           # golangci-lint run (includes function-size/complexity guardrails for non-test code)
 make fmt            # gofmt -w .

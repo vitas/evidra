@@ -1,0 +1,20 @@
+{
+  "ground_truth_pattern": "",
+  "risk_level": "medium",
+  "risk_details": [],
+  "operation_class": "mutate",
+  "scope_class": "unknown",
+  "resource_count": 0,
+  "canon_version": "k8s/v1",
+  "artifact_digest": "sha256:af7b847b6d6d189c3cecd833614c67bb61e0b9a4f09dc8a1b1648d4c100d8b7c",
+  "intent_digest": "sha256:086cb5509ab4c9514752987f527e43e637916fe86177f0f427d080a348fc8c1c",
+  "prescription_id": "01KK1FN4NFX6VXMQDM3N59MBCP",
+  "evidra_version": "0.3.1",
+  "processing": {
+    "dataset_evidra_version": "v0.3.x",
+    "processed_at": "2026-03-06T11:48:47Z",
+    "tool": "kubectl",
+    "operation": "apply"
+  },
+  "case_id": "k8s-run-as-root-pass"
+}

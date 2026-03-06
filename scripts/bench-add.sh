@@ -133,7 +133,21 @@ if [[ -n "$ARTIFACT" ]]; then
       process_cmd+=(--evidra-bin "$EVIDRA_BIN")
     fi
 
+    process_ok="false"
     if "${process_cmd[@]}" >/tmp/bench-add-process.log 2>&1; then
+      process_ok="true"
+    elif [[ "$TOOL" != "generic" ]]; then
+      process_cmd=(bash tests/benchmark/scripts/process-artifact.sh --artifact "$CASE_DIR/artifacts/$ARTIFACT_BASENAME" --tool generic --operation "$OPERATION" --out "$process_tmp")
+      if [[ -n "$EVIDRA_BIN" ]]; then
+        process_cmd+=(--evidra-bin "$EVIDRA_BIN")
+      fi
+      if "${process_cmd[@]}" >/tmp/bench-add-process.log 2>&1; then
+        process_ok="true"
+        echo "bench-add: autofill fallback used tool=generic"
+      fi
+    fi
+
+    if [[ "$process_ok" == "true" ]]; then
       processed_digest="$(jq -r '.artifact_digest // empty' "$process_tmp")"
       [[ -n "$processed_digest" ]] && ARTIFACT_DIGEST="$processed_digest"
 

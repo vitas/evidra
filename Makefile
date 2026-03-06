@@ -1,5 +1,5 @@
 .PHONY: build test e2e clean golden-update docker-mcp docker-cli fmt lint tidy \
-	benchmark-validate benchmark-coverage benchmark-process-artifact bench-add \
+	benchmark-validate benchmark-coverage benchmark-process-artifact benchmark-refresh-contracts bench-add \
 	test-mcp-inspector test-mcp-inspector-ci test-mcp-inspector-local-rest test-mcp-inspector-hosted test-mcp-inspector-hosted-rest
 
 build:
@@ -37,6 +37,9 @@ benchmark-coverage:
 benchmark-process-artifact:
 	@test -n "$(ARTIFACT)" || (echo "ARTIFACT is required, e.g. make benchmark-process-artifact ARTIFACT=tests/inspector/fixtures/safe-nginx-deployment.yaml" >&2; exit 2)
 	bash tests/benchmark/scripts/process-artifact.sh --artifact "$(ARTIFACT)" $(if $(TOOL),--tool $(TOOL)) $(if $(OPERATION),--operation $(OPERATION)) $(if $(OUT),--out $(OUT)) $(if $(EVIDRA_BIN),--evidra-bin $(EVIDRA_BIN))
+
+benchmark-refresh-contracts:
+	bash tests/benchmark/scripts/refresh-contracts.sh $(if $(CASE_ID),--case $(CASE_ID)) $(if $(OPERATION),--operation $(OPERATION)) $(if $(EVIDRA_BIN),--evidra-bin $(EVIDRA_BIN))
 
 bench-add:
 	bash scripts/bench-add.sh $(CASE_ID) $(if $(ARTIFACT),--artifact $(ARTIFACT)) $(if $(SOURCE),--source $(SOURCE)) $(if $(TOOL),--tool $(TOOL)) $(if $(OPERATION),--operation $(OPERATION)) $(if $(EVIDRA_BIN),--evidra-bin $(EVIDRA_BIN)) $(if $(NO_PROCESS),--no-process)

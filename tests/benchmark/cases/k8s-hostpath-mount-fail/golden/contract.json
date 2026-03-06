@@ -1,0 +1,20 @@
+{
+  "ground_truth_pattern": "",
+  "risk_level": "medium",
+  "risk_details": [],
+  "operation_class": "mutate",
+  "scope_class": "unknown",
+  "resource_count": 0,
+  "canon_version": "k8s/v1",
+  "artifact_digest": "sha256:df55f57374e29cd8e61d5cf58663a750e4f6f0bfd2d0d5e3ea6fb1e6a02c7817",
+  "intent_digest": "sha256:086cb5509ab4c9514752987f527e43e637916fe86177f0f427d080a348fc8c1c",
+  "prescription_id": "01KK1FN2YQ9R3C5N7AN6800EH8",
+  "evidra_version": "0.3.1",
+  "processing": {
+    "dataset_evidra_version": "v0.3.x",
+    "processed_at": "2026-03-06T11:48:45Z",
+    "tool": "kubectl",
+    "operation": "apply"
+  },
+  "case_id": "k8s-hostpath-mount-fail"
+}

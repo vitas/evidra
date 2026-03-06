@@ -1,0 +1,20 @@
+{
+  "ground_truth_pattern": "",
+  "risk_level": "high",
+  "risk_details": [],
+  "operation_class": "unknown",
+  "scope_class": "unknown",
+  "resource_count": 0,
+  "canon_version": "generic/v1",
+  "artifact_digest": "sha256:b03e5f2e11a705d509cc4f39e9b9a81921e02282491ac45c7f787a4aa24e55b1",
+  "intent_digest": "sha256:5cb800e245674cca47e4b7e3e0d6c029494fc30fe1bcecc56768109fb8829963",
+  "prescription_id": "01KK1FN5E6MD7E3MGHDP6GGG95",
+  "evidra_version": "0.3.1",
+  "processing": {
+    "dataset_evidra_version": "v0.3.x",
+    "processed_at": "2026-03-06T11:48:48Z",
+    "tool": "generic",
+    "operation": "apply"
+  },
+  "case_id": "tf-iam-wildcard-policy-pass"
+}
