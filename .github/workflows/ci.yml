@@ -50,3 +50,12 @@ jobs:
 
       - name: Validate benchmark dataset
         run: make benchmark-validate
+
+      - name: Generate benchmark coverage report
+        run: make benchmark-coverage
+
+      - name: Upload benchmark coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-coverage
+          path: tests/benchmark/COVERAGE.md

@@ -304,6 +304,7 @@ exit code + prescription_id -> Report -> signal detectors -> Scorecard
 make build          # bin/evidra + bin/evidra-mcp
 make test           # go test ./... -v -count=1
 make benchmark-validate  # validate tests/benchmark metadata, case structure, source provenance gates
+make benchmark-coverage  # generate tests/benchmark/COVERAGE.md coverage snapshot
 make lint           # golangci-lint run (includes function-size/complexity guardrails for non-test code)
 make fmt            # gofmt -w .
 make tidy           # go mod tidy

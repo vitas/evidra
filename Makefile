@@ -1,5 +1,5 @@
 .PHONY: build test e2e clean golden-update docker-mcp docker-cli fmt lint tidy \
-	benchmark-validate bench-add \
+	benchmark-validate benchmark-coverage bench-add \
 	test-mcp-inspector test-mcp-inspector-ci test-mcp-inspector-local-rest test-mcp-inspector-hosted test-mcp-inspector-hosted-rest
 
 build:
@@ -30,6 +30,9 @@ test-mcp-inspector-hosted-rest:
 
 benchmark-validate:
 	bash tests/benchmark/scripts/validate-dataset.sh
+
+benchmark-coverage:
+	bash tests/benchmark/scripts/generate-coverage.sh > tests/benchmark/COVERAGE.md
 
 bench-add:
 	bash scripts/bench-add.sh $(CASE_ID) $(if $(ARTIFACT),--artifact $(ARTIFACT)) $(if $(SOURCE),--source $(SOURCE))
