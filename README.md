@@ -1,9 +1,7 @@
 # Evidra Benchmark
 
-[![CI](https://img.shields.io/github/actions/workflow/status/vitas/evidra-benchmark/ci.yml?branch=main&label=CI)](https://github.com/vitas/evidra-benchmark/actions/workflows/ci.yml)
-[![Release Pipeline](https://img.shields.io/github/actions/workflow/status/vitas/evidra-benchmark/release.yml?event=push&label=Release%20Pipeline)](https://github.com/vitas/evidra-benchmark/actions/workflows/release.yml)
-[![Latest Tag](https://img.shields.io/github/v/tag/vitas/evidra-benchmark?sort=semver&label=Latest%20Tag)](https://github.com/vitas/evidra-benchmark/tags)
-[![Go Report Card](https://goreportcard.com/badge/github.com/vitas/evidra-benchmark)](https://goreportcard.com/report/github.com/vitas/evidra-benchmark)
+[![CI](https://github.com/vitas/evidra-benchmark/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vitas/evidra-benchmark/actions/workflows/ci.yml)
+[![Release Pipeline](https://github.com/vitas/evidra-benchmark/actions/workflows/release.yml/badge.svg?event=push)](https://github.com/vitas/evidra-benchmark/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 **Flight recorder and reliability benchmark for infrastructure automation.**
