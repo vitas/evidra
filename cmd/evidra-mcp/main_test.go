@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"samebits.com/evidra-benchmark/internal/config"
+)
 
 func TestResolveSigner_OptionalWithoutKey(t *testing.T) {
 	t.Setenv("EVIDRA_SIGNING_KEY", "")
@@ -30,14 +34,13 @@ func TestResolveSigner_InvalidModeFails(t *testing.T) {
 	}
 }
 
-func TestEvidenceWriteBestEffortEnabled(t *testing.T) {
+func TestResolveEvidenceWriteMode_FromEnv(t *testing.T) {
 	t.Setenv("EVIDRA_EVIDENCE_WRITE_MODE", "best_effort")
-	if !evidenceWriteBestEffortEnabled() {
-		t.Fatal("expected best_effort mode to be enabled")
+	mode, err := config.ResolveEvidenceWriteMode("")
+	if err != nil {
+		t.Fatalf("ResolveEvidenceWriteMode: %v", err)
 	}
-
-	t.Setenv("EVIDRA_EVIDENCE_WRITE_MODE", "strict")
-	if evidenceWriteBestEffortEnabled() {
-		t.Fatal("expected strict mode to disable best_effort")
+	if mode != config.EvidenceWriteModeBestEffort {
+		t.Fatalf("mode=%q, want %q", mode, config.EvidenceWriteModeBestEffort)
 	}
 }

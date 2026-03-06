@@ -49,6 +49,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 	evidencePath := resolveEvidencePath(*evidenceFlag)
 	environment := resolveEnvironment(*environmentFlag)
 
+	writeMode, writeModeErr := config.ResolveEvidenceWriteMode("")
+	if writeModeErr != nil {
+		fmt.Fprintf(stderr, "resolve evidence write mode: %v\n", writeModeErr)
+		return 1
+	}
+
 	signer, signerErr := resolveSigner(*signingModeFlag)
 	if signerErr != nil {
 		fmt.Fprintf(stderr, "resolve signer: %v\n", signerErr)
@@ -61,7 +67,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		EvidencePath:     evidencePath,
 		Environment:      environment,
 		RetryTracker:     *retryFlag || envBool("EVIDRA_RETRY_TRACKER", false),
-		BestEffortWrites: evidenceWriteBestEffortEnabled(),
+		BestEffortWrites: writeMode == config.EvidenceWriteModeBestEffort,
 		Signer:           signer,
 	})
 	if err != nil {
@@ -112,10 +118,6 @@ func envBool(key string, fallback bool) bool {
 		return false
 	}
 	return fallback
-}
-
-func evidenceWriteBestEffortEnabled() bool {
-	return strings.EqualFold(strings.TrimSpace(os.Getenv("EVIDRA_EVIDENCE_WRITE_MODE")), "best_effort")
 }
 
 // resolveSigner creates a Signer from environment variables.

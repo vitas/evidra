@@ -380,6 +380,12 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
+	writeMode, err := config.ResolveEvidenceWriteMode("")
+	if err != nil {
+		fmt.Fprintf(stderr, "resolve evidence write mode: %v\n", err)
+		return 1
+	}
+
 	signer, err := resolveSigner(*signingKeyFlag, *signingKeyPathFlag, *signingModeFlag)
 	if err != nil {
 		fmt.Fprintf(stderr, "resolve signer: %v\n", err)
@@ -411,7 +417,7 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 	svc := lifecycle.NewService(lifecycle.Options{
 		EvidencePath:     evidencePath,
 		Signer:           signer,
-		BestEffortWrites: evidenceWriteBestEffortEnabled(),
+		BestEffortWrites: writeMode == config.EvidenceWriteModeBestEffort,
 	})
 	prescOut, err := svc.Prescribe(context.Background(), lifecycle.PrescribeInput{
 		Actor:           actor,
@@ -531,6 +537,12 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
+	writeMode, err := config.ResolveEvidenceWriteMode("")
+	if err != nil {
+		fmt.Fprintf(stderr, "resolve evidence write mode: %v\n", err)
+		return 1
+	}
+
 	signer, err := resolveSigner(*signingKeyFlag, *signingKeyPathFlag, *signingModeFlag)
 	if err != nil {
 		fmt.Fprintf(stderr, "resolve signer: %v\n", err)
@@ -557,7 +569,7 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 	svc := lifecycle.NewService(lifecycle.Options{
 		EvidencePath:     evidencePath,
 		Signer:           signer,
-		BestEffortWrites: evidenceWriteBestEffortEnabled(),
+		BestEffortWrites: writeMode == config.EvidenceWriteModeBestEffort,
 	})
 	reportOut, err := svc.Report(context.Background(), lifecycle.ReportInput{
 		PrescriptionID: *prescriptionFlag,
@@ -636,10 +648,6 @@ func resolveEvidencePath(explicit string) string {
 		return filepath.Join(os.TempDir(), ".evidra", "evidence")
 	}
 	return filepath.Join(home, ".evidra", "evidence")
-}
-
-func evidenceWriteBestEffortEnabled() bool {
-	return strings.EqualFold(strings.TrimSpace(os.Getenv("EVIDRA_EVIDENCE_WRITE_MODE")), "best_effort")
 }
 
 func filterEntries(entries []evidence.EvidenceEntry, actor, period, sessionID string) []evidence.EvidenceEntry {

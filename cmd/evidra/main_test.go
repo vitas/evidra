@@ -452,6 +452,33 @@ func TestRunPrescribe_BestEffortWriteModeSuppressesStoreError(t *testing.T) {
 	}
 }
 
+func TestRunPrescribe_InvalidEvidenceWriteModeFails(t *testing.T) {
+	t.Setenv("EVIDRA_EVIDENCE_WRITE_MODE", "invalid")
+
+	signingKey := testutil.TestSigningKeyBase64(t)
+	tmp := t.TempDir()
+	artifact := filepath.Join(tmp, "artifact.json")
+	if err := os.WriteFile(artifact, []byte(`{"noop":true}`), 0o644); err != nil {
+		t.Fatalf("write artifact: %v", err)
+	}
+
+	var out, errBuf bytes.Buffer
+	code := run([]string{
+		"prescribe",
+		"--tool", "terraform",
+		"--artifact", artifact,
+		"--canonical-action", testCanonicalAction,
+		"--evidence-dir", filepath.Join(tmp, "evidence"),
+		"--signing-key", signingKey,
+	}, &out, &errBuf)
+	if code == 0 {
+		t.Fatalf("expected non-zero exit; stdout=%s", out.String())
+	}
+	if !strings.Contains(errBuf.String(), "resolve evidence write mode") {
+		t.Fatalf("stderr missing write mode error: %s", errBuf.String())
+	}
+}
+
 func TestRunReport_DerivesSessionFromPrescriptionWhenOmitted(t *testing.T) {
 	t.Parallel()
 	signingKey := testutil.TestSigningKeyBase64(t)
