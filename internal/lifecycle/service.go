@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/oklog/ulid/v2"
@@ -328,6 +329,15 @@ func (s *Service) appendEntry(entry evidence.EvidenceEntry) error {
 		return nil
 	}
 	if err := evidence.AppendEntryAtPath(s.evidencePath, entry); err != nil {
+		if s.bestEffortWrites {
+			slog.Warn(
+				"best-effort evidence write failed",
+				"entry_id", entry.EntryID,
+				"entry_type", string(entry.Type),
+				"error", err,
+			)
+			return nil
+		}
 		return wrapError(ErrCodeEvidenceWrite, fmt.Sprintf("failed to write evidence: %v", err), err)
 	}
 	return nil
@@ -339,6 +349,14 @@ func (s *Service) lastHash() (string, error) {
 	}
 	lastHash, err := evidence.LastHashAtPath(s.evidencePath)
 	if err != nil {
+		if s.bestEffortWrites {
+			slog.Warn(
+				"best-effort evidence read failed",
+				"operation", "last_hash",
+				"error", err,
+			)
+			return "", nil
+		}
 		return "", wrapError(ErrCodeEvidenceRead, fmt.Sprintf("failed to read evidence: %v", err), err)
 	}
 	return lastHash, nil

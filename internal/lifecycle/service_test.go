@@ -4,6 +4,8 @@ import (
 	"crypto/ed25519"
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"samebits.com/evidra-benchmark/internal/canon"
@@ -237,6 +239,65 @@ func TestServicePrescribe_SignsEntryOnce(t *testing.T) {
 	}
 	if signer.signCalls != 1 {
 		t.Fatalf("sign calls=%d, want 1", signer.signCalls)
+	}
+}
+
+func TestServicePrescribe_StoreFailureReturnsErrorInStrictMode(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	evidencePath := filepath.Join(tmp, "legacy.log")
+	if err := os.WriteFile(evidencePath, []byte("legacy"), 0o644); err != nil {
+		t.Fatalf("write legacy file: %v", err)
+	}
+
+	svc := NewService(Options{
+		EvidencePath: evidencePath,
+		Signer:       testutil.TestSigner(t),
+	})
+
+	_, err := svc.Prescribe(context.Background(), PrescribeInput{
+		Actor:       evidence.Actor{Type: "agent", ID: "agent-1", Provenance: "mcp"},
+		Tool:        "kubectl",
+		Operation:   "apply",
+		RawArtifact: []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: cm1\n  namespace: default\n"),
+		SessionID:   "session-strict-write-fail",
+	})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if ErrorCode(err) != ErrCodeEvidenceRead {
+		t.Fatalf("error code=%q, want %q", ErrorCode(err), ErrCodeEvidenceRead)
+	}
+}
+
+func TestServicePrescribe_BestEffortWriteModeSuppressesWriteError(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	evidencePath := filepath.Join(tmp, "legacy.log")
+	if err := os.WriteFile(evidencePath, []byte("legacy"), 0o644); err != nil {
+		t.Fatalf("write legacy file: %v", err)
+	}
+
+	svc := NewService(Options{
+		EvidencePath:      evidencePath,
+		Signer:            testutil.TestSigner(t),
+		BestEffortWrites:  true,
+	})
+
+	out, err := svc.Prescribe(context.Background(), PrescribeInput{
+		Actor:       evidence.Actor{Type: "agent", ID: "agent-1", Provenance: "mcp"},
+		Tool:        "kubectl",
+		Operation:   "apply",
+		RawArtifact: []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: cm1\n  namespace: default\n"),
+		SessionID:   "session-best-effort",
+	})
+	if err != nil {
+		t.Fatalf("Prescribe: %v", err)
+	}
+	if out.PrescriptionID == "" {
+		t.Fatal("expected prescription_id")
 	}
 }
 

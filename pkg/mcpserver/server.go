@@ -16,12 +16,13 @@ import (
 
 // Options configures the benchmark MCP server.
 type Options struct {
-	Name         string
-	Version      string
-	EvidencePath string
-	Environment  string
-	RetryTracker bool
-	Signer       evidence.Signer // required: signs evidence entries
+	Name             string
+	Version          string
+	EvidencePath     string
+	Environment      string
+	RetryTracker     bool
+	BestEffortWrites bool
+	Signer           evidence.Signer // required: signs evidence entries
 }
 
 // InputActor identifies the caller in a prescribe request.
@@ -104,10 +105,11 @@ type reportHandler struct {
 
 // BenchmarkService provides prescribe and report operations.
 type BenchmarkService struct {
-	evidencePath string
-	retryTracker *RetryTracker
-	signer       evidence.Signer
-	lifecycle    *lifecycle.Service
+	evidencePath      string
+	retryTracker      *RetryTracker
+	signer            evidence.Signer
+	bestEffortWrites  bool
+	lifecycle         *lifecycle.Service
 }
 
 const (
@@ -132,16 +134,18 @@ func NewServer(opts Options) (*mcp.Server, error) {
 	opts.Version = defaultServerVersion(opts.Version)
 
 	svc := &BenchmarkService{
-		evidencePath: opts.EvidencePath,
-		signer:       opts.Signer,
+		evidencePath:     opts.EvidencePath,
+		signer:           opts.Signer,
+		bestEffortWrites: opts.BestEffortWrites,
 	}
 	if opts.RetryTracker {
 		svc.retryTracker = NewRetryTracker(10 * time.Minute)
 	}
 	svc.lifecycle = lifecycle.NewService(lifecycle.Options{
-		EvidencePath: svc.evidencePath,
-		Signer:       svc.signer,
-		RetryTracker: toRetryRecorder(svc.retryTracker),
+		EvidencePath:     svc.evidencePath,
+		Signer:           svc.signer,
+		RetryTracker:     toRetryRecorder(svc.retryTracker),
+		BestEffortWrites: svc.bestEffortWrites,
 	})
 
 	prescribe := &prescribeHandler{service: svc}
@@ -258,9 +262,10 @@ func (h *reportHandler) Handle(
 func (s *BenchmarkService) lifecycleService() *lifecycle.Service {
 	if s.lifecycle == nil {
 		s.lifecycle = lifecycle.NewService(lifecycle.Options{
-			EvidencePath: s.evidencePath,
-			Signer:       s.signer,
-			RetryTracker: toRetryRecorder(s.retryTracker),
+			EvidencePath:     s.evidencePath,
+			Signer:           s.signer,
+			RetryTracker:     toRetryRecorder(s.retryTracker),
+			BestEffortWrites: s.bestEffortWrites,
 		})
 	}
 	return s.lifecycle

@@ -56,12 +56,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	server, err := mcpserver.NewServer(mcpserver.Options{
-		Name:         "evidra-benchmark",
-		Version:      version.Version,
-		EvidencePath: evidencePath,
-		Environment:  environment,
-		RetryTracker: *retryFlag || envBool("EVIDRA_RETRY_TRACKER", false),
-		Signer:       signer,
+		Name:             "evidra-benchmark",
+		Version:          version.Version,
+		EvidencePath:     evidencePath,
+		Environment:      environment,
+		RetryTracker:     *retryFlag || envBool("EVIDRA_RETRY_TRACKER", false),
+		BestEffortWrites: evidenceWriteBestEffortEnabled(),
+		Signer:           signer,
 	})
 	if err != nil {
 		fmt.Fprintf(stderr, "initialize server: %v\n", err)
@@ -113,6 +114,10 @@ func envBool(key string, fallback bool) bool {
 	return fallback
 }
 
+func evidenceWriteBestEffortEnabled() bool {
+	return strings.EqualFold(strings.TrimSpace(os.Getenv("EVIDRA_EVIDENCE_WRITE_MODE")), "best_effort")
+}
+
 // resolveSigner creates a Signer from environment variables.
 // Returns an error when mode is strict and no key is configured.
 func resolveSigner(modeRaw string) (evidence.Signer, error) {
@@ -158,6 +163,7 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  EVIDRA_EVIDENCE_DIR     Override evidence directory")
 	fmt.Fprintln(w, "  EVIDRA_ENVIRONMENT      Default environment label")
 	fmt.Fprintln(w, "  EVIDRA_RETRY_TRACKER    Enable retry tracking (true/false)")
+	fmt.Fprintln(w, "  EVIDRA_EVIDENCE_WRITE_MODE  strict (default) or best_effort")
 	fmt.Fprintln(w, "  EVIDRA_SIGNING_MODE     strict (default) or optional")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "TOOLS:")

@@ -15,24 +15,27 @@ type RetryRecorder interface {
 
 // Options configures the shared lifecycle service.
 type Options struct {
-	EvidencePath string
-	Signer       evidence.Signer
-	RetryTracker RetryRecorder
+	EvidencePath     string
+	Signer           evidence.Signer
+	RetryTracker     RetryRecorder
+	BestEffortWrites bool
 }
 
 // Service is the shared prescribe/report business logic used by CLI and MCP.
 type Service struct {
-	evidencePath string
-	signer       evidence.Signer
-	retryTracker RetryRecorder
+	evidencePath      string
+	signer            evidence.Signer
+	retryTracker      RetryRecorder
+	bestEffortWrites  bool
 }
 
 // NewService creates a lifecycle service from options.
 func NewService(opts Options) *Service {
 	return &Service{
-		evidencePath: opts.EvidencePath,
-		signer:       opts.Signer,
-		retryTracker: opts.RetryTracker,
+		evidencePath:     opts.EvidencePath,
+		signer:           opts.Signer,
+		retryTracker:     opts.RetryTracker,
+		bestEffortWrites: opts.BestEffortWrites,
 	}
 }
 

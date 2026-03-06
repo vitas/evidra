@@ -414,6 +414,44 @@ func TestRunPrescribe_OptionalSigningModeWithoutKey(t *testing.T) {
 	}
 }
 
+func TestRunPrescribe_BestEffortWriteModeSuppressesStoreError(t *testing.T) {
+	t.Setenv("EVIDRA_EVIDENCE_WRITE_MODE", "best_effort")
+
+	signingKey := testutil.TestSigningKeyBase64(t)
+	tmp := t.TempDir()
+	artifact := filepath.Join(tmp, "artifact.json")
+	if err := os.WriteFile(artifact, []byte(`{"noop":true}`), 0o644); err != nil {
+		t.Fatalf("write artifact: %v", err)
+	}
+
+	// Existing file path forces legacy-store code path and write failure in strict mode.
+	evidencePath := filepath.Join(tmp, "legacy.log")
+	if err := os.WriteFile(evidencePath, []byte("legacy"), 0o644); err != nil {
+		t.Fatalf("write evidence file: %v", err)
+	}
+
+	var out, errBuf bytes.Buffer
+	code := run([]string{
+		"prescribe",
+		"--tool", "terraform",
+		"--artifact", artifact,
+		"--canonical-action", testCanonicalAction,
+		"--evidence-dir", evidencePath,
+		"--signing-key", signingKey,
+	}, &out, &errBuf)
+	if code != 0 {
+		t.Fatalf("prescribe in best_effort mode failed: code=%d stderr=%s", code, errBuf.String())
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+	if result["ok"] != true {
+		t.Fatalf("result not ok: %#v", result)
+	}
+}
+
 func TestRunReport_DerivesSessionFromPrescriptionWhenOmitted(t *testing.T) {
 	t.Parallel()
 	signingKey := testutil.TestSigningKeyBase64(t)

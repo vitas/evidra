@@ -1,6 +1,8 @@
 package mcpserver
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"samebits.com/evidra-benchmark/internal/canon"
@@ -258,5 +260,32 @@ func TestPrescribe_InvalidCanonicalScopeClassRejected(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Fatalf("entry count=%d, want 0", len(entries))
+	}
+}
+
+func TestPrescribe_BestEffortWriteModeSuppressesStoreError(t *testing.T) {
+	t.Parallel()
+
+	tmp := t.TempDir()
+	evidencePath := filepath.Join(tmp, "legacy.log")
+	if err := os.WriteFile(evidencePath, []byte("legacy"), 0o644); err != nil {
+		t.Fatalf("write evidence file: %v", err)
+	}
+
+	svc := &BenchmarkService{
+		evidencePath:     evidencePath,
+		signer:           testutil.TestSigner(t),
+		bestEffortWrites: true,
+	}
+
+	presc := svc.Prescribe(PrescribeInput{
+		Actor:       InputActor{Type: "ai_agent", ID: "agent-1", Origin: "mcp"},
+		Tool:        "kubectl",
+		Operation:   "apply",
+		RawArtifact: "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: test\n  namespace: default",
+		SessionID:   "session-mcp-best-effort",
+	})
+	if !presc.OK {
+		t.Fatalf("prescribe failed in best_effort mode: %+v", presc.Error)
 	}
 }
