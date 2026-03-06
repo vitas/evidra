@@ -9,10 +9,20 @@ fail() {
   exit 1
 }
 
+has_pattern() {
+  local pattern="$1"
+  local file="$2"
+  if command -v rg >/dev/null 2>&1; then
+    rg -q --fixed-strings -- "$pattern" "$file"
+    return
+  fi
+  grep -Fq -- "$pattern" "$file"
+}
+
 require_pattern() {
   local file="$1"
   local pattern="$2"
-  if ! rg -q --fixed-strings -- "$pattern" "$file"; then
+  if ! has_pattern "$pattern" "$file"; then
     fail "missing pattern '$pattern' in $file"
   fi
 }
@@ -43,7 +53,11 @@ prescribe_out="$(go run ./cmd/evidra prescribe \
   --signing-mode optional \
   --evidence-dir "$tmpdir/evidence")"
 
-prescription_id="$(printf '%s\n' "$prescribe_out" | rg -o '"prescription_id"\s*:\s*"[^"]+"' | head -n1 | sed -E 's/.*"([^"]+)"$/\1/')"
+prescription_id="$(
+  printf '%s\n' "$prescribe_out" \
+    | sed -nE 's/.*"prescription_id"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' \
+    | head -n1
+)"
 if [[ -z "${prescription_id:-}" ]]; then
   fail "could not parse prescription_id from prescribe output"
 fi
