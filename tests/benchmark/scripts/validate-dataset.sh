@@ -20,6 +20,16 @@ warn() {
   warn_count=$((warn_count + 1))
 }
 
+has_pattern() {
+  local pattern="$1"
+  local file="$2"
+  if command -v rg >/dev/null 2>&1; then
+    rg -q -e "$pattern" "$file"
+    return
+  fi
+  grep -Eq "$pattern" "$file"
+}
+
 if ! command -v jq >/dev/null 2>&1; then
   fail "jq is required"
 fi
@@ -50,10 +60,10 @@ dataset_processed_version="$(jq -r '.evidra_version_processed // empty' "$DATASE
 [[ -n "$dataset_processed_version" ]] || fail "dataset.json missing evidra_version_processed"
 
 # Minimal benchmark.yaml label contract (without yq dependency).
-if ! rg -q '^[[:space:]]*profile:[[:space:]]+limited-contract-baseline[[:space:]]*$' "$BENCHMARK_YAML"; then
+if ! has_pattern '^[[:space:]]*profile:[[:space:]]+limited-contract-baseline[[:space:]]*$' "$BENCHMARK_YAML"; then
   fail "benchmark.yaml missing profile: limited-contract-baseline"
 fi
-if ! rg -q '^[[:space:]]*maturity:[[:space:]]+pre-benchmark[[:space:]]*$' "$BENCHMARK_YAML"; then
+if ! has_pattern '^[[:space:]]*maturity:[[:space:]]+pre-benchmark[[:space:]]*$' "$BENCHMARK_YAML"; then
   fail "benchmark.yaml missing maturity: pre-benchmark"
 fi
 
