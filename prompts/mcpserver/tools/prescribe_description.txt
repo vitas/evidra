@@ -1,4 +1,4 @@
-# contract: v1.0
+# contract: v1.0.1
 
 Record intent BEFORE an infrastructure operation that creates, modifies, or deletes resources.
 
@@ -16,6 +16,12 @@ Optional correlation inputs:
 - session_id, operation_id, attempt
 - trace_id, span_id, parent_span_id
 - scope_dimensions
+
+Pre-call checklist:
+- tool/operation/raw_artifact must be non-empty.
+- actor.type/actor.id/actor.origin must be present.
+- actor.skill_version should be set to this contract version.
+- Keep session/operation/trace identifiers stable within one task.
 
 When to call:
 - Must call for mutate operations (apply/delete/patch/create/replace/upgrade/destroy/import/rollback).

@@ -1,4 +1,4 @@
-# contract: v1.0
+# contract: v1.0.1
 
 Record outcome AFTER an infrastructure operation completes.
 
@@ -12,13 +12,17 @@ Optional inputs:
 - artifact_digest (actual applied artifact digest)
 - session_id, operation_id, span_id, parent_span_id
 
+Terminal outcome rule:
+- Every prescribe must end with exactly one report, including failed/aborted attempts.
+- Retries require a new prescribe/report pair for each attempt.
+
 Rules:
-1) Every prescribe must have one matching report.
-2) Always report failures; do not hide non-zero exit codes.
-3) Do not report twice for the same prescription_id.
-4) Do not report another actor's prescription_id.
-5) If prescription_id is lost, call prescribe again before execution.
-6) Retries require a new prescribe/report pair per attempt.
+1) Always report failures; do not hide non-zero exit codes.
+2) Do not report twice for the same prescription_id.
+3) Do not report another actor's prescription_id.
+4) If prescription_id is lost, call prescribe again before execution.
+5) Actor identity should match the original prescribe actor.
+6) Include actor.skill_version for behavior slicing.
 
 Returns:
 - ok

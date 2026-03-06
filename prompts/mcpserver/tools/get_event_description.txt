@@ -1,12 +1,14 @@
-# contract: v1.0
+# contract: v1.0.1
 
 Look up a single evidence record by event_id.
 
 Input:
 - event_id
 
-Use this to inspect prior prescribe/report entries for payload, correlation,
-and protocol audit details.
+Use this for:
+- protocol debugging (confirm prescribe/report pairing)
+- correlation checks (session_id/trace_id/operation_id/actor fields)
+- audit lookup of prior entry payloads
 
 Returns:
 - ok

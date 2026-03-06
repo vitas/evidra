@@ -1,10 +1,11 @@
-<!-- contract: v1.0 -->
+<!-- contract: v1.0.1 -->
 # Evidra Agent Contract v1
 
-> Contract: `v1.0`
+> Contract: `v1.0.1`
 > Version policy: contract versions are released together with Evidra binaries.
 
 ## Changelog
+- `v1.0.1` (2026-03-06): Prompt hardening update: critical invariants in initialize instructions, prescribe pre-call checklist, report terminal outcome rule, and expanded get_event usage guidance.
 - `v1.0` (2026-03-06): Initial contract for prescribe/report protocol guidance and behavior tracking via `actor.skill_version`.
 
 ## Protocol

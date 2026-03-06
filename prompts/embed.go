@@ -13,8 +13,8 @@ const (
 	MCPGetEventDescriptionPath    = "mcpserver/tools/get_event_description.txt"
 	MCPAgentContractPath          = "mcpserver/resources/content/agent_contract_v1.md"
 
-	defaultContractVersion      = "v1.0"
-	defaultContractSkillVersion = "1.0.0"
+	defaultContractVersion      = "v1.0.1"
+	defaultContractSkillVersion = "1.0.1"
 )
 
 var (

@@ -1,11 +1,14 @@
 # Evidra MCP Contract Prompts — Design Document
 
-**Status:** Ready for implementation
+**Status:** Implemented (v1.0.1 prompt hardening applied)
 **Date:** March 2026
 **Replaces:** Current prompts in `prompts/mcpserver/` (inherited from old project)
 **Based on:** EVIDRA_AGENT_SKILL.md
+**Operational tuning guide:** `docs/system-design/EVIDRA_MCP_PROMPT_TUNING_METHOD.md`
 
 ---
+
+> Note: this document captures the rollout design. The source of truth for active wording and contract header is the prompt files in `prompts/mcpserver/`.
 
 ## 1. Problem
 

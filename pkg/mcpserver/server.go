@@ -133,8 +133,8 @@ var (
 	reportToolDescription    = defaultReportToolDescription
 	getEventToolDescription  = defaultGetEventToolDescription
 	initializeInstructions   = defaultInitializeInstructions
-	contractVersion          = "v1.0"
-	contractSkillVersion     = "1.0.0"
+	contractVersion          = "v1.0.1"
+	contractSkillVersion     = "1.0.1"
 )
 
 func init() {

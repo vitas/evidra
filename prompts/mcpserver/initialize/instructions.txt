@@ -1,4 +1,4 @@
-# contract: v1.0
+# contract: v1.0.1
 
 Evidra is a reliability recorder for infrastructure automation.
 It measures safe execution behavior. It does not block operations.
@@ -17,8 +17,13 @@ Read-only examples (no prescribe/report):
 - helm list/status/template
 - terraform plan/show/output
 
-Rules:
+Critical invariants:
+- Do not execute mutate commands until prescribe returns ok=true with prescription_id.
 - Every prescribe must have exactly one report.
+- Always include actor.skill_version (set to this contract version).
+
+Rules:
 - Report failures with non-zero exit_code.
 - On retry, call prescribe again for each attempt.
 - If unsure whether command mutates state, call prescribe.
+- Do not use prescribe/report for non-infrastructure tasks (docs, coding, analysis).

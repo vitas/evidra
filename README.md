@@ -292,6 +292,7 @@ exit code + prescription_id -> Report -> signal detectors -> Scorecard
 |----------|-------|
 | [Architecture Overview](docs/system-design/EVIDRA_ARCHITECTURE_OVERVIEW.md) | System diagram, component map, invariants |
 | [Benchmark CLI](docs/system-design/EVIDRA_BENCHMARK_CLI.md) | CLI design and command reference |
+| [MCP Prompt Tuning Method](docs/system-design/EVIDRA_MCP_PROMPT_TUNING_METHOD.md) | Prompt hardening loop, trigger/functional tests, troubleshooting playbook |
 | [CNCF Standards Alignment](docs/system-design/EVIDRA_CNCF_STANDARDS_ALIGNMENT.md) | CloudEvents, OTel, SARIF, in-toto, OPA mapping |
 | [Canonicalization Test Strategy](docs/system-design/EVIDRA_CANONICALIZATION_TEST_STRATEGY.md) | Golden corpus, determinism testing |
 | [End-to-End Example](docs/system-design/EVIDRA_END_TO_END_EXAMPLE_v2.md) | Full prescribe/report walkthrough |
