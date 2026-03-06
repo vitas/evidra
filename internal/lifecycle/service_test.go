@@ -1,8 +1,8 @@
 package lifecycle
 
 import (
-	"crypto/ed25519"
 	"context"
+	"crypto/ed25519"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -281,9 +281,9 @@ func TestServicePrescribe_BestEffortWriteModeSuppressesWriteError(t *testing.T) 
 	}
 
 	svc := NewService(Options{
-		EvidencePath:      evidencePath,
-		Signer:            testutil.TestSigner(t),
-		BestEffortWrites:  true,
+		EvidencePath:     evidencePath,
+		Signer:           testutil.TestSigner(t),
+		BestEffortWrites: true,
 	})
 
 	out, err := svc.Prescribe(context.Background(), PrescribeInput{

@@ -76,7 +76,7 @@ func (s *Service) Prescribe(_ context.Context, input PrescribeInput) (PrescribeO
 	}
 
 	prescPayload := evidence.PrescriptionPayload{
-		PrescriptionID: ulid.Make().String(),
+		PrescriptionID:  ulid.Make().String(),
 		CanonicalAction: cr.RawAction,
 		RiskLevel:       riskLevel,
 		RiskDetails:     riskTags,

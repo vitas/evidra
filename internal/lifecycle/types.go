@@ -23,10 +23,10 @@ type Options struct {
 
 // Service is the shared prescribe/report business logic used by CLI and MCP.
 type Service struct {
-	evidencePath      string
-	signer            evidence.Signer
-	retryTracker      RetryRecorder
-	bestEffortWrites  bool
+	evidencePath     string
+	signer           evidence.Signer
+	retryTracker     RetryRecorder
+	bestEffortWrites bool
 }
 
 // NewService creates a lifecycle service from options.

@@ -105,11 +105,11 @@ type reportHandler struct {
 
 // BenchmarkService provides prescribe and report operations.
 type BenchmarkService struct {
-	evidencePath      string
-	retryTracker      *RetryTracker
-	signer            evidence.Signer
-	bestEffortWrites  bool
-	lifecycle         *lifecycle.Service
+	evidencePath     string
+	retryTracker     *RetryTracker
+	signer           evidence.Signer
+	bestEffortWrites bool
+	lifecycle        *lifecycle.Service
 }
 
 const (
