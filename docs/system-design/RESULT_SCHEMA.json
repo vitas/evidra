@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://samebits.com/evidra-benchmark/result-schema-v1.json",
+  "title": "Evidra Agent Experiment Result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "started_at",
+    "finished_at",
+    "duration_seconds",
+    "mode",
+    "model",
+    "case",
+    "execution",
+    "artifacts",
+    "evaluation"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "evidra.result.v1"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "duration_seconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["local-mcp", "local-rest", "hosted-mcp", "hosted-rest", "custom"]
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "provider", "prompt_version", "repeat_index"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "provider": {"type": "string", "minLength": 1},
+        "prompt_version": {"type": "string", "minLength": 1},
+        "temperature": {"type": ["number", "null"]},
+        "repeat_index": {"type": "integer", "minimum": 1}
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "category",
+        "difficulty",
+        "ground_truth_pattern",
+        "expected_risk_level",
+        "expected_risk_details",
+        "artifact_path",
+        "expected_json_path"
+      ],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "category": {"type": "string", "minLength": 1},
+        "difficulty": {"type": "string", "minLength": 1},
+        "ground_truth_pattern": {"type": "string"},
+        "expected_risk_level": {"type": "string"},
+        "expected_risk_details": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "artifact_path": {"type": "string", "minLength": 1},
+        "expected_json_path": {"type": "string", "minLength": 1}
+      }
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agent_cmd", "timeout_seconds", "status", "exit_code"],
+      "properties": {
+        "agent_cmd": {"type": "string", "minLength": 1},
+        "timeout_seconds": {"type": "integer", "minimum": 1},
+        "status": {"type": "string", "enum": ["success", "failure", "timeout", "dry_run"]},
+        "exit_code": {"type": "integer"}
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_dir", "stdout_log", "stderr_log", "agent_output", "result_json"],
+      "properties": {
+        "run_dir": {"type": "string", "minLength": 1},
+        "stdout_log": {"type": "string", "minLength": 1},
+        "stderr_log": {"type": "string", "minLength": 1},
+        "agent_output": {"type": "string", "minLength": 1},
+        "result_json": {"type": "string", "minLength": 1}
+      }
+    },
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "predicted_risk_level",
+        "predicted_risk_details",
+        "risk_level_match",
+        "true_positive",
+        "false_positive",
+        "false_negative",
+        "precision",
+        "recall",
+        "f1"
+      ],
+      "properties": {
+        "predicted_risk_level": {"type": "string"},
+        "predicted_risk_details": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "risk_level_match": {"type": "boolean"},
+        "true_positive": {"type": "integer", "minimum": 0},
+        "false_positive": {"type": "integer", "minimum": 0},
+        "false_negative": {"type": "integer", "minimum": 0},
+        "precision": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "recall": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "f1": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
+      }
+    }
+  }
+}
