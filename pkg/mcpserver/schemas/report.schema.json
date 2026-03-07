@@ -41,6 +41,17 @@
     "parent_span_id": {
       "type": "string",
       "description": "Parent span for hierarchical agent workflows"
+    },
+    "external_refs": {
+      "type": "array",
+      "description": "External reference links (e.g. GitHub run ID, Jira ticket)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string" },
+          "id": { "type": "string" }
+        }
+      }
     }
   }
 }
