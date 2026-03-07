@@ -3,7 +3,6 @@
 This document is the user-facing command and flag reference for all binaries in this repository:
 - `evidra` (core CLI)
 - `evidra-mcp` (MCP server)
-- `evidra-exp` (experiment runner)
 
 For architecture and protocol semantics, see:
 - [Integration Protocol](../system-design/EVIDRA_PROTOCOL.md)

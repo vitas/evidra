@@ -7,7 +7,6 @@
 build:
 	go build -o bin/evidra ./cmd/evidra
 	go build -o bin/evidra-mcp ./cmd/evidra-mcp
-	go build -o bin/evidra-exp ./cmd/evidra-exp
 
 test:
 	go test ./... -v -count=1
