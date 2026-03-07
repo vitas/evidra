@@ -48,6 +48,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdPrescribe(args[1:], stdout, stderr)
 	case "report":
 		return cmdReport(args[1:], stdout, stderr)
+	case "record":
+		return cmdRecord(args[1:], stdout, stderr)
 	case "validate":
 		return cmdValidate(args[1:], stdout, stderr)
 	case "ingest-findings":
@@ -1035,6 +1037,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "  compare           Compare reliability scores between actors")
 	fmt.Fprintln(w, "  prescribe         Analyze artifact before execution")
 	fmt.Fprintln(w, "  report            Record outcome after execution")
+	fmt.Fprintln(w, "  record            Ingest completed automation operation from structured input")
 	fmt.Fprintln(w, "  validate          Validate evidence chain integrity and signatures")
 	fmt.Fprintln(w, "  ingest-findings   Ingest SARIF scanner findings as evidence entries")
 	fmt.Fprintln(w, "  benchmark         Benchmark dataset command group (stub)")
