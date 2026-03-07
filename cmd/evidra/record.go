@@ -85,6 +85,18 @@ func cmdRecord(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
+	if err := emitOperationMetrics(context.Background(), runMetricsPayload{
+		Tool:           cmd.input.Tool,
+		Environment:    cmd.input.Environment,
+		ExitCode:       cmd.input.ExitCode,
+		DurationMs:     cmd.input.DurationMs,
+		ScoreBand:      assessment.ScoreBand,
+		AssessmentMode: assessment.Basis.AssessmentMode,
+		SignalSummary:  assessment.SignalSummary,
+	}); err != nil {
+		fmt.Fprintf(stderr, "warning: metrics export failed: %v\n", err)
+	}
+
 	result := map[string]interface{}{
 		"ok":                  true,
 		"contract_version":    cmd.input.ContractVersion,

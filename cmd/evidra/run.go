@@ -38,15 +38,16 @@ type runCommand struct {
 }
 
 type runMetricsPayload struct {
-	Tool        string
-	Environment string
-	ExitCode    int
-	DurationMs  int64
+	Tool           string
+	Environment    string
+	ExitCode       int
+	DurationMs     int64
+	ScoreBand      string
+	AssessmentMode string
+	SignalSummary  map[string]int
 }
 
-var emitRunMetricsHook = func(_ context.Context, _ runMetricsPayload) error {
-	return nil
-}
+var emitRunMetricsHook = emitOperationMetrics
 
 func cmdRun(args []string, stdout, stderr io.Writer) int {
 	opts, wrappedCmd, code := parseRunFlags(args, stderr)
@@ -90,10 +91,13 @@ func cmdRun(args []string, stdout, stderr io.Writer) int {
 	}
 
 	if err := emitRunMetricsHook(context.Background(), runMetricsPayload{
-		Tool:        cmd.prescribeInput.Tool,
-		Environment: cmd.prescribeInput.Environment,
-		ExitCode:    exitCode,
-		DurationMs:  durationMs,
+		Tool:           cmd.prescribeInput.Tool,
+		Environment:    cmd.prescribeInput.Environment,
+		ExitCode:       exitCode,
+		DurationMs:     durationMs,
+		ScoreBand:      assessment.ScoreBand,
+		AssessmentMode: assessment.Basis.AssessmentMode,
+		SignalSummary:  assessment.SignalSummary,
 	}); err != nil {
 		fmt.Fprintf(stderr, "warning: metrics export failed: %v\n", err)
 	}
