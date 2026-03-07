@@ -307,9 +307,10 @@ terraform show -json plan.out > plan.json
 ## Step 2: CI calls evidra prescribe (terraform)
 
 ```bash
-evidra prescribe --tool terraform --operation apply \
+PRESCRIBE_OUT=$(evidra prescribe --tool terraform --operation apply \
   --artifact plan.json --environment production \
-  --evidence-dir /tmp/evidra --actor ci-pipeline-123
+  --evidence-dir /tmp/evidra --actor ci-pipeline-123)
+PRESCRIPTION_ID=$(echo "$PRESCRIBE_OUT" | jq -r '.prescription_id')
 ```
 
 Evidra computes:
@@ -367,10 +368,14 @@ detector found open ingress → critical).
 
 ## Step 3: CI executes terraform apply and reports
 
-After apply, CI reports exit_code:
+After apply, CI captures the exit code and reports using the
+prescription_id from step 2:
 
 ```bash
-evidra report --prescription 01JD8ABC12... --exit-code 1 \
+terraform apply -auto-approve plan.out
+EXIT_CODE=$?
+
+evidra report --prescription "$PRESCRIPTION_ID" --exit-code "$EXIT_CODE" \
   --evidence-dir /tmp/evidra --actor ci-pipeline-123
 ```
 

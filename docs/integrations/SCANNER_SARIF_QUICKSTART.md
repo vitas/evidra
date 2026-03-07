@@ -78,21 +78,23 @@ trivy config . --format sarif --output scanner_report.sarif
 terraform plan -out=tfplan
 terraform show -json tfplan > plan.json
 
-# 3) Prescribe with scanner report attached
-evidra prescribe \
+# 3) Prescribe with scanner report attached — capture prescription_id from JSON output
+PRESCRIBE_OUT=$(evidra prescribe \
   --tool terraform \
   --operation apply \
   --artifact plan.json \
   --environment staging \
-  --scanner-report scanner_report.sarif
+  --scanner-report scanner_report.sarif)
+PRESCRIPTION_ID=$(echo "$PRESCRIBE_OUT" | jq -r '.prescription_id')
 
 # 4) Apply
 terraform apply -auto-approve tfplan
+EXIT_CODE=$?
 
 # 5) Report outcome
 evidra report \
-  --prescription <prescription_id from step 3> \
-  --exit-code $?
+  --prescription "$PRESCRIPTION_ID" \
+  --exit-code "$EXIT_CODE"
 ```
 
 ## GitHub Actions CI
