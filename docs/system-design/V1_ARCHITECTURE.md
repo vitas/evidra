@@ -206,18 +206,19 @@ Architecture principle: **graph-ready, graph-free.** Signals work on `[]Entry` s
 
 ## Component Inventory
 
-### Done (v0.3.1)
+### Implemented (current)
 
 | Component | Location | Status |
 |-----------|----------|--------|
 | K8s adapter | `internal/canon/k8s.go` | Stable |
 | Terraform adapter | `internal/canon/terraform.go` | Stable |
 | Generic adapter | `internal/canon/generic.go` | Stable |
-| 7 risk detectors | `internal/risk/detectors.go` | Working, needs refactor |
+| 20 risk detectors | `internal/detectors/` | Stable |
 | Risk matrix | `internal/risk/matrix.go` | Stable |
 | Evidence chain | `pkg/evidence/` | Stable |
-| 5 signal detectors | `internal/signal/` | Stable |
+| 7 signal detectors | `internal/signal/` | Stable |
 | Scorecard + explain | `internal/score/` | Stable |
+| TagProducer chain | `internal/detectors/{producer.go,producers.go}` | Stable |
 | MCP server | `pkg/mcpserver/` | Stable |
 | Ed25519 signing | `pkg/evidence/` | Stable |
 | Hash chain | `pkg/evidence/` | Stable |
@@ -226,13 +227,13 @@ Architecture principle: **graph-ready, graph-free.** Signals work on `[]Entry` s
 
 | Component | Document | Status |
 |-----------|----------|--------|
-| Detector refactor (self-registering, one file per pattern) | DETECTOR_ARCHITECTURE | Architecture done, code pending |
-| Docker adapter | DETECTOR_ARCHITECTURE §12 | Architecture done |
-| 33 new detectors (K8s, AWS, GCP, Azure, Docker, Ops) | DETECTOR_ARCHITECTURE §11 | Planned |
-| REST API + LLM augmentation | PARALLEL_EXECUTION_PLAN Track 2 | In progress |
+| Detector architecture (registry, metadata, producer chain) | V1_IMPLEMENTATION_NOTES | Delivered |
+| Docker adapter + Docker detectors | V1_IMPLEMENTATION_NOTES | Delivered |
+| Signal validation harness (A-G scenarios) | V1_IMPLEMENTATION_NOTES | Delivered (score sufficiency still gated by operation count) |
+| REST API + LLM augmentation | [2026-03-07-parallel-execution-implementation-plan.md](../plans/2026-03-07-parallel-execution-implementation-plan.md) | In progress |
 | LLM tag discovery | LLM_RISK_PREDICTION_CONTRACT | Architecture done |
 | MCP contract prompts | MCP_CONTRACT_PROMPTS | Ready to commit |
-| Signal validation | signal-validation/ scripts | Ready to run |
+| Signal validation | `tests/signal-validation/` scripts | Running in CI/manual flows |
 
 ### v1.x (designed, not started)
 
@@ -242,7 +243,7 @@ Architecture principle: **graph-ready, graph-free.** Signals work on `[]Entry` s
 | Benchmark dataset (corpus + cases) | DATASET_ARCHITECTURE |
 | Agent experiment (multi-model) | EXPERIMENT_DESIGN |
 | Fault injection CI job | FAULT_INJECTION_RUNBOOK |
-| TagProducer (Trivy/Checkov integration) | IMPLEMENTATION_PROMPT Task 6 |
+| Scanner mapping lifecycle (Trivy/Checkov/Kubescape) | V1_IMPLEMENTATION_NOTES |
 
 ### v1.1+ (designed, not started — requires signal validation first)
 

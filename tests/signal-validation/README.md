@@ -15,7 +15,7 @@ bash tests/signal-validation/validate-signals-engine.sh
 
 ## What It Does
 
-Creates 6 scripted operation sequences (A-E fixed; F pinned during calibration).
+Creates scripted operation sequences (A-G).
 Each sequence triggers a specific behavioral signal.
 No real infrastructure — just `evidra prescribe` / `evidra report` against local evidence files.
 
@@ -26,12 +26,13 @@ No real infrastructure — just `evidra prescribe` / `evidra report` against loc
 | C | 5 clean + 5 orphaned prescriptions + 5 clean | Agent forgets to report | protocol_violation ≥ 3 |
 | D | 1 mass delete (15 resources) + 9 clean | Disproportionate impact | blast_radius ≥ 1 |
 | E | 5 kubectl + 5 helm + 5 terraform | Agent switching tools | new_scope ≥ 2 |
-| F | Prescribe artifact X, report with different artifact_digest | Intent ≠ execution | artifact_drift ≥ 1 |
+| F | Fail, change artifact, succeed (+ clean ops) | Agent adapts strategy | repair_loop ≥ 1 |
+| G | 5 different failed intents (+ clean ops) | Agent thrashing | thrashing ≥ 1 |
 
 ## Success Criteria
 
-Six different scores across six sequences = **signal engine produces meaningful differentiation**.
-All five behavioral signals have validation coverage.
+Distinct score/signal profiles across A-G = **signal engine produces meaningful differentiation**.
+Validation now includes repair/thrashing behavioral signals.
 
 ```
 A (clean)    → 90-100  excellent    ← baseline, agent is reliable
@@ -39,7 +40,8 @@ B (retry)    → 50-70   fair         ← agent stuck, medium penalty
 C (protocol) → 40-65   poor-fair    ← agent breaking contract, high penalty
 D (blast)    → 60-80   fair-good    ← one bad op in mostly clean session
 E (scope)    → 80-95   good         ← tool switching is informational, low penalty
-F (drift)    → TBD     TBD          ← artifact drift, set after first run
+F (repair)   → 70-85   adapted      ← should score better than pure retry
+G (thrash)   → 35-55   unstable     ← should score worse than pure retry
 ```
 
 If all sequences score the same → signal engine bug.
@@ -56,8 +58,8 @@ tests/signal-validation/
 
 ## Related Planning Docs
 
-- [`PARALLEL_EXECUTION_PLAN.md`](../../docs/plans/PARALLEL_EXECUTION_PLAN.md)
 - [`2026-03-07-parallel-execution-implementation-plan.md`](../../docs/plans/2026-03-07-parallel-execution-implementation-plan.md)
+- [`V1_IMPLEMENTATION_NOTES.md`](../../docs/system-design/V1_IMPLEMENTATION_NOTES.md)
 
 ## After Running
 

@@ -4,7 +4,7 @@
 
 **Goal:** Ship one release with deterministic detector growth, Docker coverage, LLM augmentation, and a validated signal-engine score distribution (P0 release gate).
 
-**Architecture:** Execute 4 streams in parallel from [`PARALLEL_EXECUTION_PLAN.md`](./PARALLEL_EXECUTION_PLAN.md): Track 1 (detectors), Track 2 (LLM), Track 3 (Docker), Track 4 (signals). Track 4 is the gating stream; others add breadth but do not replace gating criteria.
+**Architecture:** Execute 4 streams in parallel: Track 1 (detectors), Track 2 (LLM), Track 3 (Docker), Track 4 (signals). Track 4 is the gating stream; others add breadth but do not replace gating criteria.
 
 **Tech Stack:** Go (`cmd/evidra`, `cmd/evidra-exp`), Bash harnesses, MCP inspector tests, prompt contracts, optional REST integration.
 
@@ -12,11 +12,27 @@
 
 ## Source Baseline
 
-- Strategy source: [`PARALLEL_EXECUTION_PLAN.md`](./PARALLEL_EXECUTION_PLAN.md)
+- Strategy source: this document (consolidated from prior parallel execution strategy notes)
 - Validation baseline: [`tests/signal-validation/README.md`](../../tests/signal-validation/README.md)
 - Validation scripts:
   - [`tests/signal-validation/helpers.sh`](../../tests/signal-validation/helpers.sh)
   - [`tests/signal-validation/validate-signals-engine.sh`](../../tests/signal-validation/validate-signals-engine.sh)
+
+## Consolidated Strategy (migrated)
+
+Key strategic assumptions consolidated here:
+
+- Deterministic detectors are baseline signal quality.
+- LLM augmentation is additive breadth, never a release-gate substitute.
+- Docker support is first-class for infrastructure automation parity.
+- Signal-engine score distribution is the P0 product gate.
+
+Parallel streams:
+
+- **S1 (Detectors):** expand deterministic tag vocabulary.
+- **S2 (LLM):** agreement experiments first, REST integration second.
+- **S3 (Docker):** Docker detector coverage on top of completed adapter.
+- **S4 (Signals):** scripted sequence validation with hard pass/fail gating.
 
 ## Delivery Rules
 

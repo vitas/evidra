@@ -21,7 +21,7 @@ not define contracts. Normative sources:
 Use these as the architecture source stack:
 
 - **V1_ARCHITECTURE.md** — one-page end-to-end system map (pipeline, layers, interfaces, access points)
-- **DETECTOR_ARCHITECTURE.md** — detector/package redesign, registry model, provider structure, migration plan
+- **V1_IMPLEMENTATION_NOTES.md** — delivered detector architecture, signal/scoring integration, validation gate
 - **EVIDRA_ARCHITECTURE_OVERVIEW.md** (this file) — narrative entry point and cross-links to normative contracts
 
 ## One-liner
