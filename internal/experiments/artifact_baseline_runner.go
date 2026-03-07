@@ -201,7 +201,7 @@ func summarizeArtifactModel(modelID, provider, modelOutDir string) (ArtifactBase
 		return ArtifactBaselineModelSummary{}, fmt.Errorf("open summary for model %s: %w", modelID, err)
 	}
 	defer func() {
-		_ = f.Close()
+		_ = f.Close() // best-effort: file was opened read-only
 	}()
 
 	type row struct {

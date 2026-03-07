@@ -12,7 +12,7 @@ type composeFile struct {
 
 func parseCompose(raw []byte) composeFile {
 	var cf composeFile
-	_ = yaml.Unmarshal(raw, &cf)
+	_ = yaml.Unmarshal(raw, &cf) // best-effort: returns empty struct on invalid YAML
 	return cf
 }
 

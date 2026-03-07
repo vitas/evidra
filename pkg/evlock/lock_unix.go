@@ -40,11 +40,11 @@ func Acquire(path string, timeout time.Duration) (*Lock, error) {
 			return &Lock{file: f}, nil
 		}
 		if !errors.Is(err, syscall.EWOULDBLOCK) && !errors.Is(err, syscall.EAGAIN) {
-			_ = f.Close()
+			_ = f.Close() // best-effort: lock acquisition already failed
 			return nil, fmt.Errorf("acquire file lock: %w", err)
 		}
 		if time.Now().After(deadline) {
-			_ = f.Close()
+			_ = f.Close() // best-effort: returning timeout error
 			return nil, ErrBusy
 		}
 		time.Sleep(25 * time.Millisecond)

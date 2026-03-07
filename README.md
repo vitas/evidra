@@ -41,7 +41,7 @@ Every prescribe/report pair produces a signed, hash-chained evidence entry.
 
 ## Signals
 
-Five behavioral signals computed from the evidence chain:
+Seven behavioral signals computed from the evidence chain:
 
 | Signal | Detects |
 |--------|---------|
@@ -50,6 +50,8 @@ Five behavioral signals computed from the evidence chain:
 | Retry Loop | Same operation repeated in a short window |
 | Blast Radius | Destructive operations affecting many resources |
 | New Scope | First-time tool/operation combination |
+| Repair Loop | Failed intent later succeeds with changed artifact |
+| Thrashing | Many distinct failed intents without success |
 
 Scorecard formula: `score = 100 * (1 - weighted_penalty)` with bands: excellent / good / fair / poor.
 
@@ -278,9 +280,9 @@ exit code + prescription_id -> Report -> signal detectors -> Scorecard
 
 | Package | Role |
 |---------|------|
-| `internal/canon/` | Canonicalization (K8s, Terraform, Generic adapters) |
+| `internal/canon/` | Canonicalization (K8s, Terraform, Docker, Generic adapters) |
 | `internal/risk/` | Risk classification matrix + tag detectors |
-| `internal/signal/` | Five behavioral signal detectors |
+| `internal/signal/` | Seven behavioral signal detectors |
 | `internal/score/` | Weighted penalty scoring + confidence |
 | `internal/sarif/` | SARIF v2.1.0 parser (lossy projection) |
 | `pkg/evidence/` | Evidence chain: append-only segments, hash chain, Ed25519 signing |
@@ -305,7 +307,7 @@ exit code + prescription_id -> Report -> signal detectors -> Scorecard
 | [Core Data Model](docs/system-design/EVIDRA_CORE_DATA_MODEL.md) | Normative | Entry schema, field definitions, frozen enums |
 | [Integration Protocol v1.0](docs/system-design/EVIDRA_PROTOCOL.md) | Normative (Draft) | Session lifecycle, correlation, actor identity, findings ingestion |
 | [Session/Operation Event Model](docs/system-design/EVIDRA_SESSION_OPERATION_EVENT_MODEL.md) | Normative | Session/operation hierarchy, event taxonomy, OTel/CloudEvents/K8s mapping |
-| [Signal Spec](docs/system-design/EVIDRA_SIGNAL_SPEC.md) | Normative | Formal definitions of all five signals |
+| [Signal Spec](docs/system-design/EVIDRA_SIGNAL_SPEC.md) | Normative | Formal definitions of all seven signals |
 | [Canonicalization Contract v1](docs/system-design/CANONICALIZATION_CONTRACT_V1.md) | Frozen | Adapter interface, digest model, compatibility rules |
 | [Infrastructure Automation Reliability Benchmark](docs/system-design/EVIDRA_AGENT_RELIABILITY_BENCHMARK.md) | Normative | Scoring formula, Prometheus metrics |
 

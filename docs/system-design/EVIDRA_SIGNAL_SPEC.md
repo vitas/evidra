@@ -14,7 +14,7 @@ Any platform can consume them. The spec is the contract between
 producers and consumers.
 
 ## Status
-Stable. All five signals are v1.0 stable.
+Stable. All seven signals are v1.0 stable.
 
 ## Document Type
 **Normative.** This is the single source of truth for signal
@@ -95,7 +95,7 @@ All metrics MUST be prefixed `evidra_`.
 | `agent` | all metrics | actor.id (SHOULD be < 50 unique values) |
 | `tool` | signal, prescriptions, reports | kubectl, terraform, helm, argocd, other |
 | `scope` | signal, prescriptions, reports | production, staging, development, unknown |
-| `signal` | evidra_signal_total only | protocol_violation, artifact_drift, retry_loop, blast_radius, new_scope |
+| `signal` | evidra_signal_total only | protocol_violation, artifact_drift, retry_loop, blast_radius, new_scope, repair_loop, thrashing |
 
 **FORBIDDEN labels (MUST NOT be used):**
 
@@ -255,6 +255,8 @@ chain. Deterministic: same input → same output.
 | retry_loop | 1.0 | stable | 0.20 |
 | blast_radius | 1.0 | stable | 0.10 |
 | new_scope | 1.0 | stable | 0.05 |
+| repair_loop | 1.0 | stable | -0.05 |
+| thrashing | 1.0 | stable | 0.15 |
 
 ---
 
@@ -600,12 +602,132 @@ a new scope is often legitimate (first deploy to production).
 
 ---
 
+## Signal 6: repair_loop
+
+### Identity
+```
+name:    repair_loop
+version: 1.0
+status:  stable
+```
+
+### Detection Contract
+
+**Input:** All prescription entries with their matching reports.
+
+**Algorithm:**
+
+```
+Group prescriptions by (actor, intent_digest).
+
+For each group with 2+ prescriptions (sorted by timestamp):
+  Track failure state:
+    If report exit_code != 0 → record failure and artifact_digest
+    If report exit_code == 0 AND prior failure exists
+       AND artifact_digest differs from failed attempt → FIRE
+    Success resets the failure tracking chain.
+```
+
+**Key distinction:**
+- repair_loop fires when an agent fails, modifies the artifact,
+  and then succeeds — indicating iterative self-correction.
+- This is a **positive** signal (negative weight reduces penalty).
+
+**Output:**
+```go
+type SignalEvent struct {
+    Signal    string    // "repair_loop"
+    Timestamp time.Time
+    EntryRef  string    // prescription_id of the successful repair
+    Details   string    // "repaired after failure with changed artifact"
+}
+```
+
+### Metric Contract
+
+```
+evidra_signal_total{signal="repair_loop", agent, tool, scope}
+```
+
+### Score Contribution
+
+```
+repair_rate = repair_loop_count / total_prescriptions
+penalty_contribution = -0.05 × repair_rate
+```
+
+Negative weight: repair_loop is a positive indicator. An agent
+that self-corrects is more reliable than one that gives up.
+
+---
+
+## Signal 7: thrashing
+
+### Identity
+```
+name:    thrashing
+version: 1.0
+status:  stable
+```
+
+### Detection Contract
+
+**Input:** All prescription entries with their matching reports.
+
+**Algorithm:**
+
+```
+Process prescriptions in timestamp order:
+  If report exit_code == 0 → reset window (success clears state)
+  If no report → skip (unknown state)
+  If report exit_code != 0 → add intent_digest to window
+
+  If distinct failed intent_digests in window >= threshold → FIRE
+    (flag all entries in the window, then reset)
+```
+
+**Parameters:**
+- thrashing_threshold: default 3 distinct failed intents
+
+**Key distinction:**
+- retry_loop: same intent repeated (agent retrying identical action)
+- thrashing: different intents all failing (agent flailing across
+  multiple approaches without success)
+
+**Output:**
+```go
+type SignalEvent struct {
+    Signal    string    // "thrashing"
+    Timestamp time.Time
+    EntryRef  string    // prescription_id(s) in the thrashing window
+    Details   string    // "3 distinct failed intents without success"
+}
+```
+
+### Metric Contract
+
+```
+evidra_signal_total{signal="thrashing", agent, tool, scope}
+```
+
+### Score Contribution
+
+```
+thrashing_rate = thrashing_count / total_prescriptions
+penalty_contribution = 0.15 × thrashing_rate
+```
+
+Thrashing has a high weight because it indicates an agent that
+is not converging — trying many different things without any success.
+
+---
+
 ## Reliability Score Formula
 
 ```
 score = 100 × (1 - penalty)
 
-penalty = Σ(weight_i × rate_i) for all 5 signals
+penalty = Σ(weight_i × rate_i) for all 7 signals
 
 where:
   rate_i = signal_count_i / denominator_i
@@ -629,8 +751,10 @@ Default weights:
 protocol_violation:  0.35
 artifact_drift:      0.30
 retry_loop:          0.20
+thrashing:           0.15
 blast_radius:        0.10
 new_scope:           0.05
+repair_loop:        -0.05
 ```
 
 Weights are configurable. Sum must equal 1.0.
@@ -641,7 +765,7 @@ Weights are configurable. Sum must equal 1.0.
 
 ### What is stable (v1.0)
 
-- Signal names (the five names above)
+- Signal names (the seven names above)
 - Detection algorithms (the logic described above)
 - Metric names and label keys
 - Score formula structure
@@ -755,7 +879,7 @@ Expected output format:
 }
 ```
 
-A conformance runner reads each case, runs the five detectors,
+A conformance runner reads each case, runs the seven detectors,
 computes the score, and asserts the output matches expected.json.
 
 Conformance suite is available in the reference implementation

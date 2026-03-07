@@ -100,7 +100,7 @@ func (rt *mcpRuntime) validate(ctx context.Context) error {
 		return err
 	}
 	if strings.TrimSpace(os.Getenv("EVIDRA_SIGNING_MODE")) == "" {
-		_ = os.Setenv("EVIDRA_SIGNING_MODE", "optional")
+		_ = os.Setenv("EVIDRA_SIGNING_MODE", "optional") // best-effort: os.Setenv only fails on invalid key
 	}
 	return nil
 }

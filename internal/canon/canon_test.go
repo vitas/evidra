@@ -453,33 +453,6 @@ func TestGenericAdapter(t *testing.T) {
 
 // --- ResolveScopeClass Tests ---
 
-func TestOperationClass_HelmOperations(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name string
-		tool string
-		op   string
-		want string
-	}{
-		{"helm_upgrade", "helm", "upgrade", "mutate"},
-		{"helm_install", "helm", "install", "mutate"},
-		{"helm_uninstall", "helm", "uninstall", "destroy"},
-		{"helm_unknown", "helm", "lint", "unknown"},
-		{"kubectl_apply", "kubectl", "apply", "mutate"},
-		{"kubectl_delete", "kubectl", "delete", "destroy"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got := OperationClass(tt.tool, tt.op)
-			if got != tt.want {
-				t.Errorf("OperationClass(%q, %q) = %q, want %q", tt.tool, tt.op, got, tt.want)
-			}
-		})
-	}
-}
-
 func TestResolveScopeClass_ExplicitEnv(t *testing.T) {
 	t.Parallel()
 

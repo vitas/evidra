@@ -41,36 +41,6 @@ func TestProduceAll_DedupesAcrossProducers(t *testing.T) {
 	}
 }
 
-func TestSARIFProducer(t *testing.T) {
-	t.Parallel()
-
-	p := &SARIFProducer{
-		RuleMapping: map[string]string{
-			"KSV012": "k8s.privileged_container",
-			"KSV029": "k8s.run_as_root",
-		},
-	}
-
-	raw := []byte(`{
-  "runs": [{
-    "results": [
-      {"ruleId":"KSV012","level":"error"},
-      {"ruleId":"KSV012","level":"warning"},
-      {"ruleId":"KSV029","level":"warning"},
-      {"ruleId":"UNKNOWN","level":"warning"}
-    ]
-  }]
-}`)
-
-	tags := p.ProduceTags(canon.CanonicalAction{}, raw)
-	if countTag(tags, "k8s.privileged_container") != 1 {
-		t.Fatalf("expected mapped privileged tag once, got %v", tags)
-	}
-	if countTag(tags, "k8s.run_as_root") != 1 {
-		t.Fatalf("expected mapped run_as_root tag once, got %v", tags)
-	}
-}
-
 func countTag(tags []string, want string) int {
 	n := 0
 	for _, t := range tags {

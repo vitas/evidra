@@ -131,18 +131,6 @@ func Canonicalize(tool, operation, environment string, rawArtifact []byte) Canon
 	return result
 }
 
-// OperationClass maps an operation string to a class.
-func OperationClass(tool, operation string) string {
-	switch tool {
-	case "kubectl", "oc", "helm":
-		return k8sOperationClass(operation)
-	case "terraform":
-		return terraformOperationClass(operation)
-	default:
-		return "unknown"
-	}
-}
-
 func k8sOperationClass(op string) string {
 	switch op {
 	case "apply", "create", "patch", "upgrade", "install":

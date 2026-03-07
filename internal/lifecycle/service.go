@@ -269,14 +269,14 @@ func (s *Service) writeCanonicalizationFailure(actor evidence.Actor, cr canon.Ca
 		traceID = evidence.GenerateTraceID()
 	}
 
-	failPayload, _ := json.Marshal(evidence.CanonFailurePayload{
+	failPayload, _ := json.Marshal(evidence.CanonFailurePayload{ // best-effort: struct is always marshalable
 		ErrorCode:    "parse_error",
 		ErrorMessage: cr.ParseError.Error(),
 		Adapter:      cr.CanonVersion,
 		RawDigest:    cr.ArtifactDigest,
 	})
 
-	lastHash, _ := evidence.LastHashAtPath(s.evidencePath)
+	lastHash, _ := evidence.LastHashAtPath(s.evidencePath) // best-effort: failure recording is advisory
 	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
 		Type:           evidence.EntryTypeCanonFailure,
 		SessionID:      sessionID,
@@ -292,7 +292,7 @@ func (s *Service) writeCanonicalizationFailure(actor evidence.Actor, cr canon.Ca
 		Signer:         s.signer,
 	})
 	if err == nil {
-		_ = evidence.AppendEntryAtPath(s.evidencePath, entry)
+		_ = evidence.AppendEntryAtPath(s.evidencePath, entry) // best-effort: failure signal is advisory
 	}
 }
 
@@ -300,14 +300,14 @@ func (s *Service) writeUnknownPrescriptionSignal(actor evidence.Actor, prescript
 	if s.evidencePath == "" {
 		return
 	}
-	sigPayload, _ := json.Marshal(evidence.SignalPayload{
+	sigPayload, _ := json.Marshal(evidence.SignalPayload{ // best-effort: struct is always marshalable
 		SignalName: "protocol_violation",
 		SubSignal:  "unprescribed_action",
 		EntryRefs:  []string{prescriptionID},
 		Details:    "report references unknown prescription " + prescriptionID,
 	})
 
-	lastHash, _ := evidence.LastHashAtPath(s.evidencePath)
+	lastHash, _ := evidence.LastHashAtPath(s.evidencePath) // best-effort: signal recording is advisory
 	traceID := evidence.GenerateTraceID()
 	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
 		Type:           evidence.EntryTypeSignal,
@@ -322,7 +322,7 @@ func (s *Service) writeUnknownPrescriptionSignal(actor evidence.Actor, prescript
 		Signer:         s.signer,
 	})
 	if err == nil {
-		_ = evidence.AppendEntryAtPath(s.evidencePath, entry)
+		_ = evidence.AppendEntryAtPath(s.evidencePath, entry) // best-effort: signal entry is advisory
 	}
 }
 

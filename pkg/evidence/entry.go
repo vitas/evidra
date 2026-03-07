@@ -60,12 +60,12 @@ type Actor struct {
 // EvidenceEntry is an append-only event log entry. Every JSONL line in an
 // evidence segment file is one EvidenceEntry.
 type EvidenceEntry struct {
-	EntryID         string            `json:"entry_id"`
-	PreviousHash    string            `json:"previous_hash"`
-	Hash            string            `json:"hash"`
-	Signature       string            `json:"signature"`
-	Type            EntryType         `json:"type"`
-	TenantID        string            `json:"tenant_id,omitempty"`
+	EntryID      string    `json:"entry_id"`
+	PreviousHash string    `json:"previous_hash"`
+	Hash         string    `json:"hash"`
+	Signature    string    `json:"signature"`
+	Type         EntryType `json:"type"`
+	TenantID     string    `json:"tenant_id,omitempty"`
 	// SessionID groups operations from one automation attempt (for example:
 	// one CI pipeline run, one AI agent task, or one operator workflow).
 	// For meaningful signal detection and scorecards, callers should generate
