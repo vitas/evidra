@@ -50,7 +50,7 @@ func cmdRecord(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	prescOut, err := cmd.service.Prescribe(context.Background(), lifecycle.PrescribeInput{
+	prescIn := lifecycle.PrescribeInput{
 		Actor:           cmd.input.Actor,
 		Tool:            cmd.input.Tool,
 		Operation:       cmd.input.Operation,
@@ -60,37 +60,32 @@ func cmdRecord(args []string, stdout, stderr io.Writer) int {
 		SessionID:       cmd.input.SessionID,
 		OperationID:     cmd.input.OperationID,
 		Attempt:         cmd.input.Attempt,
-	})
-	if err != nil {
-		fmt.Fprintf(stderr, "record prescribe: %v\n", err)
-		return 1
 	}
-
-	reportOut, err := cmd.service.Report(context.Background(), lifecycle.ReportInput{
-		PrescriptionID: prescOut.PrescriptionID,
+	processor := NewOperationProcessor(cmd.service)
+	opResult, err := processor.Process(context.Background(), OperationRequest{
+		PrescribeInput: prescIn,
 		ExitCode:       cmd.input.ExitCode,
-		ArtifactDigest: prescOut.ArtifactDigest,
-		Actor:          cmd.input.Actor,
+		ReportActor:    cmd.input.Actor,
 		SessionID:      cmd.input.SessionID,
 		OperationID:    cmd.input.OperationID,
 	})
 	if err != nil {
-		fmt.Fprintf(stderr, "record report: %v\n", err)
+		fmt.Fprintf(stderr, "record process: %v\n", err)
 		return 1
 	}
 
 	result := map[string]interface{}{
 		"ok":               true,
 		"contract_version": cmd.input.ContractVersion,
-		"session_id":       reportOut.SessionID,
+		"session_id":       opResult.ReportOutput.SessionID,
 		"operation_id":     cmd.input.OperationID,
-		"prescription_id":  prescOut.PrescriptionID,
-		"report_id":        reportOut.ReportID,
+		"prescription_id":  opResult.PrescribeOutput.PrescriptionID,
+		"report_id":        opResult.ReportOutput.ReportID,
 		"exit_code":        cmd.input.ExitCode,
 		"verdict":          evidence.VerdictFromExitCode(cmd.input.ExitCode),
 		"duration_ms":      cmd.input.DurationMs,
-		"risk_level":       prescOut.RiskLevel,
-		"risk_tags":        prescOut.RiskTags,
+		"risk_level":       opResult.PrescribeOutput.RiskLevel,
+		"risk_tags":        opResult.PrescribeOutput.RiskTags,
 	}
 	return writeJSON(stdout, stderr, "encode record", result)
 }
