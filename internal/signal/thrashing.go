@@ -7,6 +7,11 @@ const ThrashingThreshold = 3
 
 // DetectThrashing detects many distinct failed intents without success.
 func DetectThrashing(entries []Entry) SignalResult {
+	return DetectThrashingWithThreshold(entries, ThrashingThreshold)
+}
+
+// DetectThrashingWithThreshold allows configurable threshold for testing.
+func DetectThrashingWithThreshold(entries []Entry, threshold int) SignalResult {
 	reportExit := make(map[string]*int)
 	for _, e := range entries {
 		if e.IsReport && e.PrescriptionID != "" {
@@ -16,7 +21,7 @@ func DetectThrashing(entries []Entry) SignalResult {
 
 	var prescriptions []Entry
 	for _, e := range entries {
-		if e.IsPrescription {
+		if e.IsPrescription && e.IntentDigest != "" {
 			prescriptions = append(prescriptions, e)
 		}
 	}
@@ -31,15 +36,22 @@ func DetectThrashing(entries []Entry) SignalResult {
 
 	for _, p := range prescriptions {
 		ec := reportExit[p.EventID]
+
+		// Success resets the window.
 		if ec != nil && *ec == 0 {
 			distinctIntents = make(map[string]bool)
 			windowEntries = nil
 			continue
 		}
 
+		// No report yet — unknown state; skip.
+		if ec == nil {
+			continue
+		}
+
 		distinctIntents[p.IntentDigest] = true
 		windowEntries = append(windowEntries, p)
-		if len(distinctIntents) >= ThrashingThreshold {
+		if len(distinctIntents) >= threshold {
 			for _, w := range windowEntries {
 				if seen[w.EventID] {
 					continue

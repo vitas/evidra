@@ -4,7 +4,7 @@
 # Self-contained signal engine validation. No cluster, no LLM, no external data.
 # Only needs: evidra binary (make build) + jq
 #
-# Creates 5 scripted operation sequences, each designed to trigger
+# Creates scripted operation sequences, each designed to trigger
 # a specific signal pattern. Measures scorecard distribution.
 #
 # Usage:
@@ -292,6 +292,161 @@ RESULTS+=("E_scope")
 echo ""
 
 # ─────────────────────────────────────────────────────
+# Sequence F: REPAIR (10 ops, fail then fix then succeed)
+# Expected: repair_loop >= 1, score should be HIGHER than sequence B
+# ─────────────────────────────────────────────────────
+echo "=== Sequence F: Repair Loop (fail → change artifact → succeed) ==="
+new_session
+SEQ_F_DIR="$EV_DIR"
+
+cat > "$WORKSPACE/f-deploy-v1.yaml" << 'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: app
+          image: nginx:nonexistent-v1
+EOF
+
+prescribe kubectl apply "$WORKSPACE/f-deploy-v1.yaml"
+report "$LAST_PRESCRIPTION_ID" 1
+
+cat > "$WORKSPACE/f-deploy-v2.yaml" << 'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: app
+          image: nginx:also-broken-v2
+EOF
+
+prescribe kubectl apply "$WORKSPACE/f-deploy-v2.yaml"
+report "$LAST_PRESCRIPTION_ID" 1
+
+cat > "$WORKSPACE/f-deploy-v3.yaml" << 'EOF'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: app
+          image: nginx:1.25
+EOF
+
+prescribe kubectl apply "$WORKSPACE/f-deploy-v3.yaml"
+report "$LAST_PRESCRIPTION_ID" 0
+
+for i in $(seq 1 7); do
+  cat > "$WORKSPACE/f-clean-$i.yaml" << EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: f-config-$i
+  namespace: default
+data:
+  status: ok
+EOF
+  prescribe kubectl apply "$WORKSPACE/f-clean-$i.yaml"
+  report "$LAST_PRESCRIPTION_ID" 0
+done
+
+echo "Signals:"
+print_signals
+echo "Score:"
+print_score
+RESULTS+=("F_repair")
+echo ""
+
+# ─────────────────────────────────────────────────────
+# Sequence G: THRASHING (10 ops, many different intents all fail)
+# Expected: thrashing >= 1, score should be LOWER than sequence B
+# ─────────────────────────────────────────────────────
+echo "=== Sequence G: Thrashing (different intents, all fail) ==="
+new_session
+SEQ_G_DIR="$EV_DIR"
+
+for i in $(seq 1 5); do
+  cat > "$WORKSPACE/g-different-$i.yaml" << EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: attempt-$i
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: attempt-$i
+  template:
+    metadata:
+      labels:
+        app: attempt-$i
+    spec:
+      containers:
+        - name: app
+          image: broken:attempt-$i
+EOF
+  prescribe kubectl apply "$WORKSPACE/g-different-$i.yaml"
+  report "$LAST_PRESCRIPTION_ID" 1
+done
+
+for i in $(seq 1 5); do
+  cat > "$WORKSPACE/g-clean-$i.yaml" << EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: g-config-$i
+  namespace: default
+data:
+  status: ok
+EOF
+  prescribe kubectl apply "$WORKSPACE/g-clean-$i.yaml"
+  report "$LAST_PRESCRIPTION_ID" 0
+done
+
+echo "Signals:"
+print_signals
+echo "Score:"
+print_score
+RESULTS+=("G_thrash")
+echo ""
+
+# ─────────────────────────────────────────────────────
 # SUMMARY
 # ─────────────────────────────────────────────────────
 echo "================================================================"
@@ -306,7 +461,9 @@ for label_dir in \
   "B_retry:$SEQ_B_DIR" \
   "C_protocol:$SEQ_C_DIR" \
   "D_blast:$SEQ_D_DIR" \
-  "E_scope:$SEQ_E_DIR"; do
+  "E_scope:$SEQ_E_DIR" \
+  "F_repair:$SEQ_F_DIR" \
+  "G_thrash:$SEQ_G_DIR"; do
 
   label="${label_dir%%:*}"
   ev_dir="${label_dir##*:}"
@@ -316,7 +473,7 @@ for label_dir in \
   band=$(echo "$sc" | jq -r '.band // "ERR"')
 
   # Count operations
-  ops=$(find "$ev_dir" -name "*.jsonl" -exec grep -c '"type":"prescribe"' {} + 2>/dev/null | awk -F: '{s+=$2}END{print s+0}')
+  ops=$(find "$ev_dir" -name "*.jsonl" -exec grep -h -c '"type":"prescribe"' {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
 
   # Dominant signal
   signals=$(evidra explain --evidence-dir "$ev_dir" --ttl 1s 2>/dev/null \
@@ -328,6 +485,8 @@ for label_dir in \
     C_protocol) expected="protocol_viol≥3" ;;
     D_blast)   expected="blast_radius≥1" ;;
     E_scope)   expected="new_scope≥2" ;;
+    F_repair)  expected="repair_loop≥1" ;;
+    G_thrash)  expected="thrashing≥1" ;;
   esac
 
   printf "| %-8s | %3s | %-19s | %5s | %-4s | signals: %s\n" \
@@ -345,6 +504,8 @@ echo "  B (retry)    → 50-70   fair"
 echo "  C (protocol) → 40-65   poor-fair"
 echo "  D (blast)    → 60-80   fair-good"
 echo "  E (scope)    → 80-95   good"
+echo "  F (repair)   → 70-85   adapted (should be > B)"
+echo "  G (thrash)   → 35-55   unstable (should be < B)"
 echo ""
 echo "If all sequences score the same → signal engine bug"
 echo "If scores are inverted → weight calibration needed"

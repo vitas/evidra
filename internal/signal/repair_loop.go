@@ -36,16 +36,24 @@ func DetectRepairLoop(entries []Entry) SignalResult {
 		failDigest := ""
 		for _, p := range group {
 			ec := reportExit[p.EventID]
-			if ec != nil && *ec != 0 {
+			if ec == nil {
+				// No report yet — skip.
+				continue
+			}
+
+			if *ec != 0 {
 				sawFailure = true
 				failDigest = p.ArtifactDigest
 				continue
 			}
-			if sawFailure && ec != nil && *ec == 0 && p.ArtifactDigest != failDigest {
+
+			// Success: repair requires prior failure and a changed artifact.
+			if sawFailure && failDigest != "" && p.ArtifactDigest != failDigest {
 				eventIDs = append(eventIDs, p.EventID)
-				sawFailure = false
-				failDigest = ""
 			}
+			// Chain is consumed on success, whether it counted as repair or not.
+			sawFailure = false
+			failDigest = ""
 		}
 	}
 

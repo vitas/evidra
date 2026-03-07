@@ -32,6 +32,7 @@ prescribe() {
     --session-id "$SESSION_ID" \
     --signing-mode optional 2>/dev/null) || true
   LAST_PRESCRIPTION_ID=$(echo "$output" | jq -r '.prescription_id // empty')
+  LAST_ARTIFACT_DIGEST=$(echo "$output" | jq -r '.artifact_digest // empty')
   if [ -z "$LAST_PRESCRIPTION_ID" ]; then
     echo "FATAL: prescribe failed"
     echo "$output"
@@ -41,16 +42,23 @@ prescribe() {
 
 report() {
   local prescription_id="$1" exit_code="$2"
+  local artifact_digest="${3:-${LAST_ARTIFACT_DIGEST:-}}"
   if [ -z "$prescription_id" ]; then
     echo "FATAL: empty prescription_id"
     return 1
   fi
-  evidra report \
-    --prescription "$prescription_id" \
-    --exit-code "$exit_code" \
-    --evidence-dir "$EV_DIR" \
-    --session-id "$SESSION_ID" \
-    --signing-mode optional 2>/dev/null || true
+  local -a args=(
+    report
+    --prescription "$prescription_id"
+    --exit-code "$exit_code"
+    --evidence-dir "$EV_DIR"
+    --session-id "$SESSION_ID"
+    --signing-mode optional
+  )
+  if [ -n "$artifact_digest" ]; then
+    args+=(--artifact-digest "$artifact_digest")
+  fi
+  evidra "${args[@]}" 2>/dev/null || true
 }
 
 get_signals() {
