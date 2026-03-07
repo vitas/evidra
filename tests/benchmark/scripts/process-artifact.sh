@@ -14,7 +14,7 @@ Options:
   --evidence-dir <path>  Evidence dir (default: temp dir)
   --evidra-bin <path>    Explicit evidra binary path (skip resolver)
   --cache-dir <path>     Cache directory for pinned binaries (default: ./bin)
-  --repo <owner/name>    GitHub repo for release downloads (default: vitas/evidra-benchmark)
+  --repo <owner/name>    GitHub repo for release downloads (default: vitas/evidra)
   --force-download       Re-download pinned binary even if cached
   -h, --help             Show this help
 EOF
@@ -32,7 +32,7 @@ OUT_PATH=""
 EVIDENCE_DIR=""
 EVIDRA_BIN=""
 CACHE_DIR="bin"
-REPO="vitas/evidra-benchmark"
+REPO="vitas/evidra"
 FORCE_DOWNLOAD="false"
 
 while [[ $# -gt 0 ]]; do

@@ -110,7 +110,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Evidra
-        uses: samebits/evidra-benchmark/.github/actions/setup-evidra@main
+        uses: samebits/evidra/.github/actions/setup-evidra@main
 
       - name: Trivy scan
         run: |

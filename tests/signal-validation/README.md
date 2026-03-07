@@ -13,7 +13,7 @@ Related parity/UX tests for `run` + `record`:
 ## Run
 
 ```bash
-cd /path/to/evidra-benchmark
+cd /path/to/evidra
 make test-signals
 ```
 

@@ -370,7 +370,7 @@ bash run_all_faults.sh
 Alternatively, run the existing Evidra test suite to verify nothing broke:
 
 ```bash
-# From ~/evidra-benchmark/ (the repo)
+# From ~/evidra/ (the repo)
 make test
 make e2e
 ```

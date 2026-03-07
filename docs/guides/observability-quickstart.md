@@ -200,7 +200,7 @@ sum by (tool, environment) (
 
 ```yaml
 - name: Setup Evidra
-  uses: samebits/evidra-benchmark/.github/actions/setup-evidra@main
+  uses: samebits/evidra/.github/actions/setup-evidra@main
 
 - name: Deploy with observability
   env:
@@ -226,7 +226,7 @@ deploy:
     EVIDRA_SIGNING_KEY: $EVIDRA_SIGNING_KEY
   script:
     - |
-      curl -fsSL https://github.com/samebits/evidra-benchmark/releases/latest/download/evidra_linux_amd64.tar.gz \
+      curl -fsSL https://github.com/samebits/evidra/releases/latest/download/evidra_linux_amd64.tar.gz \
         | tar -xz -C /usr/local/bin evidra
     - evidra run \
         --tool terraform \

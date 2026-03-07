@@ -1,7 +1,7 @@
 # Evidra
 
-[![CI](https://github.com/vitas/evidra-benchmark/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vitas/evidra-benchmark/actions/workflows/ci.yml)
-[![Release Pipeline](https://github.com/vitas/evidra-benchmark/actions/workflows/release.yml/badge.svg?event=push)](https://github.com/vitas/evidra-benchmark/actions/workflows/release.yml)
+[![CI](https://github.com/vitas/evidra/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vitas/evidra/actions/workflows/ci.yml)
+[![Release Pipeline](https://github.com/vitas/evidra/actions/workflows/release.yml/badge.svg?event=push)](https://github.com/vitas/evidra/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 **Evidra is a reliability flight recorder and Benchmark for infrastructure automation.**
@@ -33,7 +33,7 @@ Both modes feed the same lifecycle and scoring engine.
 brew install samebits/tap/evidra
 
 # Binary release (Linux/macOS)
-curl -fsSL https://github.com/samebits/evidra-benchmark/releases/latest/download/evidra_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz \
+curl -fsSL https://github.com/samebits/evidra/releases/latest/download/evidra_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz \
   | tar -xz -C /usr/local/bin evidra
 
 # Build from source
@@ -138,13 +138,13 @@ Details:
 
 ```yaml
 - name: Setup Evidra
-  uses: samebits/evidra-benchmark/.github/actions/setup-evidra@main
+  uses: samebits/evidra/.github/actions/setup-evidra@main
 ```
 
 ### Generic CI (GitLab, Jenkins, CircleCI, etc.)
 
 ```bash
-curl -fsSL https://github.com/samebits/evidra-benchmark/releases/latest/download/evidra_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz \
+curl -fsSL https://github.com/samebits/evidra/releases/latest/download/evidra_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz \
   | tar -xz -C /usr/local/bin evidra
 ```
 
@@ -165,10 +165,6 @@ Architecture and contracts:
 Operational guides:
 - [Observability Quickstart](docs/guides/observability-quickstart.md)
 - [Scanner SARIF Quickstart](docs/integrations/SCANNER_SARIF_QUICKSTART.md)
-
-Product and roadmap:
-- [Product Positioning](docs/product/EVIDRA_PRODUCT_POSITIONING.md)
-- [Roadmap](docs/product/EVIDRA_ROADMAP.md)
 
 ## Environment
 

@@ -10,6 +10,11 @@
 
 docs/research/
 docs/experimental/
+docs/plans/
+docs/system-design/done/
+docs/system-design/backlog/
+docs/system-design/internal/
+docs/product/
 
 # Test binary, coverage
 *.test

@@ -5,8 +5,8 @@ Thank you for your interest in contributing to Evidra.
 ## Development Setup
 
 ```bash
-git clone https://github.com/vitas/evidra-benchmark.git
-cd evidra-benchmark
+git clone https://github.com/vitas/evidra.git
+cd evidra
 make build
 make test
 ```

@@ -6,7 +6,7 @@ It only installs the `evidra` binary and exposes its path; it does not run scori
 Action path in this repository:
 
 ```yaml
-uses: samebits/evidra-benchmark/.github/actions/setup-evidra@main
+uses: samebits/evidra/.github/actions/setup-evidra@main
 ```
 
 ## Inputs
@@ -35,7 +35,7 @@ jobs:
 
       - name: Setup Evidra
         id: setup-evidra
-        uses: samebits/evidra-benchmark/.github/actions/setup-evidra@main
+        uses: samebits/evidra/.github/actions/setup-evidra@main
         with:
           evidra-version: latest
 
@@ -64,7 +64,7 @@ Evidra is a single static binary. Install it in any CI with curl:
 
 ```bash
 VERSION="latest"
-REPO="samebits/evidra-benchmark"
+REPO="samebits/evidra"
 
 # Resolve latest tag
 if [ "$VERSION" = "latest" ]; then
@@ -89,11 +89,11 @@ evidra-terraform:
   script:
     - apt-get update && apt-get install -y curl
     - |
-      VERSION=$(curl -fsSL "https://api.github.com/repos/samebits/evidra-benchmark/releases/latest" \
+      VERSION=$(curl -fsSL "https://api.github.com/repos/samebits/evidra/releases/latest" \
         | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4)
       OS=$(uname -s | tr '[:upper:]' '[:lower:]')
       ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
-      curl -fsSL "https://github.com/samebits/evidra-benchmark/releases/download/${VERSION}/evidra_${VERSION#v}_${OS}_${ARCH}.tar.gz" \
+      curl -fsSL "https://github.com/samebits/evidra/releases/download/${VERSION}/evidra_${VERSION#v}_${OS}_${ARCH}.tar.gz" \
         | tar -xz -C /usr/local/bin evidra
     - terraform plan -out=tfplan && terraform show -json tfplan > plan.json
     - evidra run --tool terraform --operation apply --artifact plan.json

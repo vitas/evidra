@@ -32,7 +32,7 @@ runs:
       run: |
         set -euo pipefail
 
-        REPO="samebits/evidra-benchmark"
+        REPO="samebits/evidra"
         VERSION="${{ inputs.evidra-version }}"
         INSTALL_DIR="${{ inputs.install-dir }}"
 

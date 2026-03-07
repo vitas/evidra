@@ -1,6 +1,6 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.vitas/evidra-benchmark",
+  "name": "io.github.vitas/evidra",
   "title": "Evidra Bench",
   "description": "Evidra — Reliability Benchmark for Infrastructure Automation.",
   "version": "0.3.0",

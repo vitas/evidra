@@ -1,6 +1,6 @@
 version: 2
 
-project_name: evidra-benchmark
+project_name: evidra
 
 before:
   hooks:
@@ -81,7 +81,7 @@ brews:
       owner: samebits
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    homepage: "https://github.com/vitas/evidra-benchmark"
+    homepage: "https://github.com/vitas/evidra"
     description: "Evidra — reliability benchmark for infrastructure automation."
     license: "Apache-2.0"
     install: |
@@ -97,7 +97,7 @@ brews:
       owner: samebits
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
-    homepage: "https://github.com/vitas/evidra-benchmark"
+    homepage: "https://github.com/vitas/evidra"
     description: "CLI for infrastructure automation reliability scoring and evidence workflows."
     license: "Apache-2.0"
     install: |
