@@ -35,7 +35,6 @@ make build
 # binaries:
 #   bin/evidra
 #   bin/evidra-mcp
-#   bin/evidra-exp
 ```
 
 ### Quick Start (10-minute path)
@@ -102,6 +101,7 @@ Current signals are documented in:
 | `validate` | Verify evidence chain and signatures |
 | `ingest-findings` | Ingest SARIF findings |
 | `compare` | Compare actor reliability |
+| `keygen` | Generate Ed25519 signing keypair |
 
 Full flags and subcommands:
 - [CLI Reference](docs/integrations/CLI_REFERENCE.md)
@@ -158,6 +158,7 @@ Product and roadmap:
 | `EVIDRA_SIGNING_KEY_PATH` | PEM Ed25519 private key path |
 | `EVIDRA_SIGNING_MODE` | `strict` (default) or `optional` |
 | `EVIDRA_EVIDENCE_DIR` | Evidence storage directory |
+| `EVIDRA_ENVIRONMENT` | Environment label (MCP server) |
 | `EVIDRA_EVIDENCE_WRITE_MODE` | `strict` or `best_effort` |
 | `EVIDRA_METRICS_TRANSPORT` | `none` (default) or `otlp_http` |
 | `EVIDRA_METRICS_OTLP_ENDPOINT` | OTLP HTTP endpoint |
