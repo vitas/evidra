@@ -231,7 +231,7 @@ Architecture principle: **graph-ready, graph-free.** Signals work on `[]Entry` s
 | Detector architecture (registry, metadata, producer chain) | V1_ARCHITECTURE (this doc) | Delivered |
 | Docker adapter + Docker detectors | V1_ARCHITECTURE (this doc) | Delivered |
 | Signal validation harness (A-G scenarios) | V1_ARCHITECTURE (this doc) | Delivered (score sufficiency still gated by operation count) |
-| REST API + LLM augmentation | [2026-03-07-parallel-execution-implementation-plan.md](../plans/2026-03-07-parallel-execution-implementation-plan.md) | In progress |
+| REST API + LLM augmentation | [2026-03-07-parallel-execution-implementation-plan.md](../plans/done/archive/2026-03-07-parallel-execution-implementation-plan.md) | Archived (implemented) |
 | LLM tag discovery | LLM_RISK_PREDICTION_CONTRACT | Architecture done |
 | Detector registry export + prompt contract integration (Task 1 work plan) | LLM_RISK_PREDICTION_CONTRACT | Planned |
 | MCP contract prompts | MCP_CONTRACT_PROMPTS | Ready to commit |
