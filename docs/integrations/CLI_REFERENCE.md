@@ -160,6 +160,18 @@ evidra run --tool kubectl --artifact deploy.yaml -- -- sh -c "kubectl apply -f d
 | `prompts generate` | `--contract` (default `v1.0.1`), `--root` (default `.`), `--write-active` (default `true`), `--write-generated` (default `true`), `--write-manifest` (default `true`) |
 | `prompts verify` | `--contract` (default `v1.0.1`), `--root` (default `.`) |
 
+### Developer Commands
+
+These commands are functional but not yet part of the stable public API.
+
+#### `evidra detectors list`
+
+| Flag | Description |
+|---|---|
+| `--stable-only` | Show only stable (non-experimental) detectors |
+
+Output: JSON with `count` and `items` array of detector metadata (tag, description, severity, stability).
+
 ## 2) `evidra-mcp` (MCP server)
 
 ### Flags
