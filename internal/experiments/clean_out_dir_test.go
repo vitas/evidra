@@ -11,7 +11,7 @@ import (
 
 func TestRunArtifact_CleanOutDirWithoutExplicitOutDir(t *testing.T) {
 	root := repoRootForExperiments(t)
-	t.Chdir(t.TempDir())
+	chdirTemp(t)
 
 	outRoot := filepath.Join(DefaultArtifactOutRoot)
 	if err := os.MkdirAll(filepath.Join(outRoot, "old-run"), 0o755); err != nil {
@@ -47,7 +47,7 @@ func TestRunArtifact_CleanOutDirWithoutExplicitOutDir(t *testing.T) {
 
 func TestRunExecution_CleanOutDirWithoutExplicitOutDir(t *testing.T) {
 	root := repoRootForExperiments(t)
-	t.Chdir(t.TempDir())
+	chdirTemp(t)
 	scenariosDir := writeExecutionFixture(t)
 
 	outRoot := filepath.Join(DefaultArtifactOutRoot)
@@ -122,4 +122,21 @@ func repoRootForExperiments(t *testing.T) string {
 		t.Fatalf("Getwd: %v", err)
 	}
 	return filepath.Clean(filepath.Join(wd, "..", ".."))
+}
+
+func chdirTemp(t *testing.T) {
+	t.Helper()
+	orig, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	tmp := t.TempDir()
+	if err := os.Chdir(tmp); err != nil {
+		t.Fatalf("Chdir(%s): %v", tmp, err)
+	}
+	t.Cleanup(func() {
+		if err := os.Chdir(orig); err != nil {
+			t.Fatalf("restore cwd: %v", err)
+		}
+	})
 }
