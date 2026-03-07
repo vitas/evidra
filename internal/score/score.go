@@ -37,6 +37,16 @@ type SignalProfile struct {
 // Compute calculates a reliability scorecard from signal results.
 // externalPct is the fraction of entries canonicalized externally (0.0 when all are adapter-canonicalized).
 func Compute(results []signal.SignalResult, totalOps int, externalPct float64) Scorecard {
+	return ComputeWithMinOperations(results, totalOps, externalPct, MinOperations)
+}
+
+// ComputeWithMinOperations calculates a reliability scorecard with a configurable
+// sufficiency threshold. If minOps <= 0, MinOperations is used.
+func ComputeWithMinOperations(results []signal.SignalResult, totalOps int, externalPct float64, minOps int) Scorecard {
+	if minOps <= 0 {
+		minOps = MinOperations
+	}
+
 	sc := Scorecard{
 		TotalOperations: totalOps,
 		Signals:         make(map[string]int),
@@ -48,7 +58,7 @@ func Compute(results []signal.SignalResult, totalOps int, externalPct float64) S
 		sc.Signals[r.Name] = r.Count
 	}
 
-	if totalOps < MinOperations {
+	if totalOps < minOps {
 		sc.Score = -1
 		sc.Band = "insufficient_data"
 		sc.Confidence = ComputeConfidence(externalPct, 0.0)

@@ -66,7 +66,7 @@ Parallel streams:
 1. Create `tests/signal-validation/expected-bands.json` with per-sequence score ranges.
 2. Add automated band assertions to `validate-signals-engine.sh` that exit non-zero on out-of-range scores.
 3. Add workspace cleanup at script start for idempotent reruns. Safety guard: require `WORKSPACE` starts with `/tmp/evidra-signal-validation` (strict prefix, not substring), is non-empty, and is not `/`. Abort with error if guard fails.
-4. Add Sequence F: artifact drift — prescribe artifact X, then report against the same prescription but with a different `artifact_digest` (not shape hash). The `artifact_drift` signal fires on `ArtifactDigest` mismatch between prescription and report entries. This is the only signal with zero validation coverage.
+4. Add scripted coverage for repair/thrashing and keep artifact-drift coverage in a dedicated sequence.
 5. Add `make test-signals` target that runs `validate-signals-engine.sh` so signal validation is wired into CI alongside `make test`.
 
 **Files:**
@@ -76,21 +76,23 @@ Parallel streams:
 
 **Verification:**
 - `make test-signals`
-- Expected: all 6 sequences run, summary table printed, exit 0 only if all scores within expected bands.
+- Expected: all 8 sequences run, summary table printed, exit 0 only if all scores/signals/comparisons pass expected bands.
 
 ### M1: P0 Gate - Signal Engine Distribution (Day 1)
 
 **Outcome:** Signal engine proves meaningful differentiation across scripted behaviors.
 
-1. Run scripted sequences A-F (6 sequences). Operation counts: A=20, B=10, C=15, D=10, E=15, F=minimum 10 (pin exact count during M0 calibration).
+1. Run scripted sequences A-H (8 sequences). Operation counts remain lightweight (10-20 ops per sequence), with score sufficiency controlled via `--min-operations` override in validation harness.
 2. Save run artifacts (`scorecard` + `explain` outputs) under a dated results folder.
-3. Automated assertions (from M0) enforce expected score bands per sequence:
-   - A clean: `90-100`
-   - B retry: `50-70`
-   - C protocol violation: `40-65`
-   - D blast radius: `60-80`
-   - E scope escalation: `80-95`
-   - F artifact drift: **must be pinned during M0 after first calibration run** — initial run sets the band, then it becomes deterministic like A-E.
+3. Automated assertions (from M0) enforce expected score bands and signal minimums per sequence:
+   - A clean: `99-100`
+   - B retry: `75-85`
+   - C protocol violation: `85-90`
+   - D blast radius: `95-99`
+   - E scope escalation: `98-100`
+   - F repair: `75-85`
+   - G thrashing: `70-80`
+   - H artifact drift: `84-86`
 4. Script emits `summary.json` to results folder with per-sequence scores and pass/fail.
 
 **Files:**
@@ -100,7 +102,7 @@ Parallel streams:
 **Verification:**
 - `make test-signals`
 - `ls experiments/results/signals/*/summary.json` (confirm artifacts emitted)
-- Expected: exit 0, 6 distinct score profiles; no collapsed distribution.
+- Expected: exit 0, 8 distinct signal profiles; comparisons `F_repair > B_retry` and `G_thrash < B_retry` enforced.
 
 ### M2: Deterministic Detector Expansion (Week 1)
 
@@ -112,13 +114,13 @@ Parallel streams:
 4. Add fixture-driven tests and goldens per detector.
 
 **Files:**
-- Modify: `internal/risk/*.go` (new detector implementations)
-- Modify: `internal/risk/*_test.go`
-- Modify: detector registration surface (`DefaultDetectors` path)
+- Modify: `internal/detectors/**/*.go` (new detector implementations)
+- Modify: `internal/detectors/**/*_test.go`
+- Modify: detector registration surface (`internal/detectors/all/all.go`)
 - Create/Modify: fixture files under test fixtures directory
 
 **Verification:**
-- `go test ./internal/risk/... -count=1`
+- `go test ./internal/detectors/... -count=1`
 - `go test ./... -count=1`
 - Expected: new tags emitted for positive fixtures; no regressions for existing tags.
 
@@ -135,12 +137,12 @@ Parallel streams:
 3. Add fixture-driven tests with compose YAML fixtures (positive and negative).
 
 **Files:**
-- Create: `internal/risk/docker_detectors.go`
-- Create: `internal/risk/docker_detectors_test.go`
-- Modify: `internal/risk/detectors.go` (register in `DefaultDetectors`)
+- Create/Modify: `internal/detectors/docker/*.go`
+- Create/Modify: `internal/detectors/docker/*_test.go`
+- Modify: `internal/detectors/all/all.go` (ensure docker package imported)
 
 **Verification:**
-- `go test ./internal/risk/... -count=1`
+- `go test ./internal/detectors/docker/... -count=1`
 - Expected: compose artifacts with privileged/host_network/socket_mount emit correct Docker tags; clean compose artifacts emit no Docker tags.
 
 ### M4a: LLM Baseline Experiment (Week 2)
@@ -203,10 +205,10 @@ Parallel streams:
 
 ## Tracking Board
 
-- [ ] M0 baseline normalization completed (expected-bands.json, CI assertions, Sequence F for artifact_drift)
-- [ ] M1 P0 signal gate passed and artifacts stored (6 sequences, exit 0; Sequence F band pinned in expected-bands.json)
-- [ ] M2 detectors #8-#16 merged
-- [ ] M3 Docker risk detectors #17-#19 merged (adapter already complete)
+- [x] M0 baseline normalization completed (expected-bands.json, CI assertions, workspace safety guard, A-H scripted coverage)
+- [x] M1 P0 signal gate passed and artifacts stored (`experiments/results/signals/*/summary.json`, assertions green)
+- [x] M2 detectors #8-#16 merged
+- [x] M3 Docker risk detectors #17-#19 merged (adapter already complete)
 - [ ] M4a LLM experiment completed and results stored
 - [ ] M4b REST API integration merged (blocked on REST API work item)
 - [ ] M5 release hardening complete (`local-mcp` gate + CI artifact upload for signal-validation outputs)
@@ -224,8 +226,8 @@ Parallel streams:
 
 ## Exit Criteria
 
-- P0 gate (M1) is green with stored evidence artifacts (6 sequences, all within bands).
-- All 5 behavioral signals have validation coverage (including artifact_drift via Sequence F).
+- P0 gate (M1) is green with stored evidence artifacts (8 sequences, all within bands and comparisons).
+- All 7 behavioral signals have validation coverage (`protocol_violation`, `artifact_drift`, `retry_loop`, `blast_radius`, `new_scope`, `repair_loop`, `thrashing`).
 - Deterministic detector count reaches planned minimum for release scope.
 - Docker artifacts are first-class inputs (adapter complete; risk detectors merged).
 - LLM experiment (M4a) completed with stored metrics. REST integration (M4b) conditional on external dependency.

@@ -70,6 +70,38 @@ func TestCompute_InsufficientData(t *testing.T) {
 	}
 }
 
+func TestComputeWithMinOperations_OverrideAllowsScoring(t *testing.T) {
+	t.Parallel()
+
+	results := []signal.SignalResult{
+		{Name: "protocol_violation", Count: 0},
+	}
+	sc := ComputeWithMinOperations(results, 10, 0.0, 1)
+
+	if !sc.Sufficient {
+		t.Fatal("expected sufficient data with minOps override")
+	}
+	if sc.Band == "insufficient_data" {
+		t.Fatalf("band = %q, want scored band", sc.Band)
+	}
+}
+
+func TestComputeWithMinOperations_InvalidOverrideFallsBackToDefault(t *testing.T) {
+	t.Parallel()
+
+	results := []signal.SignalResult{
+		{Name: "protocol_violation", Count: 0},
+	}
+	sc := ComputeWithMinOperations(results, 50, 0.0, 0)
+
+	if sc.Sufficient {
+		t.Fatal("expected insufficient data when override is invalid")
+	}
+	if sc.Band != "insufficient_data" {
+		t.Fatalf("band = %q, want %q", sc.Band, "insufficient_data")
+	}
+}
+
 func TestCompute_ScoreBands(t *testing.T) {
 	t.Parallel()
 

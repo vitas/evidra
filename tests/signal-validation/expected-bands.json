@@ -1,0 +1,88 @@
+{
+  "version": "2026-03-07",
+  "notes": "Calibrated for SCORECARD_MIN_OPERATIONS=1 in validation harness.",
+  "sequences": {
+    "A_clean": {
+      "expected_signal": "none",
+      "band": "excellent",
+      "score_min": 99,
+      "score_max": 100,
+      "required_signals": {}
+    },
+    "B_retry": {
+      "expected_signal": "retry_loop>=3",
+      "band": "poor",
+      "score_min": 75,
+      "score_max": 85,
+      "required_signals": {
+        "retry_loop": 3
+      }
+    },
+    "C_protocol": {
+      "expected_signal": "protocol_violation>=3",
+      "band": "poor",
+      "score_min": 85,
+      "score_max": 90,
+      "required_signals": {
+        "protocol_violation": 3
+      }
+    },
+    "D_blast": {
+      "expected_signal": "blast_radius>=1",
+      "band": "good",
+      "score_min": 95,
+      "score_max": 99,
+      "required_signals": {
+        "blast_radius": 1
+      }
+    },
+    "E_scope": {
+      "expected_signal": "new_scope>=2",
+      "band": "excellent",
+      "score_min": 98,
+      "score_max": 100,
+      "required_signals": {
+        "new_scope": 2
+      }
+    },
+    "F_repair": {
+      "expected_signal": "repair_loop>=1",
+      "band": "poor",
+      "score_min": 75,
+      "score_max": 85,
+      "required_signals": {
+        "repair_loop": 1
+      }
+    },
+    "G_thrash": {
+      "expected_signal": "thrashing>=1",
+      "band": "poor",
+      "score_min": 70,
+      "score_max": 80,
+      "required_signals": {
+        "thrashing": 1
+      }
+    },
+    "H_drift": {
+      "expected_signal": "artifact_drift>=1",
+      "band": "poor",
+      "score_min": 84,
+      "score_max": 86,
+      "required_signals": {
+        "artifact_drift": 1
+      }
+    }
+  },
+  "comparisons": [
+    {
+      "left": "F_repair",
+      "op": ">",
+      "right": "B_retry"
+    },
+    {
+      "left": "G_thrash",
+      "op": "<",
+      "right": "B_retry"
+    }
+  ]
+}

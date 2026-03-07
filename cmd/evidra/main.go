@@ -80,6 +80,7 @@ func cmdScorecard(args []string, stdout, stderr io.Writer) int {
 	toolFlag := fs.String("tool", "", "Filter by tool name")
 	scopeFlag := fs.String("scope", "", "Filter by scope class")
 	sessionIDFlag := fs.String("session-id", "", "Filter by session ID")
+	minOpsFlag := fs.Int("min-operations", score.MinOperations, "Minimum operations required before score is considered sufficient")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -122,7 +123,7 @@ func cmdScorecard(args []string, stdout, stderr io.Writer) int {
 
 	totalOps := countPrescriptions(signalEntries)
 	results := signal.AllSignals(signalEntries, ttlDuration)
-	sc := score.Compute(results, totalOps, 0.0)
+	sc := score.ComputeWithMinOperations(results, totalOps, 0.0, *minOpsFlag)
 
 	output := struct {
 		score.Scorecard
@@ -163,6 +164,7 @@ func cmdExplain(args []string, stdout, stderr io.Writer) int {
 	toolFlag := fs.String("tool", "", "Filter by tool name")
 	scopeFlag := fs.String("scope", "", "Filter by scope class")
 	sessionIDFlag := fs.String("session-id", "", "Filter by session ID")
+	minOpsFlag := fs.Int("min-operations", score.MinOperations, "Minimum operations required before score is considered sufficient")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -205,7 +207,7 @@ func cmdExplain(args []string, stdout, stderr io.Writer) int {
 
 	totalOps := countPrescriptions(signalEntries)
 	results := signal.AllSignals(signalEntries, ttlDuration)
-	sc := score.Compute(results, totalOps, 0.0)
+	sc := score.ComputeWithMinOperations(results, totalOps, 0.0, *minOpsFlag)
 
 	type SignalDetail struct {
 		Signal     string         `json:"signal"`

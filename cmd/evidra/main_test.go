@@ -370,6 +370,74 @@ func TestScorecard_SessionIDFilter(t *testing.T) {
 	}
 }
 
+func TestScorecard_MinOperationsOverride(t *testing.T) {
+	t.Parallel()
+	signingKey := testutil.TestSigningKeyBase64(t)
+
+	tmp := t.TempDir()
+	artifact := filepath.Join(tmp, "artifact.json")
+	if err := os.WriteFile(artifact, []byte(`{"noop":true}`), 0o644); err != nil {
+		t.Fatalf("write artifact: %v", err)
+	}
+	evidenceDir := filepath.Join(tmp, "evidence")
+
+	var out, errBuf bytes.Buffer
+	code := run([]string{
+		"prescribe",
+		"--tool", "terraform",
+		"--artifact", artifact,
+		"--canonical-action", testCanonicalAction,
+		"--session-id", "session-score-override",
+		"--evidence-dir", evidenceDir,
+		"--signing-key", signingKey,
+	}, &out, &errBuf)
+	if code != 0 {
+		t.Fatalf("prescribe exit %d: %s", code, errBuf.String())
+	}
+	var presc map[string]interface{}
+	if err := json.Unmarshal(out.Bytes(), &presc); err != nil {
+		t.Fatalf("decode prescribe: %v", err)
+	}
+	prescID := presc["prescription_id"].(string)
+
+	out.Reset()
+	errBuf.Reset()
+	code = run([]string{
+		"report",
+		"--prescription", prescID,
+		"--exit-code", "0",
+		"--session-id", "session-score-override",
+		"--evidence-dir", evidenceDir,
+		"--signing-key", signingKey,
+	}, &out, &errBuf)
+	if code != 0 {
+		t.Fatalf("report exit %d: %s", code, errBuf.String())
+	}
+
+	out.Reset()
+	errBuf.Reset()
+	code = run([]string{
+		"scorecard",
+		"--session-id", "session-score-override",
+		"--evidence-dir", evidenceDir,
+		"--min-operations", "1",
+	}, &out, &errBuf)
+	if code != 0 {
+		t.Fatalf("scorecard exit %d: %s", code, errBuf.String())
+	}
+
+	var sc map[string]interface{}
+	if err := json.Unmarshal(out.Bytes(), &sc); err != nil {
+		t.Fatalf("decode scorecard: %v", err)
+	}
+	if sufficient, ok := sc["sufficient"].(bool); !ok || !sufficient {
+		t.Fatalf("sufficient = %v, want true", sc["sufficient"])
+	}
+	if band, _ := sc["band"].(string); band == "insufficient_data" {
+		t.Fatalf("band = %q, want scored band", band)
+	}
+}
+
 func TestResolveSigner_OptionalWithoutKey(t *testing.T) {
 	t.Setenv("EVIDRA_SIGNING_KEY", "")
 	t.Setenv("EVIDRA_SIGNING_KEY_PATH", "")

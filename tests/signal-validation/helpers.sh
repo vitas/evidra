@@ -66,6 +66,7 @@ get_signals() {
   output=$(evidra explain \
     --evidence-dir "$EV_DIR" \
     --session-id "$SESSION_ID" \
+    --min-operations "${SCORECARD_MIN_OPERATIONS:-1}" \
     --ttl "$FAULT_TTL" 2>/dev/null) || true
   if [ -z "$output" ]; then
     echo '{"signals":[]}'
@@ -77,7 +78,9 @@ get_signals() {
 get_score() {
   evidra scorecard \
     --evidence-dir "$EV_DIR" \
-    --session-id "$SESSION_ID" 2>/dev/null || echo '{"score":null,"band":"error"}'
+    --session-id "$SESSION_ID" \
+    --ttl "$FAULT_TTL" \
+    --min-operations "${SCORECARD_MIN_OPERATIONS:-1}" 2>/dev/null || echo '{"score":null,"band":"error"}'
 }
 
 print_signals() {

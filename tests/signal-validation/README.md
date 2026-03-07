@@ -7,15 +7,12 @@ No cluster. No LLM. No API keys. No external data.
 
 ```bash
 cd /path/to/evidra-benchmark
-make build
-export PATH="$PWD/bin:$PATH"
-
-bash tests/signal-validation/validate-signals-engine.sh
+make test-signals
 ```
 
 ## What It Does
 
-Creates scripted operation sequences (A-G).
+Creates scripted operation sequences (A-H).
 Each sequence triggers a specific behavioral signal.
 No real infrastructure — just `evidra prescribe` / `evidra report` against local evidence files.
 
@@ -28,20 +25,22 @@ No real infrastructure — just `evidra prescribe` / `evidra report` against loc
 | E | 5 kubectl + 5 helm + 5 terraform | Agent switching tools | new_scope ≥ 2 |
 | F | Fail, change artifact, succeed (+ clean ops) | Agent adapts strategy | repair_loop ≥ 1 |
 | G | 5 different failed intents (+ clean ops) | Agent thrashing | thrashing ≥ 1 |
+| H | Report digest differs from prescribed digest (+ clean ops) | Artifact changed between prescribe/report | artifact_drift ≥ 1 |
 
 ## Success Criteria
 
-Distinct score/signal profiles across A-G = **signal engine produces meaningful differentiation**.
-Validation now includes repair/thrashing behavioral signals.
+Distinct score/signal profiles across A-H = **signal engine produces meaningful differentiation**.
+Validation now includes repair/thrashing plus artifact drift.
 
 ```
-A (clean)    → 90-100  excellent    ← baseline, agent is reliable
-B (retry)    → 50-70   fair         ← agent stuck, medium penalty
-C (protocol) → 40-65   poor-fair    ← agent breaking contract, high penalty
-D (blast)    → 60-80   fair-good    ← one bad op in mostly clean session
-E (scope)    → 80-95   good         ← tool switching is informational, low penalty
-F (repair)   → 70-85   adapted      ← should score better than pure retry
-G (thrash)   → 35-55   unstable     ← should score worse than pure retry
+A (clean)    → 99-100 excellent
+B (retry)    → 75-85  poor
+C (protocol) → 85-90  poor
+D (blast)    → 95-99  good
+E (scope)    → 98-100 excellent
+F (repair)   → 75-85  adapted (should score higher than B)
+G (thrash)   → 70-80  unstable (should score lower than B)
+H (drift)    → 84-86  poor
 ```
 
 If all sequences score the same → signal engine bug.
@@ -51,6 +50,7 @@ If scores are inverted → weight calibration needed.
 
 ```
 tests/signal-validation/
+  expected-bands.json            # Score/signal assertions and comparisons
   helpers.sh                     # Shared functions
   validate-signals-engine.sh     # Main validation script
   README.md                      # This file
@@ -64,6 +64,7 @@ tests/signal-validation/
 ## After Running
 
 Evidence chains are preserved in `/tmp/evidra-signal-validation/evidence-*/`.
+Run artifacts are written to `experiments/results/signals/<timestamp>/`.
 Inspect manually:
 
 ```bash

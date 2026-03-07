@@ -45,6 +45,16 @@ jobs:
           go build -o bin/evidra ./cmd/evidra
           go build -o bin/evidra-mcp ./cmd/evidra-mcp
 
+      - name: Run signal validation scenarios
+        run: make test-signals
+
+      - name: Upload signal validation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: signals-validation
+          path: experiments/results/signals/**
+          if-no-files-found: error
+
       - name: Verify generated prompts
         run: make prompts-verify
 
