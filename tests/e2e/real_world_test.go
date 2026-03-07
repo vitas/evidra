@@ -335,9 +335,9 @@ func TestE2EReal_HelmIngressNginx(t *testing.T) {
 }
 
 // TestE2EReal_OpenShiftApp exercises the K8s adapter via tool=oc with
-// OpenShift-specific resources: Namespace, ConfigMap, Secret, Deployment,
-// Service, ServiceAccount, Route, HPA — including OpenShift annotations
-// and noise fields (uid, resourceVersion, managedFields).
+// OpenShift-specific resources: DeploymentConfig, BuildConfig, ImageStream,
+// Route — plus standard Namespace, ConfigMap, Service, ServiceAccount, HPA.
+// Includes OCP noise fields (uid, resourceVersion, managedFields).
 func TestE2EReal_OpenShiftApp(t *testing.T) {
 	bin := evidraBinary(t)
 	tmpDir := t.TempDir()

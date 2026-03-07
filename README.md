@@ -91,6 +91,17 @@ run/record -> prescribe -> report -> signals -> scorecard
 Current signals are documented in:
 - [Signal Specification](docs/system-design/EVIDRA_SIGNAL_SPEC.md)
 
+## Supported Tools
+
+| Adapter | Tools | Artifact |
+|---|---|---|
+| **k8s/v1** | kubectl, helm, kustomize, oc (OpenShift) | YAML manifests |
+| **terraform/v1** | terraform | Plan JSON (`terraform show -json`) |
+| **docker/v1** | docker | Container inspect JSON |
+| **generic/v1** | Any (fallback) | Raw bytes — use `--canonical-action` for structured tools |
+
+Full details: [Supported Tools](docs/SUPPORTED_TOOLS.md)
+
 ## Core Commands
 
 | Command | Purpose |

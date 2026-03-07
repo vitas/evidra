@@ -1,6 +1,6 @@
 ---
 # OpenShift application deployed via oc apply
-# Uses OpenShift-specific resources: DeploymentConfig, Route, BuildConfig
+# Uses OCP-specific resources: DeploymentConfig, Route, BuildConfig, ImageStream
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -31,18 +31,61 @@ data:
   RATE_LIMIT: "1000"
   CORS_ORIGINS: "https://webapp.example.com"
 ---
-apiVersion: v1
-kind: Secret
+apiVersion: image.openshift.io/v1
+kind: ImageStream
 metadata:
-  name: webapp-tls
+  name: webapp
   namespace: webapp
-type: kubernetes.io/tls
-data:
-  tls.crt: LS0tLS1CRUdJTi...
-  tls.key: LS0tLS1CRUdJTi...
+  labels:
+    app: webapp
+spec:
+  lookupPolicy:
+    local: true
+  tags:
+  - name: latest
+    from:
+      kind: DockerImage
+      name: registry.corp.com/webapp:latest
+    importPolicy:
+      scheduled: true
 ---
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: webapp
+  namespace: webapp
+  labels:
+    app: webapp
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/corp/webapp.git
+      ref: main
+  strategy:
+    type: Source
+    sourceStrategy:
+      from:
+        kind: ImageStreamTag
+        name: nodejs:18-ubi8
+        namespace: openshift
+      env:
+      - name: NPM_MIRROR
+        value: https://registry.npmjs.org
+  output:
+    to:
+      kind: ImageStreamTag
+      name: webapp:latest
+  triggers:
+  - type: ImageChange
+  - type: ConfigChange
+  - type: GitHub
+    github:
+      secretReference:
+        name: webapp-github-webhook
+---
+apiVersion: apps.openshift.io/v1
+kind: DeploymentConfig
 metadata:
   name: webapp
   namespace: webapp
@@ -52,17 +95,26 @@ metadata:
   annotations:
     app.openshift.io/vcs-uri: https://github.com/corp/webapp.git
     app.openshift.io/vcs-ref: main
-    image.openshift.io/triggers: '[{"from":{"kind":"ImageStreamTag","name":"webapp:latest"},"fieldPath":"spec.template.spec.containers[0].image"}]'
 spec:
   replicas: 3
   strategy:
-    type: RollingUpdate
-    rollingUpdate:
+    type: Rolling
+    rollingParams:
       maxSurge: 1
       maxUnavailable: 0
+      timeoutSeconds: 600
   selector:
-    matchLabels:
-      app: webapp
+    app: webapp
+  triggers:
+  - type: ImageChange
+    imageChangeParams:
+      automatic: true
+      containerNames:
+      - webapp
+      from:
+        kind: ImageStreamTag
+        name: webapp:latest
+  - type: ConfigChange
   template:
     metadata:
       labels:
@@ -75,12 +127,10 @@ spec:
         runAsNonRoot: true
       containers:
       - name: webapp
-        image: image-registry.openshift-image-registry.svc:5000/webapp/webapp:v4.2.0
+        image: webapp:latest
         ports:
         - containerPort: 8080
           name: http
-        - containerPort: 8443
-          name: https
         env:
         - name: APP_ENV
           valueFrom:
@@ -127,9 +177,6 @@ spec:
   - name: http
     port: 8080
     targetPort: http
-  - name: https
-    port: 8443
-    targetPort: https
   type: ClusterIP
 ---
 apiVersion: v1
@@ -140,7 +187,6 @@ metadata:
   annotations:
     serviceaccounts.openshift.io/oauth-redirectreference.primary: '{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"webapp"}}'
 ---
-# OpenShift Route (equivalent to Ingress but OCP-native)
 apiVersion: route.openshift.io/v1
 kind: Route
 metadata:
@@ -158,9 +204,9 @@ spec:
     name: webapp
     weight: 100
   port:
-    targetPort: https
+    targetPort: http
   tls:
-    termination: reencrypt
+    termination: edge
     insecureEdgeTerminationPolicy: Redirect
 ---
 apiVersion: autoscaling/v2
@@ -170,8 +216,8 @@ metadata:
   namespace: webapp
 spec:
   scaleTargetRef:
-    apiVersion: apps/v1
-    kind: Deployment
+    apiVersion: apps.openshift.io/v1
+    kind: DeploymentConfig
     name: webapp
   minReplicas: 3
   maxReplicas: 10
@@ -182,9 +228,3 @@ spec:
       target:
         type: Utilization
         averageUtilization: 70
-  - type: Resource
-    resource:
-      name: memory
-      target:
-        type: Utilization
-        averageUtilization: 80
