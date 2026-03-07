@@ -307,10 +307,10 @@ terraform show -json plan.out > plan.json
 ## Step 2: CI calls evidra prescribe (terraform)
 
 ```bash
-PRESCRIBE_OUT=$(evidra prescribe --tool terraform --operation apply \
+PRESCRIPTION_ID=$(evidra prescribe --tool terraform --operation apply \
   --artifact plan.json --environment production \
-  --evidence-dir /tmp/evidra --actor ci-pipeline-123)
-PRESCRIPTION_ID=$(echo "$PRESCRIBE_OUT" | jq -r '.prescription_id')
+  --evidence-dir /tmp/evidra --actor ci-pipeline-123 \
+  | jq -r .prescription_id)
 ```
 
 Evidra computes:
