@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 tmp_dir="$(mktemp -d)"
 cleanup() {
@@ -69,6 +69,9 @@ EOF_AGENT
 chmod +x "$fake_agent"
 
 out_dir="$tmp_dir/results"
+mkdir -p "$out_dir"
+echo "stale" >"$out_dir/stale.txt"
+
 bash "$REPO_ROOT/scripts/run-agent-execution-experiments.sh" \
   --model-id test/model \
   --provider test \
@@ -77,10 +80,12 @@ bash "$REPO_ROOT/scripts/run-agent-execution-experiments.sh" \
   --repeats 1 \
   --timeout-seconds 30 \
   --agent-cmd "$fake_agent" \
-  --out-dir "$out_dir"
+  --out-dir "$out_dir" \
+  --clean-out-dir
 
 summary="$out_dir/summary.jsonl"
 [[ -s "$summary" ]]
+[[ ! -f "$out_dir/stale.txt" ]]
 
 result_json="$(jq -r '.result_json' "$summary" | head -n1)"
 [[ -f "$result_json" ]]

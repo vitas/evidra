@@ -25,6 +25,7 @@ Optional:
   --scenario-filter <regex>  Regex filter on scenario_id
   --max-scenarios <n>        Max selected scenarios after filtering
   --out-dir <path>           Output directory (default: experiments/results/<timestamp>-execution)
+  --clean-out-dir            Remove existing files in output dir before run
   --dry-run                  Skip agent command and write synthetic output
   -h, --help                 Show help
 
@@ -48,6 +49,17 @@ warn() {
 
 require_cmd() {
   command -v "$1" >/dev/null 2>&1 || fail "missing required command: $1"
+}
+
+clean_out_dir() {
+  local out_dir="$1"
+  [[ -n "$out_dir" ]] || fail "--clean-out-dir requires non-empty --out-dir"
+  [[ "$out_dir" != "/" ]] || fail "--clean-out-dir refuses out-dir '/'"
+  [[ "$out_dir" != "." ]] || fail "--clean-out-dir refuses out-dir '.'"
+  [[ "$out_dir" != ".." ]] || fail "--clean-out-dir refuses out-dir '..'"
+  [[ -d "$out_dir" ]] || return 0
+
+  find "$out_dir" -mindepth 1 -exec rm -rf -- {} +
 }
 
 iso_utc_now() {
@@ -119,6 +131,7 @@ MAX_SCENARIOS=0
 OUT_DIR=""
 AGENT_CMD=""
 DRY_RUN=0
+CLEAN_OUT_DIR=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -178,6 +191,10 @@ while [[ $# -gt 0 ]]; do
       OUT_DIR="$2"
       shift 2
       ;;
+    --clean-out-dir)
+      CLEAN_OUT_DIR=1
+      shift
+      ;;
     --agent-cmd)
       [[ $# -ge 2 ]] || fail "--agent-cmd requires a value"
       AGENT_CMD="$2"
@@ -228,6 +245,9 @@ fi
 run_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 if [[ -z "$OUT_DIR" ]]; then
   OUT_DIR="$ROOT_DIR/experiments/results/${run_stamp}-execution"
+fi
+if [[ "$CLEAN_OUT_DIR" -eq 1 ]]; then
+  clean_out_dir "$OUT_DIR"
 fi
 mkdir -p "$OUT_DIR"
 SUMMARY_PATH="$OUT_DIR/summary.jsonl"

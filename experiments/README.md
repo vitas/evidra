@@ -21,6 +21,13 @@ Prompt editing policy:
 - Regenerate active prompts with `make prompts-generate`
 - Verify no drift with `make prompts-verify`
 
+## Schema Differences
+
+| Schema | Used by | Focus | Core object | Schema version |
+|---|---|---|---|---|
+| `docs/experimental/RESULT_SCHEMA.json` | `scripts/run-agent-experiments.sh` | Artifact-only risk classification quality | `case` | `evidra.result.v1` |
+| `docs/experimental/EXECUTION_RESULT_SCHEMA.json` | `scripts/run-agent-execution-experiments.sh` | Real execution behavior (MCP + command execution) | `scenario` + `agent_result` | `evidra.exec-result.v1` |
+
 ## Quick Start
 
 Dry run (sanity check):
@@ -105,6 +112,8 @@ bash scripts/run-agent-execution-experiments.sh \
   --timeout-seconds 600 \
   --agent-cmd 'bash scripts/agent-cmd-mcp-kubectl.sh'
 ```
+
+To reuse the same output directory safely, add `--clean-out-dir` (it removes existing files inside `--out-dir` before the run).
 
 ## Expected Agent Output JSON
 

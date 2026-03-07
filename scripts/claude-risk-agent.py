@@ -220,14 +220,25 @@ def extract_json(text: str) -> dict:
     except json.JSONDecodeError:
         pass
 
-    match = re.search(r"\{.*\}", txt, flags=re.DOTALL)
-    if match:
+    # Scan for the first valid JSON object inside mixed text or multi-event streams.
+    decoder = json.JSONDecoder()
+    for idx, ch in enumerate(txt):
+        if ch != "{":
+            continue
+        try:
+            data, _ = decoder.raw_decode(txt[idx:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(data, dict):
+            return data
+
+    for match in re.finditer(r"\{[^{}]*\}", txt, flags=re.DOTALL):
         try:
             data = json.loads(match.group(0))
-            if isinstance(data, dict):
-                return data
         except json.JSONDecodeError:
-            pass
+            continue
+        if isinstance(data, dict):
+            return data
     return {}
 
 
