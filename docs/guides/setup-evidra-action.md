@@ -39,23 +39,23 @@ jobs:
         with:
           evidra-version: latest
 
-      - name: Run Evidra record
+      - name: Terraform Plan
         run: |
-          cat > record.json <<'JSON'
-          {
-            "contract_version": "v1",
-            "session_id": "${{ github.run_id }}",
-            "operation_id": "apply-main",
-            "tool": "terraform",
-            "operation": "apply",
-            "environment": "staging",
-            "actor": {"type":"ci","id":"gha"},
-            "exit_code": 0,
-            "duration_ms": 3200,
-            "raw_artifact": "terraform apply"
-          }
-          JSON
-          "${{ steps.setup-evidra.outputs.evidra-path }}" record --input record.json
+          terraform init
+          terraform plan -out=tfplan
+          terraform show -json tfplan > plan.json
+
+      - name: Terraform Apply (observed by Evidra)
+        env:
+          EVIDRA_SIGNING_MODE: optional
+        run: |
+          evidra run \
+            --tool terraform \
+            --operation apply \
+            --artifact plan.json \
+            --environment staging \
+            --actor ci-gha \
+            -- terraform apply -auto-approve tfplan
 ```
 
 ## Migration from benchmark composite action

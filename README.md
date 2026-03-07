@@ -142,6 +142,7 @@ Architecture and contracts:
 - [Signal Spec](docs/system-design/EVIDRA_SIGNAL_SPEC.md)
 
 Operational guides:
+- [Terraform CI Quickstart](docs/guides/terraform-ci-quickstart.md)
 - [Scanner SARIF Quickstart](docs/integrations/SCANNER_SARIF_QUICKSTART.md)
 - [Artifact Runner Guide](docs/experimental/ARTIFACT_RUNNER_GUIDE.md)
 - [Signal Validation Guide](docs/experimental/SIGNAL_VALIDATION_GUIDE.md)
