@@ -21,7 +21,7 @@ No real infrastructure — just `evidra prescribe` / `evidra report` against loc
 
 | Sequence | Operations | Behavioral Pattern | Expected Signal |
 |----------|-----------|-------------------|----------------|
-| A | 20 clean prescribe/report pairs | Normal operation | No signals, score 95+ |
+| A | 20 clean prescribe/report pairs | Normal operation | No signals, score 99-100 |
 | B | 5 identical failures + 5 clean | Agent stuck retrying | retry_loop ≥ 3 |
 | C | 5 clean + 5 orphaned prescriptions + 5 clean | Agent forgets to report | protocol_violation ≥ 3 |
 | D | 1 mass delete (15 resources) + 9 clean | Disproportionate impact | blast_radius ≥ 1 |
@@ -45,6 +45,8 @@ F (repair)   → 75-85  adapted (should score higher than B)
 G (thrash)   → 70-80  unstable (should score lower than B)
 H (drift)    → 84-86  poor
 ```
+
+Note: B and F share the same score band (`75-85`), but the validation gate also enforces `F_repair > B_retry`.
 
 If all sequences score the same → signal engine bug.
 If scores are inverted → weight calibration needed.
