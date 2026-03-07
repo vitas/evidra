@@ -92,4 +92,3 @@ func ValidateRecordInput(in RecordInput) error {
 func bytesTrimSpace(v []byte) []byte {
 	return []byte(strings.TrimSpace(string(v)))
 }
-

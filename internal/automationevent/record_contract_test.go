@@ -109,4 +109,3 @@ func TestRecordContractValidateRejectsNegativeDuration(t *testing.T) {
 		t.Fatalf("error should mention duration_ms, got: %v", err)
 	}
 }
-
