@@ -1,0 +1,190 @@
+---
+# OpenShift application deployed via oc apply
+# Uses OpenShift-specific resources: DeploymentConfig, Route, BuildConfig
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: webapp
+  labels:
+    openshift.io/cluster-monitoring: "true"
+  annotations:
+    openshift.io/description: "Production web application"
+    openshift.io/display-name: "Web App"
+  uid: "12345678-abcd-efgh-ijkl-mnopqrstuvwx"
+  resourceVersion: "554433"
+  creationTimestamp: "2026-01-20T09:00:00Z"
+  managedFields:
+  - manager: oc
+    operation: Update
+    time: "2026-01-20T09:00:00Z"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: webapp-config
+  namespace: webapp
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: '{"old":"stale"}'
+data:
+  APP_ENV: production
+  LOG_FORMAT: json
+  RATE_LIMIT: "1000"
+  CORS_ORIGINS: "https://webapp.example.com"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: webapp-tls
+  namespace: webapp
+type: kubernetes.io/tls
+data:
+  tls.crt: LS0tLS1CRUdJTi...
+  tls.key: LS0tLS1CRUdJTi...
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp
+  namespace: webapp
+  labels:
+    app: webapp
+    app.openshift.io/runtime: nodejs
+  annotations:
+    app.openshift.io/vcs-uri: https://github.com/corp/webapp.git
+    app.openshift.io/vcs-ref: main
+    image.openshift.io/triggers: '[{"from":{"kind":"ImageStreamTag","name":"webapp:latest"},"fieldPath":"spec.template.spec.containers[0].image"}]'
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: webapp
+  template:
+    metadata:
+      labels:
+        app: webapp
+      annotations:
+        sidecar.istio.io/inject: "true"
+    spec:
+      serviceAccountName: webapp-sa
+      securityContext:
+        runAsNonRoot: true
+      containers:
+      - name: webapp
+        image: image-registry.openshift-image-registry.svc:5000/webapp/webapp:v4.2.0
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 8443
+          name: https
+        env:
+        - name: APP_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: webapp-config
+              key: APP_ENV
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: webapp-db-credentials
+              key: url
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: "1"
+            memory: 512Mi
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp
+  namespace: webapp
+  labels:
+    app: webapp
+  annotations:
+    service.alpha.openshift.io/serving-cert-secret-name: webapp-tls
+spec:
+  selector:
+    app: webapp
+  ports:
+  - name: http
+    port: 8080
+    targetPort: http
+  - name: https
+    port: 8443
+    targetPort: https
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: webapp-sa
+  namespace: webapp
+  annotations:
+    serviceaccounts.openshift.io/oauth-redirectreference.primary: '{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"webapp"}}'
+---
+# OpenShift Route (equivalent to Ingress but OCP-native)
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: webapp
+  namespace: webapp
+  labels:
+    app: webapp
+  annotations:
+    haproxy.router.openshift.io/timeout: 60s
+    router.openshift.io/cookie_name: webapp-session
+spec:
+  host: webapp.apps.ocp.example.com
+  to:
+    kind: Service
+    name: webapp
+    weight: 100
+  port:
+    targetPort: https
+  tls:
+    termination: reencrypt
+    insecureEdgeTerminationPolicy: Redirect
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: webapp
+  namespace: webapp
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: webapp
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80

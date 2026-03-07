@@ -235,3 +235,167 @@ func TestE2EReal_ArgoCDSync(t *testing.T) {
 
 	t.Logf("ArgoCD sync: risk_level=%s", riskLevel)
 }
+
+// TestE2EReal_KustomizeMonitoring exercises the K8s adapter with kustomize
+// build output: Namespace, 2 ConfigMaps, 2 Deployments (Prometheus + Grafana),
+// 2 Services, ServiceAccount, ClusterRole, ClusterRoleBinding — 10 resources.
+func TestE2EReal_KustomizeMonitoring(t *testing.T) {
+	bin := evidraBinary(t)
+	tmpDir := t.TempDir()
+	evidenceDir := filepath.Join(tmpDir, "evidence")
+	privPath, _ := generateKeyPair(t, tmpDir)
+
+	prescResult := runAndDecode(t, bin,
+		"prescribe",
+		"--tool", "kustomize",
+		"--operation", "apply",
+		"--artifact", realFixture("kustomize_monitoring.yaml"),
+		"--environment", "staging",
+		"--session-id", "e2e-real-kustomize",
+		"--evidence-dir", evidenceDir,
+		"--signing-key-path", privPath,
+	)
+
+	if prescResult["ok"] != true {
+		t.Fatalf("prescribe not ok: %v", prescResult)
+	}
+
+	// Kustomize should route to K8s adapter.
+	if prescResult["canon_version"] != "k8s/v1" {
+		t.Errorf("canon_version = %v, want k8s/v1", prescResult["canon_version"])
+	}
+	if prescResult["intent_digest"] == nil || prescResult["intent_digest"] == "" {
+		t.Error("intent_digest missing")
+	}
+	if prescResult["operation_class"] != "mutate" {
+		t.Errorf("operation_class = %v, want mutate", prescResult["operation_class"])
+	}
+
+	// Complete lifecycle.
+	pid := prescResult["prescription_id"].(string)
+	runAndDecode(t, bin,
+		"report",
+		"--prescription", pid,
+		"--exit-code", "0",
+		"--session-id", "e2e-real-kustomize",
+		"--evidence-dir", evidenceDir,
+		"--signing-key-path", privPath,
+	)
+
+	scoreResult := runAndDecode(t, bin,
+		"scorecard",
+		"--session-id", "e2e-real-kustomize",
+		"--evidence-dir", evidenceDir,
+		"--min-operations", "1",
+	)
+
+	t.Logf("Kustomize monitoring: risk_level=%v score=%v band=%v",
+		prescResult["risk_level"], scoreResult["score"], scoreResult["band"])
+}
+
+// TestE2EReal_HelmIngressNginx exercises the K8s adapter via tool=helm with
+// ingress-nginx chart output: ServiceAccount, ConfigMap, ClusterRole,
+// ClusterRoleBinding, Service (LoadBalancer), Deployment, IngressClass — 7 resources.
+// Tests LoadBalancer service type and NET_BIND_SERVICE capability.
+func TestE2EReal_HelmIngressNginx(t *testing.T) {
+	bin := evidraBinary(t)
+	tmpDir := t.TempDir()
+	evidenceDir := filepath.Join(tmpDir, "evidence")
+	privPath, _ := generateKeyPair(t, tmpDir)
+
+	prescResult := runAndDecode(t, bin,
+		"prescribe",
+		"--tool", "helm",
+		"--operation", "install",
+		"--artifact", realFixture("helm_ingress_nginx.yaml"),
+		"--environment", "production",
+		"--session-id", "e2e-real-helm-nginx",
+		"--evidence-dir", evidenceDir,
+		"--signing-key-path", privPath,
+	)
+
+	if prescResult["ok"] != true {
+		t.Fatalf("prescribe not ok: %v", prescResult)
+	}
+	if prescResult["canon_version"] != "k8s/v1" {
+		t.Errorf("canon_version = %v, want k8s/v1", prescResult["canon_version"])
+	}
+
+	// Production install should be high or critical.
+	riskLevel, ok := prescResult["risk_level"].(string)
+	if !ok {
+		t.Fatal("risk_level missing")
+	}
+	if riskLevel != "high" && riskLevel != "critical" {
+		t.Errorf("risk_level = %q, want high or critical for production install", riskLevel)
+	}
+
+	t.Logf("Helm ingress-nginx: risk_level=%s risk_tags=%v",
+		riskLevel, prescResult["risk_tags"])
+}
+
+// TestE2EReal_OpenShiftApp exercises the K8s adapter via tool=oc with
+// OpenShift-specific resources: Namespace, ConfigMap, Secret, Deployment,
+// Service, ServiceAccount, Route, HPA — including OpenShift annotations
+// and noise fields (uid, resourceVersion, managedFields).
+func TestE2EReal_OpenShiftApp(t *testing.T) {
+	bin := evidraBinary(t)
+	tmpDir := t.TempDir()
+	evidenceDir := filepath.Join(tmpDir, "evidence")
+	privPath, _ := generateKeyPair(t, tmpDir)
+
+	prescResult := runAndDecode(t, bin,
+		"prescribe",
+		"--tool", "oc",
+		"--operation", "apply",
+		"--artifact", realFixture("openshift_app.yaml"),
+		"--environment", "production",
+		"--session-id", "e2e-real-openshift",
+		"--evidence-dir", evidenceDir,
+		"--signing-key-path", privPath,
+	)
+
+	if prescResult["ok"] != true {
+		t.Fatalf("prescribe not ok: %v", prescResult)
+	}
+
+	// oc should route to K8s adapter.
+	if prescResult["canon_version"] != "k8s/v1" {
+		t.Errorf("canon_version = %v, want k8s/v1", prescResult["canon_version"])
+	}
+
+	// OpenShift noise fields should be stripped cleanly.
+	if prescResult["intent_digest"] == nil || prescResult["intent_digest"] == "" {
+		t.Error("intent_digest missing — OpenShift noise may have broken canonicalization")
+	}
+
+	// Production apply should be high or critical.
+	riskLevel, ok := prescResult["risk_level"].(string)
+	if !ok {
+		t.Fatal("risk_level missing")
+	}
+	if riskLevel != "high" && riskLevel != "critical" {
+		t.Errorf("risk_level = %q, want high or critical for production apply", riskLevel)
+	}
+
+	// Complete lifecycle and verify scorecard.
+	pid := prescResult["prescription_id"].(string)
+	runAndDecode(t, bin,
+		"report",
+		"--prescription", pid,
+		"--exit-code", "0",
+		"--session-id", "e2e-real-openshift",
+		"--evidence-dir", evidenceDir,
+		"--signing-key-path", privPath,
+	)
+
+	scoreResult := runAndDecode(t, bin,
+		"scorecard",
+		"--session-id", "e2e-real-openshift",
+		"--evidence-dir", evidenceDir,
+		"--min-operations", "1",
+	)
+
+	t.Logf("OpenShift app: risk_level=%s score=%v band=%v",
+		riskLevel, scoreResult["score"], scoreResult["band"])
+}
