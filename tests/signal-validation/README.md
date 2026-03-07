@@ -15,7 +15,7 @@ bash tests/signal-validation/validate-signals-engine.sh
 
 ## What It Does
 
-Creates 5 scripted operation sequences (100 total operations).
+Creates 6 scripted operation sequences (A-E fixed; F pinned during calibration).
 Each sequence triggers a specific behavioral signal.
 No real infrastructure — just `evidra prescribe` / `evidra report` against local evidence files.
 
@@ -26,7 +26,7 @@ No real infrastructure — just `evidra prescribe` / `evidra report` against loc
 | C | 5 clean + 5 orphaned prescriptions + 5 clean | Agent forgets to report | protocol_violation ≥ 3 |
 | D | 1 mass delete (15 resources) + 9 clean | Disproportionate impact | blast_radius ≥ 1 |
 | E | 5 kubectl + 5 helm + 5 terraform | Agent switching tools | new_scope ≥ 2 |
-| F | Prescribe artifact X, report with different artifact | Intent ≠ execution | artifact_drift ≥ 1 |
+| F | Prescribe artifact X, report with different artifact_digest | Intent ≠ execution | artifact_drift ≥ 1 |
 
 ## Success Criteria
 

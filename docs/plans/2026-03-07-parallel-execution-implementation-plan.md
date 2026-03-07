@@ -24,6 +24,7 @@
 - `P1`: Detector count and Docker/LLM are additive value, not gate substitutes.
 - `P1`: Hosted/REST experiment mode remains opt-in and disabled by default.
 - `P1`: All new behavior must be covered by deterministic tests (no manual-only verification).
+- `P1`: `local-rest` execution is out of release scope for this phase (deferred until framework migration); keep only a documented stub boundary.
 
 ## Stream Map (Parallel)
 
@@ -48,22 +49,24 @@
 
 1. Create `tests/signal-validation/expected-bands.json` with per-sequence score ranges.
 2. Add automated band assertions to `validate-signals-engine.sh` that exit non-zero on out-of-range scores.
-3. Add workspace cleanup (`rm -rf "$WORKSPACE"`) at script start for idempotent reruns.
-4. Add Sequence F: artifact drift (prescribe artifact X, report with different shape hash) to cover the `artifact_drift` signal — currently the only signal with zero validation coverage.
+3. Add workspace cleanup at script start for idempotent reruns. Safety guard: require `WORKSPACE` starts with `/tmp/evidra-signal-validation` (strict prefix, not substring), is non-empty, and is not `/`. Abort with error if guard fails.
+4. Add Sequence F: artifact drift — prescribe artifact X, then report against the same prescription but with a different `artifact_digest` (not shape hash). The `artifact_drift` signal fires on `ArtifactDigest` mismatch between prescription and report entries. This is the only signal with zero validation coverage.
+5. Add `make test-signals` target that runs `validate-signals-engine.sh` so signal validation is wired into CI alongside `make test`.
 
 **Files:**
 - Create: [`tests/signal-validation/expected-bands.json`](../../tests/signal-validation/expected-bands.json)
 - Modify: [`tests/signal-validation/validate-signals-engine.sh`](../../tests/signal-validation/validate-signals-engine.sh)
+- Modify: `Makefile` (add `test-signals` target)
 
 **Verification:**
-- `bash tests/signal-validation/validate-signals-engine.sh`
+- `make test-signals`
 - Expected: all 6 sequences run, summary table printed, exit 0 only if all scores within expected bands.
 
 ### M1: P0 Gate - Signal Engine Distribution (Day 1)
 
 **Outcome:** Signal engine proves meaningful differentiation across scripted behaviors.
 
-1. Run scripted sequences A-F (6 sequences, ~110 operations total).
+1. Run scripted sequences A-F (6 sequences). Operation counts: A=20, B=10, C=15, D=10, E=15, F=minimum 10 (pin exact count during M0 calibration).
 2. Save run artifacts (`scorecard` + `explain` outputs) under a dated results folder.
 3. Automated assertions (from M0) enforce expected score bands per sequence:
    - A clean: `90-100`
@@ -71,7 +74,7 @@
    - C protocol violation: `40-65`
    - D blast radius: `60-80`
    - E scope escalation: `80-95`
-   - F artifact drift: TBD (set after first run)
+   - F artifact drift: **must be pinned during M0 after first calibration run** — initial run sets the band, then it becomes deterministic like A-E.
 4. Script emits `summary.json` to results folder with per-sequence scores and pass/fail.
 
 **Files:**
@@ -79,7 +82,8 @@
 - Create: `experiments/results/signals/<date>/sequence-*.json`
 
 **Verification:**
-- `bash tests/signal-validation/validate-signals-engine.sh`
+- `make test-signals`
+- `ls experiments/results/signals/*/summary.json` (confirm artifacts emitted)
 - Expected: exit 0, 6 distinct score profiles; no collapsed distribution.
 
 ### M2: Deterministic Detector Expansion (Week 1)
@@ -161,25 +165,35 @@
 
 **Outcome:** Release candidate is gated by evidence, not assumptions.
 
-1. Run MCP inspector E2E (local + local REST; hosted/rest disabled by default).
+1. Run MCP inspector E2E in local-mcp mode.
 2. Re-run signal-engine validation and compare against M1 baseline.
-3. Confirm docs and prompts match implemented behavior.
+3. Verify prompt contracts match implemented behavior.
 4. Publish release checklist result table (pass/fail + artifact links).
+5. Upload signal-validation outputs (`summary.json` + per-sequence JSON) as CI artifacts for review/audit.
+
+> `local-rest` is out of scope for this phase (see Delivery Rules). Do not claim REST coverage without explicit local-rest run evidence.
+
+**Files:**
+- Modify: `.github/workflows/ci.yml` (or release workflow) to upload `experiments/results/signals/**` artifacts from signal-validation runs.
+- Modify: `tests/signal-validation/validate-signals-engine.sh` to emit outputs to deterministic paths under `experiments/results/signals/`.
 
 **Verification:**
 - `make test-mcp-inspector-ci`
-- `bash tests/signal-validation/validate-signals-engine.sh`
+- `make test-signals`
+- `make prompts-verify`
+- `find experiments/results/signals -name summary.json -print -quit | grep -q .` (confirm local signal outputs exist before sign-off)
+- Verify CI run publishes a `signals-validation` artifact from `experiments/results/signals/**` and link that artifact in the release checklist.
 - `go test ./... -count=1`
 
 ## Tracking Board
 
 - [ ] M0 baseline normalization completed (expected-bands.json, CI assertions, Sequence F for artifact_drift)
-- [ ] M1 P0 signal gate passed and artifacts stored (6 sequences, exit 0)
+- [ ] M1 P0 signal gate passed and artifacts stored (6 sequences, exit 0; Sequence F band pinned in expected-bands.json)
 - [ ] M2 detectors #8-#16 merged
 - [ ] M3 Docker risk detectors #17-#19 merged (adapter already complete)
 - [ ] M4a LLM experiment completed and results stored
 - [ ] M4b REST API integration merged (blocked on REST API work item)
-- [ ] M5 release hardening complete
+- [ ] M5 release hardening complete (`local-mcp` gate + CI artifact upload for signal-validation outputs)
 
 ## Risks And Mitigations
 
@@ -189,6 +203,8 @@
   - Mitigation: fixture-driven positive/negative tests per detector and regression suite reruns.
 - Risk: LLM behavior instability.
   - Mitigation: strict output contract validation + graceful fallback to deterministic path.
+- Risk: release appears green without reviewable signal-validation evidence.
+  - Mitigation: CI artifact upload is mandatory; release checklist must link artifact URLs.
 
 ## Exit Criteria
 
@@ -197,4 +213,4 @@
 - Deterministic detector count reaches planned minimum for release scope.
 - Docker artifacts are first-class inputs (adapter complete; risk detectors merged).
 - LLM experiment (M4a) completed with stored metrics. REST integration (M4b) conditional on external dependency.
-- CI (tests + MCP inspector) is green with documented release checklist.
+- CI (tests + MCP inspector) is green with documented release checklist and published signal-validation artifacts.
