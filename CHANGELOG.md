@@ -5,10 +5,11 @@
 First public release of Evidra Benchmark.
 
 ### Core Pipeline
-- Canonicalization adapters: Kubernetes (kubectl, oc, helm), Terraform, generic fallback
+- Canonicalization adapters: Kubernetes (kubectl, oc, helm), Terraform, Docker (docker, nerdctl, podman), generic fallback
 - Risk matrix (operation_class x scope_class) with 7 catastrophic detectors
-- Five behavioral signals: protocol violation, artifact drift, retry loop, blast radius, new scope
+- Seven behavioral signals: protocol violation, artifact drift, retry loop, blast radius, new scope, repair loop, thrashing
 - Weighted reliability scoring with safety floors and band classification
+- Ed25519 evidence signing with strict/optional modes and key generation
 
 ### CLI (`evidra`)
 - `prescribe` — record intent before infrastructure operations
@@ -19,6 +20,11 @@ First public release of Evidra Benchmark.
 - `--scanner-report` flag for SARIF ingestion (Trivy, Kubescape)
 - `--canonical-action` flag for pre-canonicalized actions
 - Tool and scope filtering on scorecard/explain/compare
+- `run` — execute command live and record lifecycle outcome
+- `record` — ingest completed operation from structured JSON input
+- `validate` — verify evidence chain integrity and signatures
+- `ingest-findings` — ingest SARIF scanner findings as evidence entries
+- `keygen` — generate Ed25519 signing keypair
 
 ### MCP Server (`evidra-mcp`)
 - Stdio transport for MCP-based automation integration (including AI agents)
