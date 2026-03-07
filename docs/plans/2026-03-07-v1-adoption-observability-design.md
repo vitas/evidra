@@ -109,6 +109,10 @@ Minimum required fields in v1 (mandatory contract surface):
 - `risk_classification`
 - `signal_summary`
 
+Normative schema and validation details are defined in:
+
+- `docs/system-design/V1_RUN_RECORD_CONTRACT.md`
+
 ---
 
 ## 5. Data Flow
