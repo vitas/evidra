@@ -16,7 +16,7 @@
     },
     "canonical_action": {
       "type": "object",
-      "description": "Optional pre-canonicalized action for self-aware tools",
+      "description": "Optional pre-canonicalized classification overrides. Fields like tool, operation, and resource_shape_hash are derived server-side and should not be provided here.",
       "properties": {
         "resource_identity": { "type": "array" },
         "resource_count": { "type": "integer" },
