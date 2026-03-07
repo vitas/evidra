@@ -84,25 +84,6 @@ func RunAll(action canon.CanonicalAction, raw []byte) []string {
 	return tags
 }
 
-// MaxBaseSeverity returns max base severity across fired tags.
-func MaxBaseSeverity(tags []string) string {
-	order := map[string]int{"low": 0, "medium": 1, "high": 2, "critical": 3}
-	maxLevel := "low"
-	set := make(map[string]bool)
-	for _, t := range tags {
-		set[t] = true
-	}
-	for _, d := range All() {
-		if !set[d.Tag()] {
-			continue
-		}
-		if order[d.BaseSeverity()] > order[maxLevel] {
-			maxLevel = d.BaseSeverity()
-		}
-	}
-	return maxLevel
-}
-
 // AllMetadata returns metadata for all registered detectors.
 func AllMetadata() []TagMetadata {
 	ds := All()

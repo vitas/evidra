@@ -109,24 +109,6 @@ func BuildEntry(p EntryBuildParams) (EvidenceEntry, error) {
 	return entry, nil
 }
 
-// RehashEntry recomputes the hash and signature of an entry after its payload
-// has been mutated. This is needed when fields like prescription_id are set
-// after initial BuildEntry.
-func RehashEntry(entry *EvidenceEntry, signer Signer) error {
-	if signer == nil {
-		return fmt.Errorf("evidence.RehashEntry: Signer is required")
-	}
-	hash, err := computeEntryHash(*entry)
-	if err != nil {
-		return fmt.Errorf("evidence.RehashEntry: %w", err)
-	}
-	entry.Hash = hash
-
-	sig := signer.Sign([]byte(hash))
-	entry.Signature = base64.StdEncoding.EncodeToString(sig)
-	return nil
-}
-
 // hashableEntry is a projection of EvidenceEntry that excludes Hash and
 // Signature so they do not participate in hash computation.
 type hashableEntry struct {

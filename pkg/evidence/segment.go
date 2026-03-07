@@ -6,33 +6,6 @@ import (
 	"sort"
 )
 
-// SegmentFiles returns the ordered list of segment file paths for a segmented evidence store.
-func SegmentFiles(root string) ([]string, error) {
-	var files []string
-	err := withStoreLock(root, func() error {
-		mode, resolved, err := detectStoreMode(root)
-		if err != nil {
-			return err
-		}
-		if mode != "segmented" {
-			return fmt.Errorf("segments not available for legacy evidence store")
-		}
-		_, names, err := orderedSegmentNames(resolved)
-		if err != nil {
-			return err
-		}
-		files = make([]string, 0, len(names))
-		for _, n := range names {
-			files = append(files, filepath.Join(resolved, segmentsDirName, n))
-		}
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return files, nil
-}
-
 func orderedSegmentNames(root string) ([]int, []string, error) {
 	segDir := filepath.Join(root, segmentsDirName)
 	matches, err := filepath.Glob(filepath.Join(segDir, "evidence-*.jsonl"))
