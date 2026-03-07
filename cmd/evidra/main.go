@@ -58,8 +58,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return cmdIngestFindings(args[1:], stdout, stderr)
 	case "keygen":
 		return cmdKeygen(args[1:], stdout, stderr)
-	case "benchmark":
-		return cmdBenchmark(args[1:], stdout, stderr)
 	case "prompts":
 		return cmdPrompts(args[1:], stdout, stderr)
 	case "detectors":
@@ -1043,7 +1041,6 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "  record            Ingest completed automation operation from structured input")
 	fmt.Fprintln(w, "  validate          Validate evidence chain integrity and signatures")
 	fmt.Fprintln(w, "  ingest-findings   Ingest SARIF scanner findings as evidence entries")
-	fmt.Fprintln(w, "  benchmark         Benchmark dataset command group (stub)")
 	fmt.Fprintln(w, "  prompts           Prompt contract generation and verification")
 	fmt.Fprintln(w, "  detectors         Detector registry command group")
 	fmt.Fprintln(w, "  keygen            Generate Ed25519 signing keypair")
