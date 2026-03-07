@@ -6,6 +6,13 @@
 **Architecture Requirement:** observability fit in existing Grafana/Prometheus stacks  
 **Next Stage Priority:** pipeline adoption with minimal CI disruption
 
+Implementation update (2026-03-07):
+- Root commands `evidra run` and `evidra record` are implemented on top of one shared operation processor.
+- First-use output now includes: `risk_classification`, `risk_level`, `score`, `score_band`, `signal_summary`, `basis`, `confidence`.
+- Assessment mode semantics implemented: `preview` vs `sufficient` (canonical threshold remains `MinOperations=100`).
+- CLI metrics transport implemented with explicit opt-in (`EVIDRA_METRICS_TRANSPORT=none|otlp_http`).
+- Standalone GitHub Action added: `.github/actions/setup-evidra`.
+
 ---
 
 ## 1. Problem and Product Direction

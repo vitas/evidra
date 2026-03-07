@@ -6,6 +6,10 @@ No cluster. No LLM. No API keys. No external data.
 Detailed guide (purpose/how it works/run/interpretation):
 - [`docs/experimental/SIGNAL_VALIDATION_GUIDE.md`](../../docs/experimental/SIGNAL_VALIDATION_GUIDE.md)
 
+Related parity/UX tests for `run` + `record`:
+- CLI tests: `go test ./cmd/evidra -run 'RunAndRecord_|RunOutput_' -count=1`
+- E2E parity (tagged): `go test -tags=e2e ./tests/e2e -run RunRecordParity -count=1`
+
 ## Run
 
 ```bash

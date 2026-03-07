@@ -72,6 +72,60 @@ func TestRunCommandExecutesCommandAndReportsOutcome(t *testing.T) {
 	}
 }
 
+func TestRunOutput_ContainsFirstUsefulOutputFields(t *testing.T) {
+	t.Parallel()
+
+	signingKey := testutil.TestSigningKeyBase64(t)
+	tmp := t.TempDir()
+	evidenceDir := filepath.Join(tmp, "evidence")
+	artifactPath := filepath.Join(tmp, "artifact.yaml")
+	if err := os.WriteFile(artifactPath, []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: run-first-use\n"), 0o644); err != nil {
+		t.Fatalf("write artifact: %v", err)
+	}
+
+	var out, errBuf bytes.Buffer
+	code := run([]string{
+		"run",
+		"--tool", "kubectl",
+		"--operation", "apply",
+		"--artifact", artifactPath,
+		"--environment", "staging",
+		"--evidence-dir", evidenceDir,
+		"--signing-key", signingKey,
+		"--", "sh", "-c", "exit 0",
+	}, &out, &errBuf)
+	if code != 0 {
+		t.Fatalf("run exit=%d stderr=%s", code, errBuf.String())
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+
+	for _, key := range []string{
+		"risk_classification",
+		"risk_level",
+		"score",
+		"score_band",
+		"signal_summary",
+		"basis",
+		"confidence",
+	} {
+		if _, ok := result[key]; !ok {
+			t.Fatalf("missing first-use field %q in output: %#v", key, result)
+		}
+	}
+
+	basis, ok := result["basis"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("basis should be object, got: %#v", result["basis"])
+	}
+	if _, ok := basis["assessment_mode"]; !ok {
+		t.Fatalf("basis missing assessment_mode: %#v", basis)
+	}
+}
+
 func TestRunCommandFailOpenOnMetricsExportError(t *testing.T) {
 	t.Parallel()
 
