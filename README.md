@@ -70,7 +70,7 @@ brew install samebits/tap/evidra-mcp
 # https://github.com/vitas/evidra-benchmark/tags
 
 # Or build from source
-make build    # produces bin/evidra and bin/evidra-mcp
+make build    # produces bin/evidra, bin/evidra-mcp, and bin/evidra-exp
 ```
 
 ---
@@ -253,12 +253,13 @@ CI/release run `make prompts-verify` to enforce no drift.
 
 ## Architecture
 
-Two binaries, one evidence chain:
+Three binaries, one evidence chain:
 
 | Binary | Transport | Purpose |
 |--------|-----------|---------|
 | `evidra` | CLI | Human and CI pipeline interface |
 | `evidra-mcp` | stdio (MCP) | AI agent interface |
+| `evidra-exp` | CLI | Experiment runner (artifact + execution datasets) |
 
 ### Core Pipeline
 
@@ -343,8 +344,9 @@ exit code + prescription_id -> Report -> signal detectors -> Scorecard
 ## Build & Test
 
 ```bash
-make build          # bin/evidra + bin/evidra-mcp
+make build          # bin/evidra + bin/evidra-mcp + bin/evidra-exp
 make test           # go test ./... -v -count=1
+make test-experiments # experiment CLI + runner smoke tests
 make benchmark-validate  # validate tests/benchmark metadata, case structure, source provenance gates
 make benchmark-coverage  # generate tests/benchmark/COVERAGE.md coverage snapshot
 make benchmark-process-artifact ARTIFACT=<path> [TOOL=kubectl] [OPERATION=apply] [OUT=/tmp/contract.json]

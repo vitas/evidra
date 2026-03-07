@@ -61,14 +61,14 @@ Each run must produce:
 Use:
 
 ```bash
-bash scripts/run-agent-experiments.sh \
+go run ./cmd/evidra-exp artifact run \
   --model-id anthropic/claude-3-5-haiku \
   --provider bifrost \
+  --agent bifrost \
   --mode local-mcp \
   --prompt-file prompts/experiments/runtime/system_instructions.txt \
   --repeats 3 \
-  --timeout-seconds 300 \
-  --agent-cmd 'bash scripts/agent-cmd-bifrost.sh'
+  --timeout-seconds 300
 ```
 
 Then aggregate from `experiments/results/<run_stamp>/summary.jsonl`.
@@ -76,24 +76,24 @@ Then aggregate from `experiments/results/<run_stamp>/summary.jsonl`.
 Claude headless alternative for the same runner:
 
 ```bash
-bash scripts/run-agent-experiments.sh \
+go run ./cmd/evidra-exp artifact run \
   --model-id claude/haiku \
   --provider claude \
+  --agent claude \
   --mode local-mcp \
   --prompt-file prompts/experiments/runtime/system_instructions.txt \
   --repeats 3 \
-  --timeout-seconds 300 \
-  --agent-cmd 'bash scripts/agent-cmd-claude.sh'
+  --timeout-seconds 300
 ```
 
 Execution-mode baseline (MCP + real kubectl):
 
 ```bash
-bash scripts/run-agent-execution-experiments.sh \
+go run ./cmd/evidra-exp execution run \
   --model-id execution/mcp-kubectl \
   --provider local \
+  --agent mcp-kubectl \
   --mode local-mcp \
   --repeats 1 \
-  --timeout-seconds 600 \
-  --agent-cmd 'bash scripts/agent-cmd-mcp-kubectl.sh'
+  --timeout-seconds 600
 ```

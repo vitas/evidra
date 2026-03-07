@@ -2,14 +2,20 @@
 	benchmark-validate benchmark-coverage benchmark-process-artifact benchmark-refresh-contracts benchmark-check-contracts \
 	benchmark-detect-duplicates bench-add \
 	test-mcp-inspector test-mcp-inspector-ci test-mcp-inspector-local-rest test-mcp-inspector-hosted test-mcp-inspector-hosted-rest \
-	prompts-generate prompts-verify
+	prompts-generate prompts-verify test-experiments
 
 build:
 	go build -o bin/evidra ./cmd/evidra
 	go build -o bin/evidra-mcp ./cmd/evidra-mcp
+	go build -o bin/evidra-exp ./cmd/evidra-exp
 
 test:
 	go test ./... -v -count=1
+
+test-experiments:
+	go test ./internal/experiments -count=1
+	bash tests/experiments/runners/run_agent_experiments_clean_out_dir_test.sh
+	bash tests/experiments/runners/run_agent_execution_experiments_test.sh
 
 e2e: build
 	go test -tags e2e ./tests/e2e/ -v -count=1 -timeout=120s

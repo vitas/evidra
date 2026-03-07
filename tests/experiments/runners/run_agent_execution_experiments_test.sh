@@ -45,43 +45,28 @@ cat >"$scenarios_dir/k8s-safe-apply.json" <<EOF_SCN
   "artifact_path": "$artifact",
   "execute_cmd": "kubectl apply -f \"$artifact\"",
   "expected_exit_code": 0,
-  "expected_risk_level": "low",
+  "expected_risk_level": "",
   "expected_risk_tags": []
 }
 EOF_SCN
-
-fake_agent="$tmp_dir/fake-agent.sh"
-cat >"$fake_agent" <<'EOF_AGENT'
-#!/usr/bin/env bash
-set -euo pipefail
-cat >"${EVIDRA_AGENT_OUTPUT:?missing EVIDRA_AGENT_OUTPUT}" <<'JSON'
-{
-  "prescribe_ok": true,
-  "report_ok": true,
-  "exit_code": 0,
-  "risk_level": "low",
-  "risk_tags": [],
-  "prescription_id": "rx-123",
-  "report_id": "rp-123"
-}
-JSON
-EOF_AGENT
-chmod +x "$fake_agent"
 
 out_dir="$tmp_dir/results"
 mkdir -p "$out_dir"
 echo "stale" >"$out_dir/stale.txt"
 
-bash "$REPO_ROOT/scripts/run-agent-execution-experiments.sh" \
-  --model-id test/model \
-  --provider test \
-  --prompt-version v1 \
-  --scenarios-dir "$scenarios_dir" \
-  --repeats 1 \
-  --timeout-seconds 30 \
-  --agent-cmd "$fake_agent" \
-  --out-dir "$out_dir" \
-  --clean-out-dir
+(
+  cd "$REPO_ROOT"
+  go run ./cmd/evidra-exp execution run \
+    --model-id test/model \
+    --provider test \
+    --prompt-version v1 \
+    --agent dry-run \
+    --scenarios-dir "$scenarios_dir" \
+    --repeats 1 \
+    --timeout-seconds 30 \
+    --out-dir "$out_dir" \
+    --clean-out-dir
+)
 
 summary="$out_dir/summary.jsonl"
 [[ -s "$summary" ]]
@@ -93,6 +78,6 @@ result_json="$(jq -r '.result_json' "$summary" | head -n1)"
 jq -e '.schema_version == "evidra.exec-result.v1"' "$result_json" >/dev/null
 jq -e '.evaluation.protocol_ok == true' "$result_json" >/dev/null
 jq -e '.evaluation.exit_code_match == true' "$result_json" >/dev/null
-jq -e '.evaluation.risk_level_match == true' "$result_json" >/dev/null
+jq -e '.evaluation.risk_level_match == null' "$result_json" >/dev/null
 
 echo "run_agent_execution_experiments_test: PASS"

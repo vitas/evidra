@@ -14,15 +14,18 @@ out_dir="$tmp_dir/results"
 mkdir -p "$out_dir"
 echo "stale" >"$out_dir/stale.txt"
 
-bash "$REPO_ROOT/scripts/run-agent-experiments.sh" \
-  --model-id test/model \
-  --provider test \
-  --prompt-version v1 \
-  --dry-run \
-  --repeats 1 \
-  --max-cases 1 \
-  --out-dir "$out_dir" \
-  --clean-out-dir
+(
+  cd "$REPO_ROOT"
+  go run ./cmd/evidra-exp artifact run \
+    --model-id test/model \
+    --provider test \
+    --prompt-version v1 \
+    --agent dry-run \
+    --repeats 1 \
+    --max-cases 1 \
+    --out-dir "$out_dir" \
+    --clean-out-dir
+)
 
 summary="$out_dir/summary.jsonl"
 [[ -s "$summary" ]]

@@ -43,6 +43,24 @@ builds:
       - -X samebits.com/evidra-benchmark/pkg/version.Commit={{.Commit}}
       - -X samebits.com/evidra-benchmark/pkg/version.Date={{.Date}}
 
+  - id: evidra-exp
+    main: ./cmd/evidra-exp
+    binary: evidra-exp
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X samebits.com/evidra-benchmark/pkg/version.Version={{.Version}}
+      - -X samebits.com/evidra-benchmark/pkg/version.Commit={{.Commit}}
+      - -X samebits.com/evidra-benchmark/pkg/version.Date={{.Date}}
+
 archives:
   - id: evidra
     builds:
@@ -61,6 +79,15 @@ archives:
       - goos: windows
         formats: [zip]
     name_template: "evidra-mcp_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+  - id: evidra-exp
+    builds:
+      - evidra-exp
+    formats: [tar.gz]
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    name_template: "evidra-exp_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
 
 release:
   mode: replace
@@ -104,3 +131,19 @@ brews:
       bin.install "evidra"
     test: |
       system bin/"evidra", "--version"
+
+  - name: evidra-exp
+    ids:
+      - evidra-exp
+    skip_upload: false
+    repository:
+      owner: samebits
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: "https://github.com/vitas/evidra-benchmark"
+    description: "Experiment runner CLI for Evidra artifact and execution benchmark workflows."
+    license: "Apache-2.0"
+    install: |
+      bin.install "evidra-exp"
+    test: |
+      system bin/"evidra-exp", "--version"

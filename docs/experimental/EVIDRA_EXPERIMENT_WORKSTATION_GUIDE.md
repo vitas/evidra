@@ -168,7 +168,7 @@ echo "keys loaded"
 
 ### Optional: Bifrost Gateway Runner
 
-If you run a local Bifrost gateway, use the Bifrost wrapper directly:
+If you run a local Bifrost gateway, use the `evidra-exp` Bifrost adapter:
 
 ```bash
 export EVIDRA_BIFROST_BASE_URL="http://localhost:8080/openai"
@@ -176,15 +176,15 @@ export EVIDRA_BIFROST_BASE_URL="http://localhost:8080/openai"
 # export EVIDRA_BIFROST_VK="vk_..."
 # export EVIDRA_BIFROST_AUTH_BEARER="..."
 
-bash scripts/run-agent-experiments.sh \
+go run ./cmd/evidra-exp artifact run \
   --model-id anthropic/claude-3-5-haiku \
   --provider bifrost \
+  --agent bifrost \
   --mode local-mcp \
   --prompt-file prompts/experiments/runtime/system_instructions.txt \
   --repeats 1 \
   --max-cases 1 \
-  --timeout-seconds 300 \
-  --agent-cmd 'bash scripts/agent-cmd-bifrost.sh'
+  --timeout-seconds 300
 ```
 
 In this mode credentials can be handled by Bifrost configuration or by Bifrost-specific headers above.
@@ -192,14 +192,14 @@ In this mode credentials can be handled by Bifrost configuration or by Bifrost-s
 Execution-mode smoke (MCP + real kubectl against current kube context):
 
 ```bash
-bash scripts/run-agent-execution-experiments.sh \
+go run ./cmd/evidra-exp execution run \
   --model-id execution/mcp-kubectl \
   --provider local \
+  --agent mcp-kubectl \
   --mode local-mcp \
   --repeats 1 \
   --max-scenarios 1 \
-  --timeout-seconds 600 \
-  --agent-cmd 'bash scripts/agent-cmd-mcp-kubectl.sh'
+  --timeout-seconds 600
 ```
 
 ---
@@ -236,7 +236,7 @@ Full layout after all three phases:
 ├── run_all_faults.sh                 # Master fault injection runner
 │
 ├── # ── Phase 2: Agent Experiment (EVIDRA_EXPERIMENT_DESIGN_V1.md) ──
-├── runner.py                         # Agent loop
+├── evidra-exp                        # Go CLI binary (artifact/execution runners)
 ├── experiment-scenarios/
 │   ├── scenario-01.yaml              # 10 adversarial agent scenarios
 │   ├── scenario-02.yaml
@@ -558,7 +558,7 @@ colima status
 | Disk full | `du -sh results/*` then remove old runs |
 | `evidra: not found` | `source ~/.zshrc` |
 | Fault injection F03 fails | TTL issue — ensure `FAULT_TTL=1s` in helpers.sh |
-| Agent runner hangs | `--timeout 300` in runner.py kills after 5 min |
+| Agent runner hangs | Set `--timeout-seconds 300` in `evidra-exp ... run` |
 
 ### Full Reset
 
@@ -601,7 +601,7 @@ This machine runs everything described in these documents:
 | `docs/research/DATASET_COLLECTOR_SKILL.md` | Agent skill for corpus collection | Phase 3 |
 | `docs/system-design/EVIDRA_DATASET_ARCHITECTURE.md` | Case structure, golden files, versioning | Phase 3 |
 | `docs/research/AI_AGENT_FAILURE_PATTERNS.md` | Signal theory — reference only | — |
-| `docs/research/EVIDRA_AGENT_SKILL.md` | Agent protocol skill — used by runner.py | Phase 2 |
+| `docs/research/EVIDRA_AGENT_SKILL.md` | Agent protocol skill — used by experiment agents | Phase 2 |
 | `docs/research/COMMUNITY_BENCHMARK_DESIGN.md` | Future contribution system — not yet | — |
 
 **Execution order: Phase 1 → Phase 2 → Phase 3.** Each phase validates assumptions needed by the next.
