@@ -1,6 +1,8 @@
 package mcpserver
 
 import (
+	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -135,6 +137,60 @@ func TestRetryTracker_CountsRetries(t *testing.T) {
 	out2 := svc.Prescribe(input)
 	if out2.RetryCount != 2 {
 		t.Errorf("second prescribe retry_count = %d, want 2", out2.RetryCount)
+	}
+}
+
+func TestSchemaStructParity(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name       string
+		schemaJSON []byte
+		structType reflect.Type
+	}{
+		{"prescribe", prescribeSchemaBytes, reflect.TypeOf(PrescribeInput{})},
+		{"report", reportSchemaBytes, reflect.TypeOf(ReportInput{})},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// Parse schema to get top-level properties.
+			var schema struct {
+				Properties map[string]interface{} `json:"properties"`
+			}
+			if err := json.Unmarshal(tc.schemaJSON, &schema); err != nil {
+				t.Fatalf("parse schema: %v", err)
+			}
+
+			// Extract json tags from struct.
+			structFields := make(map[string]bool)
+			for i := 0; i < tc.structType.NumField(); i++ {
+				field := tc.structType.Field(i)
+				tag := field.Tag.Get("json")
+				if tag == "" || tag == "-" {
+					continue
+				}
+				// Strip ",omitempty" etc.
+				name := strings.Split(tag, ",")[0]
+				structFields[name] = true
+			}
+
+			// Every schema property must have a struct field.
+			for prop := range schema.Properties {
+				if !structFields[prop] {
+					t.Errorf("schema property %q has no matching struct field (would be silently dropped)", prop)
+				}
+			}
+
+			// Every struct field must have a schema property.
+			for field := range structFields {
+				if _, ok := schema.Properties[field]; !ok {
+					t.Errorf("struct field %q has no matching schema property (undocumented in schema)", field)
+				}
+			}
+		})
 	}
 }
 
