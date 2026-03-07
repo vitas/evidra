@@ -1,0 +1,146 @@
+---
+# Source: redis/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: redis-master
+  namespace: cache
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: redis
+    helm.sh/chart: redis-18.6.1
+---
+# Source: redis/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-configuration
+  namespace: cache
+  labels:
+    app.kubernetes.io/name: redis
+data:
+  redis.conf: |
+    maxmemory 256mb
+    maxmemory-policy allkeys-lru
+    appendonly yes
+    appendfsync everysec
+---
+# Source: redis/templates/health-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-health
+  namespace: cache
+data:
+  ping_readiness_local.sh: |
+    #!/bin/bash
+    response=$(redis-cli -h localhost -p 6379 ping)
+    if [ "$response" != "PONG" ]; then exit 1; fi
+  ping_liveness_local.sh: |
+    #!/bin/bash
+    response=$(redis-cli -h localhost -p 6379 ping)
+    if [ "$response" != "PONG" ]; then exit 1; fi
+---
+# Source: redis/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-master
+  namespace: cache
+  labels:
+    app.kubernetes.io/name: redis
+spec:
+  type: ClusterIP
+  ports:
+  - name: tcp-redis
+    port: 6379
+    targetPort: redis
+  selector:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: master
+---
+# Source: redis/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis-master
+  namespace: cache
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: master
+spec:
+  replicas: 1
+  serviceName: redis-headless
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/component: master
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/component: master
+      annotations:
+        checksum/configmap: "a1b2c3d4e5f6"
+    spec:
+      serviceAccountName: redis-master
+      securityContext:
+        fsGroup: 1001
+      containers:
+      - name: redis
+        image: docker.io/bitnami/redis:7.2.4-debian-12-r9
+        ports:
+        - name: redis
+          containerPort: 6379
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: redis-password
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - /health/ping_liveness_local.sh
+          initialDelaySeconds: 20
+          periodSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - /health/ping_readiness_local.sh
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        - name: health
+          mountPath: /health
+        - name: config
+          mountPath: /opt/bitnami/redis/etc
+      volumes:
+      - name: health
+        configMap:
+          name: redis-health
+          defaultMode: 0755
+      - name: config
+        configMap:
+          name: redis-configuration
+  volumeClaimTemplates:
+  - metadata:
+      name: redis-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 8Gi

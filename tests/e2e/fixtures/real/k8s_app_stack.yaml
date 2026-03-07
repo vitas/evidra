@@ -1,0 +1,154 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ecommerce
+  labels:
+    app.kubernetes.io/part-of: shop
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: ecommerce
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: '{"old":"data that should be noise-filtered"}'
+data:
+  DATABASE_URL: postgres://db.internal:5432/shop
+  CACHE_URL: redis://redis.internal:6379
+  LOG_LEVEL: info
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: api-secrets
+  namespace: ecommerce
+  uid: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+  resourceVersion: "12345"
+  creationTimestamp: "2026-01-15T10:00:00Z"
+  managedFields:
+  - manager: kubectl-client-side-apply
+    operation: Apply
+    time: "2026-01-15T10:00:00Z"
+type: Opaque
+data:
+  DB_PASSWORD: cGFzc3dvcmQxMjM=
+  JWT_SECRET: c2VjcmV0MTIz
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-server
+  namespace: ecommerce
+  labels:
+    app: api
+    version: v2.4.1
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: '{"old":"config"}'
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+        version: v2.4.1
+    spec:
+      serviceAccountName: api-sa
+      containers:
+      - name: api
+        image: registry.corp.com/shop/api-server:v2.4.1
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 9090
+          name: metrics
+        env:
+        - name: DATABASE_URL
+          valueFrom:
+            configMapKeyRef:
+              name: api-config
+              key: DATABASE_URL
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: api-secrets
+              key: DB_PASSWORD
+        resources:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+          limits:
+            cpu: "1"
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: http
+          periodSeconds: 5
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-server
+  namespace: ecommerce
+spec:
+  selector:
+    app: api
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+  - name: metrics
+    port: 9090
+    targetPort: metrics
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: api-sa
+  namespace: ecommerce
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: api-role
+  namespace: ecommerce
+rules:
+- apiGroups: [""]
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: api-rolebinding
+  namespace: ecommerce
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: api-role
+subjects:
+- kind: ServiceAccount
+  name: api-sa
+  namespace: ecommerce

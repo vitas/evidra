@@ -1,0 +1,142 @@
+{
+  "format_version": "1.2",
+  "terraform_version": "1.7.5",
+  "planned_values": {},
+  "resource_changes": [
+    {
+      "address": "module.vpc.aws_vpc.main",
+      "module_address": "module.vpc",
+      "type": "aws_vpc",
+      "name": "main",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "cidr_block": "10.0.0.0/16",
+          "enable_dns_hostnames": true,
+          "enable_dns_support": true,
+          "tags": {"Name": "prod-vpc", "Environment": "production"}
+        },
+        "after_unknown": {}
+      }
+    },
+    {
+      "address": "module.vpc.aws_subnet.public[0]",
+      "module_address": "module.vpc",
+      "type": "aws_subnet",
+      "name": "public",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "cidr_block": "10.0.1.0/24",
+          "availability_zone": "us-east-1a",
+          "map_public_ip_on_launch": true,
+          "tags": {"Name": "prod-public-1a"}
+        },
+        "after_unknown": {}
+      }
+    },
+    {
+      "address": "module.vpc.aws_subnet.public[1]",
+      "module_address": "module.vpc",
+      "type": "aws_subnet",
+      "name": "public",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "cidr_block": "10.0.2.0/24",
+          "availability_zone": "us-east-1b",
+          "map_public_ip_on_launch": true,
+          "tags": {"Name": "prod-public-1b"}
+        },
+        "after_unknown": {}
+      }
+    },
+    {
+      "address": "module.rds.aws_db_instance.main",
+      "module_address": "module.rds",
+      "type": "aws_db_instance",
+      "name": "main",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "instance_class": "db.t3.medium",
+          "engine": "postgres",
+          "engine_version": "15.4",
+          "allocated_storage": 100,
+          "publicly_accessible": false,
+          "storage_encrypted": true
+        },
+        "after": {
+          "instance_class": "db.t3.large",
+          "engine": "postgres",
+          "engine_version": "15.5",
+          "allocated_storage": 200,
+          "publicly_accessible": false,
+          "storage_encrypted": true
+        },
+        "after_unknown": {}
+      }
+    },
+    {
+      "address": "module.security.aws_security_group.web",
+      "module_address": "module.security",
+      "type": "aws_security_group",
+      "name": "web",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["update"],
+        "before": {
+          "name": "web-sg",
+          "ingress": [
+            {"from_port": 443, "to_port": 443, "protocol": "tcp", "cidr_blocks": ["10.0.0.0/16"]}
+          ]
+        },
+        "after": {
+          "name": "web-sg",
+          "ingress": [
+            {"from_port": 443, "to_port": 443, "protocol": "tcp", "cidr_blocks": ["0.0.0.0/0"]},
+            {"from_port": 80, "to_port": 80, "protocol": "tcp", "cidr_blocks": ["0.0.0.0/0"]}
+          ]
+        },
+        "after_unknown": {}
+      }
+    },
+    {
+      "address": "aws_s3_bucket.logs",
+      "type": "aws_s3_bucket",
+      "name": "logs",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "bucket": "prod-app-logs-2026",
+          "tags": {"Environment": "production"}
+        },
+        "after_unknown": {}
+      }
+    },
+    {
+      "address": "aws_iam_role.lambda_exec",
+      "type": "aws_iam_role",
+      "name": "lambda_exec",
+      "provider_name": "registry.terraform.io/hashicorp/aws",
+      "change": {
+        "actions": ["create"],
+        "before": null,
+        "after": {
+          "name": "lambda-exec-role",
+          "assume_role_policy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"lambda.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}"
+        },
+        "after_unknown": {}
+      }
+    }
+  ]
+}

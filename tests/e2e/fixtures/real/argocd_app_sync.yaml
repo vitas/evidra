@@ -1,0 +1,152 @@
+---
+# ArgoCD Application sync renders these Kubernetes manifests.
+# The manifests below represent what ArgoCD would apply after a sync.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: payments
+  labels:
+    app.kubernetes.io/managed-by: argocd
+    argocd.argoproj.io/instance: payments-app
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payments-config
+  namespace: payments
+  labels:
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    argocd.argoproj.io/tracking-id: "payments-app:/ConfigMap:payments/payments-config"
+    kubectl.kubernetes.io/last-applied-configuration: '{"old":"stale"}'
+  uid: "f1e2d3c4-b5a6-9788-fedc-ba9876543210"
+  resourceVersion: "99887"
+  creationTimestamp: "2026-02-01T08:00:00Z"
+  managedFields:
+  - manager: argocd-application-controller
+    operation: Apply
+    time: "2026-02-01T08:00:00Z"
+data:
+  PAYMENT_GATEWAY: stripe
+  STRIPE_API_VERSION: "2024-12-18.acacia"
+  IDEMPOTENCY_TTL: "86400"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-api
+  namespace: payments
+  labels:
+    app: payments-api
+    app.kubernetes.io/managed-by: argocd
+  annotations:
+    argocd.argoproj.io/tracking-id: "payments-app:apps/Deployment:payments/payments-api"
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: payments-api
+  template:
+    metadata:
+      labels:
+        app: payments-api
+    spec:
+      serviceAccountName: payments-sa
+      containers:
+      - name: payments
+        image: registry.corp.com/payments/api:v3.1.0
+        ports:
+        - containerPort: 8443
+          name: https
+        env:
+        - name: STRIPE_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: payments-secrets
+              key: stripe-key
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: "2"
+            memory: 1Gi
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: https
+            scheme: HTTPS
+          periodSeconds: 10
+      - name: envoy-sidecar
+        image: envoyproxy/envoy:v1.29.1
+        ports:
+        - containerPort: 9901
+          name: admin
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments-api
+  namespace: payments
+  labels:
+    app.kubernetes.io/managed-by: argocd
+spec:
+  selector:
+    app: payments-api
+  ports:
+  - name: https
+    port: 443
+    targetPort: https
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: payments-sa
+  namespace: payments
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/payments-pod-role
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: payments-netpol
+  namespace: payments
+spec:
+  podSelector:
+    matchLabels:
+      app: payments-api
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          app.kubernetes.io/part-of: shop
+    ports:
+    - port: 8443
+      protocol: TCP
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 10.0.0.0/8
+    ports:
+    - port: 5432
+      protocol: TCP
+  - to: []
+    ports:
+    - port: 443
+      protocol: TCP
