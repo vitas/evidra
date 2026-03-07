@@ -3,6 +3,9 @@
 **Zero dependencies beyond `evidra` binary and `jq`.**
 No cluster. No LLM. No API keys. No external data.
 
+Detailed guide (purpose/how it works/run/interpretation):
+- [`docs/experimental/SIGNAL_VALIDATION_GUIDE.md`](../../docs/experimental/SIGNAL_VALIDATION_GUIDE.md)
+
 ## Run
 
 ```bash
