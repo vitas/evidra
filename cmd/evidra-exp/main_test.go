@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -208,6 +209,93 @@ func TestExecutionHelpIncludesExtendedFlags(t *testing.T) {
 		"--timeout-seconds <n>",
 		"--scenario-filter <regex>",
 		"--max-scenarios <n>",
+	} {
+		if !strings.Contains(helpText, needle) {
+			t.Fatalf("help missing %q: %s", needle, helpText)
+		}
+	}
+}
+
+func TestArtifactBaselineDryRunWritesAggregateSummary(t *testing.T) {
+	root := repoRoot(t)
+	outDir := filepath.Join(t.TempDir(), "llm-baseline")
+
+	var out, errBuf bytes.Buffer
+	code := run([]string{
+		"artifact", "baseline",
+		"--model-ids", "test/model-a,test/model-b",
+		"--provider", "test",
+		"--agent", "dry-run",
+		"--prompt-file", filepath.Join(root, "prompts/experiments/runtime/system_instructions.txt"),
+		"--cases-dir", filepath.Join(root, "tests/benchmark/cases"),
+		"--max-cases", "1",
+		"--repeats", "1",
+		"--out-dir", outDir,
+	}, &out, &errBuf)
+	if code != 0 {
+		t.Fatalf("exit code = %d, stderr=%s", code, errBuf.String())
+	}
+
+	summaryPath := filepath.Join(outDir, "summary.json")
+	b, err := os.ReadFile(summaryPath)
+	if err != nil {
+		t.Fatalf("read summary.json: %v", err)
+	}
+
+	type baselineSummary struct {
+		SchemaVersion string `json:"schema_version"`
+		ModelCount    int    `json:"model_count"`
+		Models        []struct {
+			ModelID      string `json:"model_id"`
+			SummaryJSONL string `json:"summary_jsonl"`
+		} `json:"models"`
+	}
+	var got baselineSummary
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatalf("decode summary.json: %v", err)
+	}
+	if got.SchemaVersion != "evidra.llm-baseline.v1" {
+		t.Fatalf("schema_version=%q", got.SchemaVersion)
+	}
+	if got.ModelCount != 2 || len(got.Models) != 2 {
+		t.Fatalf("model_count=%d len(models)=%d", got.ModelCount, len(got.Models))
+	}
+	for _, m := range got.Models {
+		if strings.TrimSpace(m.ModelID) == "" {
+			t.Fatalf("empty model id in summary")
+		}
+		if _, err := os.Stat(m.SummaryJSONL); err != nil {
+			t.Fatalf("model summary jsonl missing: %s (%v)", m.SummaryJSONL, err)
+		}
+	}
+}
+
+func TestArtifactBaselineMissingModelIDs(t *testing.T) {
+	root := repoRoot(t)
+	var out, errBuf bytes.Buffer
+	code := run([]string{
+		"artifact", "baseline",
+		"--provider", "test",
+		"--agent", "dry-run",
+		"--prompt-file", filepath.Join(root, "prompts/experiments/runtime/system_instructions.txt"),
+		"--cases-dir", filepath.Join(root, "tests/benchmark/cases"),
+	}, &out, &errBuf)
+	if code != 2 {
+		t.Fatalf("exit code=%d stderr=%s", code, errBuf.String())
+	}
+}
+
+func TestArtifactHelpIncludesBaselineOptions(t *testing.T) {
+	var out, errBuf bytes.Buffer
+	code := run([]string{"artifact", "--help"}, &out, &errBuf)
+	if code != 0 {
+		t.Fatalf("code=%d stderr=%s", code, errBuf.String())
+	}
+	helpText := out.String()
+	for _, needle := range []string{
+		"artifact <run|baseline>",
+		"--model-ids <csv>",
+		"experiments/results/llm/<timestamp>",
 	} {
 		if !strings.Contains(helpText, needle) {
 			t.Fatalf("help missing %q: %s", needle, helpText)

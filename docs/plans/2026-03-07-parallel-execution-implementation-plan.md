@@ -153,6 +153,21 @@ Parallel streams:
 2. Run multi-model comparison; capture compliance and disagreement metrics.
 3. Store experiment results as structured JSON in `experiments/results/llm/`.
 
+Implementation entrypoint:
+
+```bash
+evidra-exp artifact baseline \
+  --model-ids anthropic/claude-3-5-haiku,openai/gpt-4o-mini \
+  --provider openrouter \
+  --agent bifrost \
+  --cases-dir tests/benchmark/cases \
+  --out-dir experiments/results/llm/<timestamp>
+```
+
+This writes:
+- per-model run trees under `experiments/results/llm/<timestamp>/<model>/`
+- aggregate metrics at `experiments/results/llm/<timestamp>/summary.json`
+
 **Files:**
 - Modify: experiment runner paths (`cmd/evidra-exp`, `internal/experiments`)
 - Create: experiment result artifacts under `experiments/results/llm/`

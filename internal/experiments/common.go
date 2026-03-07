@@ -19,9 +19,11 @@ const (
 	DefaultExecutionScenarios  = "tests/experiments/execution-scenarios"
 	DefaultPromptFile          = "prompts/experiments/runtime/system_instructions.txt"
 	DefaultArtifactOutRoot     = "experiments/results"
+	DefaultLLMBaselineOutRoot  = "experiments/results/llm"
 	DefaultExecutionOutSuffix  = "-execution"
 	ResultSchemaVersion        = "evidra.result.v1"
 	ExecutionResultSchema      = "evidra.exec-result.v1"
+	LLMBaselineSchemaVersion   = "evidra.llm-baseline.v1"
 	defaultPromptVersion       = "v1"
 	defaultPromptContractValue = "unknown"
 )

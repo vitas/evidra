@@ -44,5 +44,4 @@ GEMINI.md
 # Experiment outputs
 experiments/results/
 
-# Local Python virtualenv
-.venv/
+.cache

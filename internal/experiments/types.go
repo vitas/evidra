@@ -21,6 +21,25 @@ type ArtifactRunOptions struct {
 	DryRun           bool
 }
 
+type ArtifactBaselineRunOptions struct {
+	ModelIDs         []string
+	Provider         string
+	PromptVersion    string
+	PromptFile       string
+	Temperature      *float64
+	Mode             string
+	Repeats          int
+	TimeoutSeconds   int
+	CaseFilter       string
+	MaxCases         int
+	CasesDir         string
+	OutDir           string
+	CleanOutDir      bool
+	DelayBetweenRuns time.Duration
+	Agent            string
+	DryRun           bool
+}
+
 type ExecutionRunOptions struct {
 	ModelID          string
 	Provider         string

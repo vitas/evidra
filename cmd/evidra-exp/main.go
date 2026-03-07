@@ -47,20 +47,32 @@ func runArtifactSubcommand(args []string, stdout, stderr io.Writer) int {
 		printArtifactUsage(stdout)
 		return 0
 	}
-	if args[0] != "run" {
+	switch args[0] {
+	case "run":
+		opts, code := parseArtifactFlags(args[1:], stderr)
+		if code != 0 {
+			return code
+		}
+		if err := experiments.RunArtifact(context.Background(), opts, stdout, stderr); err != nil {
+			fmt.Fprintf(stderr, "run-agent-experiments: FAIL %v\n", err)
+			return 1
+		}
+		return 0
+	case "baseline":
+		opts, code := parseArtifactBaselineFlags(args[1:], stderr)
+		if code != 0 {
+			return code
+		}
+		if err := experiments.RunArtifactBaseline(context.Background(), opts, stdout, stderr); err != nil {
+			fmt.Fprintf(stderr, "run-agent-experiments-baseline: FAIL %v\n", err)
+			return 1
+		}
+		return 0
+	default:
 		fmt.Fprintf(stderr, "unknown artifact subcommand: %s\n", args[0])
 		printArtifactUsage(stderr)
 		return 2
 	}
-	opts, code := parseArtifactFlags(args[1:], stderr)
-	if code != 0 {
-		return code
-	}
-	if err := experiments.RunArtifact(context.Background(), opts, stdout, stderr); err != nil {
-		fmt.Fprintf(stderr, "run-agent-experiments: FAIL %v\n", err)
-		return 1
-	}
-	return 0
 }
 
 func runExecutionSubcommand(args []string, stdout, stderr io.Writer) int {
@@ -142,6 +154,70 @@ func parseArtifactFlags(args []string, stderr io.Writer) (experiments.ArtifactRu
 	}, 0
 }
 
+func parseArtifactBaselineFlags(args []string, stderr io.Writer) (experiments.ArtifactBaselineRunOptions, int) {
+	fs := flag.NewFlagSet("artifact baseline", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	modelIDs := fs.String("model-ids", "", "Comma-separated model ids (required)")
+	provider := fs.String("provider", "unknown", "Provider label")
+	promptVersion := fs.String("prompt-version", "", "Prompt version label")
+	promptFile := fs.String("prompt-file", experiments.DefaultPromptFile, "Prompt file path")
+	temperature := fs.String("temperature", "", "Temperature (number)")
+	mode := fs.String("mode", "custom", "Execution mode label")
+	repeats := fs.Int("repeats", 3, "Repeats per case")
+	timeoutSeconds := fs.Int("timeout-seconds", 300, "Per-run timeout in seconds")
+	caseFilter := fs.String("case-filter", "", "Regex filter for case_id")
+	maxCases := fs.Int("max-cases", 0, "Max selected cases")
+	casesDir := fs.String("cases-dir", experiments.DefaultArtifactCasesDir, "Cases directory")
+	outDir := fs.String("out-dir", "", "Output directory")
+	cleanOutDir := fs.Bool("clean-out-dir", false, "Remove existing files in out-dir before run")
+	delayBetweenRuns := fs.String("delay-between-runs", "0s", "Sleep duration between runs (e.g. 2s, 500ms)")
+	agent := fs.String("agent", "", "Agent adapter: claude|bifrost|dry-run")
+	dryRun := fs.Bool("dry-run", false, "Skip real adapter execution")
+	if err := fs.Parse(args); err != nil {
+		return experiments.ArtifactBaselineRunOptions{}, 2
+	}
+
+	ids := splitAndTrimCSV(*modelIDs)
+	if len(ids) == 0 {
+		fmt.Fprintln(stderr, "--model-ids must contain at least one model id")
+		return experiments.ArtifactBaselineRunOptions{}, 2
+	}
+
+	var tempPtr *float64
+	if strings.TrimSpace(*temperature) != "" {
+		v, err := strconv.ParseFloat(*temperature, 64)
+		if err != nil {
+			fmt.Fprintln(stderr, "--temperature must be numeric")
+			return experiments.ArtifactBaselineRunOptions{}, 2
+		}
+		tempPtr = &v
+	}
+	delayValue, err := time.ParseDuration(strings.TrimSpace(*delayBetweenRuns))
+	if err != nil {
+		fmt.Fprintln(stderr, "--delay-between-runs must be a duration like 2s or 500ms")
+		return experiments.ArtifactBaselineRunOptions{}, 2
+	}
+
+	return experiments.ArtifactBaselineRunOptions{
+		ModelIDs:         ids,
+		Provider:         strings.TrimSpace(*provider),
+		PromptVersion:    strings.TrimSpace(*promptVersion),
+		PromptFile:       strings.TrimSpace(*promptFile),
+		Temperature:      tempPtr,
+		Mode:             strings.TrimSpace(*mode),
+		Repeats:          *repeats,
+		TimeoutSeconds:   *timeoutSeconds,
+		CaseFilter:       *caseFilter,
+		MaxCases:         *maxCases,
+		CasesDir:         strings.TrimSpace(*casesDir),
+		OutDir:           strings.TrimSpace(*outDir),
+		CleanOutDir:      *cleanOutDir,
+		DelayBetweenRuns: delayValue,
+		Agent:            strings.TrimSpace(*agent),
+		DryRun:           *dryRun,
+	}, 0
+}
+
 func parseExecutionFlags(args []string, stderr io.Writer) (experiments.ExecutionRunOptions, int) {
 	fs := flag.NewFlagSet("execution run", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -192,20 +268,39 @@ func isHelpArg(arg string) bool {
 	return arg == "help" || arg == "--help" || arg == "-h"
 }
 
+func splitAndTrimCSV(value string) []string {
+	parts := strings.Split(value, ",")
+	seen := make(map[string]struct{}, len(parts))
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		s := strings.TrimSpace(p)
+		if s == "" {
+			continue
+		}
+		if _, ok := seen[s]; ok {
+			continue
+		}
+		seen[s] = struct{}{}
+		out = append(out, s)
+	}
+	return out
+}
+
 func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "evidra-exp <command>")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Commands:")
-	fmt.Fprintln(w, "  artifact run    Run artifact-only experiments")
+	fmt.Fprintln(w, "  artifact run       Run artifact-only experiments")
+	fmt.Fprintln(w, "  artifact baseline  Run multi-model artifact baseline and aggregate metrics")
 	fmt.Fprintln(w, "  execution run   Run execution experiments")
 	fmt.Fprintln(w, "  version         Print version")
 	fmt.Fprintln(w, "  help            Show help")
 }
 
 func printArtifactUsage(w io.Writer) {
-	fmt.Fprintln(w, "evidra-exp artifact run [options]")
+	fmt.Fprintln(w, "evidra-exp artifact <run|baseline> [options]")
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Options:")
+	fmt.Fprintln(w, "Run options:")
 	fmt.Fprintln(w, "  --model-id <id>            Required model id")
 	fmt.Fprintln(w, "  --provider <name>          Provider label (default: unknown)")
 	fmt.Fprintln(w, "  --prompt-version <label>   Prompt version label")
@@ -222,6 +317,10 @@ func printArtifactUsage(w io.Writer) {
 	fmt.Fprintln(w, "  --delay-between-runs <d>   Sleep duration between runs (e.g. 2s, 500ms)")
 	fmt.Fprintln(w, "  --agent <name>             claude|bifrost|dry-run")
 	fmt.Fprintln(w, "  --dry-run                  Skip real adapter execution")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "Baseline-only options:")
+	fmt.Fprintln(w, "  --model-ids <csv>          Comma-separated model ids (required for baseline)")
+	fmt.Fprintln(w, "  --out-dir <path>           Output directory (default baseline root: experiments/results/llm/<timestamp>)")
 }
 
 func printExecutionUsage(w io.Writer) {
