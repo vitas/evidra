@@ -557,21 +557,25 @@ chain history.
 ```
 scope_key = (actor.id, tool, operation_class, scope_class)
 
-For each prescription:
+The first prescription in the evidence chain establishes the baseline
+scope and is never flagged — penalizing cold start is not useful.
+
+For each subsequent prescription:
   Search evidence chain for any prior prescription with same scope_key
   If no prior prescription → FIRE (first time this actor operates
   in this tool/operation_class/scope_class combination)
 ```
 
-**Scope:** Fires once per unique scope_key. After the first
-occurrence, subsequent operations with the same key do not fire.
+**Scope:** The very first prescription is always the baseline (no signal).
+After that, fires once per new unique scope_key. Once a scope_key has
+been seen, subsequent operations with the same key do not fire.
 
 **Example:**
 ```
-claude-code does kubectl/mutating/staging → first time → FIRE
-claude-code does kubectl/mutating/staging → second time → no fire
-claude-code does kubectl/mutating/production → first time → FIRE
-claude-code does terraform/destructive/production → first time → FIRE
+claude-code does kubectl/mutating/staging → first prescription → baseline (no fire)
+claude-code does kubectl/mutating/staging → same scope → no fire
+claude-code does kubectl/mutating/production → new scope → FIRE
+claude-code does terraform/destructive/production → new scope → FIRE
 ```
 
 **Output:**

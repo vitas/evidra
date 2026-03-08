@@ -360,10 +360,10 @@ func TestDetectNewScope_FirstOccurrences(t *testing.T) {
 		{EventID: "P3", IsPrescription: true, ActorID: "alice", Tool: "terraform", OperationClass: "plan", ScopeClass: "account"},
 	}
 	result := DetectNewScope(entries)
-	if result.Count != 2 {
-		t.Errorf("count = %d, want 2 (kubectl.mutate.namespace + terraform.plan.account)", result.Count)
+	// P1 is the baseline (first ever prescription), P3 introduces a new scope.
+	if result.Count != 1 {
+		t.Errorf("count = %d, want 1 (P1 is baseline, P3 is new scope)", result.Count)
 	}
-	assertEventID(t, result.EventIDs, "P1")
 	assertEventID(t, result.EventIDs, "P3")
 }
 
@@ -375,8 +375,22 @@ func TestDetectNewScope_AllSame(t *testing.T) {
 		{EventID: "P2", IsPrescription: true, ActorID: "alice", Tool: "kubectl", OperationClass: "mutate", ScopeClass: "namespace"},
 	}
 	result := DetectNewScope(entries)
-	if result.Count != 1 {
-		t.Errorf("count = %d, want 1", result.Count)
+	// P1 is the baseline, P2 is same scope — no new scope.
+	if result.Count != 0 {
+		t.Errorf("count = %d, want 0", result.Count)
+	}
+}
+
+func TestDetectNewScope_SinglePrescription(t *testing.T) {
+	t.Parallel()
+
+	entries := []Entry{
+		{EventID: "P1", IsPrescription: true, ActorID: "alice", Tool: "kubectl", OperationClass: "mutate", ScopeClass: "namespace"},
+	}
+	result := DetectNewScope(entries)
+	// Single prescription is the baseline — never penalized.
+	if result.Count != 0 {
+		t.Errorf("count = %d, want 0 (single prescription is baseline)", result.Count)
 	}
 }
 
@@ -384,19 +398,19 @@ func TestNewScope_FullKey(t *testing.T) {
 	t.Parallel()
 
 	entries := []Entry{
-		// Same tool+opClass but different actor → both new.
+		// P1 is the baseline (first prescription).
 		{EventID: "P1", IsPrescription: true, ActorID: "alice", Tool: "kubectl", OperationClass: "mutate", ScopeClass: "namespace"},
+		// P2: different actor → new scope.
 		{EventID: "P2", IsPrescription: true, ActorID: "bob", Tool: "kubectl", OperationClass: "mutate", ScopeClass: "namespace"},
-		// Same tool+opClass but different scopeClass → both new.
+		// P3: different scopeClass → new scope.
 		{EventID: "P3", IsPrescription: true, ActorID: "alice", Tool: "kubectl", OperationClass: "mutate", ScopeClass: "cluster"},
-		// Same full combo repeated → not new.
+		// P4: same combo as P1 → not new.
 		{EventID: "P4", IsPrescription: true, ActorID: "alice", Tool: "kubectl", OperationClass: "mutate", ScopeClass: "namespace"},
 	}
 	result := DetectNewScope(entries)
-	if result.Count != 3 {
-		t.Errorf("count = %d, want 3 (P1, P2, P3 are new; P4 is repeat)", result.Count)
+	if result.Count != 2 {
+		t.Errorf("count = %d, want 2 (P2 and P3 are new; P1 is baseline, P4 is repeat)", result.Count)
 	}
-	assertEventID(t, result.EventIDs, "P1")
 	assertEventID(t, result.EventIDs, "P2")
 	assertEventID(t, result.EventIDs, "P3")
 }

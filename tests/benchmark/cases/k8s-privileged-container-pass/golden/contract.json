@@ -8,11 +8,11 @@
   "canon_version": "k8s/v1",
   "artifact_digest": "sha256:b00f110f43d9f45456051174344fb87a722d619c167bdd865036036e7348d327",
   "intent_digest": "sha256:086cb5509ab4c9514752987f527e43e637916fe86177f0f427d080a348fc8c1c",
-  "prescription_id": "01KK7A4985580KAJS1FSQ4X969",
+  "prescription_id": "01KK7WQFQXSFTPDMYK5SS2RWP2",
   "evidra_version": "0.4.0",
   "processing": {
     "dataset_evidra_version": "v0.3.x",
-    "processed_at": "2026-03-08T18:07:38Z",
+    "processed_at": "2026-03-08T23:32:42Z",
     "tool": "kubectl",
     "operation": "apply"
   },

@@ -105,7 +105,7 @@ func cmdRecord(args []string, stdout, stderr io.Writer) int {
 	}
 
 	result := map[string]interface{}{
-		"ok":                  true,
+		"ok":                  cmd.input.ExitCode == 0,
 		"contract_version":    cmd.input.ContractVersion,
 		"session_id":          opResult.ReportOutput.SessionID,
 		"operation_id":        cmd.input.OperationID,

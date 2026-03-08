@@ -109,7 +109,7 @@ func cmdRun(args []string, stdout, stderr io.Writer) int {
 	}
 
 	result := map[string]interface{}{
-		"ok":                  true,
+		"ok":                  exitCode == 0,
 		"session_id":          opResult.ReportOutput.SessionID,
 		"operation_id":        cmd.prescribeInput.OperationID,
 		"prescription_id":     opResult.PrescribeOutput.PrescriptionID,
