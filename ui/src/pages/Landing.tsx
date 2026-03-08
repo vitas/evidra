@@ -104,7 +104,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="text-[1.6rem] font-bold text-fg tracking-tight mb-2">{children}</h2>;
+  return <h2 className="text-[1.28rem] font-bold text-fg tracking-tight mb-2">{children}</h2>;
 }
 
 function Container({ children, className = "" }: { children: React.ReactNode; className?: string }) {
@@ -148,7 +148,7 @@ function Features() {
       <Container>
         <SectionLabel>Capabilities</SectionLabel>
         <SectionTitle>What It Does</SectionTitle>
-        <p className="text-fg-muted mb-10 text-[0.95rem]">A flight recorder for infrastructure automation &mdash; observe, measure, score, compare.</p>
+        <p className="text-fg-muted mb-10 text-[1.14rem]">A flight recorder for infrastructure automation &mdash; observe, measure, score, compare.</p>
         <div className="grid grid-cols-4 gap-5 max-md:grid-cols-2 max-sm:grid-cols-1">
           {FEATURES.map((f) => (
             <div key={f.title} className="bg-bg-elevated border border-border border-l-[3px] border-l-accent rounded-lg p-6 shadow-[var(--shadow-card)] transition-all hover:shadow-[var(--shadow-card-lg)] hover:-translate-y-0.5">
@@ -170,7 +170,7 @@ function Architecture() {
       <Container>
         <SectionLabel>Architecture</SectionLabel>
         <SectionTitle>How It All Fits Together</SectionTitle>
-        <p className="text-fg-muted mb-10 text-[0.95rem]">Two views: how evidence flows through the scoring pipeline, and how components are deployed.</p>
+        <p className="text-fg-muted mb-10 text-[1.14rem]">Two views: how evidence flows through the scoring pipeline, and how components are deployed.</p>
         <div className="inline-flex bg-accent-subtle border border-border rounded-lg p-[3px] mb-6">
           <TabBtn active={tab === "pipeline"} onClick={() => setTab("pipeline")}>How It Works</TabBtn>
           <TabBtn active={tab === "system"} onClick={() => setTab("system")}>System Architecture</TabBtn>
@@ -190,7 +190,7 @@ function GettingStarted() {
       <Container>
         <SectionLabel>Quick Start</SectionLabel>
         <SectionTitle>Getting Started</SectionTitle>
-        <p className="text-fg-muted mb-10 text-[0.95rem]">Up and running in under 5 minutes.</p>
+        <p className="text-fg-muted mb-10 text-[1.14rem]">Up and running in under 5 minutes.</p>
         <div className="inline-flex bg-accent-subtle border border-border rounded-lg p-[3px] mb-6">
           <TabBtn active={tab === "binary"} onClick={() => setTab("binary")}>Binary</TabBtn>
           <TabBtn active={tab === "brew"} onClick={() => setTab("brew")}>Homebrew</TabBtn>
@@ -208,7 +208,7 @@ function ApiReference() {
       <Container>
         <SectionLabel>API</SectionLabel>
         <SectionTitle>API Reference</SectionTitle>
-        <p className="text-fg-muted mb-10 text-[0.95rem]">Full OpenAPI 3.0 documentation for all endpoints.</p>
+        <p className="text-fg-muted mb-10 text-[1.14rem]">Full OpenAPI 3.0 documentation for all endpoints.</p>
         <a href="/docs/api" className="flex items-center justify-between bg-bg-elevated border border-border rounded-[10px] p-6 px-8 shadow-[var(--shadow-card)] transition-all hover:shadow-[var(--shadow-card-lg)] hover:border-accent no-underline">
           <div>
             <h3 className="text-base text-fg mb-1">Interactive API Documentation</h3>
@@ -227,7 +227,7 @@ function GuidesSection() {
       <Container>
         <SectionLabel>Guides</SectionLabel>
         <SectionTitle>Integrate Into Your Workflow</SectionTitle>
-        <p className="text-fg-muted mb-10 text-[0.95rem]">Step-by-step guides for common integration patterns.</p>
+        <p className="text-fg-muted mb-10 text-[1.14rem]">Step-by-step guides for common integration patterns.</p>
         <div className="grid grid-cols-3 gap-5 max-md:grid-cols-1">
           {GUIDES.map((g) => (
             <a key={g.title} href={g.href} target="_blank" rel="noopener" className="bg-bg-elevated border border-border rounded-[10px] p-6 shadow-[var(--shadow-card)] transition-all hover:shadow-[var(--shadow-card-lg)] hover:border-accent hover:-translate-y-0.5 no-underline block">
