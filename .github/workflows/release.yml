@@ -162,6 +162,19 @@ jobs:
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: evidra-mcp
+            dockerfile: Dockerfile
+            smoke: --version
+          - image: evidra
+            dockerfile: Dockerfile.cli
+            smoke: --version
+          - image: evidra-api
+            dockerfile: Dockerfile.api
+            smoke: --help
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -170,7 +183,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/vitas/evidra-mcp
+          images: ghcr.io/vitas/${{ matrix.image }}
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
@@ -189,19 +202,21 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ${{ matrix.dockerfile }}
           load: true
-          tags: evidra-mcp:smoke
+          tags: ${{ matrix.image }}:smoke
 
       - name: Smoke test
         run: |
-          docker run --rm evidra-mcp:smoke --version \
-            || { echo "FAIL: --version failed"; exit 1; }
-          echo "PASS: smoke test ok"
+          docker run --rm ${{ matrix.image }}:smoke ${{ matrix.smoke }} \
+            || { echo "FAIL: smoke test failed for ${{ matrix.image }}"; exit 1; }
+          echo "PASS: ${{ matrix.image }} smoke test ok"
 
       - name: Push image
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ${{ matrix.dockerfile }}
           push: true
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
