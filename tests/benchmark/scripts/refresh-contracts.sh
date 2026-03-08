@@ -157,13 +157,13 @@ for expected in "${expected_files[@]}"; do
 
     tmp_norm="$(mktemp)"
     out_norm="$(mktemp)"
-    if ! jq -S 'del(.processing.processed_at, .prescription_id)' "$tmp_out" >"$tmp_norm" 2>/dev/null; then
+    if ! jq -S 'del(.processing.processed_at, .prescription_id, .evidra_version)' "$tmp_out" >"$tmp_norm" 2>/dev/null; then
       echo "refresh-contracts: FAIL $case_id generated contract is not valid JSON" >&2
       fail_count=$((fail_count + 1))
       rm -f "$tmp_out" "$tmp_norm" "$out_norm"
       continue
     fi
-    if ! jq -S 'del(.processing.processed_at, .prescription_id)' "$out_path" >"$out_norm" 2>/dev/null; then
+    if ! jq -S 'del(.processing.processed_at, .prescription_id, .evidra_version)' "$out_path" >"$out_norm" 2>/dev/null; then
       echo "refresh-contracts: FAIL $case_id existing contract is not valid JSON: $out_path" >&2
       fail_count=$((fail_count + 1))
       rm -f "$tmp_out" "$tmp_norm" "$out_norm"
