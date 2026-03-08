@@ -51,3 +51,9 @@ GEMINI.md
 experiments/results/
 
 .cache
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# Screenshots from dev/testing
+*.png
