@@ -203,8 +203,8 @@ function Architecture() {
         <p className="text-fg-muted mb-10 text-[1.14rem]">Three views: scoring pipeline, system deployment, and the protocol sequence.</p>
         <div className="inline-flex bg-accent-subtle border border-border rounded-lg p-[3px] mb-6">
           <TabBtn active={tab === "pipeline"} onClick={() => setTab("pipeline")}>How It Works</TabBtn>
-          <TabBtn active={tab === "system"} onClick={() => setTab("system")}>System Architecture</TabBtn>
           <TabBtn active={tab === "sequence"} onClick={() => setTab("sequence")}>Protocol Sequence</TabBtn>
+          <TabBtn active={tab === "system"} onClick={() => setTab("system")}>System Architecture</TabBtn>
         </div>
         {tab === "pipeline" && <MermaidDiagram chart={PIPELINE_CHART} />}
         {tab === "system" && <MermaidDiagram chart={SYSTEM_CHART} />}
