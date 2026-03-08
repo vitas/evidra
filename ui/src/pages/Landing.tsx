@@ -96,7 +96,7 @@ export function Landing() {
 }
 
 function Divider() {
-  return <hr className="h-px border-none bg-gradient-to-r from-transparent via-accent to-transparent m-0" />;
+  return <hr className="h-px border-none bg-[linear-gradient(90deg,transparent,var(--color-accent-tint),var(--color-accent),var(--color-accent-tint),transparent)] m-0" />;
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -151,7 +151,7 @@ function Features() {
         <p className="text-fg-muted mb-10 text-[0.95rem]">A flight recorder for infrastructure automation &mdash; observe, measure, score, compare.</p>
         <div className="grid grid-cols-4 gap-5 max-md:grid-cols-2 max-sm:grid-cols-1">
           {FEATURES.map((f) => (
-            <div key={f.title} className="bg-bg-elevated border border-border-subtle border-l-[3px] border-l-accent rounded-lg p-6 shadow-sm transition-all hover:shadow-md hover:-translate-y-0.5">
+            <div key={f.title} className="bg-bg-elevated border border-border border-l-[3px] border-l-accent rounded-lg p-6 shadow-[var(--shadow-card)] transition-all hover:shadow-[var(--shadow-card-lg)] hover:-translate-y-0.5">
               <div className="w-9 h-9 rounded-lg bg-accent-subtle border border-border flex items-center justify-center text-lg mb-4">{f.icon}</div>
               <h3 className="text-[0.92rem] font-bold text-fg mb-1.5">{f.title}</h3>
               <p className="text-[0.83rem] text-fg-muted leading-relaxed">{f.desc}</p>
@@ -209,7 +209,7 @@ function ApiReference() {
         <SectionLabel>API</SectionLabel>
         <SectionTitle>API Reference</SectionTitle>
         <p className="text-fg-muted mb-10 text-[0.95rem]">Full OpenAPI 3.0 documentation for all endpoints.</p>
-        <a href="/docs/api" className="flex items-center justify-between bg-bg-elevated border border-border rounded-[10px] p-6 px-8 shadow-sm transition-all hover:shadow-md hover:border-accent no-underline">
+        <a href="/docs/api" className="flex items-center justify-between bg-bg-elevated border border-border rounded-[10px] p-6 px-8 shadow-[var(--shadow-card)] transition-all hover:shadow-[var(--shadow-card-lg)] hover:border-accent no-underline">
           <div>
             <h3 className="text-base text-fg mb-1">Interactive API Documentation</h3>
             <p className="text-[0.85rem] text-fg-muted">Explore all 15 endpoints with request/response schemas, authentication details, and examples.</p>
@@ -230,7 +230,7 @@ function GuidesSection() {
         <p className="text-fg-muted mb-10 text-[0.95rem]">Step-by-step guides for common integration patterns.</p>
         <div className="grid grid-cols-3 gap-5 max-md:grid-cols-1">
           {GUIDES.map((g) => (
-            <a key={g.title} href={g.href} target="_blank" rel="noopener" className="bg-bg-elevated border border-border-subtle rounded-[10px] p-6 shadow-sm transition-all hover:shadow-md hover:border-accent hover:-translate-y-0.5 no-underline block">
+            <a key={g.title} href={g.href} target="_blank" rel="noopener" className="bg-bg-elevated border border-border rounded-[10px] p-6 shadow-[var(--shadow-card)] transition-all hover:shadow-[var(--shadow-card-lg)] hover:border-accent hover:-translate-y-0.5 no-underline block">
               <div className="font-mono text-[0.7rem] font-medium text-accent tracking-wide uppercase mb-2">{g.tag}</div>
               <h3 className="text-[0.95rem] text-fg mb-1.5 font-semibold">{g.title}</h3>
               <p className="text-[0.83rem] text-fg-muted leading-relaxed">{g.desc}</p>
@@ -251,7 +251,7 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
     <button
       onClick={onClick}
       className={`border-none rounded-md px-4 py-2 cursor-pointer text-[0.82rem] font-semibold font-sans transition-all ${
-        active ? "bg-bg-elevated text-fg shadow-sm" : "bg-transparent text-fg-muted hover:text-fg"
+        active ? "bg-bg-elevated text-fg shadow-[var(--shadow-card)]" : "bg-transparent text-fg-muted hover:text-fg"
       }`}
     >
       {children}

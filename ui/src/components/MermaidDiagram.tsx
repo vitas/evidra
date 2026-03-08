@@ -51,7 +51,7 @@ export function MermaidDiagram({ chart, className = "" }: MermaidDiagramProps) {
   return (
     <div
       ref={ref}
-      className={`flex justify-center bg-bg-elevated border border-border rounded-[10px] p-8 overflow-x-auto ${className}`}
+      className={`flex justify-center bg-bg-elevated border border-border rounded-[10px] p-8 overflow-x-auto shadow-[inset_0_1px_3px_rgba(5,80,60,0.06)] ${className}`}
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   );

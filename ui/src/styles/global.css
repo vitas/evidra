@@ -14,8 +14,16 @@
   --color-accent-subtle: #ecfdf5;
   --color-border: #c6e8d6;
   --color-border-subtle: #e0f2e9;
+  --color-code-bg: #f0fdf4;
+  --color-code-header: #d1fae5;
   --font-sans: "Plus Jakarta Sans", -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
+}
+
+/* ── Shadow tokens (outside @theme to avoid comma parsing issues) ── */
+:root, [data-theme="light"] {
+  --shadow-card: 0 1px 3px rgba(5,80,60,0.06), 0 1px 2px rgba(5,80,60,0.04);
+  --shadow-card-lg: 0 4px 16px rgba(5,80,60,0.08);
 }
 
 /* ── Dark theme overrides ── */
@@ -32,17 +40,23 @@
   --color-accent-subtle: #0d2818;
   --color-border: #1e3a2c;
   --color-border-subtle: #172b22;
+  --color-code-bg: #111916;
+  --color-code-header: #1a2e24;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-card-lg: 0 4px 16px rgba(0,0,0,0.4);
 }
 
-/* ── Reset ── */
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  font-family: var(--font-sans);
-  background: var(--color-bg);
-  color: var(--color-fg-body);
-  line-height: 1.65;
-  -webkit-font-smoothing: antialiased;
-  overflow-x: hidden;
+/* ── Base styles (layered so Tailwind utilities win) ── */
+@layer base {
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--color-bg);
+    color: var(--color-fg-body);
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: var(--color-accent); text-decoration: none; transition: color 0.15s; }
+  a:hover { color: var(--color-accent-bright); }
 }
-a { color: var(--color-accent); text-decoration: none; transition: color 0.15s; }
-a:hover { color: var(--color-accent-bright); }
