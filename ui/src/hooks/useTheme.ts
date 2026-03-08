@@ -6,12 +6,6 @@ export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => {
     const saved = localStorage.getItem("evidra-theme");
     if (saved === "light" || saved === "dark") return saved;
-    if (
-      typeof window !== "undefined" &&
-      window.matchMedia("(prefers-color-scheme: dark)").matches
-    ) {
-      return "dark";
-    }
     return "light";
   });
 
