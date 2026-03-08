@@ -5,6 +5,7 @@ project_name: evidra
 before:
   hooks:
     - go mod tidy
+    - bash -c "cd ui && npm ci && npm run build"
 
 builds:
   - id: evidra
@@ -48,6 +49,8 @@ builds:
     binary: evidra-api
     env:
       - CGO_ENABLED=0
+    tags:
+      - embed_ui
     goos:
       - linux
       - darwin
