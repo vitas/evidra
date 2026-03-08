@@ -28,6 +28,12 @@ type runFlags struct {
 	signingKey          string
 	signingKeyPath      string
 	signingMode         string
+	// Mode flags
+	url             string
+	apiKey          string
+	offline         bool
+	fallbackOffline bool
+	timeout         time.Duration
 }
 
 type runCommand struct {
@@ -123,6 +129,10 @@ func cmdRun(args []string, stdout, stderr io.Writer) int {
 	if writeJSON(stdout, stderr, "encode run", result) != 0 {
 		return 1
 	}
+
+	// Best-effort forward evidence to API if online.
+	forwardEvidence(opts.url, opts.apiKey, opts.offline, opts.fallbackOffline, opts.timeout, cmd.evidencePath, opResult.ReportOutput.SessionID, stderr)
+
 	return exitCode
 }
 
@@ -144,6 +154,11 @@ func parseRunFlags(args []string, stderr io.Writer) (runFlags, []string, int) {
 	signingKeyFlag := fs.String("signing-key", "", "Base64-encoded Ed25519 signing key")
 	signingKeyPathFlag := fs.String("signing-key-path", "", "Path to PEM-encoded Ed25519 signing key")
 	signingModeFlag := fs.String("signing-mode", "", "Signing mode: strict (default) or optional")
+	urlFlag := fs.String("url", os.Getenv("EVIDRA_URL"), "Evidra API URL")
+	apiKeyFlag := fs.String("api-key", os.Getenv("EVIDRA_API_KEY"), "Evidra API key")
+	offlineFlag := fs.Bool("offline", false, "Force offline mode")
+	fallbackOfflineFlag := fs.Bool("fallback-offline", false, "Fall back to offline on API failure")
+	timeoutFlag := fs.Duration("timeout", 30*time.Second, "API request timeout")
 	if err := fs.Parse(flagArgs); err != nil {
 		return runFlags{}, nil, 2
 	}
@@ -175,6 +190,11 @@ func parseRunFlags(args []string, stderr io.Writer) (runFlags, []string, int) {
 		signingKey:          *signingKeyFlag,
 		signingKeyPath:      *signingKeyPathFlag,
 		signingMode:         *signingModeFlag,
+		url:                 *urlFlag,
+		apiKey:              *apiKeyFlag,
+		offline:             *offlineFlag,
+		fallbackOffline:     *fallbackOfflineFlag,
+		timeout:             *timeoutFlag,
 	}, wrappedCmd, 0
 }
 

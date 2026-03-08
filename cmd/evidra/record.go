@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"samebits.com/evidra-benchmark/internal/automationevent"
 	"samebits.com/evidra-benchmark/internal/canon"
@@ -20,6 +21,12 @@ type recordFlags struct {
 	signingKey     string
 	signingKeyPath string
 	signingMode    string
+	// Mode flags
+	url             string
+	apiKey          string
+	offline         bool
+	fallbackOffline bool
+	timeout         time.Duration
 }
 
 type recordCommand struct {
@@ -116,7 +123,12 @@ func cmdRecord(args []string, stdout, stderr io.Writer) int {
 		"basis":               assessment.Basis,
 		"confidence":          assessment.Confidence,
 	}
-	return writeJSON(stdout, stderr, "encode record", result)
+	code = writeJSON(stdout, stderr, "encode record", result)
+
+	// Best-effort forward evidence to API if online.
+	forwardEvidence(opts.url, opts.apiKey, opts.offline, opts.fallbackOffline, opts.timeout, cmd.evidencePath, opResult.ReportOutput.SessionID, stderr)
+
+	return code
 }
 
 func parseRecordFlags(args []string, stderr io.Writer) (recordFlags, int) {
@@ -127,16 +139,26 @@ func parseRecordFlags(args []string, stderr io.Writer) (recordFlags, int) {
 	signingKeyFlag := fs.String("signing-key", "", "Base64-encoded Ed25519 signing key")
 	signingKeyPathFlag := fs.String("signing-key-path", "", "Path to PEM-encoded Ed25519 signing key")
 	signingModeFlag := fs.String("signing-mode", "", "Signing mode: strict (default) or optional")
+	urlFlag := fs.String("url", os.Getenv("EVIDRA_URL"), "Evidra API URL")
+	apiKeyFlag := fs.String("api-key", os.Getenv("EVIDRA_API_KEY"), "Evidra API key")
+	offlineFlag := fs.Bool("offline", false, "Force offline mode")
+	fallbackOfflineFlag := fs.Bool("fallback-offline", false, "Fall back to offline on API failure")
+	timeoutFlag := fs.Duration("timeout", 30*time.Second, "API request timeout")
 	if err := fs.Parse(args); err != nil {
 		return recordFlags{}, 2
 	}
 
 	return recordFlags{
-		inputPath:      *inputFlag,
-		evidenceDir:    *evidenceFlag,
-		signingKey:     *signingKeyFlag,
-		signingKeyPath: *signingKeyPathFlag,
-		signingMode:    *signingModeFlag,
+		inputPath:       *inputFlag,
+		evidenceDir:     *evidenceFlag,
+		signingKey:      *signingKeyFlag,
+		signingKeyPath:  *signingKeyPathFlag,
+		signingMode:     *signingModeFlag,
+		url:             *urlFlag,
+		apiKey:          *apiKeyFlag,
+		offline:         *offlineFlag,
+		fallbackOffline: *fallbackOfflineFlag,
+		timeout:         *timeoutFlag,
 	}, 0
 }
 

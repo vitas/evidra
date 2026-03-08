@@ -20,6 +20,7 @@ import (
 	"samebits.com/evidra-benchmark/internal/score"
 	"samebits.com/evidra-benchmark/internal/signal"
 	"samebits.com/evidra-benchmark/pkg/evidence"
+	"samebits.com/evidra-benchmark/pkg/mode"
 	"samebits.com/evidra-benchmark/pkg/version"
 )
 
@@ -1026,6 +1027,67 @@ func writeJSON(stdout, stderr io.Writer, context string, payload interface{}) in
 		return 1
 	}
 	return 0
+}
+
+// forwardEvidence resolves the operating mode and, if online, best-effort
+// forwards session evidence entries to the Evidra API.
+func forwardEvidence(url, apiKey string, offline, fallbackOffline bool, timeout time.Duration, evidencePath, sessionID string, stderr io.Writer) {
+	fallbackPolicy := ""
+	if fallbackOffline {
+		fallbackPolicy = "offline"
+	}
+	if v := os.Getenv("EVIDRA_FALLBACK"); v != "" && fallbackPolicy == "" {
+		fallbackPolicy = v
+	}
+
+	resolved, err := mode.Resolve(mode.Config{
+		URL:            url,
+		APIKey:         apiKey,
+		FallbackPolicy: fallbackPolicy,
+		ForceOffline:   offline,
+		Timeout:        timeout,
+	})
+	if err != nil {
+		fmt.Fprintf(stderr, "warning: mode resolve: %v\n", err)
+		return
+	}
+	if !resolved.IsOnline {
+		return
+	}
+
+	entries, err := evidence.ReadAllEntriesAtPath(evidencePath)
+	if err != nil {
+		fmt.Fprintf(stderr, "warning: read evidence for forwarding: %v\n", err)
+		return
+	}
+
+	var toForward []json.RawMessage
+	for _, e := range entries {
+		if sessionID != "" && e.SessionID != sessionID {
+			continue
+		}
+		raw, marshalErr := json.Marshal(e)
+		if marshalErr != nil {
+			continue
+		}
+		toForward = append(toForward, raw)
+	}
+	if len(toForward) == 0 {
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	if len(toForward) == 1 {
+		if _, fwdErr := resolved.Client.Forward(ctx, toForward[0]); fwdErr != nil {
+			fmt.Fprintf(stderr, "warning: forward evidence: %v\n", fwdErr)
+		}
+	} else {
+		if _, fwdErr := resolved.Client.Batch(ctx, toForward); fwdErr != nil {
+			fmt.Fprintf(stderr, "warning: batch forward evidence: %v\n", fwdErr)
+		}
+	}
 }
 
 func printUsage(w io.Writer) {
