@@ -81,6 +81,9 @@ docker-cli:
 docker-api:
 	docker build -t evidra-api:dev -f Dockerfile.api .
 
+docker-hosted:
+	docker build -t evidra-mcp-hosted:dev -f Dockerfile.hosted .
+
 docker-up:
 	docker compose up --build -d
 

@@ -1,0 +1,18 @@
+FROM golang:1.23-alpine AS builder
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" \
+    -o /evidra-mcp ./cmd/evidra-mcp
+
+FROM node:22-alpine
+RUN npm install -g supergateway && \
+    apk add --no-cache wget
+COPY --from=builder /evidra-mcp /usr/local/bin/evidra-mcp
+EXPOSE 8000
+ENTRYPOINT ["supergateway", \
+  "--stdio", "evidra-mcp", \
+  "--outputTransport", "streamableHttp", \
+  "--port", "8000", \
+  "--healthEndpoint", "/healthz"]

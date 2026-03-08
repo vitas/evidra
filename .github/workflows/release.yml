@@ -175,6 +175,9 @@ jobs:
           - image: evidra-api
             dockerfile: Dockerfile.api
             smoke: --help
+          - image: evidra-mcp-hosted
+            dockerfile: Dockerfile.hosted
+            smoke: --help
     steps:
       - name: Checkout
         uses: actions/checkout@v6
