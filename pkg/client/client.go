@@ -84,7 +84,7 @@ func (c *Client) Ping(ctx context.Context) error {
 	if err != nil {
 		return classifyTransportError(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("%w: healthz returned HTTP %d", ErrServerError, resp.StatusCode)
 	}
@@ -106,7 +106,7 @@ func (c *Client) post(ctx context.Context, path string, body json.RawMessage, ou
 	if err != nil {
 		return classifyTransportError(err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if err := classifyHTTPStatus(resp); err != nil {
 		return err

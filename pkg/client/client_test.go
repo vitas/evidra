@@ -26,7 +26,7 @@ func TestForward_Success(t *testing.T) {
 		if r.URL.Path != "/v1/evidence/forward" {
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"receipt_id": "r1",
 			"status":     "accepted",
 		})

@@ -22,7 +22,9 @@ func TestHealthz(t *testing.T) {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
 	var body map[string]string
-	json.NewDecoder(rec.Body).Decode(&body)
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if body["status"] != "ok" {
 		t.Fatalf("expected status=ok, got %s", body["status"])
 	}

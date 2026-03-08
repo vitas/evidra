@@ -35,7 +35,7 @@ func TestStaticKeyMiddleware_ValidKey(t *testing.T) {
 	handler := StaticKeyMiddleware("test-key", "default-tenant")(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			tid := TenantID(r.Context())
-			w.Write([]byte(tid))
+			_, _ = w.Write([]byte(tid))
 		}),
 	)
 

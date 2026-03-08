@@ -20,6 +20,6 @@ func handlePubkey(pubkey ed25519.PublicKey) http.HandlerFunc {
 		}
 		block := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: der})
 		w.Header().Set("Content-Type", "application/x-pem-file")
-		w.Write(block)
+		_, _ = w.Write(block)
 	}
 }

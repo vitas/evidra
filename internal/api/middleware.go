@@ -1,7 +1,6 @@
 package api
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -62,15 +61,4 @@ func wrapMiddleware(h http.Handler) http.Handler {
 	h = requestLogMiddleware(h)
 	h = recoveryMiddleware(h)
 	return h
-}
-
-// methodOnly returns 405 for methods not in the allowed list.
-func methodOnly(method string, h http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != method {
-			writeError(w, http.StatusMethodNotAllowed, fmt.Sprintf("method %s not allowed", r.Method))
-			return
-		}
-		h(w, r)
-	}
 }

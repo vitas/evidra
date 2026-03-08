@@ -70,7 +70,9 @@ func TestBatchHandler_Success(t *testing.T) {
 		t.Fatalf("expected 200, got %d body=%s", rec.Code, rec.Body.String())
 	}
 	var resp map[string]interface{}
-	json.NewDecoder(rec.Body).Decode(&resp)
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if int(resp["accepted"].(float64)) != 2 {
 		t.Fatalf("expected accepted=2, got %v", resp["accepted"])
 	}

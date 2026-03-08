@@ -53,7 +53,7 @@ func (bs *BenchmarkStore) SaveRun(ctx context.Context, run BenchmarkRun, results
 	if err != nil {
 		return "", fmt.Errorf("store.SaveRun: begin: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	_, err = tx.Exec(ctx,
 		`INSERT INTO benchmark_runs (id, tenant_id, suite, score, band, metadata, started_at, completed_at)

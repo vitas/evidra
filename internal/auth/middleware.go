@@ -38,7 +38,7 @@ func authFail(w http.ResponseWriter) {
 	jitterSleep()
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnauthorized)
-	json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": "unauthorized"})
 }
 
 // jitterSleep adds 50-100ms random delay to prevent timing attacks.
@@ -89,7 +89,7 @@ func AuthCheckHandler() http.HandlerFunc {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"ok": "true", "tenant_id": tid})
+		_ = json.NewEncoder(w).Encode(map[string]string{"ok": "true", "tenant_id": tid})
 	}
 }
 
