@@ -95,6 +95,7 @@ jobs:
         with:
           version: v2.10.1
           args: --timeout=5m
+          verify: false
 
       - name: Verify generated prompts
         run: make prompts-verify

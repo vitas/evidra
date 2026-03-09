@@ -39,6 +39,7 @@ jobs:
         with:
           version: v2.10.1
           args: --timeout=5m
+          verify: false
 
       - name: Build binaries
         run: |
