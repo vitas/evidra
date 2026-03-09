@@ -107,18 +107,18 @@ run/record -> prescribe -> execute/report -> evidence -> signals -> scorecard
 ## Where To Find Details
 
 Normative contracts:
-- [Protocol](EVIDRA_PROTOCOL.md)
-- [Core Data Model](EVIDRA_CORE_DATA_MODEL.md)
-- [Canonicalization Contract](CANONICALIZATION_CONTRACT_V1.md)
-- [Signal Spec](EVIDRA_SIGNAL_SPEC.md)
-- [Session/Operation Event Model](EVIDRA_SESSION_OPERATION_EVENT_MODEL.md)
+- [Protocol](system-design/EVIDRA_PROTOCOL.md)
+- [Core Data Model](system-design/EVIDRA_CORE_DATA_MODEL.md)
+- [Canonicalization Contract](system-design/CANONICALIZATION_CONTRACT_V1.md)
+- [Signal Spec](system-design/EVIDRA_SIGNAL_SPEC.md)
+- [Session/Operation Event Model](system-design/EVIDRA_SESSION_OPERATION_EVENT_MODEL.md)
 
 System design and implementation mapping:
-- [V1 Architecture](V1_ARCHITECTURE.md)
-- [V1 Run/Record Contract](V1_RUN_RECORD_CONTRACT.md)
-- [CNCF Standards Alignment](EVIDRA_CNCF_STANDARDS_ALIGNMENT.md)
+- [V1 Architecture](system-design/V1_ARCHITECTURE.md)
+- [V1 Run/Record Contract](system-design/V1_RUN_RECORD_CONTRACT.md)
+- [CNCF Standards Alignment](system-design/EVIDRA_CNCF_STANDARDS_ALIGNMENT.md)
 
 Operational references:
-- [CLI Reference](../integrations/CLI_REFERENCE.md)
-- [End-to-End Example](EVIDRA_END_TO_END_EXAMPLE_v2.md)
-- [Signal Validation Guide](../experimental/SIGNAL_VALIDATION_GUIDE.md)
+- [CLI Reference](integrations/CLI_REFERENCE.md)
+- [End-to-End Example](system-design/EVIDRA_END_TO_END_EXAMPLE_v2.md)
+- [Signal Validation Guide](experimental/SIGNAL_VALIDATION_GUIDE.md)
