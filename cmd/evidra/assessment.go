@@ -14,13 +14,12 @@ const (
 type assessmentBasis = assessment.Basis
 
 type operationAssessment struct {
-	RiskClassification string           `json:"risk_classification"`
-	RiskLevel          string           `json:"risk_level"`
-	Score              float64          `json:"score"`
-	ScoreBand          string           `json:"score_band"`
-	SignalSummary      map[string]int   `json:"signal_summary"`
-	Confidence         score.Confidence `json:"confidence"`
-	Basis              assessmentBasis  `json:"basis"`
+	RiskLevel     string           `json:"risk_level"`
+	Score         float64          `json:"score"`
+	ScoreBand     string           `json:"score_band"`
+	SignalSummary map[string]int   `json:"signal_summary"`
+	Confidence    score.Confidence `json:"confidence"`
+	Basis         assessmentBasis  `json:"basis"`
 }
 
 func buildOperationAssessment(evidencePath, sessionID, riskLevel string) (operationAssessment, error) {
@@ -30,13 +29,12 @@ func buildOperationAssessment(evidencePath, sessionID, riskLevel string) (operat
 	}
 
 	return operationAssessment{
-		RiskClassification: snapshot.ScoreBand,
-		RiskLevel:          riskLevel,
-		Score:              snapshot.Score,
-		ScoreBand:          snapshot.ScoreBand,
-		SignalSummary:      snapshot.SignalSummary,
-		Confidence:         snapshot.Confidence,
-		Basis:              snapshot.Basis,
+		RiskLevel:     riskLevel,
+		Score:         snapshot.Score,
+		ScoreBand:     snapshot.ScoreBand,
+		SignalSummary: snapshot.SignalSummary,
+		Confidence:    snapshot.Confidence,
+		Basis:         snapshot.Basis,
 	}, nil
 }
 
@@ -44,12 +42,11 @@ func buildAssessment(results []signal.SignalResult, totalOps int, riskLevel stri
 	snapshot := assessment.BuildFromResults(results, totalOps)
 
 	return operationAssessment{
-		RiskClassification: snapshot.ScoreBand,
-		RiskLevel:          riskLevel,
-		Score:              snapshot.Score,
-		ScoreBand:          snapshot.ScoreBand,
-		SignalSummary:      snapshot.SignalSummary,
-		Confidence:         snapshot.Confidence,
-		Basis:              snapshot.Basis,
+		RiskLevel:     riskLevel,
+		Score:         snapshot.Score,
+		ScoreBand:     snapshot.ScoreBand,
+		SignalSummary: snapshot.SignalSummary,
+		Confidence:    snapshot.Confidence,
+		Basis:         snapshot.Basis,
 	}
 }

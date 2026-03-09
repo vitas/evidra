@@ -110,15 +110,24 @@ func TestE2E_PrescribeReportLifecycle(t *testing.T) {
 		t.Fatalf("report: %v", err)
 	}
 
-	var reportOut ReportOutput
+	var reportOut map[string]any
 	if err := extractStructuredContent(reportResult, &reportOut); err != nil {
 		t.Fatalf("parse report output: %v", err)
 	}
-	if !reportOut.OK {
+	if reportOut["ok"] != true {
 		t.Fatalf("report not ok: %+v", reportOut)
 	}
-	if reportOut.ReportID == "" {
+	reportID, ok := reportOut["report_id"].(string)
+	if !ok || reportID == "" {
 		t.Fatal("report returned empty report_id")
+	}
+	for _, key := range []string{"score", "score_band", "signal_summary", "basis", "confidence", "prescription_id", "exit_code", "verdict"} {
+		if _, ok := reportOut[key]; !ok {
+			t.Fatalf("missing report field %q: %+v", key, reportOut)
+		}
+	}
+	if _, ok := reportOut["signals"]; ok {
+		t.Fatalf("signals must not be present in report output: %+v", reportOut)
 	}
 
 	// Get event — retrieve the prescription entry via resource template.

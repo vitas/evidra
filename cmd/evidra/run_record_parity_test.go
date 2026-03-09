@@ -91,8 +91,11 @@ func TestRunAndRecord_ProduceEquivalentSignalsForSameOperation(t *testing.T) {
 	if runResult["score_band"] != recResult["score_band"] {
 		t.Fatalf("score_band mismatch run=%v record=%v", runResult["score_band"], recResult["score_band"])
 	}
-	if runResult["risk_classification"] != recResult["risk_classification"] {
-		t.Fatalf("risk_classification mismatch run=%v record=%v", runResult["risk_classification"], recResult["risk_classification"])
+	if _, ok := runResult["risk_classification"]; ok {
+		t.Fatalf("run result must not contain risk_classification: %v", runResult)
+	}
+	if _, ok := recResult["risk_classification"]; ok {
+		t.Fatalf("record result must not contain risk_classification: %v", recResult)
 	}
 }
 

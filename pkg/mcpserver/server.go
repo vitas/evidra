@@ -8,8 +8,10 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"samebits.com/evidra-benchmark/internal/assessment"
 	"samebits.com/evidra-benchmark/internal/canon"
 	"samebits.com/evidra-benchmark/internal/lifecycle"
+	"samebits.com/evidra-benchmark/internal/score"
 	"samebits.com/evidra-benchmark/pkg/evidence"
 	"samebits.com/evidra-benchmark/pkg/version"
 	promptdata "samebits.com/evidra-benchmark/prompts"
@@ -89,10 +91,17 @@ type ReportInput struct {
 
 // ReportOutput is returned by the report tool.
 type ReportOutput struct {
-	OK       bool     `json:"ok"`
-	ReportID string   `json:"report_id"`
-	Signals  []string `json:"signals,omitempty"`
-	Error    *ErrInfo `json:"error,omitempty"`
+	OK             bool             `json:"ok"`
+	ReportID       string           `json:"report_id"`
+	PrescriptionID string           `json:"prescription_id"`
+	ExitCode       int              `json:"exit_code"`
+	Verdict        evidence.Verdict `json:"verdict"`
+	Score          float64          `json:"score"`
+	ScoreBand      string           `json:"score_band"`
+	SignalSummary  map[string]int   `json:"signal_summary"`
+	Basis          assessment.Basis `json:"basis"`
+	Confidence     score.Confidence `json:"confidence"`
+	Error          *ErrInfo         `json:"error,omitempty"`
 }
 
 // ErrInfo represents an error in tool output.
@@ -338,16 +347,39 @@ func (s *BenchmarkService) Report(input ReportInput) ReportOutput {
 	out, err := s.lifecycleService().Report(context.Background(), toLifecycleReportInput(input))
 	if err != nil {
 		return ReportOutput{
-			OK:    false,
-			Error: lifecycleErrInfo(err),
+			OK:            false,
+			ExitCode:      input.ExitCode,
+			Verdict:       evidence.VerdictFromExitCode(input.ExitCode),
+			SignalSummary: map[string]int{},
+			Error:         lifecycleErrInfo(err),
 		}
 	}
 
 	s.tryForwardEntry(out.ReportID)
 
+	snapshot, err := assessment.BuildAtPath(s.evidencePath, out.SessionID)
+	if err != nil {
+		return ReportOutput{
+			OK:             false,
+			PrescriptionID: out.PrescriptionID,
+			ExitCode:       input.ExitCode,
+			Verdict:        evidence.VerdictFromExitCode(input.ExitCode),
+			SignalSummary:  map[string]int{},
+			Error:          &ErrInfo{Code: string(lifecycle.ErrCodeInternal), Message: "failed to build assessment snapshot"},
+		}
+	}
+
 	return ReportOutput{
-		OK:       true,
-		ReportID: out.ReportID,
+		OK:             true,
+		ReportID:       out.ReportID,
+		PrescriptionID: out.PrescriptionID,
+		ExitCode:       input.ExitCode,
+		Verdict:        evidence.VerdictFromExitCode(input.ExitCode),
+		Score:          snapshot.Score,
+		ScoreBand:      snapshot.ScoreBand,
+		SignalSummary:  snapshot.SignalSummary,
+		Basis:          snapshot.Basis,
+		Confidence:     snapshot.Confidence,
 	}
 }
 

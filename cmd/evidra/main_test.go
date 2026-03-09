@@ -602,6 +602,11 @@ func TestRunReport_DerivesSessionFromPrescriptionWhenOmitted(t *testing.T) {
 	if !ok || reportID == "" {
 		t.Fatalf("invalid report_id: %#v", report["report_id"])
 	}
+	for _, key := range []string{"prescription_id", "exit_code", "verdict", "score", "score_band", "signal_summary", "basis", "confidence"} {
+		if _, ok := report[key]; !ok {
+			t.Fatalf("missing report field %q: %#v", key, report)
+		}
+	}
 
 	reportEntry, found, err := evidence.FindEntryByID(evidenceDir, reportID)
 	if err != nil {

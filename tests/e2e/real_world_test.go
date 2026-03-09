@@ -181,9 +181,9 @@ func TestE2EReal_K8sAppStack(t *testing.T) {
 		t.Error("resource_shape_hash empty")
 	}
 
-	// Verify risk assessment.
-	if payload.RiskLevel != "high" {
-		t.Errorf("risk_level = %q, want high (mutate×staging with 8 resources)", payload.RiskLevel)
+	// Risk follows the matrix unless a detector has higher base severity.
+	if payload.RiskLevel != "medium" {
+		t.Errorf("risk_level = %q, want medium (mutate×staging matrix with no higher-severity detector)", payload.RiskLevel)
 	}
 
 	t.Logf("K8s app stack: %d resources, risk=%s, shape_hash=%s",
@@ -248,9 +248,9 @@ func TestE2EReal_TerraformInfra(t *testing.T) {
 		t.Error("risk_details empty — expected detector to fire on security-relevant resources")
 	}
 
-	// Production + risk tags should be critical.
-	if payload.RiskLevel != "critical" {
-		t.Errorf("risk_level = %q, want critical", payload.RiskLevel)
+	// Production mutate is high from the matrix; high-severity tags keep it high.
+	if payload.RiskLevel != "high" {
+		t.Errorf("risk_level = %q, want high", payload.RiskLevel)
 	}
 
 	if action.OperationClass != "mutate" {
@@ -379,8 +379,8 @@ func TestE2EReal_ArgoCDSync(t *testing.T) {
 		t.Errorf("shape_hash not stable across runs: %s vs %s", action.ShapeHash, action2.ShapeHash)
 	}
 
-	if payload.RiskLevel != "critical" {
-		t.Errorf("risk_level = %q, want critical (mutate×production)", payload.RiskLevel)
+	if payload.RiskLevel != "high" {
+		t.Errorf("risk_level = %q, want high (mutate×production matrix)", payload.RiskLevel)
 	}
 
 	t.Logf("ArgoCD sync: %d resources, risk=%s, kinds=%v",
@@ -481,9 +481,9 @@ func TestE2EReal_HelmIngressNginx(t *testing.T) {
 		t.Error("risk_details empty — expected detectors to fire on ingress-nginx spec")
 	}
 
-	// Production install should be critical.
-	if payload.RiskLevel != "critical" {
-		t.Errorf("risk_level = %q, want critical", payload.RiskLevel)
+	// Production install is high from the matrix; medium/low tags do not elevate it.
+	if payload.RiskLevel != "high" {
+		t.Errorf("risk_level = %q, want high", payload.RiskLevel)
 	}
 
 	t.Logf("Helm ingress-nginx: %d resources, risk=%s, tags=%v",
@@ -553,8 +553,8 @@ func TestE2EReal_OpenShiftApp(t *testing.T) {
 		t.Error("missing Route webapp identity")
 	}
 
-	if payload.RiskLevel != "critical" {
-		t.Errorf("risk_level = %q, want critical (mutate×production)", payload.RiskLevel)
+	if payload.RiskLevel != "high" {
+		t.Errorf("risk_level = %q, want high (mutate×production matrix)", payload.RiskLevel)
 	}
 
 	t.Logf("OpenShift app: %d resources, risk=%s, kinds=%v",

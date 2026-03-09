@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"samebits.com/evidra-benchmark/internal/assessment"
 	"samebits.com/evidra-benchmark/internal/canon"
 	"samebits.com/evidra-benchmark/internal/config"
 	ievsigner "samebits.com/evidra-benchmark/internal/evidence"
@@ -557,10 +558,20 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 	result := map[string]interface{}{
 		"ok":              true,
 		"report_id":       reportOut.ReportID,
-		"prescription_id": opts.prescriptionID,
+		"prescription_id": reportOut.PrescriptionID,
 		"exit_code":       opts.exitCode,
 		"verdict":         evidence.VerdictFromExitCode(opts.exitCode),
 	}
+	snapshot, err := assessment.BuildAtPath(cmd.evidencePath, reportOut.SessionID)
+	if err != nil {
+		fmt.Fprintf(stderr, "report assessment: %v\n", err)
+		return 1
+	}
+	result["score"] = snapshot.Score
+	result["score_band"] = snapshot.ScoreBand
+	result["signal_summary"] = snapshot.SignalSummary
+	result["basis"] = snapshot.Basis
+	result["confidence"] = snapshot.Confidence
 	return writeJSON(stdout, stderr, "encode report", result)
 }
 
@@ -579,8 +590,9 @@ type reportFlags struct {
 }
 
 type reportCommand struct {
-	service *lifecycle.Service
-	input   lifecycle.ReportInput
+	service      *lifecycle.Service
+	evidencePath string
+	input        lifecycle.ReportInput
 }
 
 func parseReportFlags(args []string, stderr io.Writer) (reportFlags, int) {
@@ -621,7 +633,7 @@ func parseReportFlags(args []string, stderr io.Writer) (reportFlags, int) {
 }
 
 func prepareReportCommand(opts reportFlags) (reportCommand, error) {
-	svc, _, _, err := newLifecycleServiceForCommand(opts.evidenceDir, opts.signingKey, opts.signingKeyPath, opts.signingMode)
+	svc, evidencePath, _, err := newLifecycleServiceForCommand(opts.evidenceDir, opts.signingKey, opts.signingKeyPath, opts.signingMode)
 	if err != nil {
 		return reportCommand{}, err
 	}
@@ -638,7 +650,8 @@ func prepareReportCommand(opts reportFlags) (reportCommand, error) {
 	actor := evidence.Actor{Type: "cli", ID: actorID, Provenance: "cli"}
 
 	return reportCommand{
-		service: svc,
+		service:      svc,
+		evidencePath: evidencePath,
 		input: lifecycle.ReportInput{
 			PrescriptionID: opts.prescriptionID,
 			ExitCode:       opts.exitCode,

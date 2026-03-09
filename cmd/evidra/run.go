@@ -109,22 +109,21 @@ func cmdRun(args []string, stdout, stderr io.Writer) int {
 	}
 
 	result := map[string]interface{}{
-		"ok":                  exitCode == 0,
-		"session_id":          opResult.ReportOutput.SessionID,
-		"operation_id":        cmd.prescribeInput.OperationID,
-		"prescription_id":     opResult.PrescribeOutput.PrescriptionID,
-		"report_id":           opResult.ReportOutput.ReportID,
-		"exit_code":           exitCode,
-		"verdict":             evidence.VerdictFromExitCode(exitCode),
-		"duration_ms":         durationMs,
-		"risk_classification": assessment.RiskClassification,
-		"risk_level":          assessment.RiskLevel,
-		"risk_tags":           opResult.PrescribeOutput.RiskTags,
-		"score":               assessment.Score,
-		"score_band":          assessment.ScoreBand,
-		"signal_summary":      assessment.SignalSummary,
-		"basis":               assessment.Basis,
-		"confidence":          assessment.Confidence,
+		"ok":              exitCode == 0,
+		"session_id":      opResult.ReportOutput.SessionID,
+		"operation_id":    cmd.prescribeInput.OperationID,
+		"prescription_id": opResult.PrescribeOutput.PrescriptionID,
+		"report_id":       opResult.ReportOutput.ReportID,
+		"exit_code":       exitCode,
+		"verdict":         evidence.VerdictFromExitCode(exitCode),
+		"duration_ms":     durationMs,
+		"risk_level":      assessment.RiskLevel,
+		"risk_tags":       opResult.PrescribeOutput.RiskTags,
+		"score":           assessment.Score,
+		"score_band":      assessment.ScoreBand,
+		"signal_summary":  assessment.SignalSummary,
+		"basis":           assessment.Basis,
+		"confidence":      assessment.Confidence,
 	}
 	if writeJSON(stdout, stderr, "encode run", result) != 0 {
 		return 1

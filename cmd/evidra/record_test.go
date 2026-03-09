@@ -69,6 +69,14 @@ func TestRecordCommandWritesPrescribeAndReport(t *testing.T) {
 			t.Fatalf("missing key %q in result: %#v", key, result)
 		}
 	}
+	for _, key := range []string{"risk_level", "score", "score_band", "signal_summary", "basis", "confidence"} {
+		if _, ok := result[key]; !ok {
+			t.Fatalf("missing assessment field %q in result: %#v", key, result)
+		}
+	}
+	if _, ok := result["risk_classification"]; ok {
+		t.Fatalf("risk_classification must not be present: %#v", result)
+	}
 
 	entries, err := evidence.ReadAllEntriesAtPath(evidenceDir)
 	if err != nil {
