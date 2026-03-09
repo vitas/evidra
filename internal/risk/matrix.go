@@ -3,8 +3,8 @@ package risk
 import (
 	"strings"
 
-	_ "samebits.com/evidra-benchmark/internal/detectors/all"
 	"samebits.com/evidra-benchmark/internal/detectors"
+	_ "samebits.com/evidra-benchmark/internal/detectors/all"
 )
 
 // riskMatrix maps operationClass x scopeClass (environment-based) to riskLevel.
