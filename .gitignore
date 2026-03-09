@@ -35,6 +35,7 @@ latest.log
 
 # Node
 node_modules/
+ui/package-lock.json
 
 # IDE/editor
 .vscode/
@@ -57,3 +58,5 @@ experiments/results/
 
 # Screenshots from dev/testing
 *.png
+
+
