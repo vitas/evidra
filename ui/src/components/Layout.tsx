@@ -7,6 +7,7 @@ interface LayoutProps {
 
 const NAV_LINKS = [
   { href: "#features", label: "Features" },
+  { href: "#signals", label: "Signals" },
   { href: "#architecture", label: "Architecture" },
   { href: "#get-started", label: "Get Started" },
   { href: "#mcp-setup", label: "MCP Setup" },

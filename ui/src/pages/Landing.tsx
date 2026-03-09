@@ -94,6 +94,17 @@ docker compose up -d
 # Verify it's running
 curl http://localhost:8080/healthz`;
 
+const SIGNALS = [
+  { name: "protocol_violation", weight: "0.35", desc: "Missing prescribe or report, duplicate reports", icon: "\u26A0" },
+  { name: "artifact_drift", weight: "0.30", desc: "Artifact content changed between prescribe and execution", icon: "\u21C5" },
+  { name: "retry_loop", weight: "0.20", desc: "Same operation retried multiple times after failure", icon: "\u21BA" },
+  { name: "thrashing", weight: "0.15", desc: "Rapid apply/delete cycles on the same resources", icon: "\u21AF" },
+  { name: "blast_radius", weight: "0.10", desc: "Operations affecting many resources or critical scopes", icon: "\u25C9" },
+  { name: "risk_escalation", weight: "0.10", desc: "Actor's operations exceed their baseline risk level", icon: "\u2191" },
+  { name: "new_scope", weight: "0.05", desc: "Actor operating in an environment they haven't used before", icon: "\u2737" },
+  { name: "repair_loop", weight: "\u22120.05", desc: "Delete-then-recreate patterns \u2014 penalty reduction (positive signal)", icon: "\u2795" },
+];
+
 const FEATURES = [
   { icon: "\u25CE", title: "Observe", desc: "Record every infrastructure operation as signed evidence in an append-only, hash-linked chain." },
   { icon: "\u25A4", title: "Measure", desc: "Detect 8 behavioral signals: retry loops, artifact drift, protocol violations, blast radius, and more." },
@@ -205,6 +216,8 @@ export function Landing() {
       <Divider />
       <Features />
       <Divider />
+      <Signals />
+      <Divider />
       <Architecture />
       <Divider />
       <GettingStarted />
@@ -281,6 +294,31 @@ function Features() {
             </div>
           ))}
         </div>
+      </Container>
+    </section>
+  );
+}
+
+function Signals() {
+  return (
+    <section id="signals" className="py-14 bg-bg-alt">
+      <Container>
+        <SectionLabel>Behavioral Signals</SectionLabel>
+        <SectionTitle>8 Signals, Weighted Scoring</SectionTitle>
+        <p className="text-fg-muted mb-8 text-[1.14rem]">Each signal detects a distinct operational anti-pattern. Weights reflect severity &mdash; higher weight means greater impact on the reliability score.</p>
+        <div className="grid grid-cols-1 gap-[1px] bg-border rounded-[10px] overflow-hidden shadow-[var(--shadow-card)]">
+          {SIGNALS.map((s) => (
+            <div key={s.name} className="bg-bg-elevated flex items-center gap-5 px-6 py-4 max-sm:flex-wrap">
+              <div className="w-8 h-8 rounded-lg bg-accent-subtle border border-border flex items-center justify-center text-base shrink-0">{s.icon}</div>
+              <div className="font-mono text-[0.82rem] font-semibold text-fg w-[170px] shrink-0">{s.name}</div>
+              <div className="text-[0.83rem] text-fg-muted leading-relaxed flex-1">{s.desc}</div>
+              <div className={`font-mono text-[0.78rem] font-medium shrink-0 tabular-nums ${s.weight.startsWith("\u2212") ? "text-green-500" : "text-accent"}`}>{s.weight}</div>
+            </div>
+          ))}
+        </div>
+        <p className="text-[0.82rem] text-fg-muted mt-4 text-center">
+          Score = 100 &times; (1 &minus; weighted penalty). Range 0&ndash;100. Bands: excellent &ge; 90, good &ge; 75, fair &ge; 50, poor &ge; 25, critical &lt; 25.
+        </p>
       </Container>
     </section>
   );
