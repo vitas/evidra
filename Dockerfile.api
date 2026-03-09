@@ -1,8 +1,8 @@
 # UI build stage
 FROM node:22-alpine AS ui-builder
 WORKDIR /ui
-COPY ui/package.json ui/package-lock.json ./
-RUN npm ci
+COPY ui/package.json ./
+RUN npm install
 COPY ui/ .
 RUN npm run build
 
