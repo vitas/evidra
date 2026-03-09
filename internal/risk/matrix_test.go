@@ -1,6 +1,10 @@
 package risk
 
-import "testing"
+import (
+	"testing"
+
+	_ "samebits.com/evidra-benchmark/internal/detectors/all"
+)
 
 func TestRiskLevel_KnownCombinations(t *testing.T) {
 	t.Parallel()
@@ -99,9 +103,11 @@ func TestElevateRiskLevel(t *testing.T) {
 	}{
 		{"no_tags_nil", "medium", nil, "medium"},
 		{"no_tags_empty", "medium", []string{}, "medium"},
-		{"low_to_medium", "low", []string{"k8s.privileged_container"}, "medium"},
-		{"medium_to_high", "medium", []string{"k8s.hostpath_mount"}, "high"},
-		{"high_to_critical", "high", []string{"aws_iam.wildcard_policy"}, "critical"},
+		{"critical_detector_overrides_medium_matrix", "medium", []string{"k8s.privileged_container"}, "critical"},
+		{"low_detector_does_not_raise_high_matrix", "high", []string{"k8s.writable_rootfs"}, "high"},
+		{"high_detector_raises_low_matrix", "low", []string{"ops.kube_system"}, "high"},
+		{"medium_detector_raises_low_matrix", "low", []string{"k8s.run_as_root"}, "medium"},
+		{"unknown_tag_is_ignored", "medium", []string{"unknown.tag"}, "medium"},
 		{"critical_stays_critical", "critical", []string{"ops.mass_delete"}, "critical"},
 	}
 

@@ -66,6 +66,18 @@ func All() []Detector {
 	return out
 }
 
+// BaseSeverityForTag returns the registered base severity for a detector tag.
+func BaseSeverityForTag(tag string) (string, bool) {
+	regMu.RLock()
+	defer regMu.RUnlock()
+	for _, d := range registry {
+		if d.Tag() == tag {
+			return d.BaseSeverity(), true
+		}
+	}
+	return "", false
+}
+
 // RunAll runs all registered detectors and returns fired tags.
 func RunAll(action canon.CanonicalAction, raw []byte) []string {
 	var tags []string

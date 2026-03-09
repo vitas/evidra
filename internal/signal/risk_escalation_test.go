@@ -201,8 +201,8 @@ func TestDetectRiskEscalation_RiskTagElevation(t *testing.T) {
 		{EventID: "P1", IsPrescription: true, ActorID: "alice", Tool: "kubectl", OperationClass: "mutate", ScopeClass: "staging", Timestamp: now},
 		{EventID: "P2", IsPrescription: true, ActorID: "alice", Tool: "kubectl", OperationClass: "mutate", ScopeClass: "staging", Timestamp: now.Add(1 * time.Minute)},
 		{EventID: "P3", IsPrescription: true, ActorID: "alice", Tool: "kubectl", OperationClass: "mutate", ScopeClass: "staging", Timestamp: now.Add(2 * time.Minute)},
-		// Same op/scope but risk tag elevates medium -> high
-		{EventID: "P4", IsPrescription: true, ActorID: "alice", Tool: "kubectl", OperationClass: "mutate", ScopeClass: "staging", RiskTags: []string{"privileged_container"}, Timestamp: now.Add(3 * time.Minute)},
+		// Same op/scope but risk tag elevates medium -> critical.
+		{EventID: "P4", IsPrescription: true, ActorID: "alice", Tool: "kubectl", OperationClass: "mutate", ScopeClass: "staging", RiskTags: []string{"k8s.privileged_container"}, Timestamp: now.Add(3 * time.Minute)},
 	}
 
 	result := DetectRiskEscalation(entries)

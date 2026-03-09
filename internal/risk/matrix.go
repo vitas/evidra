@@ -1,6 +1,11 @@
 package risk
 
-import "strings"
+import (
+	"strings"
+
+	_ "samebits.com/evidra-benchmark/internal/detectors/all"
+	"samebits.com/evidra-benchmark/internal/detectors"
+)
 
 // riskMatrix maps operationClass x scopeClass (environment-based) to riskLevel.
 // See EVIDRA_AGENT_RELIABILITY_BENCHMARK.md section 7.
@@ -48,21 +53,30 @@ func normalizeScopeClassAlias(scopeClass string) string {
 	}
 }
 
-// ElevateRiskLevel returns the matrix risk level elevated by one step when
-// catastrophic risk tags are present. No tags → matrix level unchanged.
+// ElevateRiskLevel returns the highest severity across the matrix-derived risk
+// level and any fired detector tags. Unknown tags are ignored.
 func ElevateRiskLevel(matrixLevel string, riskTags []string) string {
-	if len(riskTags) == 0 {
-		return matrixLevel
+	best := matrixLevel
+	bestSeverity, ok := riskSeverity[matrixLevel]
+	if !ok {
+		best = "high"
+		bestSeverity = riskSeverity[best]
 	}
-	cur := riskSeverity[matrixLevel]
-	if cur >= 3 {
-		return "critical"
-	}
-	// Elevate by one step
-	for level, sev := range riskSeverity {
-		if sev == cur+1 {
-			return level
+
+	for _, tag := range riskTags {
+		baseSeverity, ok := detectors.BaseSeverityForTag(tag)
+		if !ok {
+			continue
+		}
+		sev, ok := riskSeverity[baseSeverity]
+		if !ok {
+			continue
+		}
+		if sev > bestSeverity {
+			best = baseSeverity
+			bestSeverity = sev
 		}
 	}
-	return "critical"
+
+	return best
 }
