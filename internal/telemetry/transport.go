@@ -77,6 +77,7 @@ var allowedSignalNames = map[string]struct{}{
 	"new_scope":          {},
 	"repair_loop":        {},
 	"thrashing":          {},
+	"risk_escalation":    {},
 	"none":               {},
 	"other":              {},
 }
