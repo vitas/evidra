@@ -108,8 +108,8 @@ You → Agent: "Deploy nginx to production"
        Evidra → Agent: ok=true, prescription_id=rx-01JQ..., risk_level=high
        Agent → executes kubectl apply -f deployment.yaml
        Agent → Evidra: report(prescription_id=rx-01JQ..., exit_code=0)
-       Evidra → Agent: ok=true, signals=[...]
-Agent → You: "Deployed successfully. Risk level: high. No behavioral signals triggered."
+       Evidra → Agent: ok=true, report_id=rep-01JQ..., score_band=excellent, signal_summary={...}
+Agent → You: "Deployed successfully. Risk level: high. Current score band: excellent."
 ```
 
 On failure:
@@ -119,7 +119,7 @@ You → Agent: "Apply the config change"
        Evidra → Agent: ok=true, prescription_id=rx-01JR...
        Agent → executes kubectl apply -f config.yaml → fails (exit 1)
        Agent → Evidra: report(prescription_id=rx-01JR..., exit_code=1)
-       Evidra → Agent: ok=true, signals=["retry_loop"] (if retried)
+       Evidra → Agent: ok=true, report_id=rep-01JR..., score_band=..., signal_summary={...}
 Agent → You: "Apply failed (exit 1). Recorded for reliability tracking."
 ```
 
@@ -140,7 +140,7 @@ Evidra detects 8 behavioral signals from the evidence chain:
 | **thrashing** | Rapid apply/delete cycles on the same resources |
 | **risk_escalation** | Actor's operations exceed their baseline risk level |
 
-These signals feed into a weighted reliability score (0–100) with band classification (excellent/good/fair/poor/critical).
+These signals feed into a weighted reliability score (0–100) with score bands (`excellent`, `good`, `fair`, `poor`). Sufficiency is reported separately via the response basis.
 
 ---
 
@@ -211,7 +211,7 @@ This section explains how your AI agent should use Evidra. Claude Code with MCP 
 
 **prescribe returns `ok=true`:** Proceed with execution. Note `risk_level` and `risk_tags` for context.
 
-**report returns signals:** Informational. Note any triggered signals but continue — Evidra observes, it does not block.
+**report returns an assessment snapshot:** Informational. Note `score_band`, `signal_summary`, `basis`, and `confidence`, then continue — Evidra observes, it does not block.
 
 **Error (`ok=false` with error field):** Something went wrong with evidence recording. Log it and continue — Evidra is non-blocking by design.
 
@@ -366,6 +366,8 @@ claude mcp add evidra -- evidra-mcp \
   }
 }
 ```
+
+Self-hosted `/v1/evidence/scorecard` and `/v1/evidence/explain` remain experimental and return `501 Not Implemented` today. Use CLI/MCP outputs for authoritative analytics. See [Self-Hosted Experimental Status](self-hosted-experimental-status.md).
 
 ---
 

@@ -36,7 +36,8 @@ Normative behavior is defined in the linked specs.
 
 ### Export
 
-- CLI and API outputs (scorecard, explain).
+- CLI and MCP outputs are the authoritative analytics surfaces (`scorecard`, `explain`, immediate `report` assessment).
+- Self-hosted API supports ingestion and evidence browsing; hosted analytics are experimental today.
 - Metrics export via bounded-cardinality labels (`none` or `otlp_http` transport in CLI).
 
 ## Component View
@@ -93,6 +94,7 @@ run/record -> prescribe -> execute/report -> evidence -> signals -> scorecard
 
 - Primary UX: `run`, `record`, `scorecard`, `explain`.
 - Integration point: MCP server (`evidra-mcp`).
+- Self-hosted API: centralized evidence collection, key issuance, and entry browsing. Hosted analytics are experimental.
 - Evidence-first reliability model with preview/sufficient basis in outputs.
 - Metrics-first observability integration.
 
@@ -121,4 +123,5 @@ System design and implementation mapping:
 Operational references:
 - [CLI Reference](integrations/CLI_REFERENCE.md)
 - [End-to-End Example](system-design/EVIDRA_END_TO_END_EXAMPLE_v2.md)
+- [Self-Hosted Experimental Status](guides/self-hosted-experimental-status.md)
 - [Signal Validation Guide](experimental/SIGNAL_VALIDATION_GUIDE.md)

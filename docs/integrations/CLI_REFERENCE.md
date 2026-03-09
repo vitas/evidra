@@ -81,6 +81,11 @@ For architecture and protocol semantics, see:
 | `--signing-key` | Base64 Ed25519 private key |
 | `--signing-key-path` | PEM Ed25519 private key path |
 | `--signing-mode` | `strict` (default) or `optional` |
+| `--url` | Evidra API URL for evidence forwarding |
+| `--api-key` | API key for online mode |
+| `--offline` | Force offline mode |
+| `--fallback-offline` | Fall back to offline mode on API failure |
+| `--timeout` | API request timeout |
 
 ### `evidra report` Flags
 
@@ -131,6 +136,35 @@ evidra run --tool kubectl --artifact deploy.yaml -- -- sh -c "kubectl apply -f d
 | `--signing-key` | Base64 Ed25519 private key |
 | `--signing-key-path` | PEM Ed25519 private key path |
 | `--signing-mode` | `strict` (default) or `optional` |
+| `--url` | Evidra API URL for evidence forwarding |
+| `--api-key` | API key for online mode |
+| `--offline` | Force offline mode |
+| `--fallback-offline` | Fall back to offline mode on API failure |
+| `--timeout` | API request timeout |
+
+### Assessment Snapshot Output
+
+`evidra run` and `evidra record` return the same immediate assessment fields:
+
+- `risk_level`
+- `score`
+- `score_band`
+- `signal_summary`
+- `basis`
+- `confidence`
+
+The legacy score-band alias is not part of the v1 output contract.
+
+`evidra report` returns an immediate session assessment snapshot:
+
+- `prescription_id`
+- `exit_code`
+- `verdict`
+- `score`
+- `score_band`
+- `signal_summary`
+- `basis`
+- `confidence`
 
 ### `evidra validate` Flags
 

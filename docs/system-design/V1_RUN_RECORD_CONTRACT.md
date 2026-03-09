@@ -1,7 +1,7 @@
 # V1 Run/Record Contract
 
 **Status:** Normative for v1 CLI ingestion/orchestration  
-**Date:** 2026-03-07
+**Date:** 2026-03-09
 
 ---
 
@@ -73,13 +73,27 @@ Validation rules:
 
 ## 4. First Useful Output (v1)
 
-For `run` (and `record` when requested to return assessment), output must include:
+For `run` and `record`, output must include:
 
-- `risk_classification`
 - `risk_level`
-- `score` or `score_band`
+- `score`
+- `score_band`
 - `signal_summary`
 - `basis` (preview/sufficient indicator and operation-count context)
+- `confidence`
+
+A separate score-band alias must not be emitted. It is not a distinct runtime concept.
+
+`evidra report` returns an immediate assessment snapshot for the session:
+
+- `prescription_id`
+- `exit_code`
+- `verdict`
+- `score`
+- `score_band`
+- `signal_summary`
+- `basis`
+- `confidence`
 
 If total operations are below sufficiency threshold, response must be explicitly marked as preview.
 
@@ -89,7 +103,5 @@ If total operations are below sufficiency threshold, response must be explicitly
 
 This contract is additive and does not change:
 
-- `prescribe` and `report` command behavior
 - evidence wire format in `pkg/evidence`
 - scoring semantics in `internal/score` (`MinOperations=100` remains canonical)
-

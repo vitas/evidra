@@ -208,6 +208,6 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "TOOLS:")
 	fmt.Fprintln(w, "  prescribe   Analyze artifact BEFORE execution (returns risk + prescription_id)")
-	fmt.Fprintln(w, "  report      Record outcome AFTER execution (exit code + signals)")
+	fmt.Fprintln(w, "  report      Record outcome AFTER execution (exit code + assessment snapshot)")
 	fmt.Fprintln(w, "  get_event   Look up evidence record by event_id")
 }

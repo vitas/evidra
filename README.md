@@ -53,11 +53,12 @@ evidra scorecard --period 30d
 ```
 
 The `run` output includes first useful fields:
-- `risk_classification`
 - `risk_level`
-- `score` / `score_band`
+- `score`
+- `score_band`
 - `signal_summary`
 - `basis` (`preview` vs `sufficient`)
+- `confidence`
 
 ### CI/CD Ingestion Path
 
@@ -149,6 +150,8 @@ Guides:
 
 Run the Evidra API backend with Docker Compose for centralized evidence collection.
 
+Self-hosted supports evidence ingestion, key issuance, and entry browsing today. `/v1/evidence/scorecard` and `/v1/evidence/explain` are experimental and currently return `501 Not Implemented`; use CLI/MCP for authoritative analytics. See [Self-Hosted Experimental Status](docs/guides/self-hosted-experimental-status.md).
+
 ### Docker Compose Quickstart
 
 ```bash
@@ -175,7 +178,7 @@ Point the CLI at the API backend to forward evidence:
 
 ```bash
 evidra run \
-  --api-url http://localhost:8080 \
+  --url http://localhost:8080 \
   --api-key my-secret-key \
   --tool kubectl --operation apply --artifact deploy.yaml \
   -- kubectl apply -f deploy.yaml
@@ -194,6 +197,7 @@ Architecture and contracts:
 Operational guides:
 - [Observability Quickstart](docs/guides/observability-quickstart.md)
 - [Scanner SARIF Quickstart](docs/integrations/SCANNER_SARIF_QUICKSTART.md)
+- [Self-Hosted Experimental Status](docs/guides/self-hosted-experimental-status.md)
 
 ## Environment
 
