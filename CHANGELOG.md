@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.4.2 — 2026-03-09
+
+### Signals
+- New signal: `risk_escalation` — detects when an actor's operations exceed their baseline risk level (8th signal, weight 0.10)
+- Baseline computed as mode of actor+tool risk levels in 30-day rolling window
+- Demotions tracked internally as `risk_demotion` sub-signal (informational, no penalty)
+- Signal Spec updated to v1.1
+
+### Telemetry
+- `risk_escalation` added to allowed signal names in OTLP metrics export
+
+### Documentation
+- Signal 8 definition added to EVIDRA_SIGNAL_SPEC.md
+- All "7 signals" references updated to 8 across docs, UI, and OpenAPI spec
+- Architecture overview moved to `docs/ARCHITECTURE.md`
+
+### Testing
+- E2e test: staging→production escalation through full CLI pipeline
+- Score stability regression test (zero-count risk_escalation does not affect score)
+
 ## v0.3.1 — 2026-03-07
 
 ### CLI

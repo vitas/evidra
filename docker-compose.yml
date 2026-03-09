@@ -10,7 +10,7 @@ services:
       - EVIDRA_ENVIRONMENT=development
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     environment:
       POSTGRES_USER: evidra
       POSTGRES_PASSWORD: evidra
