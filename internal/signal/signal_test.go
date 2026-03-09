@@ -419,15 +419,15 @@ func TestAllSignals_ReturnsAll(t *testing.T) {
 	t.Parallel()
 
 	results := AllSignals(nil, DefaultTTL)
-	if len(results) != 7 {
-		t.Fatalf("AllSignals returned %d results, want 7", len(results))
+	if len(results) != 8 {
+		t.Fatalf("AllSignals returned %d results, want 8", len(results))
 	}
 	names := map[string]bool{}
 	for _, r := range results {
 		names[r.Name] = true
 	}
 	for _, want := range []string{
-		"protocol_violation", "artifact_drift", "retry_loop", "blast_radius", "new_scope", "repair_loop", "thrashing",
+		"protocol_violation", "artifact_drift", "retry_loop", "blast_radius", "new_scope", "repair_loop", "thrashing", "risk_escalation",
 	} {
 		if !names[want] {
 			t.Errorf("missing signal %q", want)

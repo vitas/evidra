@@ -55,5 +55,6 @@ func AllSignals(entries []Entry, ttl time.Duration) []SignalResult {
 		DetectNewScope(entries),
 		DetectRepairLoop(entries),
 		DetectThrashing(entries),
+		DetectRiskEscalation(entries),
 	}
 }

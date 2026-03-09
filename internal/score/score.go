@@ -11,6 +11,7 @@ var DefaultWeights = map[string]float64{
 	"new_scope":          0.05,
 	"repair_loop":        -0.05,
 	"thrashing":          0.15,
+	"risk_escalation":    0.10,
 }
 
 // MinOperations is the minimum number of operations required for scoring.
