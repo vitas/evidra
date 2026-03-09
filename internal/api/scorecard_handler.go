@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
 	"samebits.com/evidra-benchmark/internal/auth"
@@ -22,6 +23,10 @@ func handleScorecard(sc ScorecardComputer) http.HandlerFunc {
 
 		result, err := sc.ComputeScorecard(tenantID, period, q.Get("tool"), q.Get("scope"), 0)
 		if err != nil {
+			if errors.Is(err, ErrExperimentalAnalytics) {
+				writeError(w, http.StatusNotImplemented, experimentalAnalyticsMessage)
+				return
+			}
 			writeError(w, http.StatusInternalServerError, "scorecard computation failed")
 			return
 		}

@@ -83,8 +83,8 @@ func run(args []string) int {
 		cfg.KeyStore = store.NewKeyStore(pool)
 		cfg.BenchmarkStore = store.NewBenchmarkStore(pool)
 		cfg.InviteSecret = os.Getenv("EVIDRA_INVITE_SECRET")
-		cfg.Scorecard = es // EntryStore implements ScorecardComputer (placeholder response until full scoring integration).
-		cfg.Explain = es   // EntryStore implements ExplainComputer (placeholder response until full signal integration).
+		cfg.Scorecard = api.ExperimentalAnalytics{}
+		cfg.Explain = api.ExperimentalAnalytics{}
 
 		log.Printf("database connected, migrations applied")
 	} else {

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 
 	"samebits.com/evidra-benchmark/internal/auth"
@@ -22,6 +23,10 @@ func handleExplain(ec ExplainComputer) http.HandlerFunc {
 
 		result, err := ec.ComputeExplain(tenantID, period)
 		if err != nil {
+			if errors.Is(err, ErrExperimentalAnalytics) {
+				writeError(w, http.StatusNotImplemented, experimentalAnalyticsMessage)
+				return
+			}
 			writeError(w, http.StatusInternalServerError, "explain computation failed")
 			return
 		}
