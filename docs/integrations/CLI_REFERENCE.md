@@ -6,8 +6,8 @@ This document is the user-facing command and flag reference for all binaries in 
 
 For architecture and protocol semantics, see:
 - [Integration Protocol](../system-design/EVIDRA_PROTOCOL.md)
-- [Benchmark CLI Design](../system-design/EVIDRA_BENCHMARK_CLI.md)
-- [Prompt Factory Spec](../system-design/EVIDRA_PROMPT_FACTORY_SPEC.md)
+- [Benchmark CLI Design](../system-design/internal/EVIDRA_BENCHMARK_CLI.md)
+- [Prompt Factory Spec](../system-design/internal/EVIDRA_PROMPT_FACTORY_SPEC.md)
 
 ## 1) `evidra` (core CLI)
 

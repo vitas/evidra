@@ -711,7 +711,7 @@ const PIPELINE_CHART = `flowchart LR
   F --> G[("Evidence<br/>Chain")]
   H["Exit Code"] --> I["Report"]
   I --> G
-  G --> J["Signal Detectors<br/>7 signals"]
+  G --> J["Signal Detectors<br/>8 signals"]
   J --> K["Scoring Engine"]
   K --> L["Scorecard<br/>+ Band"]`;
 

@@ -95,7 +95,7 @@ All metrics MUST be prefixed `evidra_`.
 | `agent` | all metrics | actor.id (SHOULD be < 50 unique values) |
 | `tool` | signal, prescriptions, reports | kubectl, terraform, helm, argocd, other |
 | `scope` | signal, prescriptions, reports | production, staging, development, unknown |
-| `signal` | evidra_signal_total only | protocol_violation, artifact_drift, retry_loop, blast_radius, new_scope, repair_loop, thrashing |
+| `signal` | evidra_signal_total only | protocol_violation, artifact_drift, retry_loop, blast_radius, new_scope, repair_loop, thrashing, risk_escalation |
 
 **FORBIDDEN labels (MUST NOT be used):**
 
@@ -257,6 +257,7 @@ chain. Deterministic: same input → same output.
 | new_scope | 1.0 | stable | 0.05 |
 | repair_loop | 1.0 | stable | -0.05 |
 | thrashing | 1.0 | stable | 0.15 |
+| risk_escalation | 1.1 | stable | 0.10 |
 
 ---
 
@@ -818,6 +819,9 @@ where:
     retry_loop:          total_prescriptions
     blast_radius:        total_prescriptions
     new_scope:           total_prescriptions
+    repair_loop:         total_prescriptions
+    thrashing:           total_prescriptions
+    risk_escalation:     total_prescriptions
 ```
 
 Score range: 0–100. Clamped (never negative).
@@ -833,6 +837,7 @@ artifact_drift:      0.30
 retry_loop:          0.20
 thrashing:           0.15
 blast_radius:        0.10
+risk_escalation:     0.10
 new_scope:           0.05
 repair_loop:        -0.05
 ```
@@ -845,7 +850,7 @@ Weights are configurable. Sum must equal 1.0.
 
 ### What is stable (v1.0)
 
-- Signal names (the seven names above)
+- Signal names (the eight names above)
 - Detection algorithms (the logic described above)
 - Metric names and label keys
 - Score formula structure
