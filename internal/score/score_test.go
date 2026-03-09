@@ -237,6 +237,25 @@ func TestCompute_IncludesConfidence(t *testing.T) {
 	}
 }
 
+func TestCompute_RiskEscalationZero_ScoreUnchanged(t *testing.T) {
+	t.Parallel()
+
+	results := []signal.SignalResult{
+		{Name: "protocol_violation", Count: 10},
+		{Name: "artifact_drift", Count: 5},
+		{Name: "retry_loop", Count: 0},
+		{Name: "blast_radius", Count: 0},
+		{Name: "new_scope", Count: 0},
+		{Name: "risk_escalation", Count: 0},
+	}
+	sc := Compute(results, 200, 0.0)
+
+	// Same math as TestCompute_WithViolations: penalty = 0.025, score = 97.5
+	if math.Abs(sc.Score-97.5) > 0.001 {
+		t.Errorf("score = %f, want 97.5 (risk_escalation=0 must not affect score)", sc.Score)
+	}
+}
+
 func TestWorkloadOverlap_Identical(t *testing.T) {
 	t.Parallel()
 
