@@ -14,10 +14,10 @@
    (YAML/JSON/HCL)  │                                                             │
         │           │   ┌──────────┐          ┌──────────────┐                    │
         ▼           │   │ K8s      │    ┌────▸│ k8s/         │                    │
-   ┌─────────┐      │   │ Terraform│    │     │  privileged  │                    │
-   │ prescribe│─────▸│   │ Docker   │────┘     │  hostpath    │──▸ risk_tags       │
-   │         │      │   │ Generic  │          │  docker_sock │                    │
-   └─────────┘      │   └──────────┘          │  run_as_root │                    │
+   ┌──────────┐     │   │ Terraform│    │     │  privileged  │                    │
+   │ prescribe│────▸│   │ Docker   │────┘     │  hostpath    │──▸ risk_tags       │
+   │          │     │   │ Generic  │          │  docker_sock │                    │
+   └──────────┘     │   └──────────┘          │  run_as_root │                    │
         │           │        │                │  ...         │                    │
         │           │        ▼                ├──────────────┤                    │
         │           │   CanonicalAction       │ terraform/   │                    │
@@ -35,7 +35,7 @@
         │           │                         │  privileged  │──▸ risk_tags       │
         │           │                         └──────────────┘                    │
         │           │                                │                            │
-        │           │                    risk_tags + canonical_action              │
+        │           │                    risk_tags + canonical_action             │
         │           │                                │                            │
         │           │                         ┌──────▼──────┐                     │
         │           │                         │ Risk Matrix │                     │
@@ -56,46 +56,46 @@
         │           │         ┌────────────────────────────────────┐              │
         ▼           │         │ SIGNALS ENGINE                     │              │
    evidence         │         │                                    │              │
-   entries ────────▸│         │  ┌─────────────────┐               │              │
+   entries ────────▸│         │  ┌──────────────────┐              │              │
                     │         │  │ retry_loop       │  same intent │              │
                     │         │  │                  │  repeated    │              │
                     │         │  │                  │  after fail  │──▸ signal    │
-                    │         │  └─────────────────┘               │              │
-                    │         │  ┌─────────────────┐               │              │
+                    │         │  └──────────────────┘              │              │
+                    │         │  ┌──────────────────┐              │              │
                     │         │  │ protocol_violat  │  prescribe   │              │
                     │         │  │                  │  without     │              │
                     │         │  │                  │  report      │──▸ signal    │
-                    │         │  └─────────────────┘               │              │
-                    │         │  ┌─────────────────┐               │              │
+                    │         │  └──────────────────┘              │              │
+                    │         │  ┌──────────────────┐              │              │
                     │         │  │ artifact_drift   │  digest at   │              │
                     │         │  │                  │  report ≠    │              │
                     │         │  │                  │  prescribe   │──▸ signal    │
-                    │         │  └─────────────────┘               │              │
-                    │         │  ┌─────────────────┐               │              │
+                    │         │  └──────────────────┘              │              │
+                    │         │  ┌──────────────────┐              │              │
                     │         │  │ blast_radius     │  destroy     │              │
                     │         │  │                  │  many        │              │
                     │         │  │                  │  resources   │──▸ signal    │
-                    │         │  └─────────────────┘               │              │
-                    │         │  ┌─────────────────┐               │              │
+                    │         │  └──────────────────┘              │              │
+                    │         │  ┌──────────────────┐              │              │
                     │         │  │ new_scope        │  new tool/   │              │
                     │         │  │                  │  env combo   │              │
                     │         │  │                  │  first seen  │──▸ signal    │
-                    │         │  └─────────────────┘               │              │
-                    │         │  ┌─────────────────┐               │              │
+                    │         │  └──────────────────┘              │              │
+                    │         │  ┌──────────────────┐              │              │
                     │         │  │ repair_loop      │  delete then │              │
                     │         │  │                  │  recreate    │              │
-                    │         │  │                  │  same resource│──▸ signal   │
-                    │         │  └─────────────────┘               │              │
-                    │         │  ┌─────────────────┐               │              │
+                    │         │  │                  │ same resource│──▸ signal    │
+                    │         │  └──────────────────┘              │              │
+                    │         │  ┌──────────────────┐              │              │
                     │         │  │ thrashing        │  rapid apply │              │
                     │         │  │                  │  /delete     │              │
                     │         │  │                  │  cycles      │──▸ signal    │
-                    │         │  └─────────────────┘               │              │
-                    │         │  ┌─────────────────┐               │              │
+                    │         │  └──────────────────┘              │              │
+                    │         │  ┌──────────────────┐              │              │
                     │         │  │ risk_escalation  │  risk level  │              │
                     │         │  │                  │  exceeds     │              │
                     │         │  │                  │  baseline    │──▸ signal    │
-                    │         │  └─────────────────┘               │              │
+                    │         │  └──────────────────┘              │              │
                     │         └────────────────────────────────────┘              │
                     │                        │                                    │
                     │              signal counts + rates                          │
@@ -106,7 +106,7 @@
                     │                 │ weighted    │                             │
                     │                 │ penalty     │──▸ score (0-100)            │
                     │                 │ model       │──▸ band (excellent/good/    │
-                    │                 │             │         fair/poor)           │
+                    │                 │             │         fair/poor)          │
                     │                 └─────────────┘                             │
                     │                                                             │
                     └─────────────────────────────────────────────────────────────┘
