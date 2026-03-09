@@ -959,7 +959,7 @@ Expected output format:
 }
 ```
 
-A conformance runner reads each case, runs the seven detectors,
+A conformance runner reads each case, runs the eight detectors,
 computes the score, and asserts the output matches expected.json.
 
 Conformance suite is available in the reference implementation

@@ -316,7 +316,7 @@ evidra detectors list
 
 ### Signal + Scoring Rules (delivered snapshot)
 
-Signal pipeline includes 7 behavior signals:
+Signal pipeline includes 8 behavior signals:
 
 - `protocol_violation`
 - `artifact_drift`
@@ -325,6 +325,7 @@ Signal pipeline includes 7 behavior signals:
 - `new_scope`
 - `repair_loop`
 - `thrashing`
+- `risk_escalation`
 
 Score model additions:
 

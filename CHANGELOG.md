@@ -63,7 +63,7 @@ First public release of Evidra Benchmark.
 ### Core Pipeline
 - Canonicalization adapters: Kubernetes (kubectl, oc, helm), Terraform, Docker (docker, nerdctl, podman), generic fallback
 - Risk matrix (operation_class x scope_class) with 7 catastrophic detectors
-- Seven behavioral signals: protocol violation, artifact drift, retry loop, blast radius, new scope, repair loop, thrashing
+- Eight behavioral signals: protocol violation, artifact drift, retry loop, blast radius, new scope, repair loop, thrashing, risk escalation
 - Weighted reliability scoring with safety floors and band classification
 - Ed25519 evidence signing with strict/optional modes and key generation
 
