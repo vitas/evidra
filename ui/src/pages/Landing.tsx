@@ -14,7 +14,7 @@ const PIPELINE_CHART = `flowchart LR
   F --> G[("Evidence<br/>Chain")]
   H["Exit Code"] --> I["Report"]
   I --> G
-  G --> J["Signal Detectors<br/>7 signals"]
+  G --> J["Signal Detectors<br/>8 signals"]
   J --> K["Scoring Engine"]
   K --> L["Scorecard<br/>+ Band"]`;
 
@@ -96,7 +96,7 @@ curl http://localhost:8080/healthz`;
 
 const FEATURES = [
   { icon: "\u25CE", title: "Observe", desc: "Record every infrastructure operation as signed evidence in an append-only, hash-linked chain." },
-  { icon: "\u25A4", title: "Measure", desc: "Detect 7 behavioral signals: retry loops, artifact drift, protocol violations, blast radius, and more." },
+  { icon: "\u25A4", title: "Measure", desc: "Detect 8 behavioral signals: retry loops, artifact drift, protocol violations, blast radius, and more." },
   { icon: "\u2605", title: "Score", desc: "Compute reliability scorecards with weighted penalties, safety floors, and confidence levels." },
   { icon: "\u21C4", title: "Compare", desc: "Compare actors, tools, and scopes side-by-side with workload overlap analysis." },
 ];

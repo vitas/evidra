@@ -265,7 +265,7 @@ Report entry:
 
 Signals are computed **batch** at `evidra scorecard` time, not at
 report() time. The scorecard reads the full evidence chain and
-evaluates all seven signal detectors across all entries:
+evaluates all eight signal detectors across all entries:
 
 - **Protocol Violation**: prescriptions without reports (TTL-based),
   reports without prescriptions, duplicate reports, cross-actor reports

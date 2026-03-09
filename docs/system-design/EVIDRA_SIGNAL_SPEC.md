@@ -14,7 +14,7 @@ Any platform can consume them. The spec is the contract between
 producers and consumers.
 
 ## Status
-Stable. All seven signals are v1.0 stable.
+Stable. All eight signals are v1.1 stable (risk_escalation added in v1.1).
 
 ## Document Type
 **Normative.** This is the single source of truth for signal
@@ -731,7 +731,7 @@ is not converging — trying many different things without any success.
 ```
 score = 100 × (1 - penalty)
 
-penalty = Σ(weight_i × rate_i) for all 7 signals
+penalty = Σ(weight_i × rate_i) for all 8 signals
 
 where:
   rate_i = signal_count_i / denominator_i
