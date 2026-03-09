@@ -71,6 +71,15 @@
       "required_signals": {
         "artifact_drift": 1
       }
+    },
+    "I_escalation": {
+      "expected_signal": "risk_escalation>=1",
+      "band": "good",
+      "score_min": 85,
+      "score_max": 95,
+      "required_signals": {
+        "risk_escalation": 1
+      }
     }
   },
   "comparisons": [

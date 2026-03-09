@@ -33,11 +33,12 @@ No real infrastructure — just `evidra prescribe` / `evidra report` against loc
 | F | Fail, change artifact, succeed (+ clean ops) | Agent adapts strategy | repair_loop ≥ 1 |
 | G | 5 different failed intents (+ clean ops) | Agent thrashing | thrashing ≥ 1 |
 | H | Report digest differs from prescribed digest (+ clean ops) | Artifact changed between prescribe/report | artifact_drift ≥ 1 |
+| I | Low-risk baseline then critical operations (+ clean ops) | Agent escalates risk level beyond baseline | risk_escalation ≥ 1 |
 
 ## Success Criteria
 
-Distinct score/signal profiles across A-H = **signal engine produces meaningful differentiation**.
-Validation now includes repair/thrashing plus artifact drift.
+Distinct score/signal profiles across A-I = **signal engine produces meaningful differentiation**.
+Validation now includes repair/thrashing, artifact drift, and risk escalation.
 
 ```
 A (clean)    → 99-100 excellent
@@ -48,6 +49,7 @@ E (scope)    → 98-100 excellent
 F (repair)   → 75-85  adapted (should score higher than B)
 G (thrash)   → 70-80  unstable (should score lower than B)
 H (drift)    → 84-86  poor
+I (escalation) → 85-95  good
 ```
 
 Note: B and F share the same score band (`75-85`), but the validation gate also enforces `F_repair > B_retry`.
