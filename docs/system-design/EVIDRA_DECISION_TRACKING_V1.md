@@ -1,58 +1,61 @@
-# Decision Tracking — Design Summary
+# Decision Tracking v1
 
-**Status:** Proposal (v1)
-**Scope:** Report payload extension
+**Status:** Implemented (v1 recording only)  
+**Scope:** Explicit terminal `report` verdicts across CLI, MCP, and forwarded evidence
 
 ---
 
 ## Problem
 
-Between `prescribe` and `execute` there is a decision moment that is
-currently invisible. If an actor receives a risk assessment and decides
-not to proceed, that decision disappears from the evidence chain.
+Between `prescribe` and execution there is a decision moment that used to be invisible.
+If an agent decides not to proceed because the assessed risk is unacceptable, that
+decision disappears from the evidence chain.
 
-This affects AI agents, CI/CD pipelines, and human operators equally.
-Without this data, a fundamental question is unanswerable: *does this
-actor use risk assessment in its decisions, or does it ignore it?*
+The missing evidence is often the most valuable evidence:
+
+- good judgment: the agent refused a dangerous operation for a good reason
+- bad judgment: the agent refused a safe operation for a bad reason
+- auditability: operators can see not only what happened, but what was intentionally avoided
 
 ---
 
 ## Invariant
 
-> One prescription → one report.
+> One prescription -> one report.
 
-This proposal preserves that invariant. A `declined` report is still
-a report. The prescription is closed.
+Decision tracking preserves that invariant.
+A `declined` report is still a `report`.
+The prescription is closed by that single terminal event.
 
 ---
 
-## Protocol Change
+## v1 Contract
 
-### New Verdict
+### Explicit verdict
 
-| Verdict | Meaning |
-|---------|---------|
-| `success` | Execution completed, operation succeeded (existing) |
-| `failure` | Execution completed, operation failed (existing) |
-| `error` | Execution path failed; result is not a normal operational outcome (existing) |
-| **`declined`** | Execution intentionally not started after assessment |
+All report-capable surfaces require an explicit `verdict`:
 
-### Verdict as Input Field
+- `success`
+- `failure`
+- `error`
+- `declined`
 
-`declined` has no execution and therefore no `exit_code`. To support
-this, `verdict` becomes an explicit report input and `exit_code`
-becomes optional. When `verdict` is omitted, existing behavior is
-preserved by inferring `success` from exit code 0 and `failure` from
-non-zero exit codes. `declined` requires no exit code, and any
-contradiction between `verdict` and `exit_code` is a validation error.
+This is a strict contract, not a backwards-compatible inference layer.
 
-This is the main implementation cost: `verdict` becomes an input
-across CLI, MCP, lifecycle service, and tests.
+### Declined decision context
 
-### Decision Context
+When `verdict=declined`, the report MUST include:
 
-A report with verdict `declined` MUST include `decision_context`.
-For other verdicts, the field is absent.
+- `decision_context.trigger`
+- `decision_context.reason`
+
+Rules:
+
+- `exit_code` is forbidden for `declined`
+- `reason` is required and bounded to a short operational explanation
+- `reason` must not contain secrets or chain-of-thought dumps
+
+Example:
 
 ```json
 {
@@ -60,89 +63,61 @@ For other verdicts, the field is absent.
   "verdict": "declined",
   "decision_context": {
     "trigger": "risk_threshold_exceeded",
-    "reason": "staging-only policy, blast radius covers production"
+    "reason": "risk_level=critical and blast_radius covers production namespace"
   }
 }
 ```
 
-Compact form (no free text):
+### Executed outcomes
 
-```json
-{
-  "prescription_id": "01JQ...",
-  "verdict": "declined",
-  "decision_context": {
-    "trigger": "policy_restriction"
-  }
-}
-```
+For `success`, `failure`, or `error`:
 
-### Decision Context Fields
-
-| Field | Type | Required | Purpose |
-|-------|------|----------|---------|
-| `trigger` | string | yes | What class of mechanism caused the decline |
-| `reason` | string | no | Short human-readable explanation; max 512 chars; must not contain secrets or internal prompts |
-
-### Trigger Vocabulary
-
-`trigger` is a string with a recommended vocabulary. Unknown values
-are preserved as-is.
-
-| Value | Meaning |
-|-------|---------|
-| `risk_threshold_exceeded` | Risk level exceeded actor's threshold |
-| `policy_restriction` | Operation violates actor's policy boundary |
-| `actor_discretion` | Actor declined based on its own judgment |
-| `other` | None of the above; reason carries detail |
+- `exit_code` is required
+- `decision_context` is forbidden
 
 ---
 
-## Protocol Fit
+## Surface Boundary
 
-```
-prescribe → assessment
-         ├── report (verdict: success)     — executed, succeeded
-         ├── report (verdict: failure)     — executed, failed
-         ├── report (verdict: error)       — execution error
-         └── report (verdict: declined)    — actor chose not to execute
-```
+Supported in v1:
 
-The 1:1 invariant is preserved. Existing integrations are unaffected.
+- `evidra report`
+- MCP `report`
+- forwarded/stored evidence that carries report payloads
 
----
+Not supported in v1:
 
-## Surface Changes
+- `evidra run` emitting `declined`
+- scoring changes based on decision evidence
+- new decision-specific signals
 
-Surface changes are limited to accepting explicit `verdict` and
-`decision_context` in report-capable interfaces (MCP, CLI, API).
-
-CLI convenience: `--decline-trigger` and `--decline-reason` flags
-populate `decision_context` and imply `verdict=declined`. Specifying
-`--verdict declined` without `--decline-trigger` is a validation error.
+`run` remains execution-only by design.
 
 ---
 
-## What This Answers
+## Product Meaning
 
-> "Does my agent understand risk, or does it just execute commands?"
+This changes Evidra from:
 
-> "How often does our risk gate actually stop deployments?"
+- flight recorder for actions
 
-> "When our tools said 'this is dangerous', who listened?"
+to:
 
-**Intent → Decision → Outcome.** Three points, one evidence chain.
+- flight recorder for actions and decisions
+
+The evidence chain can now answer:
+
+- what the agent intended to do
+- what it actually did
+- what it intentionally chose not to do, and why
 
 ---
 
-## Out of Scope
+## Out Of Scope For v1
 
-- Event-level signals and scoring policies derived from decision data.
-- Rich analytics taxonomy (decline-by-trigger, proceeded-on-high-risk).
-- Multi-actor handoff and escalation semantics.
+- decline analytics in `scorecard`
+- trigger breakdowns
+- judgment-quality scoring
+- heuristics for good vs bad refusal reasons
 
-Decision tracking may enable future analytics and scoring policies,
-but those are out of scope for this proposal. Multi-actor workflows
-can be modeled through trace lineage (Actor A declines, Actor B opens
-a new prescribe in the same `trace_id`) without new protocol
-primitives.
+These belong to v2 after real decision evidence exists in the field.

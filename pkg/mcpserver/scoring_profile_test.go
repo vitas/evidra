@@ -8,6 +8,7 @@ import (
 
 	"samebits.com/evidra-benchmark/internal/score"
 	"samebits.com/evidra-benchmark/internal/testutil"
+	"samebits.com/evidra-benchmark/pkg/evidence"
 )
 
 func TestReport_UsesConfiguredScoringProfile(t *testing.T) {
@@ -50,7 +51,8 @@ func TestReport_UsesConfiguredScoringProfile(t *testing.T) {
 
 	report := svc.Report(ReportInput{
 		PrescriptionID: presc.PrescriptionID,
-		ExitCode:       0,
+		Verdict:        evidence.VerdictSuccess,
+		ExitCode:       intPtr(0),
 		SessionID:      "session-mcp-profile",
 	})
 	if !report.OK {

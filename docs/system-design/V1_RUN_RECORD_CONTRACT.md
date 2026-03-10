@@ -87,8 +87,9 @@ A separate score-band alias must not be emitted. It is not a distinct runtime co
 `evidra report` returns an immediate assessment snapshot for the session:
 
 - `prescription_id`
-- `exit_code`
 - `verdict`
+- `exit_code` (required for `success`/`failure`/`error`, absent for `declined`)
+- `decision_context` (required for `declined`, absent otherwise)
 - `score`
 - `score_band`
 - `signal_summary`

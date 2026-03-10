@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"samebits.com/evidra-benchmark/internal/testutil"
+	"samebits.com/evidra-benchmark/pkg/evidence"
 	"samebits.com/evidra-benchmark/pkg/version"
 )
 
@@ -104,7 +105,7 @@ func TestReport_MissingPrescriptionID(t *testing.T) {
 	t.Parallel()
 
 	svc := &BenchmarkService{signer: testutil.TestSigner(t)}
-	output := svc.Report(ReportInput{ExitCode: 0})
+	output := svc.Report(ReportInput{Verdict: evidence.VerdictSuccess, ExitCode: intPtr(0)})
 
 	if output.OK {
 		t.Fatal("expected error for missing prescription_id")

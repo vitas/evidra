@@ -60,7 +60,8 @@ func (p *OperationProcessor) Process(ctx context.Context, req OperationRequest) 
 
 	reportOut, err := p.service.Report(ctx, lifecycle.ReportInput{
 		PrescriptionID: prescOut.PrescriptionID,
-		ExitCode:       req.ExitCode,
+		Verdict:        evidence.VerdictFromExitCode(req.ExitCode),
+		ExitCode:       intPtr(req.ExitCode),
 		ArtifactDigest: artifactDigest,
 		Actor:          reportActor,
 		ExternalRefs:   req.ExternalRefs,
@@ -77,4 +78,8 @@ func (p *OperationProcessor) Process(ctx context.Context, req OperationRequest) 
 		PrescribeOutput: prescOut,
 		ReportOutput:    reportOut,
 	}, nil
+}
+
+func intPtr(v int) *int {
+	return &v
 }

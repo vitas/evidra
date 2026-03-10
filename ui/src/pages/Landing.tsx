@@ -12,7 +12,7 @@ const PIPELINE_CHART = `flowchart LR
   D --> E["Risk Matrix"]
   E --> F["Prescription"]
   F --> G[("Evidence<br/>Chain")]
-  H["Exit Code"] --> I["Report"]
+  H["Verdict<br/>+ context"] --> I["Report"]
   I --> G
   G --> J["Signal Detectors<br/>8 signals"]
   J --> K["Scoring Engine"]
@@ -52,9 +52,12 @@ const SEQUENCE_CHART = `sequenceDiagram
   CLI->>Chain: append(prescription entry)
   CLI-->>Agent: prescription_id, risk_level
 
-  Note over Agent: Execute infrastructure operation
-
-  Agent->>CLI: report(prescription_id, exit_code)
+  alt Agent executes infrastructure operation
+    Note over Agent: Execute infrastructure operation
+    Agent->>CLI: report(prescription_id, verdict, exit_code)
+  else Agent intentionally refuses
+    Agent->>CLI: report(prescription_id, verdict=declined, decision_context)
+  end
   CLI->>Chain: append(report entry, linked)
   CLI->>Signal: detect(entries)
   Signal-->>CLI: signal_summary + confidence
@@ -109,7 +112,7 @@ const SIGNALS = [
 ];
 
 const FEATURES = [
-  { icon: "\u25CE", title: "Observe", desc: "Record every infrastructure operation as signed evidence in an append-only, hash-linked chain." },
+  { icon: "\u25CE", title: "Observe", desc: "Record every infrastructure operation and deliberate refusal as signed evidence in an append-only, hash-linked chain." },
   { icon: "\u25A4", title: "Measure", desc: "Detect 8 behavioral signals: retry loops, artifact drift, protocol violations, blast radius, and more." },
   { icon: "\u2605", title: "Score", desc: "Compute reliability scorecards with weighted penalties, safety floors, and confidence levels." },
   { icon: "\u21C4", title: "Compare", desc: "Compare actors, tools, and scopes side-by-side with workload overlap analysis." },
@@ -266,7 +269,7 @@ function Hero() {
           A new observability layer for CI/CD, IaC, and AI agents.
         </p>
         <p className="text-[0.92rem] text-fg-muted max-w-[580px] mx-auto mb-10 leading-relaxed opacity-80">
-          Detect retry loops, artifact drift, and protocol violations before they become deployment instability.
+          Detect retry loops, artifact drift, protocol violations, and capture the operation an agent intentionally chose not to execute.
         </p>
         <div className="flex gap-3 justify-center flex-wrap">
           <a href="#get-started" className="btn-primary inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold bg-accent text-white transition-all hover:bg-accent-bright hover:-translate-y-0.5 hover:shadow-lg no-underline">
@@ -287,7 +290,7 @@ function Features() {
       <Container>
         <SectionLabel>Capabilities</SectionLabel>
         <SectionTitle>What It Does</SectionTitle>
-        <p className="text-fg-muted mb-10 text-[1.14rem]">A flight recorder for infrastructure automation &mdash; observe, measure, score, compare.</p>
+        <p className="text-fg-muted mb-10 text-[1.14rem]">A flight recorder for infrastructure automation and agent judgment &mdash; observe intent, decisions, execution, and reliability.</p>
         <div className="grid grid-cols-4 gap-5 max-md:grid-cols-2 max-sm:grid-cols-1">
           {FEATURES.map((f) => (
             <div key={f.title} className="bg-bg-elevated border border-border border-l-[3px] border-l-accent rounded-lg p-6 shadow-[var(--shadow-card)] transition-all hover:shadow-[var(--shadow-card-lg)] hover:-translate-y-0.5">
@@ -434,7 +437,7 @@ function McpSetup() {
         <div className="bg-bg-elevated border border-border rounded-[10px] p-6 shadow-[var(--shadow-card)]">
           <h3 className="text-[0.92rem] font-bold text-fg mb-2">How it works</h3>
           <p className="text-[0.83rem] text-fg-muted leading-relaxed mb-3">
-            The MCP server exposes three tools. Your agent calls <code>prescribe</code> before every infrastructure mutation (apply, delete, upgrade) and <code>report</code> after execution with the exit code. Evidra records the evidence, detects behavioral signals, and produces reliability scores.
+            The MCP server exposes three tools. Your agent calls <code>prescribe</code> before every infrastructure mutation and <code>report</code> with an explicit terminal verdict after execution or deliberate refusal. Evidra records the evidence, detects behavioral signals, and produces reliability scores.
           </p>
           <div className="grid grid-cols-3 gap-4 max-sm:grid-cols-1">
             <div className="text-center">
@@ -443,7 +446,7 @@ function McpSetup() {
             </div>
             <div className="text-center">
               <div className="font-mono text-[0.78rem] font-semibold text-accent mb-1">report</div>
-              <div className="text-[0.78rem] text-fg-muted">Record outcome after execution</div>
+              <div className="text-[0.78rem] text-fg-muted">Record outcome or declined decision</div>
             </div>
             <div className="text-center">
               <div className="font-mono text-[0.78rem] font-semibold text-accent mb-1">get_event</div>

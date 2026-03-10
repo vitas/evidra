@@ -1,14 +1,35 @@
 {
   "type": "object",
-  "required": ["prescription_id", "exit_code"],
+  "required": ["prescription_id", "verdict"],
   "properties": {
     "prescription_id": {
       "type": "string",
       "description": "ID from prescribe response"
     },
+    "verdict": {
+      "type": "string",
+      "enum": ["success", "failure", "error", "declined"],
+      "description": "Terminal outcome of the prescribed operation or decision"
+    },
     "exit_code": {
       "type": "integer",
-      "description": "Exit code of the operation (0 = success)"
+      "description": "Exit code of the operation. Required for success/failure/error and forbidden for declined."
+    },
+    "decision_context": {
+      "type": "object",
+      "description": "Required for declined verdicts. Explains why execution was intentionally not started.",
+      "required": ["trigger", "reason"],
+      "properties": {
+        "trigger": {
+          "type": "string",
+          "description": "Decision trigger class, e.g. risk_threshold_exceeded"
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 512,
+          "description": "Short operational explanation for the decline"
+        }
+      }
     },
     "artifact_digest": {
       "type": "string",
@@ -53,5 +74,28 @@
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": { "verdict": { "const": "declined" } },
+        "required": ["verdict"]
+      },
+      "then": {
+        "required": ["decision_context"],
+        "not": { "required": ["exit_code"] }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "verdict": { "enum": ["success", "failure", "error"] }
+        },
+        "required": ["verdict"]
+      },
+      "then": {
+        "required": ["exit_code"]
+      }
+    }
+  ]
 }

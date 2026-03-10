@@ -91,7 +91,7 @@ func DetectProtocolViolationEvents(entries []Entry, ttl time.Duration) []SignalE
 
 		// Missing artifact digest — prescription had a digest but report omits it.
 		// Artifact drift detection is disabled for this report pair.
-		if rx.ArtifactDigest != "" && e.ArtifactDigest == "" {
+		if rx.ArtifactDigest != "" && e.ArtifactDigest == "" && e.ExitCode != nil {
 			events = append(events, SignalEvent{
 				Signal:    "protocol_violation",
 				SubSignal: "report_without_digest",

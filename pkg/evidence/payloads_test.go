@@ -112,10 +112,11 @@ func TestPrescriptionPayload_EffectiveRiskDetails_FallsBackToRiskTags(t *testing
 func TestReportPayload_Marshal(t *testing.T) {
 	t.Parallel()
 
+	exitCode := 0
 	original := ReportPayload{
 		ReportID:       "rpt_01XYZ",
 		PrescriptionID: "rx_01ABC",
-		ExitCode:       0,
+		ExitCode:       &exitCode,
 		Verdict:        VerdictSuccess,
 	}
 
@@ -135,8 +136,8 @@ func TestReportPayload_Marshal(t *testing.T) {
 	if decoded.PrescriptionID != "rx_01ABC" {
 		t.Errorf("prescription_id = %q, want %q", decoded.PrescriptionID, "rx_01ABC")
 	}
-	if decoded.ExitCode != 0 {
-		t.Errorf("exit_code = %d, want 0", decoded.ExitCode)
+	if decoded.ExitCode == nil || *decoded.ExitCode != 0 {
+		t.Errorf("exit_code = %v, want 0", decoded.ExitCode)
 	}
 	if decoded.Verdict != VerdictSuccess {
 		t.Errorf("verdict = %q, want %q", decoded.Verdict, VerdictSuccess)
@@ -153,6 +154,36 @@ func TestReportPayload_Marshal(t *testing.T) {
 	}
 	if v != "success" {
 		t.Errorf("JSON verdict = %q, want %q", v, "success")
+	}
+}
+
+func TestReportPayload_DeclinedMarshalOmitsExitCode(t *testing.T) {
+	t.Parallel()
+
+	original := ReportPayload{
+		ReportID:       "rpt_01XYZ",
+		PrescriptionID: "rx_01ABC",
+		Verdict:        VerdictDeclined,
+		DecisionContext: &DecisionContext{
+			Trigger: "risk_threshold_exceeded",
+			Reason:  "risk_level=critical and blast_radius covers production namespace",
+		},
+	}
+
+	data, err := json.Marshal(original)
+	if err != nil {
+		t.Fatalf("ReportPayload marshal: %v", err)
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("raw unmarshal: %v", err)
+	}
+	if _, ok := raw["exit_code"]; ok {
+		t.Fatal("declined payload should omit exit_code")
+	}
+	if _, ok := raw["decision_context"]; !ok {
+		t.Fatal("declined payload must include decision_context")
 	}
 }
 
@@ -328,5 +359,23 @@ func TestVerdictFromExitCode(t *testing.T) {
 				t.Errorf("VerdictFromExitCode(%d) = %q, want %q", tt.code, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestVerdict_Valid(t *testing.T) {
+	t.Parallel()
+
+	cases := map[Verdict]bool{
+		VerdictSuccess:  true,
+		VerdictFailure:  true,
+		VerdictError:    true,
+		VerdictDeclined: true,
+		Verdict("nope"): false,
+	}
+
+	for verdict, want := range cases {
+		if got := verdict.Valid(); got != want {
+			t.Fatalf("Valid(%q) = %t, want %t", verdict, got, want)
+		}
 	}
 }

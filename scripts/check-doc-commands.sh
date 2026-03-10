@@ -72,6 +72,7 @@ fi
 
 go run ./cmd/evidra report \
   --prescription "$prescription_id" \
+  --verdict success \
   --exit-code 0 \
   --signing-mode optional \
   --evidence-dir "$tmpdir/evidence" >/dev/null

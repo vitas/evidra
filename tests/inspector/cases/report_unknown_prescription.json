@@ -5,6 +5,7 @@
       "tool": "report",
       "input": {
         "prescription_id": "01UNKNOWNPRESCRIPTIONID00000000",
+        "verdict": "success",
         "exit_code": 0,
         "actor": {"type": "agent", "id": "orphan-agent", "origin": "mcp"}
       },

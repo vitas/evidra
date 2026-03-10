@@ -96,7 +96,10 @@ For architecture and protocol semantics, see:
 | Flag | Description |
 |---|---|
 | `--prescription` | Prescription event ID |
-| `--exit-code` | Command exit code |
+| `--verdict` | Required terminal verdict: `success`, `failure`, `error`, or `declined` |
+| `--exit-code` | Command exit code (required for `success`/`failure`/`error`, forbidden for `declined`) |
+| `--decline-trigger` | Required trigger string for `--verdict declined` |
+| `--decline-reason` | Required short operational reason for `--verdict declined` |
 | `--evidence-dir` | Evidence directory override |
 | `--actor` | Actor ID |
 | `--artifact-digest` | Artifact digest for correlation |
@@ -166,8 +169,9 @@ The legacy score-band alias is not part of the v1 output contract.
 `evidra report` returns an immediate session assessment snapshot:
 
 - `prescription_id`
-- `exit_code`
 - `verdict`
+- `exit_code`
+- `decision_context` (when `verdict=declined`)
 - `score`
 - `score_band`
 - `signal_summary`

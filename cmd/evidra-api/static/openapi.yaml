@@ -2,9 +2,10 @@ openapi: 3.0.3
 info:
   title: Evidra API
   description: |
-    REST API for the Evidra reliability scoring platform.
+    REST API for the Evidra behavioral reliability platform.
     Receives evidence entries from CLI, MCP server, and CI pipelines.
-    Computes behavioral signals and reliability scorecards.
+    Stores append-only evidence for intent, decisions, and outcomes.
+    Hosted analytics remain experimental; CLI and MCP are authoritative today.
   version: 1.0.0
   license:
     name: Apache 2.0

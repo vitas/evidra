@@ -31,7 +31,8 @@ func TestSessionInvariant_ReportDerivesSessionFromPrescription(t *testing.T) {
 
 	reportOut, err := svc.Report(context.Background(), ReportInput{
 		PrescriptionID: prescOut.PrescriptionID,
-		ExitCode:       0,
+		Verdict:        evidence.VerdictSuccess,
+		ExitCode:       intPtr(0),
 	})
 	if err != nil {
 		t.Fatalf("Report: %v", err)
@@ -72,7 +73,8 @@ func TestSessionInvariant_ReportSessionMismatchReturnsValidationError(t *testing
 
 	_, err = svc.Report(context.Background(), ReportInput{
 		PrescriptionID: prescOut.PrescriptionID,
-		ExitCode:       0,
+		Verdict:        evidence.VerdictSuccess,
+		ExitCode:       intPtr(0),
 		SessionID:      "session-b",
 	})
 	if err == nil {
@@ -141,7 +143,8 @@ func TestSessionInvariant_UnknownPrescriptionSignalUsesReportSession(t *testing.
 
 	_, err := svc.Report(context.Background(), ReportInput{
 		PrescriptionID: "NONEXISTENT",
-		ExitCode:       1,
+		Verdict:        evidence.VerdictFailure,
+		ExitCode:       intPtr(1),
 		Actor:          evidence.Actor{Type: "agent", ID: "agent-1", Provenance: "mcp"},
 		SessionID:      "session-signal",
 	})

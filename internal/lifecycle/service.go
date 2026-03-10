@@ -153,6 +153,10 @@ func (s *Service) Report(_ context.Context, input ReportInput) (ReportOutput, er
 	if prescriptionID == "" {
 		return ReportOutput{}, wrapError(ErrCodeInvalidInput, "prescription_id is required", nil)
 	}
+	decisionContext, err := validateDecisionReportInput(input)
+	if err != nil {
+		return ReportOutput{}, err
+	}
 	inputSessionID := strings.TrimSpace(input.SessionID)
 	inputOperationID := strings.TrimSpace(input.OperationID)
 
@@ -190,11 +194,12 @@ func (s *Service) Report(_ context.Context, input ReportInput) (ReportOutput, er
 
 	reportID := ulid.Make().String()
 	reportPayload := evidence.ReportPayload{
-		ReportID:       reportID,
-		PrescriptionID: prescriptionID,
-		ExitCode:       input.ExitCode,
-		Verdict:        evidence.VerdictFromExitCode(input.ExitCode),
-		ExternalRefs:   input.ExternalRefs,
+		ReportID:        reportID,
+		PrescriptionID:  prescriptionID,
+		ExitCode:        input.ExitCode,
+		Verdict:         input.Verdict,
+		DecisionContext: decisionContext,
+		ExternalRefs:    input.ExternalRefs,
 	}
 	payloadJSON, err := json.Marshal(reportPayload)
 	if err != nil {
@@ -254,12 +259,57 @@ func (s *Service) Report(_ context.Context, input ReportInput) (ReportOutput, er
 	}
 
 	return ReportOutput{
-		ReportID:       entry.EntryID,
-		SessionID:      sessionID,
-		TraceID:        traceID,
-		Actor:          actor,
-		PrescriptionID: prescriptionID,
+		ReportID:        entry.EntryID,
+		SessionID:       sessionID,
+		TraceID:         traceID,
+		Actor:           actor,
+		PrescriptionID:  prescriptionID,
+		Verdict:         input.Verdict,
+		ExitCode:        input.ExitCode,
+		DecisionContext: decisionContext,
 	}, nil
+}
+
+func validateDecisionReportInput(input ReportInput) (*evidence.DecisionContext, error) {
+	verdict := input.Verdict
+	if !verdict.Valid() {
+		return nil, wrapError(ErrCodeInvalidInput, "verdict is required and must be one of success, failure, error, declined", nil)
+	}
+
+	if verdict == evidence.VerdictDeclined {
+		if input.ExitCode != nil {
+			return nil, wrapError(ErrCodeInvalidInput, "declined reports must not include exit_code", nil)
+		}
+		if input.DecisionContext == nil {
+			return nil, wrapError(ErrCodeInvalidInput, "decision_context is required for declined reports", nil)
+		}
+		trigger := strings.TrimSpace(input.DecisionContext.Trigger)
+		if trigger == "" {
+			return nil, wrapError(ErrCodeInvalidInput, "decision_context.trigger is required", nil)
+		}
+		reason := strings.TrimSpace(input.DecisionContext.Reason)
+		if reason == "" {
+			return nil, wrapError(ErrCodeInvalidInput, "decision_context.reason is required", nil)
+		}
+		if len(reason) > 512 {
+			return nil, wrapError(ErrCodeInvalidInput, "decision_context.reason exceeds 512 characters", nil)
+		}
+		return &evidence.DecisionContext{
+			Trigger: trigger,
+			Reason:  reason,
+		}, nil
+	}
+
+	if input.DecisionContext != nil {
+		return nil, wrapError(ErrCodeInvalidInput, "decision_context is only valid for declined reports", nil)
+	}
+	if input.ExitCode == nil {
+		return nil, wrapError(ErrCodeInvalidInput, fmt.Sprintf("report verdict %s requires exit_code", verdict), nil)
+	}
+	if inferred := evidence.VerdictFromExitCode(*input.ExitCode); inferred != verdict {
+		return nil, wrapError(ErrCodeInvalidInput, fmt.Sprintf("report verdict %s does not match exit_code %d", verdict, *input.ExitCode), nil)
+	}
+	return nil, nil
 }
 
 func (s *Service) writeCanonicalizationFailure(actor evidence.Actor, cr canon.CanonResult, sessionID, traceID, operationID string, attempt int) {

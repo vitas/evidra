@@ -49,8 +49,7 @@ func EvidenceToSignalEntries(entries []evidence.EvidenceEntry) ([]signal.Entry, 
 				return nil, fmt.Errorf("pipeline: unmarshal report %s: %w", e.EntryID, err)
 			}
 			se.PrescriptionID = r.PrescriptionID
-			exitCode := r.ExitCode
-			se.ExitCode = &exitCode
+			se.ExitCode = r.ExitCode
 
 		default:
 			// Skip finding, signal, receipt, canonicalization_failure, session_start, session_end, annotation entries

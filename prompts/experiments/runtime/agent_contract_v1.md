@@ -15,12 +15,13 @@
 
 
 ## Protocol Rules (Execution Mode)
-- Every infrastructure mutation must call prescribe before execution and report after execution.
+- Every infrastructure mutation must call prescribe before execution and report after execution or explicit refusal.
 - Mutate commands require protocol calls; read-only commands do not.
 - If uncertain mutate vs read-only, call prescribe.
 - Every prescribe must have exactly one report.
 - Retries require a new prescribe/report pair for each attempt.
 - Failures must be reported with non-zero exit_code.
+- Deliberate refusals must be reported with verdict=declined, decision_context.trigger, and decision_context.reason.
 - Do not report another actor's prescription_id.
 - Do not report the same prescription_id twice.
 - Include actor.skill_version for behavior slicing.

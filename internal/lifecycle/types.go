@@ -76,24 +76,29 @@ type PrescribeOutput struct {
 
 // ReportInput captures post-execution operation context.
 type ReportInput struct {
-	PrescriptionID string
-	ExitCode       int
-	ArtifactDigest string
-	Actor          evidence.Actor
-	ExternalRefs   []evidence.ExternalRef
-	SessionID      string
-	OperationID    string
-	SpanID         string
-	ParentSpanID   string
+	PrescriptionID  string
+	Verdict         evidence.Verdict
+	ExitCode        *int
+	DecisionContext *evidence.DecisionContext
+	ArtifactDigest  string
+	Actor           evidence.Actor
+	ExternalRefs    []evidence.ExternalRef
+	SessionID       string
+	OperationID     string
+	SpanID          string
+	ParentSpanID    string
 }
 
 // ReportOutput contains identifiers/correlation for written report entries.
 type ReportOutput struct {
-	ReportID       string
-	SessionID      string
-	TraceID        string
-	Actor          evidence.Actor
-	PrescriptionID string
+	ReportID        string
+	SessionID       string
+	TraceID         string
+	Actor           evidence.Actor
+	PrescriptionID  string
+	Verdict         evidence.Verdict
+	ExitCode        *int
+	DecisionContext *evidence.DecisionContext
 }
 
 // Code is a stable adapter-facing lifecycle error code.

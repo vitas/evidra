@@ -94,6 +94,7 @@ EXIT_CODE=$?
 # 5) Report outcome
 evidra report \
   --prescription "$PRESCRIPTION_ID" \
+  --verdict failure \
   --exit-code "$EXIT_CODE"
 ```
 

@@ -1,8 +1,8 @@
 # contract: v1.0.1
 
-Evidra — reliability benchmark for infrastructure automation.
+Evidra — behavioral reliability for infrastructure automation.
 It measures operational reliability across CI pipelines, scripts, and AI agents; it does not block operations.
-Evidra speaks MCP: any MCP-capable AI agent can report to Evidra out of the box.
+Evidra speaks MCP: any MCP-capable AI agent can report executions and deliberate refusals to Evidra out of the box.
 
 
 Protocol for every infrastructure mutation:
@@ -29,6 +29,7 @@ Critical invariants:
 
 Rules:
 - Report failures with non-zero exit_code.
+- If execution is intentionally declined, report verdict=declined with a trigger and short operational reason.
 - On retry, call prescribe again for each attempt.
 - If unsure whether command mutates state, call prescribe.
 - Do not use prescribe/report for non-infrastructure tasks (docs, coding, analysis).

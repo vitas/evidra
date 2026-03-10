@@ -79,31 +79,34 @@ type PrescribeOutput struct {
 
 // ReportInput is the input schema for the report tool.
 type ReportInput struct {
-	PrescriptionID string                 `json:"prescription_id"`
-	ExitCode       int                    `json:"exit_code"`
-	ArtifactDigest string                 `json:"artifact_digest,omitempty"`
-	Actor          InputActor             `json:"actor"`
-	ExternalRefs   []evidence.ExternalRef `json:"external_refs,omitempty"`
-	SessionID      string                 `json:"session_id,omitempty"`
-	OperationID    string                 `json:"operation_id,omitempty"`
-	SpanID         string                 `json:"span_id,omitempty"`
-	ParentSpanID   string                 `json:"parent_span_id,omitempty"`
+	PrescriptionID  string                    `json:"prescription_id"`
+	Verdict         evidence.Verdict          `json:"verdict"`
+	ExitCode        *int                      `json:"exit_code,omitempty"`
+	DecisionContext *evidence.DecisionContext `json:"decision_context,omitempty"`
+	ArtifactDigest  string                    `json:"artifact_digest,omitempty"`
+	Actor           InputActor                `json:"actor"`
+	ExternalRefs    []evidence.ExternalRef    `json:"external_refs,omitempty"`
+	SessionID       string                    `json:"session_id,omitempty"`
+	OperationID     string                    `json:"operation_id,omitempty"`
+	SpanID          string                    `json:"span_id,omitempty"`
+	ParentSpanID    string                    `json:"parent_span_id,omitempty"`
 }
 
 // ReportOutput is returned by the report tool.
 type ReportOutput struct {
-	OK               bool             `json:"ok"`
-	ReportID         string           `json:"report_id"`
-	PrescriptionID   string           `json:"prescription_id"`
-	ExitCode         int              `json:"exit_code"`
-	Verdict          evidence.Verdict `json:"verdict"`
-	Score            float64          `json:"score"`
-	ScoreBand        string           `json:"score_band"`
-	ScoringProfileID string           `json:"scoring_profile_id"`
-	SignalSummary    map[string]int   `json:"signal_summary"`
-	Basis            assessment.Basis `json:"basis"`
-	Confidence       score.Confidence `json:"confidence"`
-	Error            *ErrInfo         `json:"error,omitempty"`
+	OK               bool                      `json:"ok"`
+	ReportID         string                    `json:"report_id"`
+	PrescriptionID   string                    `json:"prescription_id"`
+	ExitCode         *int                      `json:"exit_code,omitempty"`
+	Verdict          evidence.Verdict          `json:"verdict"`
+	DecisionContext  *evidence.DecisionContext `json:"decision_context,omitempty"`
+	Score            float64                   `json:"score"`
+	ScoreBand        string                    `json:"score_band"`
+	ScoringProfileID string                    `json:"scoring_profile_id"`
+	SignalSummary    map[string]int            `json:"signal_summary"`
+	Basis            assessment.Basis          `json:"basis"`
+	Confidence       score.Confidence          `json:"confidence"`
+	Error            *ErrInfo                  `json:"error,omitempty"`
 }
 
 // ErrInfo represents an error in tool output.
@@ -136,13 +139,13 @@ const (
 		"Returns risk level, canonical digests, and a prescription ID. " +
 		"Call this BEFORE running kubectl apply, terraform apply, or similar commands."
 
-	defaultReportToolDescription = "Report the outcome of an infrastructure operation AFTER execution. " +
-		"Provide the prescription_id from a previous prescribe call and the exit code."
+	defaultReportToolDescription = "Report the terminal outcome of an infrastructure operation or decision. " +
+		"Provide the prescription_id from a previous prescribe call, an explicit verdict, and for declined decisions a short operational reason."
 
 	defaultGetEventToolDescription = "Look up an evidence record by event_id."
 
-	defaultInitializeInstructions = "Evidra — reliability benchmark for infrastructure automation. " +
-		"Call `prescribe` BEFORE any infrastructure operation and `report` AFTER."
+	defaultInitializeInstructions = "Evidra — behavioral reliability for infrastructure automation. " +
+		"Call `prescribe` BEFORE any infrastructure operation and `report` with an explicit verdict AFTER execution or decision."
 )
 
 var (
@@ -355,11 +358,13 @@ func (s *BenchmarkService) Report(input ReportInput) ReportOutput {
 	out, err := s.lifecycleService().Report(context.Background(), toLifecycleReportInput(input))
 	if err != nil {
 		return ReportOutput{
-			OK:            false,
-			ExitCode:      input.ExitCode,
-			Verdict:       evidence.VerdictFromExitCode(input.ExitCode),
-			SignalSummary: map[string]int{},
-			Error:         lifecycleErrInfo(err),
+			OK:              false,
+			PrescriptionID:  input.PrescriptionID,
+			ExitCode:        input.ExitCode,
+			Verdict:         input.Verdict,
+			DecisionContext: input.DecisionContext,
+			SignalSummary:   map[string]int{},
+			Error:           lifecycleErrInfo(err),
 		}
 	}
 
@@ -371,12 +376,13 @@ func (s *BenchmarkService) Report(input ReportInput) ReportOutput {
 		profile, resolveErr = score.ResolveProfile("")
 		if resolveErr != nil {
 			return ReportOutput{
-				OK:             false,
-				PrescriptionID: out.PrescriptionID,
-				ExitCode:       input.ExitCode,
-				Verdict:        evidence.VerdictFromExitCode(input.ExitCode),
-				SignalSummary:  map[string]int{},
-				Error:          &ErrInfo{Code: string(lifecycle.ErrCodeInternal), Message: "failed to resolve scoring profile"},
+				OK:              false,
+				PrescriptionID:  out.PrescriptionID,
+				ExitCode:        out.ExitCode,
+				Verdict:         out.Verdict,
+				DecisionContext: out.DecisionContext,
+				SignalSummary:   map[string]int{},
+				Error:           &ErrInfo{Code: string(lifecycle.ErrCodeInternal), Message: "failed to resolve scoring profile"},
 			}
 		}
 	}
@@ -384,12 +390,13 @@ func (s *BenchmarkService) Report(input ReportInput) ReportOutput {
 	snapshot, err := assessment.BuildAtPathWithProfile(s.evidencePath, out.SessionID, profile)
 	if err != nil {
 		return ReportOutput{
-			OK:             false,
-			PrescriptionID: out.PrescriptionID,
-			ExitCode:       input.ExitCode,
-			Verdict:        evidence.VerdictFromExitCode(input.ExitCode),
-			SignalSummary:  map[string]int{},
-			Error:          &ErrInfo{Code: string(lifecycle.ErrCodeInternal), Message: "failed to build assessment snapshot"},
+			OK:              false,
+			PrescriptionID:  out.PrescriptionID,
+			ExitCode:        out.ExitCode,
+			Verdict:         out.Verdict,
+			DecisionContext: out.DecisionContext,
+			SignalSummary:   map[string]int{},
+			Error:           &ErrInfo{Code: string(lifecycle.ErrCodeInternal), Message: "failed to build assessment snapshot"},
 		}
 	}
 
@@ -397,8 +404,9 @@ func (s *BenchmarkService) Report(input ReportInput) ReportOutput {
 		OK:               true,
 		ReportID:         out.ReportID,
 		PrescriptionID:   out.PrescriptionID,
-		ExitCode:         input.ExitCode,
-		Verdict:          evidence.VerdictFromExitCode(input.ExitCode),
+		ExitCode:         out.ExitCode,
+		Verdict:          out.Verdict,
+		DecisionContext:  out.DecisionContext,
 		Score:            snapshot.Score,
 		ScoreBand:        snapshot.ScoreBand,
 		ScoringProfileID: snapshot.ScoringProfileID,

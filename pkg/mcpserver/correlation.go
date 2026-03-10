@@ -48,14 +48,16 @@ func toLifecyclePrescribeInput(input PrescribeInput) lifecycle.PrescribeInput {
 
 func toLifecycleReportInput(input ReportInput) lifecycle.ReportInput {
 	return lifecycle.ReportInput{
-		PrescriptionID: input.PrescriptionID,
-		ExitCode:       input.ExitCode,
-		ArtifactDigest: input.ArtifactDigest,
-		Actor:          toEvidenceActor(input.Actor),
-		ExternalRefs:   input.ExternalRefs,
-		SessionID:      input.SessionID,
-		OperationID:    input.OperationID,
-		SpanID:         input.SpanID,
-		ParentSpanID:   input.ParentSpanID,
+		PrescriptionID:  input.PrescriptionID,
+		Verdict:         input.Verdict,
+		ExitCode:        input.ExitCode,
+		DecisionContext: input.DecisionContext,
+		ArtifactDigest:  input.ArtifactDigest,
+		Actor:           toEvidenceActor(input.Actor),
+		ExternalRefs:    input.ExternalRefs,
+		SessionID:       input.SessionID,
+		OperationID:     input.OperationID,
+		SpanID:          input.SpanID,
+		ParentSpanID:    input.ParentSpanID,
 	}
 }

@@ -11,6 +11,7 @@ Modes:
 Execution mode protocol:
 - For mutate operations, call prescribe BEFORE execution.
 - Call report AFTER execution, including failures.
+- If you intentionally refuse to execute, still call report with verdict=declined and a short operational reason.
 - One prescribe must map to exactly one report.
 - On retries, create a new prescribe/report pair for each attempt.
 - If unsure whether operation mutates, prescribe.

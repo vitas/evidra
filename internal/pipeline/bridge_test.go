@@ -87,10 +87,11 @@ func TestEvidenceToSignalEntries_Report(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now().UTC()
+	exitCode := 1
 	reportPayload, _ := json.Marshal(evidence.ReportPayload{
 		ReportID:       "01REPORT",
 		PrescriptionID: "01PRESC",
-		ExitCode:       1,
+		ExitCode:       &exitCode,
 		Verdict:        evidence.VerdictFailure,
 	})
 

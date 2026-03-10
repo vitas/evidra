@@ -51,6 +51,7 @@ func TestE2E_SigningEndToEnd(t *testing.T) {
 	stdout, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"report",
 		"--prescription", prescriptionID,
+		"--verdict", "success",
 		"--exit-code", "0",
 		"--session-id", "e2e-signing-001",
 		"--signing-key-path", privPath,

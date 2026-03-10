@@ -2,7 +2,7 @@ package evidence
 
 import "encoding/json"
 
-// Verdict represents the outcome classification of an executed action.
+// Verdict represents the terminal outcome classification of a prescribed action.
 type Verdict string
 
 const (
@@ -12,6 +12,8 @@ const (
 	VerdictFailure Verdict = "failure"
 	// VerdictError indicates the action could not be executed (exit code < 0).
 	VerdictError Verdict = "error"
+	// VerdictDeclined indicates execution was intentionally not started.
+	VerdictDeclined Verdict = "declined"
 )
 
 // VerdictFromExitCode maps a process exit code to a Verdict.
@@ -25,6 +27,22 @@ func VerdictFromExitCode(code int) Verdict {
 	default:
 		return VerdictFailure
 	}
+}
+
+// Valid reports whether v is a supported verdict value.
+func (v Verdict) Valid() bool {
+	switch v {
+	case VerdictSuccess, VerdictFailure, VerdictError, VerdictDeclined:
+		return true
+	default:
+		return false
+	}
+}
+
+// DecisionContext records why an actor intentionally declined execution.
+type DecisionContext struct {
+	Trigger string `json:"trigger"`
+	Reason  string `json:"reason"`
 }
 
 // PrescriptionPayload is the typed payload for EntryTypePrescribe entries.
@@ -61,11 +79,12 @@ type ExternalRef struct {
 // ReportPayload is the typed payload for EntryTypeReport entries.
 // It records the post-execution outcome linked back to a prescription.
 type ReportPayload struct {
-	ReportID       string        `json:"report_id"`
-	PrescriptionID string        `json:"prescription_id"`
-	ExitCode       int           `json:"exit_code"`
-	Verdict        Verdict       `json:"verdict"`
-	ExternalRefs   []ExternalRef `json:"external_refs,omitempty"`
+	ReportID        string           `json:"report_id"`
+	PrescriptionID  string           `json:"prescription_id"`
+	ExitCode        *int             `json:"exit_code,omitempty"`
+	Verdict         Verdict          `json:"verdict"`
+	DecisionContext *DecisionContext `json:"decision_context,omitempty"`
+	ExternalRefs    []ExternalRef    `json:"external_refs,omitempty"`
 }
 
 // FindingPayload is the typed payload for EntryTypeFinding entries.

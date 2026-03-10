@@ -16,7 +16,7 @@
 
 ## 1. Problem
 
-MCP server is a flight recorder for AI infrastructure agents.
+MCP server is a flight recorder for AI infrastructure agents and their decisions.
 
 Current MCP prompts are too thin. The `initialize` instructions are 6 lines. Tool descriptions are 4 lines each. The agent contract is 5 generic sections. This leads to:
 
@@ -59,18 +59,19 @@ Tool descriptions are read most often. They must be self-contained — an agent 
 ```
 # contract: v1.0.1
 
-Evidra — reliability benchmark for infrastructure automation.
+Evidra — behavioral reliability for infrastructure automation.
 It measures operational reliability across CI pipelines, scripts, and AI agents; it does not block operations.
 Evidra speaks MCP: any MCP-capable AI agent can report to Evidra out of the box.
 
 PROTOCOL — two calls per infrastructure operation:
 1. prescribe — call BEFORE any kubectl/terraform/helm command that modifies resources
-2. report — call AFTER the command completes (success OR failure)
+2. report — call AFTER the command completes or the agent intentionally declines
 
 Read-only commands (get, describe, logs, plan, status) do NOT need prescribe/report.
 
 Every prescribe MUST have a matching report. Missing reports are protocol violations.
 If a command fails, still report with the non-zero exit code. Failures are valuable data.
+If the agent intentionally refuses to execute, still report with verdict=declined, a trigger, and a short operational reason.
 If you retry a failed operation, call prescribe again before each retry attempt.
 
 Your operational reliability is measured from these calls.
@@ -138,31 +139,36 @@ If prescribe fails, do NOT execute the infrastructure command.
 ```
 # contract: v1.0
 
-Record the outcome AFTER an infrastructure operation completes.
+Record the terminal verdict AFTER an infrastructure operation completes or is intentionally declined.
 
-ALWAYS call report after every prescribe, whether the operation succeeded or failed.
+ALWAYS call report after every prescribe, whether the operation succeeded, failed, errored, or was intentionally declined.
 A missing report is a protocol violation that reduces your reliability score.
 
 INPUTS:
   prescription_id — the ID returned by the preceding prescribe call (required)
-  exit_code — command exit code: 0 for success, non-zero for failure (required)
+  verdict — required terminal outcome: success, failure, error, or declined
+  exit_code — command exit code: required for success/failure/error, forbidden for declined
+  decision_context.trigger — required for declined
+  decision_context.reason — required for declined; short operational explanation
   actor: your identity (must match the prescribe actor)
   artifact_digest — SHA-256 of what was actually applied (optional, enables drift detection)
 
 IMPORTANT RULES:
   1. Every prescribe MUST have exactly one matching report.
   2. Report failures too — exit_code=1 is valuable data, not something to hide.
-  3. Do NOT report on the same prescription_id twice (duplicate report violation).
-  4. Do NOT report on another agent's prescription_id (cross-actor violation).
-  5. If you lost the prescription_id, call prescribe again to get a new one,
+  3. If you intentionally decline, report verdict=declined with a concise operational reason.
+  4. Do NOT report on the same prescription_id twice (duplicate report violation).
+  5. Do NOT report on another agent's prescription_id (cross-actor violation).
+  6. If you lost the prescription_id, call prescribe again to get a new one,
      then execute, then report on the new one. Do not proceed without a prescription.
-  6. If you are retrying a failed operation, call prescribe again first —
+  7. If you are retrying a failed operation, call prescribe again first —
      each attempt needs its own prescribe/report pair.
 
 RETURNS:
   ok — true if report was recorded successfully
   report_id — unique identifier for this report
-  signals — optional list of any signals detected (may be absent)
+  verdict — echoed terminal verdict
+  decision_context — echoed when verdict=declined
   error — error details if ok=false
 ```
 
@@ -212,7 +218,7 @@ RETURNS:
 Every infrastructure operation follows two steps:
 
 1. **prescribe** — before execution, record what you intend to do
-2. **report** — after execution, record what happened
+2. **report** — after execution or refusal, record the terminal verdict
 
 This is the prescribe/report protocol. It creates a signed, tamper-evident
 evidence chain of every infrastructure change.
@@ -248,7 +254,8 @@ This enables retry loop detection.
 ## Error Handling
 
 If prescribe returns an error → do not execute the command.
-If the command fails → still call report with the non-zero exit code.
+If the command fails → still call report with verdict=failure or verdict=error and the exit code.
+If you intentionally decline → call report with verdict=declined plus decision_context.trigger and decision_context.reason.
 If you lose the prescription_id → call prescribe again before proceeding.
 
 Never execute infrastructure changes without a valid prescription_id.
@@ -333,9 +340,9 @@ agentContractContent = loadPromptFile("prompts/mcpserver/resources/content/agent
 
 Currently `server.go` has inline string constants. These should be replaced with file reads (or embeds) from `prompts/`. The schema files already use `//go:embed` — same pattern.
 
-### Backwards Compatibility
+### Contract Tightening
 
-The new prompts are strictly additive. No fields or tools are removed. Agents that worked with old prompts will work with new ones. The only behavior change: agents should follow the protocol more consistently because instructions are clearer.
+The report contract is now explicit rather than inferred. Agents must send a `verdict` on every report. Refusals are first-class evidence and therefore require structured `decision_context`.
 
 ### Versioning
 

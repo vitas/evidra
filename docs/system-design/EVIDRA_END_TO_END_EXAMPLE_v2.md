@@ -230,6 +230,7 @@ The agent runs the real command in its environment.
 The agent returns:
 
 - prescription_id: the ID from prescribe
+- verdict: success
 - exit_code: 0
 - artifact_digest (optional): for drift detection
 - actor (optional): falls back to prescribe actor if omitted
@@ -253,8 +254,8 @@ Report entry:
   "payload": {
     "report_id": "01JD7KZ1A3...",
     "prescription_id": "01JD7KX9M2...",
-    "exit_code": 0,
-    "verdict": "success"
+    "verdict": "success",
+    "exit_code": 0
   },
   "scope_dimensions": {"cluster":"staging-us-east","namespace":"staging"},
   "spec_version": "v1.1.0",
@@ -377,7 +378,7 @@ prescription_id from step 2:
 terraform apply -auto-approve plan.out
 EXIT_CODE=$?
 
-evidra report --prescription "$PRESCRIPTION_ID" --exit-code "$EXIT_CODE" \
+evidra report --prescription "$PRESCRIPTION_ID" --verdict failure --exit-code "$EXIT_CODE" \
   --evidence-dir /tmp/evidra --actor ci-pipeline-123
 ```
 
@@ -391,11 +392,24 @@ Report entry written to evidence:
   "payload": {
     "report_id": "01JD8ABD34...",
     "prescription_id": "01JD8ABC12...",
-    "exit_code": 1,
-    "verdict": "failure"
+    "verdict": "failure",
+    "exit_code": 1
   }
 }
 ```
+
+### Declined decision example
+
+When an agent intentionally refuses to execute after assessment:
+
+```bash
+evidra report --prescription "$PRESCRIPTION_ID" \
+  --verdict declined \
+  --decline-trigger risk_threshold_exceeded \
+  --decline-reason "risk_level=critical and blast_radius covers production namespace"
+```
+
+The refusal is preserved as the terminal report for that prescription.
 
 At scorecard time, this may produce signals such as:
 - Retry Loop (if CI re-runs the same intent repeatedly after failure)

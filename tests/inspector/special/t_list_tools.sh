@@ -30,7 +30,7 @@ for field in tool operation raw_artifact actor; do
 done
 
 report_required=$(echo "$raw_tools" | jq -c '[.tools[]? | select(.name == "report")][0].inputSchema.required // []')
-for field in prescription_id exit_code; do
+for field in prescription_id verdict; do
   found=$(echo "$report_required" | jq --arg f "$field" '[.[]? | select(. == $f)] | length')
   if [[ "$found" -gt 0 ]]; then
     pass "list_tools/report_requires_${field}"

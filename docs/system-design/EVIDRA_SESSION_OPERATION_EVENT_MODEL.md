@@ -108,7 +108,7 @@ persisted `session_id` on all entries.
 ### 4.2 Operation lifecycle
 - `operation.start`  (maps to prescribe)
 - `operation.end`    (maps to report success)
-- `operation.error`  (maps to report failure)
+- `operation.error`  (maps to report failure or error)
 
 ### 4.3 Findings and annotations
 - `validator.findings`
@@ -125,6 +125,7 @@ session.start (optional in v0.3.x)
   -> operation.start
   -> validator.findings (0..N)
   -> operation.end | operation.error
+  -> report(verdict=declined) when execution is intentionally not started
 session.end (optional in v0.3.x)
 ```
 
@@ -189,11 +190,16 @@ Carries:
 ### 6.2 `report`
 Maps to:
 - `operation.end` (success)
-- `operation.error` (failure/aborted)
+- `operation.error` (failure/aborted/error)
+
+For v1 decision tracking, `report` also carries `verdict=declined` for an
+operation that was intentionally not started after assessment. This remains the
+same terminal report event rather than a new entry type.
 
 Carries:
-- status
+- verdict / status
 - exit_code (if applicable)
+- decision_context (if declined)
 - output digests / side-effects summary (redacted by default)
 
 ### 6.3 Findings
