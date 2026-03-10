@@ -21,10 +21,10 @@ enforce policy, block deployments, or act as a gate.
 
 | Layer | Standard | Evidra stance | Phase |
 |-------|----------|---------------|-------|
-| Events | CloudEvents | Compatible envelope mapping | 1 |
-| Tracing | OpenTelemetry | Semantic attribute mapping | 1 |
+| Events | CloudEvents | Documented envelope mapping only | 1 |
+| Tracing | OpenTelemetry | Semantic trace mapping; OTLP/HTTP metrics export implemented | 1 |
 | Scanner findings | SARIF | Ingestion format with lossy projection | 1 |
-| Supply chain | in-toto | Export-compatible (evidence as predicate) | 1 |
+| Supply chain | in-toto | Documented export mapping only | 1 |
 | Policy | OPA | Downstream consumer only | 1 |
 | Kubernetes | Labels / CRDs | Labels in v1, CRDs in v2+ | 1 |
 
@@ -39,6 +39,7 @@ Phase 3 = optional native adoption.
 **Standard:** [CloudEvents v1.0](https://github.com/cloudevents/spec) (CNCF graduated)
 
 **Alignment:** Evidra events can be represented as CloudEvents.
+Documented mapping only; CloudEvents adapter not implemented on `main`.
 The mapping is defined in
 [EVIDRA_SESSION_OPERATION_EVENT_MODEL.md, Section 9](EVIDRA_SESSION_OPERATION_EVENT_MODEL.md#9-cloudevents-mapping-recommended).
 
@@ -103,6 +104,7 @@ structured content mode.
 **Standard:** [OpenTelemetry](https://opentelemetry.io/) (CNCF graduated)
 
 **Alignment:** Evidra's correlation model maps to OpenTelemetry traces and spans.
+OTLP/HTTP metrics export exists today, but trace/span export is not implemented on `main`.
 The mapping is defined in
 [EVIDRA_SESSION_OPERATION_EVENT_MODEL.md, Section 8](EVIDRA_SESSION_OPERATION_EVENT_MODEL.md#8-opentelemetry-mapping-recommended).
 
@@ -219,6 +221,7 @@ into `[]ValidatorFinding`.
 **Standard:** [in-toto attestation framework](https://github.com/in-toto/attestation) (used by SLSA, Sigstore)
 
 **Alignment:** Evidra evidence entries can be exported as in-toto attestations.
+Documented export mapping only; no in-toto adapter is implemented on `main`.
 Evidra does not use in-toto internally.
 
 ### Current evidence model

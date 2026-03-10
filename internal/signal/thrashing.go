@@ -1,6 +1,19 @@
 package signal
 
-import "sort"
+import (
+	"sort"
+	"time"
+)
+
+func init() {
+	registerSignal(signalDefinition{
+		name:  "thrashing",
+		order: 70,
+		detect: func(entries []Entry, _ time.Duration) SignalResult {
+			return DetectThrashing(entries)
+		},
+	})
+}
 
 // ThrashingThreshold is the minimum number of distinct failed intents.
 const ThrashingThreshold = 3

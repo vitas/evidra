@@ -1,5 +1,17 @@
 package signal
 
+import "time"
+
+func init() {
+	registerSignal(signalDefinition{
+		name:  "artifact_drift",
+		order: 20,
+		detect: func(entries []Entry, _ time.Duration) SignalResult {
+			return DetectArtifactDrift(entries)
+		},
+	})
+}
+
 // DetectArtifactDrift finds reports where the artifact digest does not match
 // the prescription's artifact digest.
 func DetectArtifactDrift(entries []Entry) SignalResult {

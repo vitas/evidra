@@ -212,6 +212,9 @@ Every score MUST be reproducible: given the same evidence chain
 and the same parameters, any implementation MUST produce the
 exact same score. No randomness. No learned parameters.
 
+The active default scoring rationale is documented in
+[scoring/default.v1.1.0.md](scoring/default.v1.1.0.md).
+
 ---
 
 Every signal follows the same structure:

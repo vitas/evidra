@@ -14,12 +14,13 @@ const (
 type assessmentBasis = assessment.Basis
 
 type operationAssessment struct {
-	RiskLevel     string           `json:"risk_level"`
-	Score         float64          `json:"score"`
-	ScoreBand     string           `json:"score_band"`
-	SignalSummary map[string]int   `json:"signal_summary"`
-	Confidence    score.Confidence `json:"confidence"`
-	Basis         assessmentBasis  `json:"basis"`
+	RiskLevel        string           `json:"risk_level"`
+	Score            float64          `json:"score"`
+	ScoreBand        string           `json:"score_band"`
+	ScoringProfileID string           `json:"scoring_profile_id"`
+	SignalSummary    map[string]int   `json:"signal_summary"`
+	Confidence       score.Confidence `json:"confidence"`
+	Basis            assessmentBasis  `json:"basis"`
 }
 
 func buildOperationAssessment(evidencePath, sessionID, riskLevel string) (operationAssessment, error) {
@@ -29,12 +30,13 @@ func buildOperationAssessment(evidencePath, sessionID, riskLevel string) (operat
 	}
 
 	return operationAssessment{
-		RiskLevel:     riskLevel,
-		Score:         snapshot.Score,
-		ScoreBand:     snapshot.ScoreBand,
-		SignalSummary: snapshot.SignalSummary,
-		Confidence:    snapshot.Confidence,
-		Basis:         snapshot.Basis,
+		RiskLevel:        riskLevel,
+		Score:            snapshot.Score,
+		ScoreBand:        snapshot.ScoreBand,
+		ScoringProfileID: snapshot.ScoringProfileID,
+		SignalSummary:    snapshot.SignalSummary,
+		Confidence:       snapshot.Confidence,
+		Basis:            snapshot.Basis,
 	}, nil
 }
 
@@ -42,11 +44,12 @@ func buildAssessment(results []signal.SignalResult, totalOps int, riskLevel stri
 	snapshot := assessment.BuildFromResults(results, totalOps)
 
 	return operationAssessment{
-		RiskLevel:     riskLevel,
-		Score:         snapshot.Score,
-		ScoreBand:     snapshot.ScoreBand,
-		SignalSummary: snapshot.SignalSummary,
-		Confidence:    snapshot.Confidence,
-		Basis:         snapshot.Basis,
+		RiskLevel:        riskLevel,
+		Score:            snapshot.Score,
+		ScoreBand:        snapshot.ScoreBand,
+		ScoringProfileID: snapshot.ScoringProfileID,
+		SignalSummary:    snapshot.SignalSummary,
+		Confidence:       snapshot.Confidence,
+		Basis:            snapshot.Basis,
 	}
 }

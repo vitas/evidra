@@ -1,6 +1,19 @@
 package signal
 
-import "sort"
+import (
+	"sort"
+	"time"
+)
+
+func init() {
+	registerSignal(signalDefinition{
+		name:  "repair_loop",
+		order: 60,
+		detect: func(entries []Entry, _ time.Duration) SignalResult {
+			return DetectRepairLoop(entries)
+		},
+	})
+}
 
 // DetectRepairLoop finds sequences where a failed intent later succeeds
 // with a different artifact digest for the same actor+intent.

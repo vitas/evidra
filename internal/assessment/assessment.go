@@ -24,11 +24,12 @@ type Basis struct {
 }
 
 type Snapshot struct {
-	Score         float64          `json:"score"`
-	ScoreBand     string           `json:"score_band"`
-	SignalSummary map[string]int   `json:"signal_summary"`
-	Confidence    score.Confidence `json:"confidence"`
-	Basis         Basis            `json:"basis"`
+	Score            float64          `json:"score"`
+	ScoreBand        string           `json:"score_band"`
+	ScoringProfileID string           `json:"scoring_profile_id"`
+	SignalSummary    map[string]int   `json:"signal_summary"`
+	Confidence       score.Confidence `json:"confidence"`
+	Basis            Basis            `json:"basis"`
 }
 
 func BuildAtPath(evidencePath, sessionID string) (Snapshot, error) {
@@ -49,8 +50,12 @@ func BuildAtPath(evidencePath, sessionID string) (Snapshot, error) {
 }
 
 func BuildFromResults(results []signal.SignalResult, totalOps int) Snapshot {
-	strict := score.Compute(results, totalOps, 0.0)
-	preview := score.ComputeWithMinOperations(results, totalOps, 0.0, PreviewMinOperations)
+	profile, err := score.ResolveProfile("")
+	if err != nil {
+		profile, _ = score.LoadDefaultProfile()
+	}
+	strict := score.ComputeWithProfile(profile, results, totalOps, 0.0)
+	preview := score.ComputeWithProfileAndMinOperations(profile, results, totalOps, 0.0, PreviewMinOperations)
 
 	selected := strict
 	mode := AssessmentModeSufficient
@@ -60,15 +65,16 @@ func BuildFromResults(results []signal.SignalResult, totalOps int) Snapshot {
 	}
 
 	return Snapshot{
-		Score:         selected.Score,
-		ScoreBand:     selected.Band,
-		SignalSummary: selected.Signals,
-		Confidence:    selected.Confidence,
+		Score:            selected.Score,
+		ScoreBand:        selected.Band,
+		ScoringProfileID: selected.ScoringProfileID,
+		SignalSummary:    selected.Signals,
+		Confidence:       selected.Confidence,
 		Basis: Basis{
 			AssessmentMode:       mode,
 			Sufficient:           strict.Sufficient,
 			TotalOperations:      totalOps,
-			SufficientThreshold:  score.MinOperations,
+			SufficientThreshold:  profile.MinOperations,
 			PreviewMinOperations: PreviewMinOperations,
 		},
 	}

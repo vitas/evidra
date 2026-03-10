@@ -7,6 +7,16 @@ import (
 	"samebits.com/evidra-benchmark/internal/risk"
 )
 
+func init() {
+	registerSignal(signalDefinition{
+		name:  "risk_escalation",
+		order: 80,
+		detect: func(entries []Entry, _ time.Duration) SignalResult {
+			return DetectRiskEscalation(entries)
+		},
+	})
+}
+
 // BaselineWindow is the rolling window for computing an actor's baseline risk level.
 const BaselineWindow = 30 * 24 * time.Hour
 

@@ -435,6 +435,48 @@ func TestAllSignals_ReturnsAll(t *testing.T) {
 	}
 }
 
+func TestSignalRegistryContainsBuiltInsInStableOrder(t *testing.T) {
+	t.Parallel()
+
+	definitions := registeredSignals()
+	var got []string
+	for _, definition := range definitions {
+		got = append(got, definition.name)
+	}
+
+	want := []string{
+		"protocol_violation",
+		"artifact_drift",
+		"retry_loop",
+		"blast_radius",
+		"new_scope",
+		"repair_loop",
+		"thrashing",
+		"risk_escalation",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("registered signal count = %d, want %d (%v)", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("registered signal order = %v, want %v", got, want)
+		}
+	}
+}
+
+func TestAllSignals_UsesRegistry(t *testing.T) {
+	results := AllSignals(nil, DefaultTTL)
+	definitions := registeredSignals()
+	if len(results) != len(definitions) {
+		t.Fatalf("result count = %d, want %d", len(results), len(definitions))
+	}
+	for i, definition := range definitions {
+		if results[i].Name != definition.name {
+			t.Fatalf("result order = %q at index %d, want %q", results[i].Name, i, definition.name)
+		}
+	}
+}
+
 func TestDetectProtocolViolationEvents_ReportWithoutDigest(t *testing.T) {
 	t.Parallel()
 
@@ -545,6 +587,41 @@ func TestDetectRetryLoops_NoDuplicateCountWhenBothDetectorsMatch(t *testing.T) {
 	result := DetectRetryLoops(entries)
 	if result.Count != 5 {
 		t.Errorf("merged count = %d, want 5 (no double-counting)", result.Count)
+	}
+}
+
+func TestDetectRetryLoopChains_UsesGroupingFunction(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now()
+	fail := intPtr(1)
+	entries := []Entry{
+		{EventID: "P1", IsPrescription: true, ActorID: "alice", Tool: "nerdctl", OperationClass: "mutate", ScopeClass: "development", IntentDigest: "aaa", ShapeHash: "111", Timestamp: now},
+		{EventID: "R1", IsReport: true, PrescriptionID: "P1", ExitCode: fail, Timestamp: now.Add(30 * time.Second)},
+		{EventID: "P2", IsPrescription: true, ActorID: "alice", Tool: "nerdctl", OperationClass: "mutate", ScopeClass: "development", IntentDigest: "bbb", ShapeHash: "222", Timestamp: now.Add(1 * time.Minute)},
+		{EventID: "P3", IsPrescription: true, ActorID: "alice", Tool: "nerdctl", OperationClass: "mutate", ScopeClass: "development", IntentDigest: "ccc", ShapeHash: "333", Timestamp: now.Add(2 * time.Minute)},
+		{EventID: "P4", IsPrescription: true, ActorID: "alice", Tool: "nerdctl", OperationClass: "mutate", ScopeClass: "development", IntentDigest: "ddd", ShapeHash: "444", Timestamp: now.Add(3 * time.Minute)},
+		{EventID: "P5", IsPrescription: true, ActorID: "alice", Tool: "nerdctl", OperationClass: "mutate", ScopeClass: "development", IntentDigest: "eee", ShapeHash: "555", Timestamp: now.Add(4 * time.Minute)},
+	}
+
+	exact := detectRetryLoopChains(entries, DefaultRetryThreshold, DefaultRetryWindow, func(entry Entry) (string, bool) {
+		if !entry.IsPrescription || entry.IntentDigest == "" {
+			return "", false
+		}
+		return entry.ActorID + "|" + entry.IntentDigest + "|" + entry.ShapeHash, true
+	})
+	if exact.Count != 0 {
+		t.Fatalf("exact helper count = %d, want 0", exact.Count)
+	}
+
+	variant := detectRetryLoopChains(entries, DefaultVariantRetryThreshold, DefaultRetryWindow, func(entry Entry) (string, bool) {
+		if !entry.IsPrescription {
+			return "", false
+		}
+		return entry.ActorID + "|" + entry.Tool + "|" + entry.OperationClass + "|" + entry.ScopeClass, true
+	})
+	if variant.Count != 5 {
+		t.Fatalf("variant helper count = %d, want 5", variant.Count)
 	}
 }
 

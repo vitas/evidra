@@ -1,0 +1,58 @@
+{
+  "id": "default.v1.1.0",
+  "min_operations": 100,
+  "weights": {
+    "protocol_violation": 0.35,
+    "artifact_drift": 0.30,
+    "retry_loop": 0.20,
+    "blast_radius": 0.10,
+    "new_scope": 0.05,
+    "repair_loop": -0.05,
+    "thrashing": 0.15,
+    "risk_escalation": 0.10
+  },
+  "score_caps": [
+    {
+      "signal": "protocol_violation",
+      "rate_gt": 0.10,
+      "max_score": 90
+    },
+    {
+      "signal": "artifact_drift",
+      "rate_gt": 0.05,
+      "max_score": 85
+    }
+  ],
+  "confidence": {
+    "protocol_violation_rate_gt": 0.10,
+    "protocol_violation_level": "low",
+    "protocol_violation_score_ceiling": 85,
+    "external_pct_gt": 0.50,
+    "external_level": "medium",
+    "external_score_ceiling": 95,
+    "default_level": "high",
+    "default_score_ceiling": 100
+  },
+  "bands": [
+    {
+      "name": "excellent",
+      "min_score": 99
+    },
+    {
+      "name": "good",
+      "min_score": 95
+    },
+    {
+      "name": "fair",
+      "min_score": 90
+    },
+    {
+      "name": "poor",
+      "min_score": 0
+    }
+  ],
+  "signal_profile_thresholds": {
+    "low_max": 0.02,
+    "medium_max": 0.10
+  }
+}

@@ -1,0 +1,55 @@
+name: DCO
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  dco:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify commit sign-offs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          zero_sha="0000000000000000000000000000000000000000"
+
+          if [[ "${EVENT_NAME}" == "pull_request" ]]; then
+            git fetch origin "${BASE_REF}" --depth=1
+            range="origin/${BASE_REF}..${HEAD_SHA}"
+          elif [[ -n "${BEFORE_SHA}" && "${BEFORE_SHA}" != "${zero_sha}" ]]; then
+            range="${BEFORE_SHA}..${HEAD_SHA}"
+          else
+            range="${HEAD_SHA}^..${HEAD_SHA}"
+          fi
+
+          commits="$(git rev-list "${range}")"
+          if [[ -z "${commits}" ]]; then
+            echo "No commits to verify."
+            exit 0
+          fi
+
+          missing=0
+          for sha in ${commits}; do
+            trailers="$(git show -s --format=%B "${sha}" | git interpret-trailers --parse)"
+            if ! grep -iq '^Signed-off-by:' <<<"${trailers}"; then
+              echo "::error::Commit ${sha} is missing a Signed-off-by trailer."
+              missing=1
+            fi
+          done
+
+          if [[ "${missing}" -ne 0 ]]; then
+            exit 1
+          fi

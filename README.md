@@ -8,7 +8,12 @@
 
 A new observability layer for CI/CD, IaC, and AI agents.
 
-Evidra records automation intent and outcome as signed evidence, computes behavioral signals, and produces scorecards.
+Evidra records automation intent and outcome as signed evidence, computes
+behavioral signals, and produces scorecards from an append-only evidence chain.
+
+CLI and MCP are the authoritative analytics surfaces today. Self-hosted
+remains supported for centralized evidence collection and browsing, but hosted
+analytics stay experimental until they reuse the same engine end to end.
 
 ## How To Use
 
@@ -18,6 +23,11 @@ Two primary operation modes:
 - `evidra record` = Evidra ingests a completed operation from structured input.
 
 Both modes feed the same lifecycle and scoring engine.
+
+Security boundary: `evidra run` executes the wrapped local command directly.
+Evidra does not sandbox the wrapped command. Treat it with the same trust model
+as direct shell execution; Evidra records evidence around the command, but it
+does not contain or block it.
 
 ### Install
 
@@ -117,7 +127,9 @@ Full flags and subcommands:
 
 ## MCP Integration Point
 
-Evidra speaks MCP. Any MCP-capable automation client can report to Evidra.
+Evidra speaks MCP. The MCP server is a flight recorder for AI agents that touch
+infrastructure: the agent reports what it intended to do before execution and
+what actually happened after execution.
 
 ```bash
 evidra-mcp --evidence-dir ~/.evidra/evidence
@@ -196,6 +208,7 @@ Architecture and contracts:
 - [Core Data Model](docs/system-design/EVIDRA_CORE_DATA_MODEL.md)
 - [Canonicalization Contract](docs/system-design/CANONICALIZATION_CONTRACT_V1.md)
 - [Signal Spec](docs/system-design/EVIDRA_SIGNAL_SPEC.md)
+- [Scoring Rationale](docs/system-design/scoring/default.v1.1.0.md)
 
 Operational guides:
 - [Observability Quickstart](docs/guides/observability-quickstart.md)

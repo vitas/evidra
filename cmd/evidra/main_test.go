@@ -506,6 +506,9 @@ func TestScorecard_UsesSeparatedContractVersions(t *testing.T) {
 	if got := sc["scoring_version"]; got != version.ScoringVersion {
 		t.Fatalf("scoring_version = %v, want %s", got, version.ScoringVersion)
 	}
+	if got := sc["scoring_profile_id"]; got != "default.v1.1.0" {
+		t.Fatalf("scoring_profile_id = %v, want %s", got, "default.v1.1.0")
+	}
 	if got := sc["evidra_version"]; got != version.Version {
 		t.Fatalf("evidra_version = %v, want %s", got, version.Version)
 	}

@@ -115,6 +115,10 @@ For architecture and protocol semantics, see:
 evidra run --tool kubectl --artifact deploy.yaml -- -- sh -c "kubectl apply -f deploy.yaml"
 ```
 
+Security boundary: Evidra does not sandbox the wrapped command. Treat it with
+the same trust model as direct shell execution. Evidra records and analyzes
+evidence around the command; it does not contain or block it.
+
 | Flag | Description |
 |---|---|
 | `--artifact` | Artifact file path (YAML/JSON) |

@@ -1,0 +1,12 @@
+# Evidra ownership
+#
+# This file is intentionally simple while the project is still in a
+# single-maintainer stage.
+
+[maintainers]
+primary = ["@vitas"]
+
+[areas]
+core = ["@vitas"]
+docs = ["@vitas"]
+release = ["@vitas"]

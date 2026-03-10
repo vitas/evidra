@@ -91,17 +91,18 @@ type ReportInput struct {
 
 // ReportOutput is returned by the report tool.
 type ReportOutput struct {
-	OK             bool             `json:"ok"`
-	ReportID       string           `json:"report_id"`
-	PrescriptionID string           `json:"prescription_id"`
-	ExitCode       int              `json:"exit_code"`
-	Verdict        evidence.Verdict `json:"verdict"`
-	Score          float64          `json:"score"`
-	ScoreBand      string           `json:"score_band"`
-	SignalSummary  map[string]int   `json:"signal_summary"`
-	Basis          assessment.Basis `json:"basis"`
-	Confidence     score.Confidence `json:"confidence"`
-	Error          *ErrInfo         `json:"error,omitempty"`
+	OK               bool             `json:"ok"`
+	ReportID         string           `json:"report_id"`
+	PrescriptionID   string           `json:"prescription_id"`
+	ExitCode         int              `json:"exit_code"`
+	Verdict          evidence.Verdict `json:"verdict"`
+	Score            float64          `json:"score"`
+	ScoreBand        string           `json:"score_band"`
+	ScoringProfileID string           `json:"scoring_profile_id"`
+	SignalSummary    map[string]int   `json:"signal_summary"`
+	Basis            assessment.Basis `json:"basis"`
+	Confidence       score.Confidence `json:"confidence"`
+	Error            *ErrInfo         `json:"error,omitempty"`
 }
 
 // ErrInfo represents an error in tool output.
@@ -370,16 +371,17 @@ func (s *BenchmarkService) Report(input ReportInput) ReportOutput {
 	}
 
 	return ReportOutput{
-		OK:             true,
-		ReportID:       out.ReportID,
-		PrescriptionID: out.PrescriptionID,
-		ExitCode:       input.ExitCode,
-		Verdict:        evidence.VerdictFromExitCode(input.ExitCode),
-		Score:          snapshot.Score,
-		ScoreBand:      snapshot.ScoreBand,
-		SignalSummary:  snapshot.SignalSummary,
-		Basis:          snapshot.Basis,
-		Confidence:     snapshot.Confidence,
+		OK:               true,
+		ReportID:         out.ReportID,
+		PrescriptionID:   out.PrescriptionID,
+		ExitCode:         input.ExitCode,
+		Verdict:          evidence.VerdictFromExitCode(input.ExitCode),
+		Score:            snapshot.Score,
+		ScoreBand:        snapshot.ScoreBand,
+		ScoringProfileID: snapshot.ScoringProfileID,
+		SignalSummary:    snapshot.SignalSummary,
+		Basis:            snapshot.Basis,
+		Confidence:       snapshot.Confidence,
 	}
 }
 

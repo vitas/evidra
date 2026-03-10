@@ -1,5 +1,17 @@
 package signal
 
+import "time"
+
+func init() {
+	registerSignal(signalDefinition{
+		name:  "new_scope",
+		order: 50,
+		detect: func(entries []Entry, _ time.Duration) SignalResult {
+			return DetectNewScope(entries)
+		},
+	})
+}
+
 // DetectNewScope flags prescriptions that introduce an (actor, tool, operation_class, scope_class)
 // combination not seen in earlier entries. Entries must be sorted chronologically.
 //

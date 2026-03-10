@@ -1,6 +1,9 @@
 # Evidra MCP — Setup & Usage Guide
 
-Evidra is a reliability benchmark for infrastructure automation. It observes every operation — Kubernetes, Terraform, Helm, Docker, ArgoCD — and produces behavioral signals, reliability scores, and a signed evidence trail.
+Evidra MCP is a flight recorder for AI agents that touch infrastructure.
+It records before/after evidence for each reported operation, computes
+behavioral signals, and produces reliability assessments over an append-only
+evidence chain.
 
 The MCP server (`evidra-mcp`) lets any MCP-capable AI agent report to Evidra out of the box.
 
@@ -99,6 +102,9 @@ Evidra exposes three MCP tools:
 **`report`** — Record outcome AFTER execution. Links back to the prescription via `prescription_id` and includes the exit code. Triggers behavioral signal detection.
 
 **`get_event`** — Retrieve a previous evidence record by event ID for debugging or audit.
+
+The agent reports voluntarily; Evidra observes, scores, and explains. It does
+not intercept commands, block execution, or enforce policy.
 
 ### The workflow
 

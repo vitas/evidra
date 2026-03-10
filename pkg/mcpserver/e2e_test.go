@@ -121,7 +121,7 @@ func TestE2E_PrescribeReportLifecycle(t *testing.T) {
 	if !ok || reportID == "" {
 		t.Fatal("report returned empty report_id")
 	}
-	for _, key := range []string{"score", "score_band", "signal_summary", "basis", "confidence", "prescription_id", "exit_code", "verdict"} {
+	for _, key := range []string{"score", "score_band", "scoring_profile_id", "signal_summary", "basis", "confidence", "prescription_id", "exit_code", "verdict"} {
 		if _, ok := reportOut[key]; !ok {
 			t.Fatalf("missing report field %q: %+v", key, reportOut)
 		}

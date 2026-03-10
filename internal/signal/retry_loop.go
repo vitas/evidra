@@ -5,6 +5,16 @@ import (
 	"time"
 )
 
+func init() {
+	registerSignal(signalDefinition{
+		name:  "retry_loop",
+		order: 30,
+		detect: func(entries []Entry, _ time.Duration) SignalResult {
+			return DetectRetryLoops(entries)
+		},
+	})
+}
+
 const (
 	// DefaultRetryThreshold is the minimum number of same-intent prescriptions
 	// within the retry window to fire the signal.
@@ -47,77 +57,12 @@ func DetectRetryLoops(entries []Entry) SignalResult {
 
 // DetectRetryLoopsWithConfig allows configurable threshold and window.
 func DetectRetryLoopsWithConfig(entries []Entry, threshold int, window time.Duration) SignalResult {
-	type key struct{ actor, intent, shape string }
-
-	// Build report lookup: prescription_id → exit_code.
-	reportExitCode := make(map[string]*int)
-	for _, e := range entries {
-		if e.IsReport && e.PrescriptionID != "" {
-			reportExitCode[e.PrescriptionID] = e.ExitCode
+	return detectRetryLoopChains(entries, threshold, window, func(entry Entry) (string, bool) {
+		if !entry.IsPrescription || entry.IntentDigest == "" {
+			return "", false
 		}
-	}
-
-	// Group prescriptions by (actor, intent, shape).
-	groups := make(map[key][]Entry)
-	for _, e := range entries {
-		if !e.IsPrescription || e.IntentDigest == "" {
-			continue
-		}
-		k := key{e.ActorID, e.IntentDigest, e.ShapeHash}
-		groups[k] = append(groups[k], e)
-	}
-
-	var eventIDs []string
-	for _, group := range groups {
-		sort.Slice(group, func(i, j int) bool {
-			return group[i].Timestamp.Before(group[j].Timestamp)
-		})
-
-		// Walk through prescriptions; only count retries after a failed execution.
-		var chain []Entry
-		failSeen := false
-		for _, p := range group {
-			ec, hasReport := reportExitCode[p.EventID]
-			if !failSeen {
-				// Look for the first failure to start a chain.
-				if hasReport && ec != nil && *ec != 0 {
-					failSeen = true
-					chain = append(chain, p)
-				}
-				continue
-			}
-			// After a failure, subsequent prescriptions within window are retries.
-			if p.Timestamp.Sub(chain[0].Timestamp) <= window {
-				chain = append(chain, p)
-			} else {
-				// Window expired; check if chain met threshold, then reset.
-				if len(chain) >= threshold {
-					for _, c := range chain {
-						eventIDs = append(eventIDs, c.EventID)
-					}
-				}
-				chain = nil
-				failSeen = false
-				// Re-check current entry as potential new failure start.
-				if hasReport && ec != nil && *ec != 0 {
-					failSeen = true
-					chain = append(chain, p)
-				}
-			}
-		}
-		// Check remaining chain.
-		if len(chain) >= threshold {
-			for _, c := range chain {
-				eventIDs = append(eventIDs, c.EventID)
-			}
-		}
-	}
-
-	return SignalResult{
-		Name:     "retry_loop",
-		Count:    len(eventIDs),
-		EventIDs: eventIDs,
-	}
+		return entry.ActorID + "|" + entry.IntentDigest + "|" + entry.ShapeHash, true
+	})
 }
 
 // DetectVariantRetryLoopsWithConfig detects retry loops where the agent mutates
@@ -128,22 +73,29 @@ func DetectRetryLoopsWithConfig(entries []Entry, threshold int, window time.Dura
 // A higher threshold (DefaultVariantRetryThreshold = 5) reduces false positives from
 // legitimate troubleshooting where the operator is genuinely making different attempts.
 func DetectVariantRetryLoopsWithConfig(entries []Entry, threshold int, window time.Duration) SignalResult {
-	type key struct{ actor, tool, opClass, scope string }
+	return detectRetryLoopChains(entries, threshold, window, func(entry Entry) (string, bool) {
+		if !entry.IsPrescription {
+			return "", false
+		}
+		return entry.ActorID + "|" + entry.Tool + "|" + entry.OperationClass + "|" + entry.ScopeClass, true
+	})
+}
 
+func detectRetryLoopChains(entries []Entry, threshold int, window time.Duration, groupKey func(entry Entry) (string, bool)) SignalResult {
 	reportExitCode := make(map[string]*int)
-	for _, e := range entries {
-		if e.IsReport && e.PrescriptionID != "" {
-			reportExitCode[e.PrescriptionID] = e.ExitCode
+	for _, entry := range entries {
+		if entry.IsReport && entry.PrescriptionID != "" {
+			reportExitCode[entry.PrescriptionID] = entry.ExitCode
 		}
 	}
 
-	groups := make(map[key][]Entry)
-	for _, e := range entries {
-		if !e.IsPrescription {
+	groups := make(map[string][]Entry)
+	for _, entry := range entries {
+		key, ok := groupKey(entry)
+		if !ok {
 			continue
 		}
-		k := key{e.ActorID, e.Tool, e.OperationClass, e.ScopeClass}
-		groups[k] = append(groups[k], e)
+		groups[key] = append(groups[key], entry)
 	}
 
 	var eventIDs []string
@@ -154,34 +106,35 @@ func DetectVariantRetryLoopsWithConfig(entries []Entry, threshold int, window ti
 
 		var chain []Entry
 		failSeen := false
-		for _, p := range group {
-			ec, hasReport := reportExitCode[p.EventID]
+		for _, entry := range group {
+			exitCode, hasReport := reportExitCode[entry.EventID]
 			if !failSeen {
-				if hasReport && ec != nil && *ec != 0 {
+				if hasReport && exitCode != nil && *exitCode != 0 {
 					failSeen = true
-					chain = append(chain, p)
+					chain = append(chain, entry)
 				}
 				continue
 			}
-			if p.Timestamp.Sub(chain[0].Timestamp) <= window {
-				chain = append(chain, p)
-			} else {
-				if len(chain) >= threshold {
-					for _, c := range chain {
-						eventIDs = append(eventIDs, c.EventID)
-					}
-				}
-				chain = nil
-				failSeen = false
-				if hasReport && ec != nil && *ec != 0 {
-					failSeen = true
-					chain = append(chain, p)
+			if entry.Timestamp.Sub(chain[0].Timestamp) <= window {
+				chain = append(chain, entry)
+				continue
+			}
+			if len(chain) >= threshold {
+				for _, chained := range chain {
+					eventIDs = append(eventIDs, chained.EventID)
 				}
 			}
+			chain = nil
+			failSeen = false
+			if hasReport && exitCode != nil && *exitCode != 0 {
+				failSeen = true
+				chain = append(chain, entry)
+			}
 		}
+
 		if len(chain) >= threshold {
-			for _, c := range chain {
-				eventIDs = append(eventIDs, c.EventID)
+			for _, chained := range chain {
+				eventIDs = append(eventIDs, chained.EventID)
 			}
 		}
 	}

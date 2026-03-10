@@ -47,14 +47,10 @@ type SignalEvent struct {
 // TTL controls the window for unreported prescription detection. Use
 // DefaultTTL if no override is needed.
 func AllSignals(entries []Entry, ttl time.Duration) []SignalResult {
-	return []SignalResult{
-		DetectProtocolViolations(entries, ttl),
-		DetectArtifactDrift(entries),
-		DetectRetryLoops(entries),
-		DetectBlastRadius(entries),
-		DetectNewScope(entries),
-		DetectRepairLoop(entries),
-		DetectThrashing(entries),
-		DetectRiskEscalation(entries),
+	definitions := registeredSignals()
+	results := make([]SignalResult, 0, len(definitions))
+	for _, definition := range definitions {
+		results = append(results, definition.detect(entries, ttl))
 	}
+	return results
 }

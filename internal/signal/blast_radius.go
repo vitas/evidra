@@ -1,5 +1,17 @@
 package signal
 
+import "time"
+
+func init() {
+	registerSignal(signalDefinition{
+		name:  "blast_radius",
+		order: 40,
+		detect: func(entries []Entry, _ time.Duration) SignalResult {
+			return DetectBlastRadius(entries)
+		},
+	})
+}
+
 // BlastRadiusThreshold is the resource count above which a destroy operation
 // triggers the blast_radius signal.
 const BlastRadiusThreshold = 5

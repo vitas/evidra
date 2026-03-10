@@ -5,6 +5,16 @@ import (
 	"time"
 )
 
+func init() {
+	registerSignal(signalDefinition{
+		name:  "protocol_violation",
+		order: 10,
+		detect: func(entries []Entry, ttl time.Duration) SignalResult {
+			return DetectProtocolViolations(entries, ttl)
+		},
+	})
+}
+
 // DetectProtocolViolations finds prescriptions without matching reports
 // (unreported operations) and reports without matching prescriptions
 // (unprescribed actions). Also detects duplicate reports and cross-actor reports.
