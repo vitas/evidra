@@ -15,6 +15,7 @@ type reportFlags struct {
 	prescriptionID string
 	exitCode       int
 	evidenceDir    string
+	scoringProfile string
 	actorID        string
 	artifactDigest string
 	externalRefs   string
@@ -42,6 +43,11 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
+	profile, err := resolveCommandScoringProfile(opts.scoringProfile)
+	if err != nil {
+		fmt.Fprintf(stderr, "%v\n", err)
+		return 2
+	}
 
 	reportOut, err := cmd.service.Report(context.Background(), cmd.input)
 	if err != nil {
@@ -60,13 +66,14 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 		"exit_code":       opts.exitCode,
 		"verdict":         evidence.VerdictFromExitCode(opts.exitCode),
 	}
-	snapshot, err := assessment.BuildAtPath(cmd.evidencePath, reportOut.SessionID)
+	snapshot, err := assessment.BuildAtPathWithProfile(cmd.evidencePath, reportOut.SessionID, profile)
 	if err != nil {
 		fmt.Fprintf(stderr, "report assessment: %v\n", err)
 		return 1
 	}
 	result["score"] = snapshot.Score
 	result["score_band"] = snapshot.ScoreBand
+	result["scoring_profile_id"] = snapshot.ScoringProfileID
 	result["signal_summary"] = snapshot.SignalSummary
 	result["basis"] = snapshot.Basis
 	result["confidence"] = snapshot.Confidence
@@ -79,6 +86,7 @@ func parseReportFlags(args []string, stderr io.Writer) (reportFlags, int) {
 	prescriptionFlag := fs.String("prescription", "", "Prescription event ID")
 	exitCodeFlag := fs.Int("exit-code", 0, "Exit code of the operation")
 	evidenceFlag := fs.String("evidence-dir", "", "Evidence directory")
+	scoringProfileFlag := fs.String("scoring-profile", "", "Path to scoring profile JSON")
 	actorFlag := fs.String("actor", "", "Actor ID")
 	artifactDigestFlag := fs.String("artifact-digest", "", "Artifact digest for drift detection")
 	externalRefsFlag := fs.String("external-refs", "", "External references JSON array (e.g. '[{\"type\":\"github_run\",\"id\":\"123\"}]')")
@@ -99,6 +107,7 @@ func parseReportFlags(args []string, stderr io.Writer) (reportFlags, int) {
 		prescriptionID: *prescriptionFlag,
 		exitCode:       *exitCodeFlag,
 		evidenceDir:    *evidenceFlag,
+		scoringProfile: *scoringProfileFlag,
 		actorID:        *actorFlag,
 		artifactDigest: *artifactDigestFlag,
 		externalRefs:   *externalRefsFlag,

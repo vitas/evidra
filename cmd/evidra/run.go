@@ -20,6 +20,7 @@ type runFlags struct {
 	operation           string
 	environment         string
 	evidenceDir         string
+	scoringProfile      string
 	actorID             string
 	canonicalActionJSON string
 	sessionID           string
@@ -66,6 +67,11 @@ func cmdRun(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "%v\n", err)
 		return 2
 	}
+	profile, err := resolveCommandScoringProfile(opts.scoringProfile)
+	if err != nil {
+		fmt.Fprintf(stderr, "%v\n", err)
+		return 2
+	}
 
 	exitCode, durationMs, err := executeWrappedCommand(context.Background(), cmd.wrapped, stderr)
 	if err != nil {
@@ -86,10 +92,11 @@ func cmdRun(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	assessment, err := buildOperationAssessment(
+	assessment, err := buildOperationAssessmentWithProfile(
 		cmd.evidencePath,
 		opResult.ReportOutput.SessionID,
 		opResult.PrescribeOutput.RiskLevel,
+		profile,
 	)
 	if err != nil {
 		fmt.Fprintf(stderr, "run assessment: %v\n", err)
@@ -109,21 +116,22 @@ func cmdRun(args []string, stdout, stderr io.Writer) int {
 	}
 
 	result := map[string]interface{}{
-		"ok":              exitCode == 0,
-		"session_id":      opResult.ReportOutput.SessionID,
-		"operation_id":    cmd.prescribeInput.OperationID,
-		"prescription_id": opResult.PrescribeOutput.PrescriptionID,
-		"report_id":       opResult.ReportOutput.ReportID,
-		"exit_code":       exitCode,
-		"verdict":         evidence.VerdictFromExitCode(exitCode),
-		"duration_ms":     durationMs,
-		"risk_level":      assessment.RiskLevel,
-		"risk_tags":       opResult.PrescribeOutput.RiskTags,
-		"score":           assessment.Score,
-		"score_band":      assessment.ScoreBand,
-		"signal_summary":  assessment.SignalSummary,
-		"basis":           assessment.Basis,
-		"confidence":      assessment.Confidence,
+		"ok":                 exitCode == 0,
+		"session_id":         opResult.ReportOutput.SessionID,
+		"operation_id":       cmd.prescribeInput.OperationID,
+		"prescription_id":    opResult.PrescribeOutput.PrescriptionID,
+		"report_id":          opResult.ReportOutput.ReportID,
+		"exit_code":          exitCode,
+		"verdict":            evidence.VerdictFromExitCode(exitCode),
+		"duration_ms":        durationMs,
+		"risk_level":         assessment.RiskLevel,
+		"risk_tags":          opResult.PrescribeOutput.RiskTags,
+		"score":              assessment.Score,
+		"score_band":         assessment.ScoreBand,
+		"scoring_profile_id": assessment.ScoringProfileID,
+		"signal_summary":     assessment.SignalSummary,
+		"basis":              assessment.Basis,
+		"confidence":         assessment.Confidence,
 	}
 	if writeJSON(stdout, stderr, "encode run", result) != 0 {
 		return 1
@@ -145,6 +153,7 @@ func parseRunFlags(args []string, stderr io.Writer) (runFlags, []string, int) {
 	operationFlag := fs.String("operation", "apply", "Operation (apply, delete, plan)")
 	envFlag := fs.String("environment", "", "Environment (production, staging, development)")
 	evidenceFlag := fs.String("evidence-dir", "", "Evidence directory")
+	scoringProfileFlag := fs.String("scoring-profile", "", "Path to scoring profile JSON")
 	actorFlag := fs.String("actor", "", "Actor ID (e.g. ci-pipeline-123)")
 	canonicalActionFlag := fs.String("canonical-action", "", "Pre-canonicalized action JSON (bypasses adapter)")
 	sessionIDFlag := fs.String("session-id", "", "Session/run boundary ID (generated if omitted)")
@@ -181,6 +190,7 @@ func parseRunFlags(args []string, stderr io.Writer) (runFlags, []string, int) {
 		operation:           *operationFlag,
 		environment:         *envFlag,
 		evidenceDir:         *evidenceFlag,
+		scoringProfile:      *scoringProfileFlag,
 		actorID:             *actorFlag,
 		canonicalActionJSON: *canonicalActionFlag,
 		sessionID:           *sessionIDFlag,

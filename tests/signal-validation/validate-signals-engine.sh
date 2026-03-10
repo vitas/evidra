@@ -56,12 +56,39 @@ echo "  MinOps:    $SCORECARD_MIN_OPERATIONS"
 echo "================================================================"
 echo ""
 
-RESULTS=()
 FAILURES=0
+SEQUENCE_LABELS=()
+SEQUENCE_DIR_LIST=()
+
+register_sequence() {
+  local label="$1" dir="$2"
+  SEQUENCE_LABELS+=("$label")
+  SEQUENCE_DIR_LIST+=("$dir")
+}
+
+check_sequence_coverage() {
+  local expected_labels executed_labels missing unexpected
+  expected_labels=$(jq -r '.sequences | keys[]' "$EXPECTED_BANDS_FILE" | sort)
+  executed_labels=$(printf '%s\n' "${SEQUENCE_LABELS[@]}" | sort)
+
+  missing=$(comm -23 <(printf '%s\n' "$expected_labels") <(printf '%s\n' "$executed_labels"))
+  unexpected=$(comm -13 <(printf '%s\n' "$expected_labels") <(printf '%s\n' "$executed_labels"))
+
+  if [ -n "$missing" ]; then
+    echo "FAIL: expected sequences not executed:"
+    printf '  %s\n' $missing
+    FAILURES=$((FAILURES + 1))
+  fi
+  if [ -n "$unexpected" ]; then
+    echo "FAIL: executed sequences missing from expectations:"
+    printf '  %s\n' $unexpected
+    FAILURES=$((FAILURES + 1))
+  fi
+}
 
 # ─────────────────────────────────────────────────────
 # Sequence A: CLEAN SESSION (20 ops)
-# Expected: no behavioral signals, score 95-100
+# Expected: no behavioral signals
 # ─────────────────────────────────────────────────────
 echo "=== Sequence A: Clean Session (20 prescribe/report pairs) ==="
 new_session
@@ -85,12 +112,12 @@ echo "Signals:"
 print_signals
 echo "Score:"
 print_score
-RESULTS+=("A_clean")
+register_sequence "A_clean" "$SEQ_A_DIR"
 echo ""
 
 # ─────────────────────────────────────────────────────
 # Sequence B: RETRY LOOP (10 ops, 5 identical retries after failure)
-# Expected: retry_loop >= 3, score 50-70
+# Expected: retry_loop >= 3
 # ─────────────────────────────────────────────────────
 echo "=== Sequence B: Retry Loop (5 identical failures + 5 clean) ==="
 new_session
@@ -142,12 +169,12 @@ echo "Signals:"
 print_signals
 echo "Score:"
 print_score
-RESULTS+=("B_retry")
+register_sequence "B_retry" "$SEQ_B_DIR"
 echo ""
 
 # ─────────────────────────────────────────────────────
 # Sequence C: PROTOCOL VIOLATIONS (15 ops, 5 orphaned prescriptions)
-# Expected: protocol_violation >= 3, score 40-65
+# Expected: protocol_violation >= 3
 # ─────────────────────────────────────────────────────
 echo "=== Sequence C: Protocol Violations (5 good + 5 orphaned + 5 good) ==="
 new_session
@@ -198,16 +225,18 @@ EOF
   report "$LAST_PRESCRIPTION_ID" 0
 done
 
+backdate_evidence_entries "$SEQ_C_DIR" 120
+
 echo "Signals:"
 print_signals
 echo "Score:"
 print_score
-RESULTS+=("C_protocol")
+register_sequence "C_protocol" "$SEQ_C_DIR"
 echo ""
 
 # ─────────────────────────────────────────────────────
 # Sequence D: BLAST RADIUS (10 ops, 1 mass-delete of 15 resources)
-# Expected: blast_radius >= 1, score 60-80
+# Expected: blast_radius >= 1
 # ─────────────────────────────────────────────────────
 echo "=== Sequence D: Blast Radius (1 mass delete + 9 clean) ==="
 new_session
@@ -254,12 +283,12 @@ echo "Signals:"
 print_signals
 echo "Score:"
 print_score
-RESULTS+=("D_blast")
+register_sequence "D_blast" "$SEQ_D_DIR"
 echo ""
 
 # ─────────────────────────────────────────────────────
 # Sequence E: SCOPE ESCALATION (15 ops, 3 different tools)
-# Expected: new_scope >= 2 (each new tool is a new scope), score 85-95
+# Expected: new_scope >= 2 (each new tool is a new scope)
 # ─────────────────────────────────────────────────────
 echo "=== Sequence E: Scope Escalation (kubectl → helm → terraform) ==="
 new_session
@@ -320,7 +349,7 @@ echo "Signals:"
 print_signals
 echo "Score:"
 print_score
-RESULTS+=("E_scope")
+register_sequence "E_scope" "$SEQ_E_DIR"
 echo ""
 
 # ─────────────────────────────────────────────────────
@@ -421,7 +450,7 @@ echo "Signals:"
 print_signals
 echo "Score:"
 print_score
-RESULTS+=("F_repair")
+register_sequence "F_repair" "$SEQ_F_DIR"
 echo ""
 
 # ─────────────────────────────────────────────────────
@@ -475,7 +504,7 @@ echo "Signals:"
 print_signals
 echo "Score:"
 print_score
-RESULTS+=("G_thrash")
+register_sequence "G_thrash" "$SEQ_G_DIR"
 echo ""
 
 # ─────────────────────────────────────────────────────
@@ -518,7 +547,72 @@ echo "Signals:"
 print_signals
 echo "Score:"
 print_score
-RESULTS+=("H_drift")
+register_sequence "H_drift" "$SEQ_H_DIR"
+echo ""
+
+# ─────────────────────────────────────────────────────
+# Sequence I: RISK ESCALATION (low-risk baseline followed by critical operations)
+# Expected: risk_escalation >= 1
+# ─────────────────────────────────────────────────────
+echo "=== Sequence I: Risk Escalation (low-risk baseline → critical operations) ==="
+new_session
+SEQ_I_DIR="$EV_DIR"
+
+cat > "$WORKSPACE/i-safe.yaml" << 'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: i-safe
+  namespace: default
+data:
+  mode: baseline
+EOF
+
+cat > "$WORKSPACE/i-privileged.yaml" << 'EOF'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: i-privileged
+  namespace: default
+spec:
+  containers:
+    - name: app
+      image: nginx:1.25
+      securityContext:
+        privileged: true
+EOF
+
+for i in $(seq 1 5); do
+  baseline_canon=$(jq -nc --arg shape "sha256:baseline-$i" '{
+    tool: "kubectl",
+    operation: "apply",
+    operation_class: "mutate",
+    scope_class: "development",
+    resource_count: 1,
+    resource_shape_hash: $shape
+  }')
+  prescribe kubectl apply "$WORKSPACE/i-safe.yaml" --canonical-action "$baseline_canon"
+  report "$LAST_PRESCRIPTION_ID" 0
+done
+
+for i in $(seq 1 5); do
+  escalated_canon=$(jq -nc --arg shape "sha256:critical-$i" '{
+    tool: "kubectl",
+    operation: "apply",
+    operation_class: "mutate",
+    scope_class: "development",
+    resource_count: 1,
+    resource_shape_hash: $shape
+  }')
+  prescribe kubectl apply "$WORKSPACE/i-privileged.yaml" --canonical-action "$escalated_canon"
+  report "$LAST_PRESCRIPTION_ID" 0
+done
+
+echo "Signals:"
+print_signals
+echo "Score:"
+print_score
+register_sequence "I_escalation" "$SEQ_I_DIR"
 echo ""
 
 # ─────────────────────────────────────────────────────
@@ -531,18 +625,9 @@ echo ""
 echo "| Sequence | Ops | Expected Signal     | Score | Band |"
 echo "|----------|-----|---------------------|-------|------|"
 
-for label_dir in \
-  "A_clean:$SEQ_A_DIR" \
-  "B_retry:$SEQ_B_DIR" \
-  "C_protocol:$SEQ_C_DIR" \
-  "D_blast:$SEQ_D_DIR" \
-  "E_scope:$SEQ_E_DIR" \
-  "F_repair:$SEQ_F_DIR" \
-  "G_thrash:$SEQ_G_DIR" \
-  "H_drift:$SEQ_H_DIR"; do
-
-  label="${label_dir%%:*}"
-  ev_dir="${label_dir##*:}"
+for idx in "${!SEQUENCE_LABELS[@]}"; do
+  label="${SEQUENCE_LABELS[$idx]}"
+  ev_dir="${SEQUENCE_DIR_LIST[$idx]}"
 
   score_path="$RESULTS_DIR/sequence-${label}-scorecard.json"
   explain_path="$RESULTS_DIR/sequence-${label}-explain.json"
@@ -550,18 +635,16 @@ for label_dir in \
   sc=$(evidra scorecard \
     --evidence-dir "$ev_dir" \
     --ttl "$FAULT_TTL" \
-    --min-operations "$SCORECARD_MIN_OPERATIONS" 2>/dev/null || echo '{}')
+    --min-operations "$SCORECARD_MIN_OPERATIONS" 2>/dev/null)
   echo "$sc" > "$score_path"
   score=$(echo "$sc" | jq -r '.score // "ERR"')
   band=$(echo "$sc" | jq -r '.band // "ERR"')
-
-  # Count operations
-  ops=$(find "$ev_dir" -name "*.jsonl" -exec grep -h -c '"type":"prescribe"' {} + 2>/dev/null | awk '{s+=$1}END{print s+0}')
+  ops=$(echo "$sc" | jq -r '.total_operations // 0')
 
   ex=$(evidra explain \
     --evidence-dir "$ev_dir" \
     --min-operations "$SCORECARD_MIN_OPERATIONS" \
-    --ttl 1s 2>/dev/null || echo '{"signals":[]}')
+    --ttl "$FAULT_TTL" 2>/dev/null)
   echo "$ex" > "$explain_path"
   signals=$(echo "$ex" | jq -r '[.signals[] | select(.count > 0) | "\(.signal)(\(.count))"] | join(", ")' 2>/dev/null || echo "ERR")
   signals_json=$(echo "$ex" | jq -c '(.signals // []) | map(select(.count > 0)) | map({key:.signal, value:.count}) | from_entries')
@@ -613,6 +696,8 @@ for label_dir in \
   done < <(jq -r --arg seq "$label" '.sequences[$seq].required_signals // {} | to_entries[]? | "\(.key)\t\(.value)"' "$EXPECTED_BANDS_FILE")
 done
 
+check_sequence_coverage
+
 while IFS=$'\t' read -r left op right; do
   [ -z "$left" ] && continue
   left_score=$(jq -s -r --arg seq "$left" '.[] | select(.label == $seq) | .score' "$SUMMARY_JSONL")
@@ -660,19 +745,9 @@ echo "================================================================"
 echo "  INTERPRETATION"
 echo "================================================================"
 echo ""
-echo "If scores look like this, signal engine works:"
-echo "  A (clean)    → 99-100 excellent"
-echo "  B (retry)    → 75-85  poor"
-echo "  C (protocol) → 85-90  poor"
-echo "  D (blast)    → 95-99  good"
-echo "  E (scope)    → 98-100 excellent"
-echo "  F (repair)   → 75-85  adapted (should be > B)"
-echo "  G (thrash)   → 70-80  unstable (should be < B)"
-echo "  H (drift)    → 84-86  poor"
-echo ""
-echo "If all sequences score the same → signal engine bug"
-echo "If scores are inverted → weight calibration needed"
-echo "If some signals never fire → detector threshold issue"
+echo "Expectations are defined in: $EXPECTED_BANDS_FILE"
+echo "Validation fails if any configured sequence is missing, unexpected, or violates"
+echo "its band, score window, required signals, or relative comparisons."
 echo ""
 echo "Evidence dirs preserved in: $WORKSPACE"
 echo "Result artifacts written to: $RESULTS_DIR"

@@ -58,6 +58,9 @@ jobs:
       - name: Run signal validation scenarios
         run: make test-signals
 
+      - name: Check signal validation harness
+        run: bash tests/test_signal_validation_harness.sh
+
       - name: Upload signal validation artifacts
         uses: actions/upload-artifact@v4
         with:

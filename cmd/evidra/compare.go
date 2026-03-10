@@ -23,6 +23,7 @@ func cmdCompare(args []string, stdout, stderr io.Writer) int {
 	toolFlag := fs.String("tool", "", "Filter by tool name")
 	scopeFlag := fs.String("scope", "", "Filter by scope class")
 	sessionIDFlag := fs.String("session-id", "", "Filter by session ID")
+	scoringProfileFlag := fs.String("scoring-profile", "", "Path to scoring profile JSON")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -33,9 +34,9 @@ func cmdCompare(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	profile, err := score.ResolveProfile("")
+	profile, err := resolveCommandScoringProfile(*scoringProfileFlag)
 	if err != nil {
-		fmt.Fprintf(stderr, "resolve scoring profile: %v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 
@@ -83,9 +84,10 @@ func cmdCompare(args []string, stdout, stderr io.Writer) int {
 	}
 
 	result := map[string]interface{}{
-		"actors":           scorecards,
-		"workload_overlap": overlap,
-		"generated_at":     time.Now().UTC().Format(time.RFC3339),
+		"actors":             scorecards,
+		"workload_overlap":   overlap,
+		"scoring_profile_id": profile.ID,
+		"generated_at":       time.Now().UTC().Format(time.RFC3339),
 	}
 
 	enc := json.NewEncoder(stdout)

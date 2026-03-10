@@ -124,4 +124,4 @@ Operational references:
 - [CLI Reference](integrations/CLI_REFERENCE.md)
 - [End-to-End Example](system-design/EVIDRA_END_TO_END_EXAMPLE_v2.md)
 - [Self-Hosted Experimental Status](guides/self-hosted-experimental-status.md)
-- [Signal Validation Guide](experimental/SIGNAL_VALIDATION_GUIDE.md)
+- [Signal Validation Guide](guides/signal-validation.md)

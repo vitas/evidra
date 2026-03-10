@@ -22,14 +22,15 @@ type ForwardFunc func(ctx context.Context, entry json.RawMessage)
 
 // Options configures the benchmark MCP server.
 type Options struct {
-	Name             string
-	Version          string
-	EvidencePath     string
-	Environment      string
-	RetryTracker     bool
-	BestEffortWrites bool
-	Signer           evidence.Signer // required: signs evidence entries
-	Forward          ForwardFunc     // optional: best-effort forward to API
+	Name               string
+	Version            string
+	EvidencePath       string
+	Environment        string
+	RetryTracker       bool
+	BestEffortWrites   bool
+	ScoringProfilePath string
+	Signer             evidence.Signer // required: signs evidence entries
+	Forward            ForwardFunc     // optional: best-effort forward to API
 }
 
 // InputActor identifies the caller in a prescribe request.
@@ -127,6 +128,7 @@ type BenchmarkService struct {
 	bestEffortWrites bool
 	lifecycle        *lifecycle.Service
 	forwardFunc      ForwardFunc
+	scoringProfile   score.Profile
 }
 
 const (
@@ -182,6 +184,11 @@ func NewServer(opts Options) (*mcp.Server, error) {
 		bestEffortWrites: opts.BestEffortWrites,
 		forwardFunc:      opts.Forward,
 	}
+	profile, err := score.ResolveProfile(opts.ScoringProfilePath)
+	if err != nil {
+		return nil, err
+	}
+	svc.scoringProfile = profile
 	if opts.RetryTracker {
 		svc.retryTracker = NewRetryTracker(10 * time.Minute)
 	}
@@ -358,7 +365,23 @@ func (s *BenchmarkService) Report(input ReportInput) ReportOutput {
 
 	s.tryForwardEntry(out.ReportID)
 
-	snapshot, err := assessment.BuildAtPath(s.evidencePath, out.SessionID)
+	profile := s.scoringProfile
+	if profile.ID == "" {
+		var resolveErr error
+		profile, resolveErr = score.ResolveProfile("")
+		if resolveErr != nil {
+			return ReportOutput{
+				OK:             false,
+				PrescriptionID: out.PrescriptionID,
+				ExitCode:       input.ExitCode,
+				Verdict:        evidence.VerdictFromExitCode(input.ExitCode),
+				SignalSummary:  map[string]int{},
+				Error:          &ErrInfo{Code: string(lifecycle.ErrCodeInternal), Message: "failed to resolve scoring profile"},
+			}
+		}
+	}
+
+	snapshot, err := assessment.BuildAtPathWithProfile(s.evidencePath, out.SessionID, profile)
 	if err != nil {
 		return ReportOutput{
 			OK:             false,

@@ -18,8 +18,7 @@ test-experiments:
 	bash tests/experiments/runners/run_agent_experiments_clean_out_dir_test.sh
 	bash tests/experiments/runners/run_agent_execution_experiments_test.sh
 
-test-signals:
-	@if [ ! -x bin/evidra ]; then $(MAKE) build; fi
+test-signals: build
 	PATH="$(PWD)/bin:$$PATH" bash tests/signal-validation/validate-signals-engine.sh
 
 e2e: build

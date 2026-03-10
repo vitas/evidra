@@ -28,21 +28,28 @@ func buildOperationAssessment(evidencePath, sessionID, riskLevel string) (operat
 	if err != nil {
 		return operationAssessment{}, err
 	}
+	return assessmentFromSnapshot(snapshot, riskLevel), nil
+}
 
-	return operationAssessment{
-		RiskLevel:        riskLevel,
-		Score:            snapshot.Score,
-		ScoreBand:        snapshot.ScoreBand,
-		ScoringProfileID: snapshot.ScoringProfileID,
-		SignalSummary:    snapshot.SignalSummary,
-		Confidence:       snapshot.Confidence,
-		Basis:            snapshot.Basis,
-	}, nil
+func buildOperationAssessmentWithProfile(evidencePath, sessionID, riskLevel string, profile score.Profile) (operationAssessment, error) {
+	snapshot, err := assessment.BuildAtPathWithProfile(evidencePath, sessionID, profile)
+	if err != nil {
+		return operationAssessment{}, err
+	}
+	return assessmentFromSnapshot(snapshot, riskLevel), nil
 }
 
 func buildAssessment(results []signal.SignalResult, totalOps int, riskLevel string) operationAssessment {
 	snapshot := assessment.BuildFromResults(results, totalOps)
+	return assessmentFromSnapshot(snapshot, riskLevel)
+}
 
+func buildAssessmentWithProfile(results []signal.SignalResult, totalOps int, riskLevel string, profile score.Profile) operationAssessment {
+	snapshot := assessment.BuildFromResultsWithProfile(profile, results, totalOps)
+	return assessmentFromSnapshot(snapshot, riskLevel)
+}
+
+func assessmentFromSnapshot(snapshot assessment.Snapshot, riskLevel string) operationAssessment {
 	return operationAssessment{
 		RiskLevel:        riskLevel,
 		Score:            snapshot.Score,

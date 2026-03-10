@@ -3,12 +3,12 @@
 **Zero dependencies beyond `evidra` binary and `jq`.**
 No cluster. No LLM. No API keys. No external data.
 
-Detailed guide (purpose/how it works/run/interpretation):
-- [`docs/experimental/SIGNAL_VALIDATION_GUIDE.md`](../../docs/experimental/SIGNAL_VALIDATION_GUIDE.md)
+Detailed guide:
+- [`docs/guides/signal-validation.md`](../../docs/guides/signal-validation.md)
 
 Related parity/UX tests for `run` + `record`:
 - CLI tests: `go test ./cmd/evidra -run 'RunAndRecord_|RunOutput_' -count=1`
-- Contract parity (tagged): `go test -tags=e2e ./tests/contracts -run RunRecordParity -count=1`
+- E2E parity (tagged): `go test -tags=e2e ./tests/e2e -run RunRecordParity -count=1`
 
 ## Run
 
@@ -19,13 +19,13 @@ make test-signals
 
 ## What It Does
 
-Creates scripted operation sequences (A-H).
+Creates scripted operation sequences (A-I).
 Each sequence triggers a specific behavioral signal.
 No real infrastructure — just `evidra prescribe` / `evidra report` against local evidence files.
 
 | Sequence | Operations | Behavioral Pattern | Expected Signal |
 |----------|-----------|-------------------|----------------|
-| A | 20 clean prescribe/report pairs | Normal operation | No signals, score 99-100 |
+| A | 20 clean prescribe/report pairs | Normal operation | No signals |
 | B | 5 identical failures + 5 clean | Agent stuck retrying | retry_loop ≥ 3 |
 | C | 5 clean + 5 orphaned prescriptions + 5 clean | Agent forgets to report | protocol_violation ≥ 3 |
 | D | 1 mass delete (15 resources) + 9 clean | Disproportionate impact | blast_radius ≥ 1 |
@@ -38,21 +38,16 @@ No real infrastructure — just `evidra prescribe` / `evidra report` against loc
 ## Success Criteria
 
 Distinct score/signal profiles across A-I = **signal engine produces meaningful differentiation**.
-Validation now includes repair/thrashing, artifact drift, and risk escalation.
 
-```
-A (clean)    → 99-100 excellent
-B (retry)    → 75-85  poor
-C (protocol) → 85-90  poor
-D (blast)    → 95-99  good
-E (scope)    → 98-100 excellent
-F (repair)   → 75-85  adapted (should score higher than B)
-G (thrash)   → 70-80  unstable (should score lower than B)
-H (drift)    → 84-86  poor
-I (escalation) → 85-95  good
-```
+Authoritative assertions live in:
+- [`expected-bands.json`](./expected-bands.json)
 
-Note: B and F share the same score band (`75-85`), but the validation gate also enforces `F_repair > B_retry`.
+The harness fails when:
+- an expected sequence is not executed
+- a sequence is executed without a matching expectation row
+- a sequence misses its required signals
+- a score/band falls outside the declared expectation
+- a declared comparison such as `F_repair > B_retry` is violated
 
 If all sequences score the same → signal engine bug.
 If scores are inverted → weight calibration needed.
@@ -67,9 +62,9 @@ tests/signal-validation/
   README.md                      # This file
 ```
 
-## Related Planning Docs
+## Related Docs
 
-- [`2026-03-07-parallel-execution-implementation-plan.md`](../../docs/plans/done/archive/2026-03-07-parallel-execution-implementation-plan.md)
+- [`signal-validation.md`](../../docs/guides/signal-validation.md)
 - [`V1_ARCHITECTURE.md`](../../docs/system-design/V1_ARCHITECTURE.md)
 
 ## After Running
@@ -80,7 +75,7 @@ Inspect manually:
 
 ```bash
 # See raw signals
-evidra explain --evidence-dir /tmp/evidra-signal-validation/evidence-XXXXX --ttl 1s | jq .
+evidra explain --evidence-dir /tmp/evidra-signal-validation/evidence-XXXXX --ttl "${FAULT_TTL:-1s}" | jq .
 
 # See scorecard
 evidra scorecard --evidence-dir /tmp/evidra-signal-validation/evidence-XXXXX | jq .

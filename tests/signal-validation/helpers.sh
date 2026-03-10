@@ -21,18 +21,34 @@ new_session() {
   echo "[session] $SESSION_ID → $EV_DIR"
 }
 
+run_evidra_json() {
+  local output
+  if ! output=$(evidra "$@" 2>/dev/null); then
+    echo "FATAL: evidra $1 failed"
+    return 1
+  fi
+  if ! echo "$output" | jq -e . >/dev/null 2>&1; then
+    echo "FATAL: evidra $1 returned invalid JSON"
+    echo "$output"
+    return 1
+  fi
+  printf '%s\n' "$output"
+}
+
 prescribe() {
   local tool="$1" op="$2" artifact="$3"
+  shift 3
   local output
-  output=$(evidra prescribe \
+  output=$(run_evidra_json prescribe \
     --tool "$tool" \
     --operation "$op" \
     --artifact "$artifact" \
     --evidence-dir "$EV_DIR" \
     --session-id "$SESSION_ID" \
-    --signing-mode optional 2>/dev/null) || true
-  LAST_PRESCRIPTION_ID=$(echo "$output" | jq -r '.prescription_id // empty')
-  LAST_ARTIFACT_DIGEST=$(echo "$output" | jq -r '.artifact_digest // empty')
+    --signing-mode optional \
+    "$@")
+  LAST_PRESCRIPTION_ID=$(echo "$output" | jq -er '.prescription_id')
+  LAST_ARTIFACT_DIGEST=$(echo "$output" | jq -er '.artifact_digest')
   if [ -z "$LAST_PRESCRIPTION_ID" ]; then
     echo "FATAL: prescribe failed"
     echo "$output"
@@ -58,29 +74,25 @@ report() {
   if [ -n "$artifact_digest" ]; then
     args+=(--artifact-digest "$artifact_digest")
   fi
-  evidra "${args[@]}" 2>/dev/null || true
+  local output
+  output=$(run_evidra_json "${args[@]}")
+  LAST_REPORT_ID=$(echo "$output" | jq -er '.report_id')
 }
 
 get_signals() {
-  local output
-  output=$(evidra explain \
+  run_evidra_json explain \
     --evidence-dir "$EV_DIR" \
     --session-id "$SESSION_ID" \
     --min-operations "${SCORECARD_MIN_OPERATIONS:-1}" \
-    --ttl "$FAULT_TTL" 2>/dev/null) || true
-  if [ -z "$output" ]; then
-    echo '{"signals":[]}'
-  else
-    echo "$output"
-  fi
+    --ttl "$FAULT_TTL"
 }
 
 get_score() {
-  evidra scorecard \
+  run_evidra_json scorecard \
     --evidence-dir "$EV_DIR" \
     --session-id "$SESSION_ID" \
     --ttl "$FAULT_TTL" \
-    --min-operations "${SCORECARD_MIN_OPERATIONS:-1}" 2>/dev/null || echo '{"score":null,"band":"error"}'
+    --min-operations "${SCORECARD_MIN_OPERATIONS:-1}"
 }
 
 print_signals() {
@@ -94,4 +106,25 @@ print_score() {
   score=$(echo "$sc" | jq -r '.score // "N/A"')
   band=$(echo "$sc" | jq -r '.band // "N/A"')
   echo "  score=$score band=$band"
+}
+
+backdate_evidence_entries() {
+  local evidence_dir="$1"
+  local seconds_ago="${2:-120}"
+  local base_epoch
+  local offset=0
+  base_epoch=$(( $(date +%s) - seconds_ago ))
+
+  while IFS= read -r file; do
+    local tmp="${file}.tmp"
+    : > "$tmp"
+    while IFS= read -r line; do
+      local ts epoch
+      epoch=$(( base_epoch + offset ))
+      ts=$(jq -nr --argjson epoch "$epoch" '$epoch | strftime("%Y-%m-%dT%H:%M:%SZ")')
+      echo "$line" | jq -c --arg ts "$ts" '.timestamp = $ts' >> "$tmp"
+      offset=$((offset + 1))
+    done < "$file"
+    mv "$tmp" "$file"
+  done < <(find "$evidence_dir" -name "*.jsonl" | sort)
 }

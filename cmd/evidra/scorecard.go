@@ -62,6 +62,7 @@ func cmdScorecard(args []string, stdout, stderr io.Writer) int {
 	scopeFlag := fs.String("scope", "", "Filter by scope class")
 	sessionIDFlag := fs.String("session-id", "", "Filter by session ID")
 	minOpsFlag := fs.Int("min-operations", score.MinOperations, "Minimum operations required before score is considered sufficient")
+	scoringProfileFlag := fs.String("scoring-profile", "", "Path to scoring profile JSON")
 	prettyFlag := fs.Bool("pretty", false, "Render human-readable ASCII output")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -73,9 +74,9 @@ func cmdScorecard(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	profile, err := score.ResolveProfile("")
+	profile, err := resolveCommandScoringProfile(*scoringProfileFlag)
 	if err != nil {
-		fmt.Fprintf(stderr, "resolve scoring profile: %v\n", err)
+		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
 	}
 

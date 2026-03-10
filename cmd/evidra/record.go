@@ -18,6 +18,7 @@ import (
 type recordFlags struct {
 	inputPath      string
 	evidenceDir    string
+	scoringProfile string
 	signingKey     string
 	signingKeyPath string
 	signingMode    string
@@ -42,6 +43,11 @@ func cmdRecord(args []string, stdout, stderr io.Writer) int {
 	}
 
 	cmd, err := prepareRecordCommand(opts)
+	if err != nil {
+		fmt.Fprintf(stderr, "%v\n", err)
+		return 2
+	}
+	profile, err := resolveCommandScoringProfile(opts.scoringProfile)
 	if err != nil {
 		fmt.Fprintf(stderr, "%v\n", err)
 		return 2
@@ -82,10 +88,11 @@ func cmdRecord(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 
-	assessment, err := buildOperationAssessment(
+	assessment, err := buildOperationAssessmentWithProfile(
 		cmd.evidencePath,
 		opResult.ReportOutput.SessionID,
 		opResult.PrescribeOutput.RiskLevel,
+		profile,
 	)
 	if err != nil {
 		fmt.Fprintf(stderr, "record assessment: %v\n", err)
@@ -105,22 +112,23 @@ func cmdRecord(args []string, stdout, stderr io.Writer) int {
 	}
 
 	result := map[string]interface{}{
-		"ok":               cmd.input.ExitCode == 0,
-		"contract_version": cmd.input.ContractVersion,
-		"session_id":       opResult.ReportOutput.SessionID,
-		"operation_id":     cmd.input.OperationID,
-		"prescription_id":  opResult.PrescribeOutput.PrescriptionID,
-		"report_id":        opResult.ReportOutput.ReportID,
-		"exit_code":        cmd.input.ExitCode,
-		"verdict":          evidence.VerdictFromExitCode(cmd.input.ExitCode),
-		"duration_ms":      cmd.input.DurationMs,
-		"risk_level":       assessment.RiskLevel,
-		"risk_tags":        opResult.PrescribeOutput.RiskTags,
-		"score":            assessment.Score,
-		"score_band":       assessment.ScoreBand,
-		"signal_summary":   assessment.SignalSummary,
-		"basis":            assessment.Basis,
-		"confidence":       assessment.Confidence,
+		"ok":                 cmd.input.ExitCode == 0,
+		"contract_version":   cmd.input.ContractVersion,
+		"session_id":         opResult.ReportOutput.SessionID,
+		"operation_id":       cmd.input.OperationID,
+		"prescription_id":    opResult.PrescribeOutput.PrescriptionID,
+		"report_id":          opResult.ReportOutput.ReportID,
+		"exit_code":          cmd.input.ExitCode,
+		"verdict":            evidence.VerdictFromExitCode(cmd.input.ExitCode),
+		"duration_ms":        cmd.input.DurationMs,
+		"risk_level":         assessment.RiskLevel,
+		"risk_tags":          opResult.PrescribeOutput.RiskTags,
+		"score":              assessment.Score,
+		"score_band":         assessment.ScoreBand,
+		"scoring_profile_id": assessment.ScoringProfileID,
+		"signal_summary":     assessment.SignalSummary,
+		"basis":              assessment.Basis,
+		"confidence":         assessment.Confidence,
 	}
 	code = writeJSON(stdout, stderr, "encode record", result)
 
@@ -135,6 +143,7 @@ func parseRecordFlags(args []string, stderr io.Writer) (recordFlags, int) {
 	fs.SetOutput(stderr)
 	inputFlag := fs.String("input", "-", "Path to record JSON file ('-' for stdin)")
 	evidenceFlag := fs.String("evidence-dir", "", "Evidence directory")
+	scoringProfileFlag := fs.String("scoring-profile", "", "Path to scoring profile JSON")
 	signingKeyFlag := fs.String("signing-key", "", "Base64-encoded Ed25519 signing key")
 	signingKeyPathFlag := fs.String("signing-key-path", "", "Path to PEM-encoded Ed25519 signing key")
 	signingModeFlag := fs.String("signing-mode", "", "Signing mode: strict (default) or optional")
@@ -150,6 +159,7 @@ func parseRecordFlags(args []string, stderr io.Writer) (recordFlags, int) {
 	return recordFlags{
 		inputPath:       *inputFlag,
 		evidenceDir:     *evidenceFlag,
+		scoringProfile:  *scoringProfileFlag,
 		signingKey:      *signingKeyFlag,
 		signingKeyPath:  *signingKeyPathFlag,
 		signingMode:     *signingModeFlag,

@@ -33,6 +33,14 @@ type Snapshot struct {
 }
 
 func BuildAtPath(evidencePath, sessionID string) (Snapshot, error) {
+	profile, err := score.ResolveProfile("")
+	if err != nil {
+		return Snapshot{}, fmt.Errorf("resolve scoring profile for assessment: %w", err)
+	}
+	return BuildAtPathWithProfile(evidencePath, sessionID, profile)
+}
+
+func BuildAtPathWithProfile(evidencePath, sessionID string, profile score.Profile) (Snapshot, error) {
 	entries, err := evidence.ReadAllEntriesAtPath(evidencePath)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("read evidence for assessment: %w", err)
@@ -46,7 +54,7 @@ func BuildAtPath(evidencePath, sessionID string) (Snapshot, error) {
 
 	results := signal.AllSignals(signalEntries, signal.DefaultTTL)
 	totalOps := countPrescriptions(signalEntries)
-	return BuildFromResults(results, totalOps), nil
+	return BuildFromResultsWithProfile(profile, results, totalOps), nil
 }
 
 func BuildFromResults(results []signal.SignalResult, totalOps int) Snapshot {
@@ -54,6 +62,10 @@ func BuildFromResults(results []signal.SignalResult, totalOps int) Snapshot {
 	if err != nil {
 		profile, _ = score.LoadDefaultProfile()
 	}
+	return BuildFromResultsWithProfile(profile, results, totalOps)
+}
+
+func BuildFromResultsWithProfile(profile score.Profile, results []signal.SignalResult, totalOps int) Snapshot {
 	strict := score.ComputeWithProfile(profile, results, totalOps, 0.0)
 	preview := score.ComputeWithProfileAndMinOperations(profile, results, totalOps, 0.0, PreviewMinOperations)
 

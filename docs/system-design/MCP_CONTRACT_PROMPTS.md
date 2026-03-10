@@ -16,6 +16,8 @@
 
 ## 1. Problem
 
+MCP server is a flight recorder for AI infrastructure agents.
+
 Current MCP prompts are too thin. The `initialize` instructions are 6 lines. Tool descriptions are 4 lines each. The agent contract is 5 generic sections. This leads to:
 
 - Agents forget to prescribe on later steps (protocol fatigue — no reinforcement)
