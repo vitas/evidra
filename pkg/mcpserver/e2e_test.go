@@ -103,6 +103,7 @@ func TestE2E_PrescribeReportLifecycle(t *testing.T) {
 		Name: "report",
 		Arguments: map[string]any{
 			"prescription_id": prescribeOut.PrescriptionID,
+			"verdict":         "success",
 			"exit_code":       0,
 		},
 	})
@@ -194,6 +195,7 @@ func TestE2E_UnprescribedReport(t *testing.T) {
 		Name: "report",
 		Arguments: map[string]any{
 			"prescription_id": "NONEXISTENT",
+			"verdict":         "failure",
 			"exit_code":       1,
 		},
 	})
@@ -389,6 +391,7 @@ func TestE2E_ProtocolV1Fields(t *testing.T) {
 		Name: "report",
 		Arguments: map[string]any{
 			"prescription_id": prescribeOut.PrescriptionID,
+			"verdict":         "success",
 			"exit_code":       0,
 			"session_id":      "session-e2e-001",
 			"span_id":         "span-report-001",
@@ -538,6 +541,7 @@ func TestE2E_SignedEntries(t *testing.T) {
 		Name: "report",
 		Arguments: map[string]any{
 			"prescription_id": prescribeOut.PrescriptionID,
+			"verdict":         "success",
 			"exit_code":       0,
 		},
 	})

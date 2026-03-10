@@ -50,7 +50,7 @@
    │ EVIDENCE│◀─────│── prescribe entry (risk_tags, risk_level, digests)          │
    │ CHAIN   │      │                                                             │
    │ (JSONL) │      │                                                             │
-   │         │◀─────│── report entry (exit_code, artifact_digest)                 │
+   │         │◀─────│── report entry (verdict, exit_code?, decision_context?, artifact_digest) │
    └─────────┘      │                                                             │
         │           │                                                             │
         │           │         ┌────────────────────────────────────┐              │
@@ -167,7 +167,7 @@ Resource/operation tags = what the code looks like (static).
 Behavior signals = how the automation operates (dynamic).
 **Signals are the product. Tags are the vocabulary.**
 
-Architecture principle: **graph-ready, graph-free.** Signals work on `[]Entry` sequences using intent_digest + artifact_digest + exit_code. No graph data structure needed. Intent Graph can be added later as optimization, but current signals don't require it.
+Architecture principle: **graph-ready, graph-free.** Signals work on `[]Entry` sequences using intent_digest + artifact_digest + verdict + optional exit_code. No graph data structure needed. Intent Graph can be added later as optimization, but current signals don't require it.
 
 ---
 
@@ -196,10 +196,10 @@ Architecture principle: **graph-ready, graph-free.** Signals work on `[]Entry` s
 
 6. Agent executes kubectl apply → fails (exit_code=1)
 
-7. Agent calls: evidra report --prescription 01HXY... --exit-code 1
+7. Agent calls: evidra report --prescription 01HXY... --verdict failure --exit-code 1
 
 8. Evidence entry written:
-     type=report, prescription_id=01HXY..., exit_code=1
+     type=report, prescription_id=01HXY..., verdict=failure, exit_code=1
 
 9. Agent retries same operation (same artifact, same prescribe, exit_code=1) × 2 more
 

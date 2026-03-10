@@ -5,6 +5,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 
 	"samebits.com/evidra-benchmark/internal/assessment"
 	"samebits.com/evidra-benchmark/internal/lifecycle"
@@ -13,7 +15,10 @@ import (
 
 type reportFlags struct {
 	prescriptionID string
-	exitCode       int
+	verdict        evidence.Verdict
+	exitCode       optionalIntFlag
+	declineTrigger string
+	declineReason  string
 	evidenceDir    string
 	scoringProfile string
 	actorID        string
@@ -30,6 +35,28 @@ type reportCommand struct {
 	service      *lifecycle.Service
 	evidencePath string
 	input        lifecycle.ReportInput
+}
+
+type optionalIntFlag struct {
+	set   bool
+	value int
+}
+
+func (o *optionalIntFlag) String() string {
+	if !o.set {
+		return ""
+	}
+	return strconv.Itoa(o.value)
+}
+
+func (o *optionalIntFlag) Set(raw string) error {
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return err
+	}
+	o.set = true
+	o.value = value
+	return nil
 }
 
 func cmdReport(args []string, stdout, stderr io.Writer) int {
@@ -63,8 +90,13 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 		"ok":              true,
 		"report_id":       reportOut.ReportID,
 		"prescription_id": reportOut.PrescriptionID,
-		"exit_code":       opts.exitCode,
-		"verdict":         evidence.VerdictFromExitCode(opts.exitCode),
+		"verdict":         string(reportOut.Verdict),
+	}
+	if reportOut.ExitCode != nil {
+		result["exit_code"] = *reportOut.ExitCode
+	}
+	if reportOut.DecisionContext != nil {
+		result["decision_context"] = reportOut.DecisionContext
 	}
 	snapshot, err := assessment.BuildAtPathWithProfile(cmd.evidencePath, reportOut.SessionID, profile)
 	if err != nil {
@@ -84,7 +116,11 @@ func parseReportFlags(args []string, stderr io.Writer) (reportFlags, int) {
 	fs := flag.NewFlagSet("report", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	prescriptionFlag := fs.String("prescription", "", "Prescription event ID")
-	exitCodeFlag := fs.Int("exit-code", 0, "Exit code of the operation")
+	var exitCodeFlag optionalIntFlag
+	fs.Var(&exitCodeFlag, "exit-code", "Exit code of the operation")
+	verdictFlag := fs.String("verdict", "", "Terminal outcome: success, failure, error, or declined")
+	declineTriggerFlag := fs.String("decline-trigger", "", "Decline trigger value for verdict=declined")
+	declineReasonFlag := fs.String("decline-reason", "", "Short operational reason for verdict=declined")
 	evidenceFlag := fs.String("evidence-dir", "", "Evidence directory")
 	scoringProfileFlag := fs.String("scoring-profile", "", "Path to scoring profile JSON")
 	actorFlag := fs.String("actor", "", "Actor ID")
@@ -102,10 +138,30 @@ func parseReportFlags(args []string, stderr io.Writer) (reportFlags, int) {
 		fmt.Fprintln(stderr, "report requires --prescription")
 		return reportFlags{}, 2
 	}
+	verdict := evidence.Verdict(strings.TrimSpace(*verdictFlag))
+	if strings.TrimSpace(*declineTriggerFlag) != "" || strings.TrimSpace(*declineReasonFlag) != "" {
+		if verdict == "" {
+			verdict = evidence.VerdictDeclined
+		}
+	}
+	if verdict == "" {
+		fmt.Fprintln(stderr, "report requires --verdict")
+		return reportFlags{}, 2
+	}
+	if !verdict.Valid() {
+		fmt.Fprintf(stderr, "invalid verdict %q\n", verdict)
+		return reportFlags{}, 2
+	}
+	if !validateReportVerdict(stderr, verdict, exitCodeFlag, *declineTriggerFlag, *declineReasonFlag) {
+		return reportFlags{}, 2
+	}
 
 	return reportFlags{
 		prescriptionID: *prescriptionFlag,
-		exitCode:       *exitCodeFlag,
+		verdict:        verdict,
+		exitCode:       exitCodeFlag,
+		declineTrigger: strings.TrimSpace(*declineTriggerFlag),
+		declineReason:  strings.TrimSpace(*declineReasonFlag),
 		evidenceDir:    *evidenceFlag,
 		scoringProfile: *scoringProfileFlag,
 		actorID:        *actorFlag,
@@ -117,6 +173,41 @@ func parseReportFlags(args []string, stderr io.Writer) (reportFlags, int) {
 		signingKeyPath: *signingKeyPathFlag,
 		signingMode:    *signingModeFlag,
 	}, 0
+}
+
+func validateReportVerdict(stderr io.Writer, verdict evidence.Verdict, exitCodeFlag optionalIntFlag, declineTrigger, declineReason string) bool {
+	trigger := strings.TrimSpace(declineTrigger)
+	reason := strings.TrimSpace(declineReason)
+
+	if verdict == evidence.VerdictDeclined {
+		if exitCodeFlag.set {
+			fmt.Fprintln(stderr, "declined report must not include --exit-code")
+			return false
+		}
+		if trigger == "" {
+			fmt.Fprintln(stderr, "declined report requires --decline-trigger")
+			return false
+		}
+		if reason == "" {
+			fmt.Fprintln(stderr, "declined report requires --decline-reason")
+			return false
+		}
+		return true
+	}
+
+	if !exitCodeFlag.set {
+		fmt.Fprintf(stderr, "report verdict %s requires --exit-code\n", verdict)
+		return false
+	}
+	if trigger != "" || reason != "" {
+		fmt.Fprintln(stderr, "decline fields are only valid with --verdict declined")
+		return false
+	}
+	if inferred := evidence.VerdictFromExitCode(exitCodeFlag.value); inferred != verdict {
+		fmt.Fprintf(stderr, "report verdict %s does not match --exit-code %d\n", verdict, exitCodeFlag.value)
+		return false
+	}
+	return true
 }
 
 func prepareReportCommand(opts reportFlags) (reportCommand, error) {
@@ -135,18 +226,31 @@ func prepareReportCommand(opts reportFlags) (reportCommand, error) {
 		actorID = "cli"
 	}
 	actor := evidence.Actor{Type: "cli", ID: actorID, Provenance: "cli"}
+	var exitCode *int
+	if opts.exitCode.set {
+		exitCode = intPtr(opts.exitCode.value)
+	}
+	var decisionContext *evidence.DecisionContext
+	if opts.verdict == evidence.VerdictDeclined {
+		decisionContext = &evidence.DecisionContext{
+			Trigger: opts.declineTrigger,
+			Reason:  opts.declineReason,
+		}
+	}
 
 	return reportCommand{
 		service:      svc,
 		evidencePath: evidencePath,
 		input: lifecycle.ReportInput{
-			PrescriptionID: opts.prescriptionID,
-			ExitCode:       opts.exitCode,
-			ArtifactDigest: opts.artifactDigest,
-			Actor:          actor,
-			ExternalRefs:   externalRefs,
-			SessionID:      opts.sessionID,
-			OperationID:    opts.operationID,
+			PrescriptionID:  opts.prescriptionID,
+			Verdict:         opts.verdict,
+			ExitCode:        exitCode,
+			DecisionContext: decisionContext,
+			ArtifactDigest:  opts.artifactDigest,
+			Actor:           actor,
+			ExternalRefs:    externalRefs,
+			SessionID:       opts.sessionID,
+			OperationID:     opts.operationID,
 		},
 	}, nil
 }

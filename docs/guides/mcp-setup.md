@@ -1,7 +1,7 @@
 # Evidra MCP — Setup & Usage Guide
 
 Evidra MCP is a flight recorder for AI agents that touch infrastructure.
-It records before/after evidence for each reported operation, computes
+It records intent, explicit decisions, and outcomes for each reported operation, computes
 behavioral signals, and produces reliability assessments over an append-only
 evidence chain.
 
@@ -99,7 +99,7 @@ Evidra exposes three MCP tools:
 
 **`prescribe`** — Record intent BEFORE an infrastructure mutation. Analyzes the artifact, computes risk level, and returns a `prescription_id`. The agent must not execute until prescribe returns `ok=true`.
 
-**`report`** — Record outcome AFTER execution. Links back to the prescription via `prescription_id` and includes the exit code. Triggers behavioral signal detection.
+**`report`** — Record the terminal verdict for the prescription. Executed operations report `success`, `failure`, or `error` with an exit code. Intentional refusals report `declined` with a short operational reason.
 
 **`get_event`** — Retrieve a previous evidence record by event ID for debugging or audit.
 
@@ -113,7 +113,7 @@ You → Agent: "Deploy nginx to production"
        Agent → Evidra: prescribe(kubectl, apply, artifact=deployment.yaml, env=production)
        Evidra → Agent: ok=true, prescription_id=rx-01JQ..., risk_level=high
        Agent → executes kubectl apply -f deployment.yaml
-       Agent → Evidra: report(prescription_id=rx-01JQ..., exit_code=0)
+       Agent → Evidra: report(prescription_id=rx-01JQ..., verdict=success, exit_code=0)
        Evidra → Agent: ok=true, report_id=rep-01JQ..., score_band=excellent, signal_summary={...}
 Agent → You: "Deployed successfully. Risk level: high. Current score band: excellent."
 ```
@@ -124,9 +124,19 @@ You → Agent: "Apply the config change"
        Agent → Evidra: prescribe(kubectl, apply, artifact=config.yaml, env=staging)
        Evidra → Agent: ok=true, prescription_id=rx-01JR...
        Agent → executes kubectl apply -f config.yaml → fails (exit 1)
-       Agent → Evidra: report(prescription_id=rx-01JR..., exit_code=1)
+       Agent → Evidra: report(prescription_id=rx-01JR..., verdict=failure, exit_code=1)
        Evidra → Agent: ok=true, report_id=rep-01JR..., score_band=..., signal_summary={...}
 Agent → You: "Apply failed (exit 1). Recorded for reliability tracking."
+```
+
+On deliberate refusal:
+```
+You → Agent: "Apply this privileged manifest to production"
+       Agent → Evidra: prescribe(kubectl, apply, artifact=privileged.yaml, env=production)
+       Evidra → Agent: ok=true, prescription_id=rx-01JS..., risk_level=critical, risk_tags=[...]
+       Agent → Evidra: report(prescription_id=rx-01JS..., verdict=declined, decision_context={trigger:"risk_threshold_exceeded", reason:"risk_level=critical and blast_radius covers production namespace"})
+       Evidra → Agent: ok=true, report_id=rep-01JS..., verdict=declined
+Agent → You: "I declined to apply it because the assessed risk was critical and the blast radius reached production."
 ```
 
 ---
@@ -163,11 +173,13 @@ This section explains how your AI agent should use Evidra. Claude Code with MCP 
 ### Protocol rules
 
 1. Call `prescribe` BEFORE execution — do not execute until it returns `ok=true` with a `prescription_id`.
-2. Call `report` AFTER execution — include the exit code (0 for success, non-zero for failure).
-3. Every prescribe must have exactly one report. Never skip the report, even on failure.
-4. On retry, call `prescribe` again for each attempt (new prescription per attempt).
-5. If unsure whether a command mutates state, call `prescribe`.
-6. Do not use prescribe/report for non-infrastructure tasks (coding, analysis, documentation).
+2. Call `report` with an explicit `verdict` for every prescription.
+3. For `success`, `failure`, or `error`, include the exit code.
+4. For `declined`, do not include an exit code. Include `decision_context.trigger` and `decision_context.reason`.
+5. Every prescribe must have exactly one report. Never skip the report, even on failure or refusal.
+6. On retry, call `prescribe` again for each attempt (new prescription per attempt).
+7. If unsure whether a command mutates state, call `prescribe`.
+8. Do not use prescribe/report for non-infrastructure tasks (coding, analysis, documentation).
 
 ### How to call prescribe
 
@@ -204,7 +216,26 @@ This section explains how your AI agent should use Evidra. Claude Code with MCP 
 ```json
 {
   "prescription_id": "rx-01JQ...",
+  "verdict": "success",
   "exit_code": 0,
+  "actor": {
+    "type": "agent",
+    "id": "claude",
+    "origin": "mcp"
+  }
+}
+```
+
+Declined example:
+
+```json
+{
+  "prescription_id": "rx-01JS...",
+  "verdict": "declined",
+  "decision_context": {
+    "trigger": "risk_threshold_exceeded",
+    "reason": "risk_level=critical and blast_radius covers production namespace"
+  },
   "actor": {
     "type": "agent",
     "id": "claude",
@@ -236,8 +267,10 @@ Before every infrastructure mutation (apply, delete, create, patch, upgrade,
 destroy, import), call "prescribe" with tool name, operation, and the raw
 artifact content. Wait for ok=true before executing.
 
-After execution, call "report" with the prescription_id and exit_code.
-Always report — even on failure (use non-zero exit_code).
+After each prescription, call "report" with an explicit verdict.
+For success/failure/error, include exit_code.
+If you intentionally refuse to execute, call "report" with verdict=declined
+plus decision_context.trigger and decision_context.reason.
 
 Skip for read-only commands: get, describe, list, plan, show, diff, status.
 

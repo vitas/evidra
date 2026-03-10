@@ -1,26 +1,29 @@
 # contract: v1.0.1
 
-Record outcome AFTER an infrastructure operation completes.
+Record the terminal verdict AFTER an infrastructure operation completes or is intentionally declined.
 
 Required inputs:
 - prescription_id (from prescribe)
-- exit_code (0 success, non-zero failure)
+- verdict (success, failure, error, or declined)
 
 
 Optional inputs:
 - actor (type, id, origin; should match prescribe actor)
 - actor.version, actor.skill_version
-- artifact_digest (actual applied artifact digest)
+- exit_code (required for success/failure/error)
+- decision_context.trigger and decision_context.reason (required for declined)
+- artifact_digest (actual applied artifact digest for executed operations)
 - session_id, operation_id, span_id, parent_span_id
 
 
 Terminal outcome rule:
-- Every prescribe must end with exactly one report, including failed/aborted attempts.
+- Every prescribe must end with exactly one report, including failed, errored, aborted, or declined attempts.
 - Retries require a new prescribe/report pair for each attempt.
 
 
 Rules:
 - Always report failures; do not hide non-zero exit codes.
+- Always report deliberate refusals with a concise operational reason.
 - Do not report twice for the same prescription_id.
 - Do not report another actor's prescription_id.
 - If prescription_id is lost, call prescribe again before execution.
@@ -31,5 +34,6 @@ Rules:
 Returns:
 - ok
 - report_id
-- signals (optional)
+- verdict
+- score_band, signal_summary, basis, confidence
 - error (if ok=false)

@@ -35,6 +35,7 @@ pass "chain/prescription_id_present"
 artifact_digest=$(echo "$prescribe_body" | jq -r '.artifact_digest // empty')
 report_args=$(jq -n --arg pid "$prescription_id" --arg ad "$artifact_digest" '{
   prescription_id: $pid,
+  verdict: "success",
   exit_code: 0,
   artifact_digest: $ad,
   actor: {type:"agent", id:"chain-agent", origin:"mcp"}

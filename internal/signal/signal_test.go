@@ -480,9 +480,10 @@ func TestAllSignals_UsesRegistry(t *testing.T) {
 func TestDetectProtocolViolationEvents_ReportWithoutDigest(t *testing.T) {
 	t.Parallel()
 
+	exitCode := 1
 	entries := []Entry{
 		{EventID: "P1", IsPrescription: true, ArtifactDigest: "sha256:abc123"},
-		{EventID: "R1", IsReport: true, PrescriptionID: "P1", ArtifactDigest: ""},
+		{EventID: "R1", IsReport: true, PrescriptionID: "P1", ArtifactDigest: "", ExitCode: &exitCode},
 	}
 	events := DetectProtocolViolationEvents(entries, DefaultTTL)
 	assertSubSignal(t, events, "report_without_digest")

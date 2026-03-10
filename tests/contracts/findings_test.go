@@ -92,6 +92,7 @@ func TestE2E_FindingsIngestion(t *testing.T) {
 	_, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"report",
 		"--prescription", prescriptionID,
+		"--verdict", "success",
 		"--exit-code", "0",
 		"--session-id", sessionID,
 		"--evidence-dir", evidenceDir,

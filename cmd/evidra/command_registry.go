@@ -32,7 +32,7 @@ var orderedCommands = []commandSpec{
 	{name: "compare", description: "Compare reliability scores between actors", run: cmdCompare},
 	{name: "run", description: "Execute command live and record lifecycle outcome", run: cmdRun},
 	{name: "prescribe", description: "Analyze artifact before execution", run: cmdPrescribe},
-	{name: "report", description: "Record outcome after execution", run: cmdReport},
+	{name: "report", description: "Record execution outcome or declined decision", run: cmdReport},
 	{name: "record", description: "Ingest completed automation operation from structured input", run: cmdRecord},
 	{name: "validate", description: "Validate evidence chain integrity and signatures", run: cmdValidate},
 	{name: "ingest-findings", description: "Ingest SARIF scanner findings as evidence entries", run: cmdIngestFindings},

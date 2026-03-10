@@ -7,9 +7,9 @@ invariants:
 mcp:
   initialize:
     product_summary:
-      - "Evidra — reliability benchmark for infrastructure automation."
+      - "Evidra — behavioral reliability for infrastructure automation."
       - "It measures operational reliability across CI pipelines, scripts, and AI agents; it does not block operations."
-      - "Evidra speaks MCP: any MCP-capable AI agent can report to Evidra out of the box."
+      - "Evidra speaks MCP: any MCP-capable AI agent can report executions and deliberate refusals to Evidra out of the box."
     protocol_intro: "Protocol for every infrastructure mutation:"
     critical_invariants:
       - "Do not execute mutate commands until prescribe returns ok=true with prescription_id."
@@ -17,6 +17,7 @@ mcp:
       - "Always include actor.skill_version (set to this contract version)."
     rules:
       - "Report failures with non-zero exit_code."
+      - "If execution is intentionally declined, report verdict=declined with a trigger and short operational reason."
       - "On retry, call prescribe again for each attempt."
       - "If unsure whether command mutates state, call prescribe."
       - "Do not use prescribe/report for non-infrastructure tasks (docs, coding, analysis)."
@@ -48,20 +49,23 @@ mcp:
     failure_rule: "If prescribe fails, do not execute the infrastructure command."
 
   report:
-    intro: "Record outcome AFTER an infrastructure operation completes."
+    intro: "Record the terminal verdict AFTER an infrastructure operation completes or is intentionally declined."
     required_inputs:
       - "prescription_id (from prescribe)"
-      - "exit_code (0 success, non-zero failure)"
+      - "verdict (success, failure, error, or declined)"
     optional_inputs:
       - "actor (type, id, origin; should match prescribe actor)"
       - "actor.version, actor.skill_version"
-      - "artifact_digest (actual applied artifact digest)"
+      - "exit_code (required for success/failure/error)"
+      - "decision_context.trigger and decision_context.reason (required for declined)"
+      - "artifact_digest (actual applied artifact digest for executed operations)"
       - "session_id, operation_id, span_id, parent_span_id"
     terminal_outcome_rule:
-      - "Every prescribe must end with exactly one report, including failed/aborted attempts."
+      - "Every prescribe must end with exactly one report, including failed, errored, aborted, or declined attempts."
       - "Retries require a new prescribe/report pair for each attempt."
     rules:
       - "Always report failures; do not hide non-zero exit codes."
+      - "Always report deliberate refusals with a concise operational reason."
       - "Do not report twice for the same prescription_id."
       - "Do not report another actor's prescription_id."
       - "If prescription_id is lost, call prescribe again before execution."
@@ -70,7 +74,8 @@ mcp:
     returns:
       - "ok"
       - "report_id"
-      - "signals (optional)"
+      - "verdict"
+      - "score_band, signal_summary, basis, confidence"
       - "error (if ok=false)"
 
   get_event:
@@ -93,6 +98,7 @@ runtime:
   execution_mode_rules:
     - "For mutate operations, call prescribe BEFORE execution."
     - "Call report AFTER execution, including failures."
+    - "If you intentionally refuse to execute, still call report with verdict=declined and a short operational reason."
     - "One prescribe must map to exactly one report."
     - "On retries, create a new prescribe/report pair for each attempt."
     - "If unsure whether operation mutates, prescribe."
@@ -116,12 +122,13 @@ agent_contract:
     - "This contract standardizes MCP and experiment prompts around the same prescribe/report protocol semantics."
     - "Evidra records execution behavior; it does not block operations."
   execution_rules:
-    - "Every infrastructure mutation must call prescribe before execution and report after execution."
+    - "Every infrastructure mutation must call prescribe before execution and report after execution or explicit refusal."
     - "Mutate commands require protocol calls; read-only commands do not."
     - "If uncertain mutate vs read-only, call prescribe."
     - "Every prescribe must have exactly one report."
     - "Retries require a new prescribe/report pair for each attempt."
     - "Failures must be reported with non-zero exit_code."
+    - "Deliberate refusals must be reported with verdict=declined, decision_context.trigger, and decision_context.reason."
     - "Do not report another actor's prescription_id."
     - "Do not report the same prescription_id twice."
     - "Include actor.skill_version for behavior slicing."

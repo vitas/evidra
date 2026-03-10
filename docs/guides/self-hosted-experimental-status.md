@@ -10,6 +10,7 @@ CLI and MCP are the authoritative analytics surfaces today. Self-hosted remains 
 - Evidence browsing: `/v1/evidence/entries`, `/v1/evidence/entries/{id}`
 - Health/readiness, public key, and key issuance endpoints
 - CLI/MCP forwarding into centralized storage via `--url` / `EVIDRA_URL`
+- Forwarded evidence may include explicit `report.verdict` values, including `declined` with decision context
 
 ## Experimental / Not Implemented
 
@@ -30,5 +31,5 @@ These endpoints currently return `501 Not Implemented` with an experimental stat
 ## Practical Guidance
 
 - Use self-hosted when you want centralized evidence collection, API keys, and entry browsing.
-- Use CLI or MCP outputs when you need scorecards, explanations, or immediate assessment snapshots.
+- Use CLI or MCP outputs when you need scorecards, explanations, or immediate assessment snapshots for executed or declined decisions.
 - Do not treat self-hosted `/v1/evidence/scorecard` or `/v1/evidence/explain` as feature-complete until this page changes.

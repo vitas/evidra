@@ -18,6 +18,7 @@
       "tool": "report",
       "input": {
         "prescription_id": "{{prescription_id}}",
+        "verdict": "success",
         "exit_code": 0,
         "artifact_digest": "{{artifact_digest}}",
         "actor": {"type": "agent", "id": "agent-a", "origin": "mcp"}

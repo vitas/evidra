@@ -62,6 +62,7 @@ func TestE2E_PrescribeWithScannerReport(t *testing.T) {
 	_, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"report",
 		"--prescription", prescriptionID,
+		"--verdict", "success",
 		"--exit-code", "0",
 		"--session-id", "e2e-scanner-prescribe",
 		"--evidence-dir", evidenceDir,

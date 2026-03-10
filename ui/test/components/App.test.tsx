@@ -15,6 +15,9 @@ describe("App", () => {
         name: /Behavioral Reliability for Infrastructure Automation/i,
       }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByText(/capture the operation an agent intentionally chose not to execute/i),
+    ).toBeInTheDocument();
   });
 
   it("renders navigation links", () => {

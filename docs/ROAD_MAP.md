@@ -42,6 +42,8 @@ toward broader CNCF ecosystem adoption.
   and hosted analytics clearly marked experimental.
 - Tighten the evidence-to-score path so versioning, docs, and outputs remain
   consistent.
+- Add decision tracking so agents can record when they intentionally decline
+  to act and why, making refusal evidence a first-class part of the chain.
 
 ### Ecosystem Integrations
 
@@ -74,6 +76,8 @@ toward broader CNCF ecosystem adoption.
 - Expand supported workload examples without turning Evidra into a general
   scanner platform.
 - Improve comparison, explanation, and score interpretation for team-level use.
+- Add analytics for declined decisions, trigger breakdowns, and judgment
+  patterns once real decision evidence exists in the field.
 
 ### Ecosystem Integrations
 

@@ -119,6 +119,7 @@ func TestReport_UsesScoringProfileOverride(t *testing.T) {
 	code := run([]string{
 		"report",
 		"--prescription", prescriptionID,
+		"--verdict", "success",
 		"--exit-code", "0",
 		"--session-id", "session-report-profile",
 		"--evidence-dir", evidenceDir,
@@ -297,6 +298,7 @@ func writeComparisonOperation(t *testing.T, signingKey, evidenceDir, actorID, se
 	code = run([]string{
 		"report",
 		"--prescription", prescriptionID,
+		"--verdict", "success",
 		"--exit-code", "0",
 		"--actor", actorID,
 		"--session-id", sessionID,
@@ -343,6 +345,7 @@ func writeSuccessfulReport(t *testing.T, signingKey, evidenceDir, prescriptionID
 	code := run([]string{
 		"report",
 		"--prescription", prescriptionID,
+		"--verdict", "success",
 		"--exit-code", "0",
 		"--session-id", sessionID,
 		"--evidence-dir", evidenceDir,

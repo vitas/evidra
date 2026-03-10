@@ -40,6 +40,7 @@
       "tool": "report",
       "input": {
         "prescription_id": "{{prescription_id}}",
+        "verdict": "success",
         "exit_code": 0,
         "artifact_digest": "{{artifact_digest}}",
         "session_id": "session-inspector-001",

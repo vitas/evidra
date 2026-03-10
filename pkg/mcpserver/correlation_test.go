@@ -53,14 +53,16 @@ func TestConcurrentReportCorrelation_NoCrossCallContamination(t *testing.T) {
 		defer wg.Done()
 		reportB = svc.Report(ReportInput{
 			PrescriptionID: prescB.PrescriptionID,
-			ExitCode:       0,
+			Verdict:        evidence.VerdictSuccess,
+			ExitCode:       intPtr(0),
 		})
 	}()
 	go func() {
 		defer wg.Done()
 		reportA = svc.Report(ReportInput{
 			PrescriptionID: prescA.PrescriptionID,
-			ExitCode:       1,
+			Verdict:        evidence.VerdictFailure,
+			ExitCode:       intPtr(1),
 		})
 	}()
 
@@ -97,7 +99,8 @@ func TestToLifecycleReportInput_MapsActorAndRefs(t *testing.T) {
 
 	in := ReportInput{
 		PrescriptionID: "P1",
-		ExitCode:       2,
+		Verdict:        evidence.VerdictFailure,
+		ExitCode:       intPtr(2),
 		ArtifactDigest: "abc",
 		Actor: InputActor{
 			Type:       "agent",
@@ -116,7 +119,8 @@ func TestToLifecycleReportInput_MapsActorAndRefs(t *testing.T) {
 	got := toLifecycleReportInput(in)
 	want := lifecycle.ReportInput{
 		PrescriptionID: "P1",
-		ExitCode:       2,
+		Verdict:        evidence.VerdictFailure,
+		ExitCode:       intPtr(2),
 		ArtifactDigest: "abc",
 		Actor: evidence.Actor{
 			Type:         "agent",

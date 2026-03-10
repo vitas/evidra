@@ -98,7 +98,7 @@ Prescription records intent before execution.
 
 ## 3. Report
 
-Report records the result after execution.
+Report records the terminal result after execution or an intentional refusal to execute.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
@@ -106,10 +106,18 @@ Report records the result after execution.
 | prescription_id | ULID | MUST | Links to the prescription |
 | trace_id | string | MUST | Same trace_id as prescription |
 | actor | Actor | MUST | Who executed |
-| exit_code | integer | MUST | Tool exit code |
-| artifact_digest | string | MUST | SHA256 of artifact at execution time (for drift detection) |
-| verdict | string | MUST | success, failure, error |
+| exit_code | integer | MUST for success/failure/error | Tool exit code |
+| artifact_digest | string | MAY | SHA256 of artifact at execution time (for drift detection) |
+| verdict | string | MUST | success, failure, error, declined |
+| decision_context | DecisionContext | MUST for declined | Structured refusal rationale |
 | timestamp | datetime | MUST | RFC 3339, UTC |
+
+### DecisionContext
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| trigger | string | MUST for declined | What caused the refusal |
+| reason | string | MUST for declined | Short operational explanation (max 512 chars) |
 
 ### Matching Rules
 
@@ -168,7 +176,9 @@ canon_source, timestamp.
 | Field | Required | Type | Description |
 |-------|----------|------|-------------|
 | prescription_id | MUST | string | ID from prescribe response |
-| exit_code | MUST | integer | Tool exit code (0 = success) |
+| verdict | MUST | string | success, failure, error, or declined |
+| exit_code | MUST for success/failure/error | integer | Tool exit code (0 = success) |
+| decision_context | MUST for declined | object | Refusal trigger and reason |
 | artifact_digest | MAY | string | SHA256 of artifact actually applied (for drift detection) |
 | actor | MAY | object | Optional override; omitted actor falls back to prescription actor |
 | session_id | MAY | string | Run/session boundary (should match prescribe if same session) |
@@ -178,10 +188,9 @@ canon_source, timestamp.
 
 Evidra computes and adds to the stored Report:
 report_id, trace_id (from corresponding prescription), actor
-(from corresponding prescription), verdict (from exit_code),
-timestamp.
+(from corresponding prescription when omitted), and timestamp.
 
-If `artifact_digest` is omitted, Evidra uses the prescription's
+If `artifact_digest` is omitted for executed outcomes, Evidra uses the prescription's
 artifact_digest (no drift possible). If provided and different
 from the prescription's artifact_digest, an `artifact_drift`
 signal is recorded at scorecard time.
@@ -383,7 +392,7 @@ Prescription ──────► EvidenceEntry (type=prescribe)
     │
     │  agent executes
     ▼
-report(prescription_id, exit_code, artifact_digest)
+report(prescription_id, verdict, exit_code?, decision_context?, artifact_digest)
     │
     ▼
 Report ────────────► EvidenceEntry (type=report)
@@ -453,9 +462,10 @@ Ingress alias normalization and validation requirements are defined in
 
 | Value | Meaning |
 |-------|---------|
-| `success` | exit_code == 0 |
-| `failure` | exit_code != 0 |
-| `error` | Execution could not complete |
+| `success` | Execution completed and exit_code == 0 |
+| `failure` | Execution completed and exit_code != 0 |
+| `error` | Execution path could not complete normally |
+| `declined` | Execution intentionally not started after assessment |
 
 ### band (on scorecard)
 

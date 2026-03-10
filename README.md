@@ -8,7 +8,7 @@
 
 A new observability layer for CI/CD, IaC, and AI agents.
 
-Evidra records automation intent and outcome as signed evidence, computes
+Evidra records automation intent, decisions, and outcomes as signed evidence, computes
 behavioral signals, and produces scorecards from an append-only evidence chain.
 
 CLI and MCP are the authoritative analytics surfaces today. Self-hosted
@@ -84,11 +84,11 @@ Contract details:
 ## How It Works
 
 ```text
-run/record -> prescribe -> report -> signals -> scorecard
+run/record -> prescribe -> report(verdict) -> signals -> scorecard
 ```
 
 1. Evidra records operation intent (`prescribe`).
-2. Operation outcome is recorded (`report`).
+2. A terminal outcome or explicit refusal decision is recorded (`report`).
 3. Signal engine computes behavior signals from evidence.
 4. Score engine calculates reliability score + band + confidence.
 
@@ -129,7 +129,7 @@ Full flags and subcommands:
 
 Evidra speaks MCP. The MCP server is a flight recorder for AI agents that touch
 infrastructure: the agent reports what it intended to do before execution and
-what actually happened after execution.
+what it actually did or intentionally declined to do, with a bounded reason.
 
 ```bash
 evidra-mcp --evidence-dir ~/.evidra/evidence
@@ -203,6 +203,7 @@ Architecture and contracts:
 - [Public Roadmap](docs/ROAD_MAP.md)
 - [E2E Testing Map](docs/E2E_TESTING.md)
 - [Architecture Overview](docs/ARCHITECTURE.md)
+- [Decision Tracking v1](docs/system-design/EVIDRA_DECISION_TRACKING_V1.md)
 - [V1 Architecture](docs/system-design/V1_ARCHITECTURE.md)
 - [Protocol](docs/system-design/EVIDRA_PROTOCOL.md)
 - [Core Data Model](docs/system-design/EVIDRA_CORE_DATA_MODEL.md)

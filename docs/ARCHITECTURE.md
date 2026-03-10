@@ -10,7 +10,7 @@ Normative behavior is defined in the linked specs.
 
 ## One-Sentence Model
 
-**Evidra records automation intent and outcome, then computes reliability signals and scorecards from an append-only evidence chain.**
+**Evidra records automation intent, decision, and outcome, then computes reliability signals and scorecards from an append-only evidence chain.**
 
 ## Architecture Boundaries
 
@@ -80,12 +80,12 @@ Automation (CI / scripts / AI agents)
 ## Data Flow
 
 ```text
-run/record -> prescribe -> execute/report -> evidence -> signals -> scorecard
+run/record -> prescribe -> report(verdict) -> evidence -> signals -> scorecard
 ```
 
 1. Ingestion path receives raw operation context.
 2. `prescribe` computes canonical action and risk context.
-3. `report` records operation result.
+3. `report` records the terminal result or an explicit `declined` decision.
 4. Evidence entries are persisted to chain.
 5. Signal detectors evaluate behavior over evidence.
 6. Scorecard is computed and returned.

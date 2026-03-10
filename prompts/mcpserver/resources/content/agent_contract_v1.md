@@ -43,7 +43,7 @@ If uncertain, call `prescribe`.
 
 `report` requires:
 - `prescription_id (from prescribe)`
-- `exit_code (0 success, non-zero failure)`
+- `verdict (success, failure, error, or declined)`
 
 
 Recommended actor metadata:
@@ -61,10 +61,11 @@ Use these fields for stable grouping and tracing:
 If you want one task grouped in one session, reuse the same `session_id`.
 
 ## Retry and Failure Rules
-- Every prescribe must end with exactly one report, including failed/aborted attempts.
+- Every prescribe must end with exactly one report, including failed, errored, aborted, or declined attempts.
 - Retries require a new prescribe/report pair for each attempt.
 
 - Always report failures; do not hide non-zero exit codes.
+- Always report deliberate refusals with a concise operational reason.
 - Do not report twice for the same prescription_id.
 - Do not report another actor's prescription_id.
 - If prescription_id is lost, call prescribe again before execution.

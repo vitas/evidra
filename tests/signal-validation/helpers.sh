@@ -59,6 +59,10 @@ prescribe() {
 report() {
   local prescription_id="$1" exit_code="$2"
   local artifact_digest="${3:-${LAST_ARTIFACT_DIGEST:-}}"
+  local verdict="failure"
+  if [ "$exit_code" = "0" ]; then
+    verdict="success"
+  fi
   if [ -z "$prescription_id" ]; then
     echo "FATAL: empty prescription_id"
     return 1
@@ -66,6 +70,7 @@ report() {
   local -a args=(
     report
     --prescription "$prescription_id"
+    --verdict "$verdict"
     --exit-code "$exit_code"
     --evidence-dir "$EV_DIR"
     --session-id "$SESSION_ID"

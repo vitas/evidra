@@ -312,7 +312,8 @@ func TestServiceReport_UnknownPrescriptionWritesSignal(t *testing.T) {
 
 	_, err := svc.Report(context.Background(), ReportInput{
 		PrescriptionID: "NONEXISTENT",
-		ExitCode:       1,
+		Verdict:        evidence.VerdictFailure,
+		ExitCode:       intPtr(1),
 		Actor:          evidence.Actor{Type: "agent", ID: "agent-1", Provenance: "mcp"},
 	})
 	if err == nil {
@@ -365,7 +366,8 @@ func TestServiceReport_KnownPrescriptionUsesPrescriptionCorrelation(t *testing.T
 
 	reportOut, err := svc.Report(context.Background(), ReportInput{
 		PrescriptionID: prescribeOut.PrescriptionID,
-		ExitCode:       0,
+		Verdict:        evidence.VerdictSuccess,
+		ExitCode:       intPtr(0),
 	})
 	if err != nil {
 		t.Fatalf("Report: %v", err)

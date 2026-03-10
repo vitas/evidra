@@ -209,7 +209,7 @@ func renderPrettyScorecard(w io.Writer, view scorecardView) error {
 		b.WriteString("\n\nNOTE: insufficient data for a fully qualified score in this window.")
 	}
 	if view.Output.Confidence.ScoreCeiling < 100 {
-		b.WriteString(fmt.Sprintf("\nNOTE: confidence ceiling %.0f applies.", view.Output.Confidence.ScoreCeiling))
+		fmt.Fprintf(&b, "\nNOTE: confidence ceiling %.0f applies.", view.Output.Confidence.ScoreCeiling)
 	}
 	b.WriteString("\n")
 

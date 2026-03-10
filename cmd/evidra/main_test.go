@@ -303,6 +303,7 @@ func TestScorecard_SessionIDFilter(t *testing.T) {
 	code = run([]string{
 		"report",
 		"--prescription", prescIDA,
+		"--verdict", "success",
 		"--exit-code", "0",
 		"--session-id", "session-A",
 		"--evidence-dir", evidenceDir,
@@ -338,6 +339,7 @@ func TestScorecard_SessionIDFilter(t *testing.T) {
 	code = run([]string{
 		"report",
 		"--prescription", prescIDB,
+		"--verdict", "success",
 		"--exit-code", "0",
 		"--session-id", "session-B",
 		"--evidence-dir", evidenceDir,
@@ -407,6 +409,7 @@ func TestScorecard_MinOperationsOverride(t *testing.T) {
 	code = run([]string{
 		"report",
 		"--prescription", prescID,
+		"--verdict", "success",
 		"--exit-code", "0",
 		"--session-id", "session-score-override",
 		"--evidence-dir", evidenceDir,
@@ -475,6 +478,7 @@ func TestScorecard_UsesSeparatedContractVersions(t *testing.T) {
 	code = run([]string{
 		"report",
 		"--prescription", prescID,
+		"--verdict", "success",
 		"--exit-code", "0",
 		"--session-id", "session-score-version",
 		"--evidence-dir", evidenceDir,
@@ -607,6 +611,7 @@ func TestRunLifecycle_PersistsScoringVersionOnEvidenceEntries(t *testing.T) {
 	code = run([]string{
 		"report",
 		"--prescription", prescID,
+		"--verdict", "success",
 		"--exit-code", "0",
 		"--session-id", "session-entry-version",
 		"--evidence-dir", evidenceDir,
@@ -754,6 +759,7 @@ func writeScorecardFixtureObservedDays(t *testing.T) string {
 		code = run([]string{
 			"report",
 			"--prescription", prescID,
+			"--verdict", "success",
 			"--exit-code", "0",
 			"--session-id", sessionID,
 			"--evidence-dir", evidenceDir,
@@ -878,6 +884,7 @@ func TestRunReport_DerivesSessionFromPrescriptionWhenOmitted(t *testing.T) {
 	code = run([]string{
 		"report",
 		"--prescription", prescriptionID,
+		"--verdict", "success",
 		"--exit-code", "0",
 		"--evidence-dir", evidenceDir,
 		"--signing-key", signingKey,
@@ -948,6 +955,7 @@ func TestRunReport_SessionMismatchFails(t *testing.T) {
 	code = run([]string{
 		"report",
 		"--prescription", prescriptionID,
+		"--verdict", "success",
 		"--exit-code", "0",
 		"--session-id", "session-B",
 		"--evidence-dir", evidenceDir,
