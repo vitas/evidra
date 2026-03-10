@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.4.5 — 2026-03-10
+
+### Decision Tracking
+- Added explicit terminal `report verdict` handling across CLI, MCP, and forwarded evidence
+- Added `declined` decision recording with required trigger and bounded operational reason
+- Preserved the `one prescription -> one report` invariant while making refusal decisions first-class evidence
+
+### MCP And Prompts
+- Updated MCP report schema, tool descriptions, prompt contracts, and generated prompt artifacts for explicit verdicts and declined decisions
+- MCP now records not only actions but also deliberate refusals with rationale
+
+### Documentation And Product Surfaces
+- Added [Decision Tracking v1](docs/system-design/EVIDRA_DECISION_TRACKING_V1.md)
+- Updated README, CLI reference, architecture docs, end-to-end examples, landing page, and fallback landing copy to reflect `intent -> decision -> outcome`
+
+### Testing
+- Added CLI, lifecycle, and MCP regression coverage for declined decisions
+- Updated contracts, signal-validation helpers, inspector fixtures, and docs smoke checks to the explicit verdict contract
+
 ## v0.4.4 — 2026-03-10
 
 ### Core

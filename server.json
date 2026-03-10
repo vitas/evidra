@@ -3,11 +3,11 @@
   "name": "io.github.vitas/evidra",
   "title": "Evidra",
   "description": "Evidra — Flight recorder for AI infrastructure agents",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/vitas/evidra-mcp:0.4.4",
+      "identifier": "ghcr.io/vitas/evidra-mcp:0.4.5",
       "transport": { "type": "stdio" },
       "environmentVariables": [
         {
