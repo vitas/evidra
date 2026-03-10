@@ -3,11 +3,11 @@
   "name": "io.github.vitas/evidra",
   "title": "Evidra",
   "description": "Evidra — Behavioral reliability for infrastructure automation.",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/vitas/evidra-mcp:0.4.3",
+      "identifier": "ghcr.io/vitas/evidra-mcp:0.4.4",
       "transport": { "type": "stdio" },
       "environmentVariables": [
         {

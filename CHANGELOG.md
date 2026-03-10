@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.4.4 — 2026-03-10
+
+### Core
+- Merged the codebase hardening wave: decomposed the CLI command surface, added governance baseline files, and tightened security and product claims
+- Integrated the hardened signal-validation/scoring-profile path on `main`
+
+### Testing
+- Rationalized the top-level e2e structure and tightened signal-validation coverage and CI checks
+
+### Release Metadata
+- Runtime version and MCP server metadata aligned to `v0.4.4`
+
 ## v0.4.3 — 2026-03-10
 
 ### Positioning
