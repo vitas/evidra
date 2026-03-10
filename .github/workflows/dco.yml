@@ -19,23 +19,23 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           BASE_REF: ${{ github.base_ref }}
-          BEFORE_SHA: ${{ github.event.before }}
           HEAD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
 
-          zero_sha="0000000000000000000000000000000000000000"
-
           if [[ "${EVENT_NAME}" == "pull_request" ]]; then
             git fetch origin "${BASE_REF}" --depth=1
             range="origin/${BASE_REF}..${HEAD_SHA}"
-          elif [[ -n "${BEFORE_SHA}" && "${BEFORE_SHA}" != "${zero_sha}" ]]; then
-            range="${BEFORE_SHA}..${HEAD_SHA}"
+            commits="$(git rev-list "${range}")"
+          elif [[ "${EVENT_NAME}" == "push" ]]; then
+            commits="$(jq -r '.commits[].id' "${GITHUB_EVENT_PATH}" | sed '/^null$/d')"
+            if [[ -z "${commits}" ]]; then
+              commits="${HEAD_SHA}"
+            fi
           else
-            range="${HEAD_SHA}^..${HEAD_SHA}"
+            commits="${HEAD_SHA}"
           fi
 
-          commits="$(git rev-list "${range}")"
           if [[ -z "${commits}" ]]; then
             echo "No commits to verify."
             exit 0
