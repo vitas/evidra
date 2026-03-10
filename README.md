@@ -187,6 +187,7 @@ evidra run \
 ## Docs Map
 
 Architecture and contracts:
+- [Public Roadmap](docs/ROAD_MAP.md)
 - [Architecture Overview](docs/ARCHITECTURE.md)
 - [V1 Architecture](docs/system-design/V1_ARCHITECTURE.md)
 - [Protocol](docs/system-design/EVIDRA_PROTOCOL.md)
