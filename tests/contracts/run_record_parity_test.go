@@ -1,6 +1,6 @@
 //go:build e2e
 
-package e2e_test
+package contracts_test
 
 import (
 	"encoding/json"
@@ -8,19 +8,21 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
+
+	testcli "samebits.com/evidra-benchmark/tests/testutil"
 )
 
 func TestE2E_RunRecordParity(t *testing.T) {
-	bin := evidraBinary(t)
+	bin := testcli.EvidraBinary(t)
 	tmpDir := t.TempDir()
-	privPath, _ := generateKeyPair(t, tmpDir)
+	privPath, _ := testcli.GenerateKeyPair(t, tmpDir)
 	artifactPath := filepath.Join(tmpDir, "artifact.yaml")
 	if err := os.WriteFile(artifactPath, []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: parity-e2e\n"), 0o644); err != nil {
 		t.Fatalf("write artifact: %v", err)
 	}
 
 	runEvidenceDir := filepath.Join(tmpDir, "run-evidence")
-	runStdout, runStderr, runCode := runEvidra(t, bin,
+	runStdout, runStderr, runCode := testcli.RunEvidra(t, bin,
 		"run",
 		"--tool", "kubectl",
 		"--operation", "apply",
@@ -65,7 +67,7 @@ func TestE2E_RunRecordParity(t *testing.T) {
 		t.Fatalf("write record input: %v", err)
 	}
 
-	recStdout, recStderr, recCode := runEvidra(t, bin,
+	recStdout, recStderr, recCode := testcli.RunEvidra(t, bin,
 		"record",
 		"--input", recordInputPath,
 		"--evidence-dir", recordEvidenceDir,

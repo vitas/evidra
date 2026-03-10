@@ -8,7 +8,7 @@ Detailed guide (purpose/how it works/run/interpretation):
 
 Related parity/UX tests for `run` + `record`:
 - CLI tests: `go test ./cmd/evidra -run 'RunAndRecord_|RunOutput_' -count=1`
-- E2E parity (tagged): `go test -tags=e2e ./tests/e2e -run RunRecordParity -count=1`
+- Contract parity (tagged): `go test -tags=e2e ./tests/contracts -run RunRecordParity -count=1`
 
 ## Run
 

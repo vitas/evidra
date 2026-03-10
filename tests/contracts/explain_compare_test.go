@@ -1,11 +1,13 @@
 //go:build e2e
 
-package e2e_test
+package contracts_test
 
 import (
 	"encoding/json"
 	"path/filepath"
 	"testing"
+
+	testcli "samebits.com/evidra-benchmark/tests/testutil"
 )
 
 // setupTwoActorEvidence creates evidence for two actors (agent-a and agent-b)
@@ -13,10 +15,10 @@ import (
 // failed run with artifact drift.
 func setupTwoActorEvidence(t *testing.T, bin, evidenceDir, privPath string) {
 	t.Helper()
-	artifactPath := filepath.Join("..", "..", "tests", "e2e", "fixtures", "k8s_deployment.yaml")
+	artifactPath := filepath.Join("..", "..", "tests", "contracts", "fixtures", "k8s_deployment.yaml")
 
 	// Actor A: clean prescribe+report
-	stdout, stderr, exitCode := runEvidra(t, bin,
+	stdout, stderr, exitCode := testcli.RunEvidra(t, bin,
 		"prescribe",
 		"--tool", "kubectl",
 		"--operation", "apply",
@@ -36,7 +38,7 @@ func setupTwoActorEvidence(t *testing.T, bin, evidenceDir, privPath string) {
 	}
 	pidA := prescA["prescription_id"].(string)
 
-	_, stderr, exitCode = runEvidra(t, bin,
+	_, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"report",
 		"--prescription", pidA,
 		"--exit-code", "0",
@@ -50,7 +52,7 @@ func setupTwoActorEvidence(t *testing.T, bin, evidenceDir, privPath string) {
 	}
 
 	// Actor B: prescribe+report with failure and artifact drift
-	stdout, stderr, exitCode = runEvidra(t, bin,
+	stdout, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"prescribe",
 		"--tool", "kubectl",
 		"--operation", "apply",
@@ -70,7 +72,7 @@ func setupTwoActorEvidence(t *testing.T, bin, evidenceDir, privPath string) {
 	}
 	pidB := prescB["prescription_id"].(string)
 
-	_, stderr, exitCode = runEvidra(t, bin,
+	_, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"report",
 		"--prescription", pidB,
 		"--exit-code", "1",
@@ -86,15 +88,15 @@ func setupTwoActorEvidence(t *testing.T, bin, evidenceDir, privPath string) {
 }
 
 func TestE2E_Explain(t *testing.T) {
-	bin := evidraBinary(t)
+	bin := testcli.EvidraBinary(t)
 	tmpDir := t.TempDir()
 	evidenceDir := filepath.Join(tmpDir, "evidence")
-	privPath, _ := generateKeyPair(t, tmpDir)
+	privPath, _ := testcli.GenerateKeyPair(t, tmpDir)
 
 	setupTwoActorEvidence(t, bin, evidenceDir, privPath)
 
 	// Explain for agent-b (has artifact drift)
-	stdout, stderr, exitCode := runEvidra(t, bin,
+	stdout, stderr, exitCode := testcli.RunEvidra(t, bin,
 		"explain",
 		"--actor", "agent-b",
 		"--evidence-dir", evidenceDir,
@@ -143,14 +145,14 @@ func TestE2E_Explain(t *testing.T) {
 }
 
 func TestE2E_Compare(t *testing.T) {
-	bin := evidraBinary(t)
+	bin := testcli.EvidraBinary(t)
 	tmpDir := t.TempDir()
 	evidenceDir := filepath.Join(tmpDir, "evidence")
-	privPath, _ := generateKeyPair(t, tmpDir)
+	privPath, _ := testcli.GenerateKeyPair(t, tmpDir)
 
 	setupTwoActorEvidence(t, bin, evidenceDir, privPath)
 
-	stdout, stderr, exitCode := runEvidra(t, bin,
+	stdout, stderr, exitCode := testcli.RunEvidra(t, bin,
 		"compare",
 		"--actors", "agent-a,agent-b",
 		"--evidence-dir", evidenceDir,
@@ -196,9 +198,9 @@ func TestE2E_Compare(t *testing.T) {
 }
 
 func TestE2E_CompareRequiresTwoActors(t *testing.T) {
-	bin := evidraBinary(t)
+	bin := testcli.EvidraBinary(t)
 
-	_, _, exitCode := runEvidra(t, bin,
+	_, _, exitCode := testcli.RunEvidra(t, bin,
 		"compare",
 		"--actors", "only-one",
 	)

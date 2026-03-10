@@ -1,96 +1,27 @@
 //go:build e2e
 
-package e2e_test
+package contracts_test
 
 import (
-	"crypto/ed25519"
-	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"samebits.com/evidra-benchmark/pkg/evidence"
+	testcli "samebits.com/evidra-benchmark/tests/testutil"
 )
 
-// evidraBinary builds the evidra CLI binary and returns its path.
-func evidraBinary(t *testing.T) string {
-	t.Helper()
-	bin := filepath.Join(os.TempDir(), "evidra-e2e-test")
-	repoRoot := filepath.Join("..", "..")
-	cmd := exec.Command("go", "build", "-o", bin, "./cmd/evidra")
-	cmd.Dir = repoRoot
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("build evidra binary: %v\n%s", err, out)
-	}
-	t.Cleanup(func() { os.Remove(bin) })
-	return bin
-}
-
-// generateKeyPair creates an Ed25519 key pair and writes PEM files to dir.
-func generateKeyPair(t *testing.T, dir string) (privPath, pubPath string) {
-	t.Helper()
-	pub, priv, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		t.Fatalf("generate key pair: %v", err)
-	}
-
-	// Write private key PEM.
-	privDER, err := x509.MarshalPKCS8PrivateKey(priv)
-	if err != nil {
-		t.Fatalf("marshal private key: %v", err)
-	}
-	privPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: privDER})
-	privPath = filepath.Join(dir, "key.pem")
-	if err := os.WriteFile(privPath, privPEM, 0o600); err != nil {
-		t.Fatalf("write private key: %v", err)
-	}
-
-	// Write public key PEM.
-	pubDER, err := x509.MarshalPKIXPublicKey(pub)
-	if err != nil {
-		t.Fatalf("marshal public key: %v", err)
-	}
-	pubPEM := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubDER})
-	pubPath = filepath.Join(dir, "pub.pem")
-	if err := os.WriteFile(pubPath, pubPEM, 0o644); err != nil {
-		t.Fatalf("write public key: %v", err)
-	}
-	return privPath, pubPath
-}
-
-// runEvidra executes the evidra binary with the given arguments.
-func runEvidra(t *testing.T, bin string, args ...string) (stdout, stderr string, exitCode int) {
-	t.Helper()
-	cmd := exec.Command(bin, args...)
-	var outBuf, errBuf strings.Builder
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &errBuf
-	err := cmd.Run()
-	exitCode = 0
-	if err != nil {
-		if ee, ok := err.(*exec.ExitError); ok {
-			exitCode = ee.ExitCode()
-		} else {
-			t.Fatalf("run evidra: %v", err)
-		}
-	}
-	return outBuf.String(), errBuf.String(), exitCode
-}
-
 func TestE2E_SigningEndToEnd(t *testing.T) {
-	bin := evidraBinary(t)
+	bin := testcli.EvidraBinary(t)
 	tmpDir := t.TempDir()
 	evidenceDir := filepath.Join(tmpDir, "evidence")
-	privPath, pubPath := generateKeyPair(t, tmpDir)
-	artifactPath := filepath.Join("..", "..", "tests", "e2e", "fixtures", "k8s_deployment.yaml")
+	privPath, pubPath := testcli.GenerateKeyPair(t, tmpDir)
+	artifactPath := filepath.Join("..", "..", "tests", "contracts", "fixtures", "k8s_deployment.yaml")
 
 	// Step 1: Prescribe with signing key.
-	stdout, stderr, exitCode := runEvidra(t, bin,
+	stdout, stderr, exitCode := testcli.RunEvidra(t, bin,
 		"prescribe",
 		"--tool", "kubectl",
 		"--operation", "apply",
@@ -117,7 +48,7 @@ func TestE2E_SigningEndToEnd(t *testing.T) {
 	}
 
 	// Step 2: Report with signing key.
-	stdout, stderr, exitCode = runEvidra(t, bin,
+	stdout, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"report",
 		"--prescription", prescriptionID,
 		"--exit-code", "0",
@@ -130,7 +61,7 @@ func TestE2E_SigningEndToEnd(t *testing.T) {
 	}
 
 	// Step 3: Validate with public key — expect success.
-	stdout, stderr, exitCode = runEvidra(t, bin,
+	stdout, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"validate",
 		"--public-key", pubPath,
 		"--evidence-dir", evidenceDir,
@@ -179,7 +110,7 @@ func TestE2E_SigningEndToEnd(t *testing.T) {
 		t.Fatalf("write tampered segment file: %v", err)
 	}
 
-	_, stderr, exitCode = runEvidra(t, bin,
+	_, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"validate",
 		"--public-key", pubPath,
 		"--evidence-dir", evidenceDir,

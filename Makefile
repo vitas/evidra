@@ -1,7 +1,7 @@
 .PHONY: build test e2e clean golden-update docker-mcp docker-cli docker-api docker-up docker-down fmt lint tidy \
 	benchmark-validate benchmark-coverage benchmark-process-artifact benchmark-refresh-contracts benchmark-check-contracts \
 	benchmark-detect-duplicates bench-add \
-	test-mcp-inspector test-mcp-inspector-ci test-mcp-inspector-local-rest test-mcp-inspector-hosted test-mcp-inspector-hosted-rest \
+	test-contracts test-mcp-inspector test-mcp-inspector-ci test-mcp-inspector-local-rest test-mcp-inspector-hosted test-mcp-inspector-hosted-rest \
 	prompts-generate prompts-verify test-experiments test-signals \
 	ui-build build-api
 
@@ -24,6 +24,9 @@ test-signals:
 
 e2e: build
 	go test -tags e2e ./tests/e2e/ -v -count=1 -timeout=120s
+
+test-contracts: build
+	go test -tags e2e ./tests/contracts/ -v -count=1 -timeout=120s
 
 test-mcp-inspector:
 	bash tests/inspector/run_inspector_tests.sh

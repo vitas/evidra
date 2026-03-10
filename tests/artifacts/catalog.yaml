@@ -1,0 +1,93 @@
+version: v1
+artifacts:
+  - id: k8s_app_stack
+    path: tests/artifacts/real/k8s_app_stack.yaml
+    format: kubernetes-manifest
+    source_type: curated_local
+    provenance_status: needs-upstream-capture
+    upstream_project: unknown
+    upstream_ref: null
+    license: Apache-2.0
+    purpose:
+      - canonicalization acceptance
+      - resource identity extraction
+      - k8s mutation classification
+      - noise filtering
+
+  - id: tf_infra_plan
+    path: tests/artifacts/real/tf_infra_plan.json
+    format: terraform-plan-json
+    source_type: curated_local
+    provenance_status: needs-upstream-capture
+    upstream_project: unknown
+    upstream_ref: null
+    license: Apache-2.0
+    purpose:
+      - terraform adapter acceptance
+      - resource type extraction
+      - destructive and high-risk plan classification
+
+  - id: helm_rendered_redis
+    path: tests/artifacts/real/helm_rendered.yaml
+    format: rendered-helm-manifest
+    source_type: derived_open_source
+    provenance_status: partial
+    upstream_project: bitnami/charts
+    upstream_ref: redis chart 18.6.1
+    license: Apache-2.0
+    purpose:
+      - helm-rendered manifest acceptance
+      - multi-resource canonicalization
+      - release-style metadata normalization
+
+  - id: argocd_app_sync
+    path: tests/artifacts/real/argocd_app_sync.yaml
+    format: rendered-kubernetes-manifest
+    source_type: curated_local
+    provenance_status: partial
+    upstream_project: Argo CD
+    upstream_ref: representative sync output
+    license: Apache-2.0
+    purpose:
+      - argocd-managed manifest normalization
+      - tracking annotation noise filtering
+      - k8s resource identity extraction
+
+  - id: kustomize_monitoring
+    path: tests/artifacts/real/kustomize_monitoring.yaml
+    format: rendered-kustomize-manifest
+    source_type: curated_local
+    provenance_status: partial
+    upstream_project: kustomize
+    upstream_ref: representative monitoring overlay output
+    license: Apache-2.0
+    purpose:
+      - kustomize output acceptance
+      - monitoring stack resource classification
+      - large rendered manifest handling
+
+  - id: helm_ingress_nginx
+    path: tests/artifacts/real/helm_ingress_nginx.yaml
+    format: rendered-helm-manifest
+    source_type: derived_open_source
+    provenance_status: partial
+    upstream_project: kubernetes/ingress-nginx
+    upstream_ref: chart 4.9.1
+    license: Apache-2.0
+    purpose:
+      - ingress-nginx chart acceptance
+      - cluster-scoped resource handling
+      - helm template normalization
+
+  - id: openshift_app
+    path: tests/artifacts/real/openshift_app.yaml
+    format: openshift-manifest
+    source_type: curated_local
+    provenance_status: partial
+    upstream_project: OpenShift
+    upstream_ref: representative oc apply workload
+    license: Apache-2.0
+    purpose:
+      - oc/OpenShift adapter acceptance
+      - OCP-specific resource identity extraction
+      - mixed resource-kind normalization

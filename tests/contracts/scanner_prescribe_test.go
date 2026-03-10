@@ -1,6 +1,6 @@
 //go:build e2e
 
-package e2e_test
+package contracts_test
 
 import (
 	"encoding/json"
@@ -8,18 +8,19 @@ import (
 	"testing"
 
 	"samebits.com/evidra-benchmark/pkg/evidence"
+	testcli "samebits.com/evidra-benchmark/tests/testutil"
 )
 
 func TestE2E_PrescribeWithScannerReport(t *testing.T) {
-	bin := evidraBinary(t)
+	bin := testcli.EvidraBinary(t)
 	tmpDir := t.TempDir()
 	evidenceDir := filepath.Join(tmpDir, "evidence")
-	privPath, _ := generateKeyPair(t, tmpDir)
-	artifactPath := filepath.Join("..", "..", "tests", "e2e", "fixtures", "k8s_deployment.yaml")
-	trivySarif := filepath.Join("..", "..", "tests", "e2e", "fixtures", "trivy.sarif")
+	privPath, _ := testcli.GenerateKeyPair(t, tmpDir)
+	artifactPath := filepath.Join("..", "..", "tests", "contracts", "fixtures", "k8s_deployment.yaml")
+	trivySarif := filepath.Join("..", "..", "tests", "contracts", "fixtures", "trivy.sarif")
 
 	// Prescribe with --scanner-report bundles findings in one call
-	stdout, stderr, exitCode := runEvidra(t, bin,
+	stdout, stderr, exitCode := testcli.RunEvidra(t, bin,
 		"prescribe",
 		"--tool", "kubectl",
 		"--operation", "apply",
@@ -58,7 +59,7 @@ func TestE2E_PrescribeWithScannerReport(t *testing.T) {
 	}
 
 	// Report to complete the lifecycle
-	_, stderr, exitCode = runEvidra(t, bin,
+	_, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"report",
 		"--prescription", prescriptionID,
 		"--exit-code", "0",

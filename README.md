@@ -113,6 +113,7 @@ Full details: [Supported Tools](docs/SUPPORTED_TOOLS.md)
 
 Full flags and subcommands:
 - [CLI Reference](docs/integrations/CLI_REFERENCE.md)
+- [E2E Testing Map](docs/E2E_TESTING.md)
 
 ## MCP Integration Point
 
@@ -188,6 +189,7 @@ evidra run \
 
 Architecture and contracts:
 - [Public Roadmap](docs/ROAD_MAP.md)
+- [E2E Testing Map](docs/E2E_TESTING.md)
 - [Architecture Overview](docs/ARCHITECTURE.md)
 - [V1 Architecture](docs/system-design/V1_ARCHITECTURE.md)
 - [Protocol](docs/system-design/EVIDRA_PROTOCOL.md)
@@ -226,6 +228,8 @@ make test-mcp-inspector
 ```bash
 make build
 make test
+make e2e
+make test-contracts
 make lint
 make test-signals
 ```

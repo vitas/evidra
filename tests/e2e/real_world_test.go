@@ -9,17 +9,18 @@ import (
 	"testing"
 
 	"samebits.com/evidra-benchmark/pkg/evidence"
+	testcli "samebits.com/evidra-benchmark/tests/testutil"
 )
 
-// realFixture returns the path to a fixture in tests/e2e/fixtures/real/.
+// realFixture returns the path to a fixture in tests/artifacts/real/.
 func realFixture(name string) string {
-	return filepath.Join("..", "..", "tests", "e2e", "fixtures", "real", name)
+	return filepath.Join("..", "..", "tests", "artifacts", "real", name)
 }
 
 // runAndDecode runs evidra with the given args and decodes the JSON output.
 func runAndDecode(t *testing.T, bin string, args ...string) map[string]interface{} {
 	t.Helper()
-	stdout, stderr, exitCode := runEvidra(t, bin, args...)
+	stdout, stderr, exitCode := testcli.RunEvidra(t, bin, args...)
 	if exitCode != 0 {
 		t.Fatalf("evidra %s exit=%d stderr=%s", args[0], exitCode, stderr)
 	}
@@ -119,10 +120,10 @@ func containsAll(t *testing.T, label string, actual, expected []string) {
 // TestE2EReal_K8sAppStack exercises the K8s adapter with a realistic
 // multi-resource deployment including noise fields that must be stripped.
 func TestE2EReal_K8sAppStack(t *testing.T) {
-	bin := evidraBinary(t)
+	bin := testcli.EvidraBinary(t)
 	tmpDir := t.TempDir()
 	evidenceDir := filepath.Join(tmpDir, "evidence")
-	privPath, _ := generateKeyPair(t, tmpDir)
+	privPath, _ := testcli.GenerateKeyPair(t, tmpDir)
 
 	runAndDecode(t, bin,
 		"prescribe",
@@ -193,10 +194,10 @@ func TestE2EReal_K8sAppStack(t *testing.T) {
 // TestE2EReal_TerraformInfra exercises the Terraform adapter with a realistic
 // multi-module plan with security-relevant resources.
 func TestE2EReal_TerraformInfra(t *testing.T) {
-	bin := evidraBinary(t)
+	bin := testcli.EvidraBinary(t)
 	tmpDir := t.TempDir()
 	evidenceDir := filepath.Join(tmpDir, "evidence")
-	privPath, _ := generateKeyPair(t, tmpDir)
+	privPath, _ := testcli.GenerateKeyPair(t, tmpDir)
 
 	runAndDecode(t, bin,
 		"prescribe",
@@ -266,10 +267,10 @@ func TestE2EReal_TerraformInfra(t *testing.T) {
 
 // TestE2EReal_HelmRedis exercises the K8s adapter via tool=helm.
 func TestE2EReal_HelmRedis(t *testing.T) {
-	bin := evidraBinary(t)
+	bin := testcli.EvidraBinary(t)
 	tmpDir := t.TempDir()
 	evidenceDir := filepath.Join(tmpDir, "evidence")
-	privPath, _ := generateKeyPair(t, tmpDir)
+	privPath, _ := testcli.GenerateKeyPair(t, tmpDir)
 
 	runAndDecode(t, bin,
 		"prescribe",
@@ -320,10 +321,10 @@ func TestE2EReal_HelmRedis(t *testing.T) {
 // TestE2EReal_ArgoCDSync exercises the K8s adapter with ArgoCD-managed
 // manifests including tracking annotations and server-side noise.
 func TestE2EReal_ArgoCDSync(t *testing.T) {
-	bin := evidraBinary(t)
+	bin := testcli.EvidraBinary(t)
 	tmpDir := t.TempDir()
 	evidenceDir := filepath.Join(tmpDir, "evidence")
-	privPath, _ := generateKeyPair(t, tmpDir)
+	privPath, _ := testcli.GenerateKeyPair(t, tmpDir)
 
 	runAndDecode(t, bin,
 		"prescribe",
@@ -390,10 +391,10 @@ func TestE2EReal_ArgoCDSync(t *testing.T) {
 // TestE2EReal_KustomizeMonitoring exercises the K8s adapter with kustomize
 // build output including ClusterRole/ClusterRoleBinding.
 func TestE2EReal_KustomizeMonitoring(t *testing.T) {
-	bin := evidraBinary(t)
+	bin := testcli.EvidraBinary(t)
 	tmpDir := t.TempDir()
 	evidenceDir := filepath.Join(tmpDir, "evidence")
-	privPath, _ := generateKeyPair(t, tmpDir)
+	privPath, _ := testcli.GenerateKeyPair(t, tmpDir)
 
 	runAndDecode(t, bin,
 		"prescribe",
@@ -445,10 +446,10 @@ func TestE2EReal_KustomizeMonitoring(t *testing.T) {
 // TestE2EReal_HelmIngressNginx exercises the K8s adapter with ingress-nginx
 // chart including LoadBalancer and capabilities.
 func TestE2EReal_HelmIngressNginx(t *testing.T) {
-	bin := evidraBinary(t)
+	bin := testcli.EvidraBinary(t)
 	tmpDir := t.TempDir()
 	evidenceDir := filepath.Join(tmpDir, "evidence")
-	privPath, _ := generateKeyPair(t, tmpDir)
+	privPath, _ := testcli.GenerateKeyPair(t, tmpDir)
 
 	runAndDecode(t, bin,
 		"prescribe",
@@ -493,10 +494,10 @@ func TestE2EReal_HelmIngressNginx(t *testing.T) {
 // TestE2EReal_OpenShiftApp exercises the K8s adapter via tool=oc with
 // OpenShift-specific resources: DeploymentConfig, BuildConfig, ImageStream, Route.
 func TestE2EReal_OpenShiftApp(t *testing.T) {
-	bin := evidraBinary(t)
+	bin := testcli.EvidraBinary(t)
 	tmpDir := t.TempDir()
 	evidenceDir := filepath.Join(tmpDir, "evidence")
-	privPath, _ := generateKeyPair(t, tmpDir)
+	privPath, _ := testcli.GenerateKeyPair(t, tmpDir)
 
 	runAndDecode(t, bin,
 		"prescribe",
@@ -565,8 +566,8 @@ func TestE2EReal_OpenShiftApp(t *testing.T) {
 // noise fields (uid, resourceVersion, managedFields) produce identical
 // intent_digest and resource_shape_hash.
 func TestE2EReal_NoiseImmunity(t *testing.T) {
-	bin := evidraBinary(t)
-	privPath, _ := generateKeyPair(t, t.TempDir())
+	bin := testcli.EvidraBinary(t)
+	privPath, _ := testcli.GenerateKeyPair(t, t.TempDir())
 
 	// Run 1: ArgoCD fixture has uid, resourceVersion, managedFields, tracking annotations.
 	dir1 := filepath.Join(t.TempDir(), "evidence")

@@ -8,7 +8,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -45,6 +45,15 @@ jobs:
         run: |
           go build -o bin/evidra ./cmd/evidra
           go build -o bin/evidra-mcp ./cmd/evidra-mcp
+
+      - name: Run real-world e2e acceptance
+        run: make e2e
+
+      - name: Run contract integration suite
+        run: make test-contracts
+
+      - name: Run inspector transport suite
+        run: make test-mcp-inspector-ci
 
       - name: Run signal validation scenarios
         run: make test-signals

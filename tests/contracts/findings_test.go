@@ -1,6 +1,6 @@
 //go:build e2e
 
-package e2e_test
+package contracts_test
 
 import (
 	"encoding/json"
@@ -8,22 +8,23 @@ import (
 	"testing"
 
 	"samebits.com/evidra-benchmark/pkg/evidence"
+	testcli "samebits.com/evidra-benchmark/tests/testutil"
 )
 
 func TestE2E_FindingsIngestion(t *testing.T) {
-	bin := evidraBinary(t)
+	bin := testcli.EvidraBinary(t)
 	tmpDir := t.TempDir()
 	evidenceDir := filepath.Join(tmpDir, "evidence")
-	privPath, _ := generateKeyPair(t, tmpDir)
+	privPath, _ := testcli.GenerateKeyPair(t, tmpDir)
 
-	artifactPath := filepath.Join("..", "..", "tests", "e2e", "fixtures", "k8s_deployment.yaml")
-	trivySarif := filepath.Join("..", "..", "tests", "e2e", "fixtures", "trivy.sarif")
-	kubescapeSarif := filepath.Join("..", "..", "tests", "e2e", "fixtures", "kubescape.sarif")
+	artifactPath := filepath.Join("..", "..", "tests", "contracts", "fixtures", "k8s_deployment.yaml")
+	trivySarif := filepath.Join("..", "..", "tests", "contracts", "fixtures", "trivy.sarif")
+	kubescapeSarif := filepath.Join("..", "..", "tests", "contracts", "fixtures", "kubescape.sarif")
 
 	const sessionID = "e2e-findings-001"
 
 	// Step 1: Ingest trivy findings (pre-prescribe).
-	stdout, stderr, exitCode := runEvidra(t, bin,
+	stdout, stderr, exitCode := testcli.RunEvidra(t, bin,
 		"ingest-findings",
 		"--sarif", trivySarif,
 		"--artifact", artifactPath,
@@ -53,7 +54,7 @@ func TestE2E_FindingsIngestion(t *testing.T) {
 	}
 
 	// Step 2: Prescribe.
-	stdout, stderr, exitCode = runEvidra(t, bin,
+	stdout, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"prescribe",
 		"--tool", "kubectl",
 		"--operation", "apply",
@@ -88,7 +89,7 @@ func TestE2E_FindingsIngestion(t *testing.T) {
 	}
 
 	// Step 3: Report.
-	_, stderr, exitCode = runEvidra(t, bin,
+	_, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"report",
 		"--prescription", prescriptionID,
 		"--exit-code", "0",
@@ -101,7 +102,7 @@ func TestE2E_FindingsIngestion(t *testing.T) {
 	}
 
 	// Step 4: Ingest kubescape findings (post-report).
-	stdout, stderr, exitCode = runEvidra(t, bin,
+	stdout, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"ingest-findings",
 		"--sarif", kubescapeSarif,
 		"--artifact", artifactPath,

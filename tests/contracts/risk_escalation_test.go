@@ -1,23 +1,25 @@
 //go:build e2e
 
-package e2e_test
+package contracts_test
 
 import (
 	"encoding/json"
 	"path/filepath"
 	"testing"
+
+	testcli "samebits.com/evidra-benchmark/tests/testutil"
 )
 
 func TestE2E_RiskEscalationSignal(t *testing.T) {
-	bin := evidraBinary(t)
+	bin := testcli.EvidraBinary(t)
 	tmpDir := t.TempDir()
 	evidenceDir := filepath.Join(tmpDir, "evidence")
-	privPath, _ := generateKeyPair(t, tmpDir)
-	artifactPath := filepath.Join("..", "..", "tests", "e2e", "fixtures", "k8s_deployment.yaml")
+	privPath, _ := testcli.GenerateKeyPair(t, tmpDir)
+	artifactPath := filepath.Join("..", "..", "tests", "contracts", "fixtures", "k8s_deployment.yaml")
 
 	// --- 3 medium-risk prescriptions (kubectl apply, staging) establish baseline ---
 	for i := 0; i < 3; i++ {
-		stdout, stderr, exitCode := runEvidra(t, bin,
+		stdout, stderr, exitCode := testcli.RunEvidra(t, bin,
 			"prescribe",
 			"--tool", "kubectl",
 			"--operation", "apply",
@@ -37,7 +39,7 @@ func TestE2E_RiskEscalationSignal(t *testing.T) {
 		}
 		prescriptionID := prescribe["prescription_id"].(string)
 
-		_, stderr, exitCode = runEvidra(t, bin,
+		_, stderr, exitCode = testcli.RunEvidra(t, bin,
 			"report",
 			"--prescription", prescriptionID,
 			"--exit-code", "0",
@@ -50,7 +52,7 @@ func TestE2E_RiskEscalationSignal(t *testing.T) {
 	}
 
 	// --- 1 high-risk prescription (kubectl apply, production) should trigger escalation ---
-	stdout, stderr, exitCode := runEvidra(t, bin,
+	stdout, stderr, exitCode := testcli.RunEvidra(t, bin,
 		"prescribe",
 		"--tool", "kubectl",
 		"--operation", "apply",
@@ -70,7 +72,7 @@ func TestE2E_RiskEscalationSignal(t *testing.T) {
 	}
 	prescriptionIDProd := prescribeProd["prescription_id"].(string)
 
-	_, stderr, exitCode = runEvidra(t, bin,
+	_, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"report",
 		"--prescription", prescriptionIDProd,
 		"--exit-code", "0",
@@ -82,7 +84,7 @@ func TestE2E_RiskEscalationSignal(t *testing.T) {
 	}
 
 	// --- Scorecard should show risk_escalation >= 1 ---
-	stdout, stderr, exitCode = runEvidra(t, bin,
+	stdout, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"scorecard",
 		"--evidence-dir", evidenceDir,
 	)

@@ -1,22 +1,24 @@
 //go:build e2e
 
-package e2e_test
+package contracts_test
 
 import (
 	"encoding/json"
 	"path/filepath"
 	"testing"
+
+	testcli "samebits.com/evidra-benchmark/tests/testutil"
 )
 
 func TestE2E_SessionFilteredScoring(t *testing.T) {
-	bin := evidraBinary(t)
+	bin := testcli.EvidraBinary(t)
 	tmpDir := t.TempDir()
 	evidenceDir := filepath.Join(tmpDir, "evidence")
-	privPath, _ := generateKeyPair(t, tmpDir)
-	artifactPath := filepath.Join("..", "..", "tests", "e2e", "fixtures", "k8s_deployment.yaml")
+	privPath, _ := testcli.GenerateKeyPair(t, tmpDir)
+	artifactPath := filepath.Join("..", "..", "tests", "contracts", "fixtures", "k8s_deployment.yaml")
 
 	// --- Session A: clean run (exit_code=0) ---
-	stdout, stderr, exitCode := runEvidra(t, bin,
+	stdout, stderr, exitCode := testcli.RunEvidra(t, bin,
 		"prescribe",
 		"--tool", "kubectl",
 		"--operation", "apply",
@@ -38,7 +40,7 @@ func TestE2E_SessionFilteredScoring(t *testing.T) {
 		t.Fatalf("session-A prescription_id missing: %v", prescribeA)
 	}
 
-	_, stderr, exitCode = runEvidra(t, bin,
+	_, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"report",
 		"--prescription", prescriptionIDA,
 		"--exit-code", "0",
@@ -51,7 +53,7 @@ func TestE2E_SessionFilteredScoring(t *testing.T) {
 	}
 
 	// --- Session B: failed run (exit_code=1, artifact drift) ---
-	stdout, stderr, exitCode = runEvidra(t, bin,
+	stdout, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"prescribe",
 		"--tool", "kubectl",
 		"--operation", "apply",
@@ -73,7 +75,7 @@ func TestE2E_SessionFilteredScoring(t *testing.T) {
 		t.Fatalf("session-B prescription_id missing: %v", prescribeB)
 	}
 
-	_, stderr, exitCode = runEvidra(t, bin,
+	_, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"report",
 		"--prescription", prescriptionIDB,
 		"--exit-code", "1",
@@ -87,7 +89,7 @@ func TestE2E_SessionFilteredScoring(t *testing.T) {
 	}
 
 	// --- Scorecard for session-A ---
-	stdout, stderr, exitCode = runEvidra(t, bin,
+	stdout, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"scorecard",
 		"--session-id", "session-A",
 		"--evidence-dir", evidenceDir,
@@ -109,7 +111,7 @@ func TestE2E_SessionFilteredScoring(t *testing.T) {
 	t.Logf("session-A: score=%.2f total_operations=%d", scoreA, totalOpsA)
 
 	// --- Scorecard for session-B ---
-	stdout, stderr, exitCode = runEvidra(t, bin,
+	stdout, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"scorecard",
 		"--session-id", "session-B",
 		"--evidence-dir", evidenceDir,
@@ -136,7 +138,7 @@ func TestE2E_SessionFilteredScoring(t *testing.T) {
 	}
 
 	// --- Scorecard without --session-id should include both sessions ---
-	stdout, stderr, exitCode = runEvidra(t, bin,
+	stdout, stderr, exitCode = testcli.RunEvidra(t, bin,
 		"scorecard",
 		"--evidence-dir", evidenceDir,
 	)
