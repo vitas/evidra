@@ -23,14 +23,6 @@ type operationAssessment struct {
 	Basis            assessmentBasis  `json:"basis"`
 }
 
-func buildOperationAssessment(evidencePath, sessionID, riskLevel string) (operationAssessment, error) {
-	snapshot, err := assessment.BuildAtPath(evidencePath, sessionID)
-	if err != nil {
-		return operationAssessment{}, err
-	}
-	return assessmentFromSnapshot(snapshot, riskLevel), nil
-}
-
 func buildOperationAssessmentWithProfile(evidencePath, sessionID, riskLevel string, profile score.Profile) (operationAssessment, error) {
 	snapshot, err := assessment.BuildAtPathWithProfile(evidencePath, sessionID, profile)
 	if err != nil {
@@ -41,11 +33,6 @@ func buildOperationAssessmentWithProfile(evidencePath, sessionID, riskLevel stri
 
 func buildAssessment(results []signal.SignalResult, totalOps int, riskLevel string) operationAssessment {
 	snapshot := assessment.BuildFromResults(results, totalOps)
-	return assessmentFromSnapshot(snapshot, riskLevel)
-}
-
-func buildAssessmentWithProfile(results []signal.SignalResult, totalOps int, riskLevel string, profile score.Profile) operationAssessment {
-	snapshot := assessment.BuildFromResultsWithProfile(profile, results, totalOps)
 	return assessmentFromSnapshot(snapshot, riskLevel)
 }
 

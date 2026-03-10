@@ -36,7 +36,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 }
 
 func cmdVersion(_ []string, stdout, _ io.Writer) int {
-	fmt.Fprintf(stdout, "evidra-benchmark %s (commit: %s, built: %s)\n",
+	fmt.Fprintf(stdout, "evidra %s (commit: %s, built: %s)\n",
 		version.Version, version.Commit, version.Date)
 	return 0
 }

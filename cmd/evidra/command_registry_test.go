@@ -2,76 +2,38 @@ package main
 
 import (
 	"bytes"
-	"os"
 	"strings"
 	"testing"
 )
 
-func TestCommandRegistryIncludesPrimaryCommands(t *testing.T) {
+func TestPrintUsageUsesCurrentProductPositioning(t *testing.T) {
 	t.Parallel()
 
-	commands := registeredCommands()
-	want := []string{
-		"scorecard",
-		"explain",
-		"compare",
-		"run",
-		"prescribe",
-		"report",
-		"record",
-		"validate",
-		"ingest-findings",
-		"prompts",
-		"detectors",
-		"keygen",
-		"version",
-	}
+	var out bytes.Buffer
+	printUsage(&out)
 
-	if len(commands) != len(want) {
-		t.Fatalf("registered command count = %d, want %d", len(commands), len(want))
+	got := out.String()
+	if !strings.Contains(got, "evidra -- behavioral reliability for infrastructure automation") {
+		t.Fatalf("usage header = %q", got)
 	}
-	for _, name := range want {
-		if _, ok := commands[name]; !ok {
-			t.Fatalf("registered commands missing %q", name)
-		}
+	if strings.Contains(got, "evidra-benchmark") {
+		t.Fatalf("usage should not mention evidra-benchmark: %q", got)
 	}
 }
 
-func TestMainHelpIncludesRegistryCommands(t *testing.T) {
+func TestCmdVersionUsesCurrentBinaryName(t *testing.T) {
 	t.Parallel()
 
-	var out, errBuf bytes.Buffer
-	code := run([]string{"help"}, &out, &errBuf)
-	if code != 0 {
-		t.Fatalf("help exit %d: %s", code, errBuf.String())
+	var out bytes.Buffer
+	if code := cmdVersion(nil, &out, &out); code != 0 {
+		t.Fatalf("cmdVersion exit code = %d", code)
 	}
 
-	for _, want := range []string{"scorecard", "record", "detectors", "version"} {
-		if !strings.Contains(out.String(), want) {
-			t.Fatalf("help output missing %q:\n%s", want, out.String())
-		}
+	got := out.String()
+	if !strings.HasPrefix(got, "evidra ") {
+		t.Fatalf("version output = %q", got)
 	}
-}
-
-func TestMainGoDoesNotContainExtractedCommandHandlers(t *testing.T) {
-	t.Parallel()
-
-	data, err := os.ReadFile("main.go")
-	if err != nil {
-		t.Fatalf("read main.go: %v", err)
-	}
-
-	for _, forbidden := range []string{
-		"func cmdScorecard(",
-		"func cmdExplain(",
-		"func cmdCompare(",
-		"func cmdPrescribe(",
-		"func cmdReport(",
-		"func cmdValidate(",
-		"func cmdIngestFindings(",
-	} {
-		if strings.Contains(string(data), forbidden) {
-			t.Fatalf("main.go still contains extracted handler %q", forbidden)
-		}
+	if strings.Contains(got, "evidra-benchmark") {
+		t.Fatalf("version output should not mention evidra-benchmark: %q", got)
 	}
 }

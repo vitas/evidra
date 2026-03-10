@@ -43,7 +43,7 @@ var orderedCommands = []commandSpec{
 }
 
 func printUsage(w io.Writer) {
-	fmt.Fprintln(w, "evidra-benchmark — reliability benchmark for infrastructure automation")
+	fmt.Fprintln(w, "evidra -- behavioral reliability for infrastructure automation")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "COMMANDS:")
 	for _, command := range orderedCommands {
