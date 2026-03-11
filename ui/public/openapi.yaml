@@ -329,7 +329,7 @@ paths:
   /v1/evidence/scorecard:
     get:
       tags: [Analytics]
-      summary: Experimental hosted scorecard endpoint
+      summary: Compute tenant-wide reliability scorecard
       parameters:
         - name: period
           in: query
@@ -337,6 +337,11 @@ paths:
             type: string
             default: 30d
           description: Time period (e.g. 30d, 7d)
+        - name: actor
+          in: query
+          schema:
+            type: string
+          description: Narrow to a single actor ID
         - name: tool
           in: query
           schema:
@@ -347,26 +352,45 @@ paths:
           schema:
             type: string
           description: Filter by scope class
+        - name: session_id
+          in: query
+          schema:
+            type: string
+          description: Narrow to a single session ID
+        - name: min_operations
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+          description: Override the minimum operation threshold for sufficiency
       responses:
-        '501':
-          description: Experimental endpoint; use CLI or MCP for authoritative analytics
+        '200':
+          description: Scorecard computed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScorecardResponse'
+        '400':
+          description: Invalid query parameter
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example:
-                error: hosted analytics are experimental; use CLI/MCP for authoritative analytics
 
   /v1/evidence/explain:
     get:
       tags: [Analytics]
-      summary: Experimental hosted explain endpoint
+      summary: Explain tenant-wide analytics signals
       parameters:
         - name: period
           in: query
           schema:
             type: string
             default: 30d
+        - name: actor
+          in: query
+          schema:
+            type: string
         - name: tool
           in: query
           schema:
@@ -375,15 +399,29 @@ paths:
           in: query
           schema:
             type: string
+        - name: session_id
+          in: query
+          schema:
+            type: string
+        - name: min_operations
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+          description: Override the minimum operation threshold for sufficiency
       responses:
-        '501':
-          description: Experimental endpoint; use CLI or MCP for authoritative analytics
+        '200':
+          description: Explain output computed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExplainResponse'
+        '400':
+          description: Invalid query parameter
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example:
-                error: hosted analytics are experimental; use CLI/MCP for authoritative analytics
 
   /v1/benchmark/run:
     post:

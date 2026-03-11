@@ -3,6 +3,7 @@ package api
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	"samebits.com/evidra-benchmark/internal/auth"
 )
@@ -25,6 +26,14 @@ func handleExplain(ec ExplainComputer) http.HandlerFunc {
 		}
 		if filters.Period == "" {
 			filters.Period = "30d"
+		}
+		if raw := q.Get("min_operations"); raw != "" {
+			minOps, err := strconv.Atoi(raw)
+			if err != nil {
+				writeError(w, http.StatusBadRequest, "invalid min_operations")
+				return
+			}
+			filters.MinOperations = minOps
 		}
 
 		result, err := ec.ComputeExplain(tenantID, filters)

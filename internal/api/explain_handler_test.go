@@ -23,7 +23,7 @@ func TestHandleExplain_ForwardsTenantWideFilters(t *testing.T) {
 	t.Parallel()
 
 	capture := &captureExplainComputer{}
-	req := httptest.NewRequest("GET", "/v1/evidence/explain?period=7d&actor=agent-1&tool=kubectl&scope=production&session_id=sess-123", nil)
+	req := httptest.NewRequest("GET", "/v1/evidence/explain?period=7d&actor=agent-1&tool=kubectl&scope=production&session_id=sess-123&min_operations=25", nil)
 	req = req.WithContext(auth.WithTenantID(req.Context(), "tenant-1"))
 	rec := httptest.NewRecorder()
 
@@ -50,6 +50,9 @@ func TestHandleExplain_ForwardsTenantWideFilters(t *testing.T) {
 	if capture.filters.SessionID != "sess-123" {
 		t.Fatalf("session_id = %q, want sess-123", capture.filters.SessionID)
 	}
+	if capture.filters.MinOperations != 25 {
+		t.Fatalf("min_operations = %d, want 25", capture.filters.MinOperations)
+	}
 }
 
 func TestHandleExplain_DefaultsToTenantWidePeriod(t *testing.T) {
@@ -70,5 +73,23 @@ func TestHandleExplain_DefaultsToTenantWidePeriod(t *testing.T) {
 	}
 	if capture.filters.Actor != "" || capture.filters.Tool != "" || capture.filters.Scope != "" || capture.filters.SessionID != "" {
 		t.Fatalf("expected tenant-wide defaults, got %+v", capture.filters)
+	}
+	if capture.filters.MinOperations != 0 {
+		t.Fatalf("min_operations = %d, want 0", capture.filters.MinOperations)
+	}
+}
+
+func TestHandleExplain_RejectsInvalidMinOperations(t *testing.T) {
+	t.Parallel()
+
+	capture := &captureExplainComputer{}
+	req := httptest.NewRequest("GET", "/v1/evidence/explain?min_operations=abc", nil)
+	req = req.WithContext(auth.WithTenantID(req.Context(), "tenant-1"))
+	rec := httptest.NewRecorder()
+
+	handleExplain(capture).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", rec.Code)
 	}
 }

@@ -23,7 +23,7 @@ CLI and MCP remain the primary local and agent-facing analytics surfaces. Self-h
   - `scope`
   - `session_id`
   - `period`
-  - `min_operations` on scorecard
+  - `min_operations` on scorecard and explain
 - Webhook mapping support:
   - ArgoCD `sync_started` / `sync_completed`
   - Generic `operation_started` / `operation_completed`

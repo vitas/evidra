@@ -521,6 +521,12 @@ paths:
           in: query
           schema:
             type: string
+        - name: min_operations
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+          description: Override the minimum operation threshold for sufficiency
       responses:
         '200':
           description: Explain output computed
@@ -528,6 +534,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExplainResponse'
+        '400':
+          description: Invalid query parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /v1/benchmark/run:
     post:

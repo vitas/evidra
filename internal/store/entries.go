@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/oklog/ulid/v2"
 	"samebits.com/evidra-benchmark/internal/analytics"
+	"samebits.com/evidra-benchmark/internal/analyticsdb"
 	"samebits.com/evidra-benchmark/pkg/evidence"
 )
 
@@ -296,31 +297,26 @@ func (es *EntryStore) ComputeExplain(tenantID string, filters analytics.Filters)
 }
 
 func storedEntriesToEvidenceEntries(entries []StoredEntry) ([]evidence.EvidenceEntry, error) {
-	result := make([]evidence.EvidenceEntry, 0, len(entries))
-	for _, stored := range entries {
-		var entry evidence.EvidenceEntry
-		if err := json.Unmarshal(stored.Payload, &entry); err != nil {
-			return nil, fmt.Errorf("stored entry %s: decode evidence payload: %w", stored.ID, err)
-		}
-		result = append(result, entry)
-	}
-	return result, nil
+	return analyticsdb.EvidenceEntriesFromStoredRows(storedRows(entries))
 }
 
 func computeScorecardFromStoredEntries(entries []StoredEntry, filters analytics.Filters) (analytics.ScorecardOutput, error) {
-	evidenceEntries, err := storedEntriesToEvidenceEntries(entries)
-	if err != nil {
-		return analytics.ScorecardOutput{}, err
-	}
-	return analytics.ComputeScorecard(evidenceEntries, filters)
+	return analyticsdb.ComputeScorecardFromStoredRows(storedRows(entries), filters)
 }
 
 func computeExplainFromStoredEntries(entries []StoredEntry, filters analytics.Filters) (analytics.ExplainOutput, error) {
-	evidenceEntries, err := storedEntriesToEvidenceEntries(entries)
-	if err != nil {
-		return analytics.ExplainOutput{}, err
+	return analyticsdb.ComputeExplainFromStoredRows(storedRows(entries), filters)
+}
+
+func storedRows(entries []StoredEntry) []analyticsdb.StoredRow {
+	rows := make([]analyticsdb.StoredRow, 0, len(entries))
+	for _, entry := range entries {
+		rows = append(rows, analyticsdb.StoredRow{
+			ID:      entry.ID,
+			Payload: entry.Payload,
+		})
 	}
-	return analytics.ComputeExplain(evidenceEntries, filters)
+	return rows
 }
 
 func parsePeriod(s string) time.Duration {
