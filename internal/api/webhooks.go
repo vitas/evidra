@@ -89,7 +89,7 @@ func handleGenericWebhookWithTenantResolver(store WebhookStore, signer pkevidenc
 			idempotencyKey = mappedPrescriptionID("generic", payload.Tool, payload.Operation, payload.Actor, payload.SessionID, payload.Environment, "start")
 		}
 
-			duplicate, release, err := claimWebhook(r.Context(), store, tenantID, "generic", idempotencyKey, body)
+		duplicate, release, err := claimWebhook(r.Context(), store, tenantID, "generic", idempotencyKey, body)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "webhook idempotency failed")
 			return

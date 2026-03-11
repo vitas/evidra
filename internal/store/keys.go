@@ -26,7 +26,7 @@ type KeyRecord struct {
 
 // KeyStore manages API key lifecycle backed by PostgreSQL.
 type KeyStore struct {
-	pool *pgxpool.Pool
+	pool  *pgxpool.Pool
 	begin func(context.Context) (keyTx, error)
 }
 

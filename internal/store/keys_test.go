@@ -86,8 +86,8 @@ type fakeKeyExec struct {
 }
 
 type fakeKeyTx struct {
-	execs     []fakeKeyExec
-	committed bool
+	execs      []fakeKeyExec
+	committed  bool
 	rolledBack bool
 }
 
