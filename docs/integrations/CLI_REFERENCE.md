@@ -118,6 +118,16 @@ For architecture and protocol semantics, see:
 evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml
 ```
 
+Expanded form is equivalent when you want to attach more metadata:
+
+```bash
+evidra record \
+  -f deploy.yaml \
+  --environment staging \
+  --actor ci-gha \
+  -- kubectl apply -f deploy.yaml
+```
+
 Security boundary: Evidra does not sandbox the wrapped command. Treat it with
 the same trust model as direct shell execution. Evidra records and analyzes
 evidence around the command; it does not contain or block it.

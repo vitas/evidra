@@ -196,6 +196,16 @@ sum by (tool, environment) (
 
 ## CI Integration
 
+### Local smoke example
+
+Use the compact form for a quick metrics smoke test once `plan.json` exists:
+
+```bash
+evidra record -f plan.json -- terraform apply -auto-approve tfplan
+```
+
+Use the expanded CI forms below when you also want environment-specific metadata in the evidence stream.
+
 ### GitHub Actions
 
 ```yaml

@@ -56,6 +56,14 @@ jobs:
             -- terraform apply -auto-approve tfplan
 ```
 
+Once `plan.json` exists, the minimal wrapped command is:
+
+```bash
+evidra record -f plan.json -- terraform apply -auto-approve tfplan
+```
+
+Use the expanded workflow form above when you want environment and actor labels recorded in CI.
+
 ## Generic CI (GitLab, Jenkins, CircleCI, etc.)
 
 Evidra is a single static binary. Install it in any CI with curl:

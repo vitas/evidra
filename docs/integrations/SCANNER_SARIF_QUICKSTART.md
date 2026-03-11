@@ -31,14 +31,26 @@ trivy config . --format sarif --output scanner_report.sarif
 # 2) Plan
 terraform plan -out=tfplan
 terraform show -json tfplan > plan.json
+```
 
-# 3) Apply with Evidra observing
+Apply with the compact form for the fast path:
+
+```bash
+evidra record -f plan.json -- terraform apply -auto-approve tfplan
+```
+
+Use the expanded form when you want extra metadata:
+
+```bash
 evidra record \
   -f plan.json \
   --environment staging \
   -- terraform apply -auto-approve tfplan
+```
 
-# 4) Ingest scanner findings into the same evidence store
+Then ingest scanner findings into the same evidence store:
+
+```bash
 evidra import-findings \
   --sarif scanner_report.sarif \
   --artifact plan.json
@@ -50,13 +62,16 @@ evidra import-findings \
 # 1) Scan manifests
 kubescape scan . --format sarif --output scanner_report_k8s.sarif
 
-# 2) Apply with Evidra observing
+# 2) Apply with Evidra observing (compact)
+evidra record -f manifest.yaml -- kubectl apply -f manifest.yaml
+
+# 3) Expanded form when you want metadata
 evidra record \
   -f manifest.yaml \
   --environment staging \
   -- kubectl apply -f manifest.yaml
 
-# 3) Ingest scanner findings
+# 4) Ingest scanner findings
 evidra import-findings \
   --sarif scanner_report_k8s.sarif \
   --artifact manifest.yaml

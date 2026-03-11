@@ -30,8 +30,17 @@ Evidra needs the JSON plan as the artifact. Generate it first, then wrap the app
 # Create the JSON plan
 terraform plan -out=tfplan
 terraform show -json tfplan > plan.json
+```
 
-# Run with Evidra observing
+Use the compact form for the fast path:
+
+```bash
+evidra record -f plan.json -- terraform apply -auto-approve tfplan
+```
+
+Use the expanded form when you want extra metadata in the evidence:
+
+```bash
 evidra record \
   -f plan.json \
   --environment staging \
@@ -165,6 +174,17 @@ Use `import` when you want to keep your existing pipeline unchanged and only add
 Note: `raw_artifact` must be the JSON plan output from `terraform show -json`, not a text string like `"terraform apply"`. Without the plan JSON, Evidra falls back to the generic adapter and cannot extract resource-level risk information.
 
 ## 3. Terraform Destroy
+
+Minimal form:
+
+```bash
+terraform plan -destroy -out=tfplan
+terraform show -json tfplan > plan.json
+
+evidra record -f plan.json --tool terraform --operation destroy -- terraform apply -auto-approve tfplan
+```
+
+Expanded form with explicit environment metadata:
 
 ```bash
 terraform plan -destroy -out=tfplan
