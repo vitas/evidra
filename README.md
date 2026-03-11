@@ -11,6 +11,9 @@ Evidra records what your automation intended and what actually happened.
 For AI agents, it also records what they decided not to do. 
 From this evidence, Evidra computes behavioral signals that answer: is this actor operating reliably?
 
+Aviation became the safest form of transport not because planes stopped failing, but because every flight is recorded, every incident is investigated, and patterns become visible before the next disaster.
+AI agents are getting access to production infrastructure. Who is recording their flights?
+
 ## How To Use
 
 Two primary operation modes:
