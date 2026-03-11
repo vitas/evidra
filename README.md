@@ -4,16 +4,12 @@
 [![Release Pipeline](https://github.com/vitas/evidra/actions/workflows/release.yml/badge.svg?event=push)](https://github.com/vitas/evidra/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-**Evidra — Behavioral reliability for infrastructure automation.**
-
+**Evidra — Flight recorder for Infrastructure Automation**
 A new observability layer for CI/CD, IaC, and AI agents.
 
-Evidra records automation intent, decisions, and outcomes as signed evidence, computes
-behavioral signals, and produces scorecards from an append-only evidence chain.
-
-CLI and MCP are the authoritative analytics surfaces today. Self-hosted
-remains supported for centralized evidence collection and browsing, but hosted
-analytics stay experimental until they reuse the same engine end to end.
+Evidra records what your automation intended and what actually happened. 
+For AI agents, it also records what they decided not to do. 
+From this evidence, Evidra computes behavioral signals that answer: is this actor operating reliably?
 
 ## How To Use
 
