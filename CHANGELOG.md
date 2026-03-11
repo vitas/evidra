@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.4.6 — 2026-03-11
+
 ### CLI
 - Rebranded the public CLI surface from `run`/`record`/`ingest-findings` to `record`/`import`/`import-findings`
 - Added compact `-f` artifact support for `record` and `prescribe`
