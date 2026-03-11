@@ -240,13 +240,17 @@ Signal-level breakdown of detected behavioral patterns.
 
 ### `POST /v1/hooks/argocd`
 
-ArgoCD webhook receiver. Requires `EVIDRA_WEBHOOK_SECRET_ARGOCD` Bearer auth.
+ArgoCD webhook receiver. Requires:
+- `Authorization: Bearer <EVIDRA_WEBHOOK_SECRET_ARGOCD>`
+- `X-Evidra-API-Key: <tenant-api-key>`
 
 Maps `sync_started` / `sync_completed` events to prescribe/report entries.
 
 ### `POST /v1/hooks/generic`
 
-Generic webhook receiver. Requires `EVIDRA_WEBHOOK_SECRET_GENERIC` Bearer auth.
+Generic webhook receiver. Requires:
+- `Authorization: Bearer <EVIDRA_WEBHOOK_SECRET_GENERIC>`
+- `X-Evidra-API-Key: <tenant-api-key>`
 
 Maps `operation_started` / `operation_completed` events.
 
@@ -293,4 +297,3 @@ Common status codes:
 - `404` — resource not found
 - `429` — rate limit exceeded
 - `500` — internal server error
-- `501` — experimental feature not available

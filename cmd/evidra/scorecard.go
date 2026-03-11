@@ -8,23 +8,13 @@ import (
 	"strings"
 	"time"
 
+	"samebits.com/evidra/internal/analytics"
 	"samebits.com/evidra/internal/pipeline"
 	"samebits.com/evidra/internal/score"
 	"samebits.com/evidra/internal/signal"
 	"samebits.com/evidra/pkg/evidence"
 	"samebits.com/evidra/pkg/version"
 )
-
-var scorecardSignalOrder = []string{
-	"protocol_violation",
-	"artifact_drift",
-	"retry_loop",
-	"blast_radius",
-	"new_scope",
-	"repair_loop",
-	"thrashing",
-	"risk_escalation",
-}
 
 type scorecardSignalRow struct {
 	Signal  string
@@ -119,8 +109,9 @@ func cmdScorecard(args []string, stdout, stderr io.Writer) int {
 }
 
 func buildScorecardView(sc score.Scorecard, profile score.Profile, signalEntries []signal.Entry, actorID, sessionID, period string) scorecardView {
-	rows := make([]scorecardSignalRow, 0, len(scorecardSignalOrder))
-	for _, name := range scorecardSignalOrder {
+	publicSignals := analytics.PublicSignalNames(profile)
+	rows := make([]scorecardSignalRow, 0, len(publicSignals))
+	for _, name := range publicSignals {
 		count := sc.Signals[name]
 		rate := sc.Rates[name]
 		if sc.TotalOperations > 0 && rate == 0 && count > 0 {

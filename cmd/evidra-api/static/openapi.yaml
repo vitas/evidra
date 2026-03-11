@@ -280,6 +280,12 @@ paths:
           schema:
             type: string
           description: Bearer webhook secret configured via `EVIDRA_WEBHOOK_SECRET_ARGOCD`
+        - name: X-Evidra-API-Key
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Tenant API key used to resolve which tenant receives the mapped evidence
       requestBody:
         required: true
         content:
@@ -313,7 +319,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Invalid webhook secret
+          description: Invalid webhook secret or tenant API key
           content:
             application/json:
               schema:
@@ -337,6 +343,12 @@ paths:
           schema:
             type: string
           description: Bearer webhook secret configured via `EVIDRA_WEBHOOK_SECRET_GENERIC`
+        - name: X-Evidra-API-Key
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Tenant API key used to resolve which tenant receives the mapped evidence
       requestBody:
         required: true
         content:
@@ -371,7 +383,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
         '401':
-          description: Invalid webhook secret
+          description: Invalid webhook secret or tenant API key
           content:
             application/json:
               schema:

@@ -38,8 +38,8 @@ toward broader CNCF ecosystem adoption.
 
 - Harden the supported CLI and MCP analytics path and reduce contract drift.
 - Improve first-run scorecard and `report` usability for humans and agents.
-- Keep self-hosted boundaries explicit, with ingestion and browsing supported
-  and hosted analytics clearly marked experimental.
+- Keep self-hosted boundaries explicit, with DB-backed `scorecard` and
+  `explain` supported today and hosted `compare` still future work.
 - Tighten the evidence-to-score path so versioning, docs, and outputs remain
   consistent.
 - Add decision tracking so agents can record when they intentionally decline
@@ -134,8 +134,8 @@ toward broader CNCF ecosystem adoption.
   behavioral reliability, not a policy engine or a full scanner platform.
 - It shows concrete ecosystem fit through Prometheus, OpenTelemetry,
   CloudEvents, SARIF, and in-toto compatibility work.
-- It is honest about what is authoritative today and what is still
-  experimental.
+- It is honest about what is authoritative today and which hosted surfaces are
+  already supported versus still future work.
 - It balances product hardening with governance, security, and contributor
   maturity instead of treating those as afterthoughts.
 - It gives adopters a practical path from single-team CLI usage to broader

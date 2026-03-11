@@ -30,12 +30,7 @@ func toScorecardAPIResponse(out analytics.ScorecardOutput, profile score.Profile
 	}
 
 	summary := make(map[string]signalSummaryEntry)
-	signalNames := []string{
-		"protocol_violation", "artifact_drift", "retry_loop",
-		"thrashing", "blast_radius", "risk_escalation",
-		"new_scope", "repair_loop",
-	}
-	for _, name := range signalNames {
+	for _, name := range analytics.PublicSignalNames(profile) {
 		count := out.Signals[name]
 		summary[name] = signalSummaryEntry{
 			Detected: count > 0,

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/oklog/ulid/v2"
 )
@@ -26,11 +27,38 @@ type KeyRecord struct {
 // KeyStore manages API key lifecycle backed by PostgreSQL.
 type KeyStore struct {
 	pool *pgxpool.Pool
+	begin func(context.Context) (keyTx, error)
 }
 
 // NewKeyStore creates a KeyStore with the given connection pool.
 func NewKeyStore(pool *pgxpool.Pool) *KeyStore {
 	return &KeyStore{pool: pool}
+}
+
+type keyTx interface {
+	Exec(ctx context.Context, sql string, args ...interface{}) (pgconn.CommandTag, error)
+	Commit(ctx context.Context) error
+	Rollback(ctx context.Context) error
+}
+
+type pgxTx struct {
+	tx interface {
+		Exec(ctx context.Context, sql string, args ...interface{}) (pgconn.CommandTag, error)
+		Commit(ctx context.Context) error
+		Rollback(ctx context.Context) error
+	}
+}
+
+func (p pgxTx) Exec(ctx context.Context, sql string, args ...interface{}) (pgconn.CommandTag, error) {
+	return p.tx.Exec(ctx, sql, args...)
+}
+
+func (p pgxTx) Commit(ctx context.Context) error {
+	return p.tx.Commit(ctx)
+}
+
+func (p pgxTx) Rollback(ctx context.Context) error {
+	return p.tx.Rollback(ctx)
 }
 
 // CreateKey generates a new API key for the given tenant.
@@ -46,7 +74,26 @@ func (ks *KeyStore) CreateKey(ctx context.Context, tenantID, label string) (stri
 	prefix := plaintext[:8]
 	now := time.Now().UTC()
 
-	_, err = ks.pool.Exec(ctx,
+	tx, err := ks.beginTx(ctx)
+	if err != nil {
+		return "", KeyRecord{}, fmt.Errorf("store.CreateKey: begin: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	if _, err = tx.Exec(ctx,
+		`INSERT INTO tenants (id) VALUES ($1)
+		 ON CONFLICT (id) DO NOTHING`,
+		tenantID,
+	); err != nil {
+		return "", KeyRecord{}, fmt.Errorf("store.CreateKey: ensure tenant: %w", err)
+	}
+
+	_, err = tx.Exec(ctx,
 		`INSERT INTO api_keys (id, tenant_id, key_hash, prefix, label, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6)`,
 		id, tenantID, hash, prefix, label, now,
@@ -54,6 +101,10 @@ func (ks *KeyStore) CreateKey(ctx context.Context, tenantID, label string) (stri
 	if err != nil {
 		return "", KeyRecord{}, fmt.Errorf("store.CreateKey: insert: %w", err)
 	}
+	if err := tx.Commit(ctx); err != nil {
+		return "", KeyRecord{}, fmt.Errorf("store.CreateKey: commit: %w", err)
+	}
+	committed = true
 
 	return plaintext, KeyRecord{
 		ID:        id,
@@ -62,6 +113,17 @@ func (ks *KeyStore) CreateKey(ctx context.Context, tenantID, label string) (stri
 		Label:     label,
 		CreatedAt: now,
 	}, nil
+}
+
+func (ks *KeyStore) beginTx(ctx context.Context) (keyTx, error) {
+	if ks.begin != nil {
+		return ks.begin(ctx)
+	}
+	tx, err := ks.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return pgxTx{tx: tx}, nil
 }
 
 // LookupKey finds an active (non-revoked) key by plaintext.

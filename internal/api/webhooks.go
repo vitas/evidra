@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 
 	"samebits.com/evidra/internal/canon"
 	"samebits.com/evidra/internal/risk"
+	"samebits.com/evidra/internal/store"
 	pkevidence "samebits.com/evidra/pkg/evidence"
 	"samebits.com/evidra/pkg/version"
 )
@@ -23,6 +25,12 @@ type WebhookStore interface {
 	ClaimWebhookEvent(ctx context.Context, tenantID, source, key string, payload json.RawMessage) (bool, error)
 	ReleaseWebhookEvent(ctx context.Context, tenantID, source, key string) error
 }
+
+type WebhookTenantResolver func(ctx context.Context, apiKey string) (string, error)
+
+const webhookTenantAPIKeyHeader = "X-Evidra-API-Key"
+
+var errMissingWebhookTenantAPIKey = errors.New("missing tenant api key")
 
 type genericWebhookPayload struct {
 	EventType      string             `json:"event_type"`
@@ -47,13 +55,13 @@ type argoCDWebhookPayload struct {
 	Message      string `json:"message"`
 }
 
-func handleGenericWebhook(store WebhookStore, signer pkevidence.Signer, secret string) http.HandlerFunc {
-	return handleGenericWebhookForTenant(store, signer, secret, "default")
-}
-
-func handleGenericWebhookForTenant(store WebhookStore, signer pkevidence.Signer, secret, tenantID string) http.HandlerFunc {
+func handleGenericWebhookWithTenantResolver(store WebhookStore, signer pkevidence.Signer, secret string, resolveTenant WebhookTenantResolver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		body, ok := webhookRequestBody(w, r, secret, signer)
+		if !ok {
+			return
+		}
+		tenantID, ok := resolveWebhookTenant(w, r, resolveTenant)
 		if !ok {
 			return
 		}
@@ -81,7 +89,7 @@ func handleGenericWebhookForTenant(store WebhookStore, signer pkevidence.Signer,
 			idempotencyKey = mappedPrescriptionID("generic", payload.Tool, payload.Operation, payload.Actor, payload.SessionID, payload.Environment, "start")
 		}
 
-		duplicate, release, err := claimWebhook(r.Context(), store, tenantID, "generic", idempotencyKey, body)
+			duplicate, release, err := claimWebhook(r.Context(), store, tenantID, "generic", idempotencyKey, body)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "webhook idempotency failed")
 			return
@@ -144,13 +152,13 @@ func handleGenericWebhookForTenant(store WebhookStore, signer pkevidence.Signer,
 	}
 }
 
-func handleArgoCDWebhook(store WebhookStore, signer pkevidence.Signer, secret string) http.HandlerFunc {
-	return handleArgoCDWebhookForTenant(store, signer, secret, "default")
-}
-
-func handleArgoCDWebhookForTenant(store WebhookStore, signer pkevidence.Signer, secret, tenantID string) http.HandlerFunc {
+func handleArgoCDWebhookWithTenantResolver(store WebhookStore, signer pkevidence.Signer, secret string, resolveTenant WebhookTenantResolver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		body, ok := webhookRequestBody(w, r, secret, signer)
+		if !ok {
+			return
+		}
+		tenantID, ok := resolveWebhookTenant(w, r, resolveTenant)
 		if !ok {
 			return
 		}
@@ -235,6 +243,32 @@ func handleArgoCDWebhookForTenant(store WebhookStore, signer pkevidence.Signer, 
 
 		success = true
 		writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+	}
+}
+
+func resolveWebhookTenant(w http.ResponseWriter, r *http.Request, resolveTenant WebhookTenantResolver) (string, bool) {
+	apiKey := strings.TrimSpace(r.Header.Get(webhookTenantAPIKeyHeader))
+	if apiKey == "" {
+		writeError(w, http.StatusUnauthorized, "missing tenant api key")
+		return "", false
+	}
+	tenantID, err := resolveTenant(r.Context(), apiKey)
+	if err != nil || strings.TrimSpace(tenantID) == "" {
+		writeError(w, http.StatusUnauthorized, "unauthorized")
+		return "", false
+	}
+	return tenantID, true
+}
+
+func tenantResolverFromKeyStore(ks interface {
+	LookupKey(ctx context.Context, plaintext string) (store.KeyRecord, error)
+}) WebhookTenantResolver {
+	return func(ctx context.Context, apiKey string) (string, error) {
+		rec, err := ks.LookupKey(ctx, apiKey)
+		if err != nil {
+			return "", err
+		}
+		return rec.TenantID, nil
 	}
 }
 

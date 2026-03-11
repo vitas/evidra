@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"strconv"
 
@@ -39,10 +38,6 @@ func handleExplain(ec ExplainComputer) http.HandlerFunc {
 
 		result, err := ec.ComputeExplain(r.Context(), tenantID, filters)
 		if err != nil {
-			if errors.Is(err, ErrExperimentalAnalytics) {
-				writeError(w, http.StatusNotImplemented, experimentalAnalyticsMessage)
-				return
-			}
 			writeError(w, http.StatusInternalServerError, "explain computation failed")
 			return
 		}

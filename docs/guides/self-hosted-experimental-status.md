@@ -123,6 +123,10 @@ Response:
 - `POST /v1/hooks/argocd` — ArgoCD sync events
 - `POST /v1/hooks/generic` — generic operation events
 
+Webhook ingestion is tenant-aware:
+- `Authorization: Bearer <webhook-secret>` gates the route
+- `X-Evidra-API-Key: <tenant-api-key>` selects the tenant that receives the mapped evidence
+
 Full endpoint documentation: [API Reference](../API_REFERENCE.md)
 
 ## Pagination
@@ -155,6 +159,7 @@ The web dashboard uses this pagination automatically.
 - Webhook mapping support:
   - ArgoCD `sync_started` / `sync_completed`
   - Generic `operation_started` / `operation_completed`
+  - webhook requests must include `X-Evidra-API-Key` so mapped evidence lands in the correct tenant
 - Hosted `compare` is not part of this contract yet.
 
 ## Connecting CLI and MCP
