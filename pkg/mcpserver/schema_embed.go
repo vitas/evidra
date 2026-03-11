@@ -15,7 +15,10 @@ var reportSchemaBytes []byte
 //go:embed schemas/get_event.schema.json
 var getEventSchemaBytes []byte
 
-func loadInputSchema(raw []byte, name string) (map[string]any, error) {
+//go:embed schemas/get_event.output.schema.json
+var getEventOutputSchemaBytes []byte
+
+func loadSchema(raw []byte, name string) (map[string]any, error) {
 	var schema map[string]any
 	if err := json.Unmarshal(raw, &schema); err != nil {
 		return nil, fmt.Errorf("failed to parse embedded MCP schema %s: %w", name, err)

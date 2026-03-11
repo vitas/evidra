@@ -206,15 +206,19 @@ func NewServer(opts Options) (*mcp.Server, error) {
 	report := &reportHandler{service: svc}
 	getEvent := &getEventHandler{service: svc}
 
-	prescribeSchema, err := loadInputSchema(prescribeSchemaBytes, "schemas/prescribe.schema.json")
+	prescribeSchema, err := loadSchema(prescribeSchemaBytes, "schemas/prescribe.schema.json")
 	if err != nil {
 		return nil, err
 	}
-	reportSchema, err := loadInputSchema(reportSchemaBytes, "schemas/report.schema.json")
+	reportSchema, err := loadSchema(reportSchemaBytes, "schemas/report.schema.json")
 	if err != nil {
 		return nil, err
 	}
-	getEventSchema, err := loadInputSchema(getEventSchemaBytes, "schemas/get_event.schema.json")
+	getEventSchema, err := loadSchema(getEventSchemaBytes, "schemas/get_event.schema.json")
+	if err != nil {
+		return nil, err
+	}
+	getEventOutputSchema, err := loadSchema(getEventOutputSchemaBytes, "schemas/get_event.output.schema.json")
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +269,8 @@ func NewServer(opts Options) (*mcp.Server, error) {
 			DestructiveHint: boolPtr(false),
 			OpenWorldHint:   boolPtr(false),
 		},
-		InputSchema: getEventSchema,
+		InputSchema:  getEventSchema,
+		OutputSchema: getEventOutputSchema,
 	}, getEvent.Handle)
 
 	// Evidence resources

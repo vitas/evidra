@@ -131,30 +131,32 @@ func TestE2E_PrescribeReportLifecycle(t *testing.T) {
 		t.Fatalf("signals must not be present in report output: %+v", reportOut)
 	}
 
-	// Get event — retrieve the prescription entry via resource template.
-	// Note: the get_event tool has a json.RawMessage field (Payload) that
-	// the SDK auto-derives as type [null, array], but actual payloads are
-	// JSON objects. We verify the entry via the evidra://event/{id} resource
-	// which bypasses structured-output schema validation.
-	readResult, err := session.ReadResource(ctx, &mcp.ReadResourceParams{
-		URI: "evidra://event/" + prescribeOut.PrescriptionID,
+	// Get event — retrieve the report entry via the get_event tool.
+	getEventResult, err := session.CallTool(ctx, &mcp.CallToolParams{
+		Name: "get_event",
+		Arguments: map[string]any{
+			"event_id": reportID,
+		},
 	})
 	if err != nil {
-		t.Fatalf("read resource event: %v", err)
+		t.Fatalf("get_event: %v", err)
 	}
-	if len(readResult.Contents) == 0 {
-		t.Fatal("read resource returned no contents")
+
+	var getEventOut GetEventOutput
+	if err := extractStructuredContent(getEventResult, &getEventOut); err != nil {
+		t.Fatalf("parse get_event output: %v", err)
 	}
-	var entry evidence.EvidenceEntry
-	if err := json.Unmarshal([]byte(readResult.Contents[0].Text), &entry); err != nil {
-		t.Fatalf("parse resource event: %v", err)
+	if !getEventOut.OK {
+		t.Fatalf("get_event not ok: %+v", getEventOut)
 	}
-	if entry.EntryID != prescribeOut.PrescriptionID {
-		t.Errorf("resource event entry_id mismatch: got %q, want %q",
-			entry.EntryID, prescribeOut.PrescriptionID)
+	if getEventOut.Entry == nil {
+		t.Fatal("get_event returned nil entry")
 	}
-	if entry.Type != evidence.EntryTypePrescribe {
-		t.Errorf("resource event type: got %q, want %q", entry.Type, evidence.EntryTypePrescribe)
+	if getEventOut.Entry.EntryID != reportID {
+		t.Errorf("get_event entry_id mismatch: got %q, want %q", getEventOut.Entry.EntryID, reportID)
+	}
+	if getEventOut.Entry.Type != evidence.EntryTypeReport {
+		t.Errorf("get_event type: got %q, want %q", getEventOut.Entry.Type, evidence.EntryTypeReport)
 	}
 }
 

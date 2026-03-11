@@ -1,0 +1,56 @@
+{
+  "type": "object",
+  "required": ["ok"],
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    },
+    "entry": {
+      "type": ["null", "object"],
+      "properties": {
+        "entry_id": { "type": "string" },
+        "previous_hash": { "type": "string" },
+        "hash": { "type": "string" },
+        "signature": { "type": "string" },
+        "type": { "type": "string" },
+        "tenant_id": { "type": "string" },
+        "session_id": { "type": "string" },
+        "operation_id": { "type": "string" },
+        "attempt": { "type": "integer" },
+        "trace_id": { "type": "string" },
+        "span_id": { "type": "string" },
+        "parent_span_id": { "type": "string" },
+        "actor": { "type": "object" },
+        "timestamp": { "type": "string" },
+        "intent_digest": { "type": "string" },
+        "artifact_digest": { "type": "string" },
+        "payload": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "object" },
+            { "type": "array" }
+          ]
+        },
+        "scope_dimensions": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "spec_version": { "type": "string" },
+        "canonical_version": { "type": "string" },
+        "adapter_version": { "type": "string" },
+        "scoring_version": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "error": {
+      "type": ["null", "object"],
+      "properties": {
+        "code": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "required": ["code", "message"],
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
