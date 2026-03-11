@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## v0.4.7 — 2026-03-11
+
+### MCP
+- Fixed the `get_event` MCP tool output contract so stored report events can be returned without structured-output schema validation failure
+- Added explicit MCP output schema coverage for `get_event` payload shapes
+
 ## v0.4.6 — 2026-03-11
 
 ### CLI
