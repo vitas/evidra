@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -9,6 +10,42 @@ import (
 	testutil "samebits.com/evidra/internal/testutil"
 	"samebits.com/evidra/pkg/evidence"
 )
+
+func TestCollectAnalyticsReplayEntries_PaginatesUntilExhausted(t *testing.T) {
+	t.Parallel()
+
+	calls := 0
+	gotOffsets := make([]int, 0, 3)
+	fetch := func(_ context.Context, _ string, opts ListOptions) ([]StoredEntry, int, error) {
+		calls++
+		gotOffsets = append(gotOffsets, opts.Offset)
+		switch opts.Offset {
+		case 0:
+			return []StoredEntry{{ID: "a"}, {ID: "b"}}, 5, nil
+		case 2:
+			return []StoredEntry{{ID: "c"}, {ID: "d"}}, 5, nil
+		case 4:
+			return []StoredEntry{{ID: "e"}}, 5, nil
+		default:
+			t.Fatalf("unexpected offset %d", opts.Offset)
+			return nil, 0, nil
+		}
+	}
+
+	got, err := collectAnalyticsReplayEntries(context.Background(), "tenant-1", ListOptions{Period: "30d"}, 2, fetch)
+	if err != nil {
+		t.Fatalf("collectAnalyticsReplayEntries: %v", err)
+	}
+	if calls != 3 {
+		t.Fatalf("calls = %d, want 3", calls)
+	}
+	if want := []int{0, 2, 4}; len(gotOffsets) != len(want) || gotOffsets[0] != want[0] || gotOffsets[1] != want[1] || gotOffsets[2] != want[2] {
+		t.Fatalf("offsets = %v, want %v", gotOffsets, want)
+	}
+	if len(got) != 5 {
+		t.Fatalf("entries len = %d, want 5", len(got))
+	}
+}
 
 func TestListOptions_Defaults(t *testing.T) {
 	t.Parallel()

@@ -66,6 +66,8 @@ type EntryStore struct {
 	pool *pgxpool.Pool
 }
 
+const analyticsReplayPageSize = 1000
+
 // NewEntryStore creates an EntryStore with the given connection pool.
 func NewEntryStore(pool *pgxpool.Pool) *EntryStore {
 	return &EntryStore{pool: pool}
@@ -282,11 +284,10 @@ func (es *EntryStore) ReleaseWebhookEvent(ctx context.Context, tenantID, source,
 // Phase 0: reads entries from DB, converts to []evidence.EvidenceEntry, delegates to
 // existing internal/signal and internal/score packages (same engine used by CLI scorecard).
 func (es *EntryStore) ComputeScorecard(ctx context.Context, tenantID string, filters analytics.Filters) (interface{}, error) {
-	entries, _, err := es.ListEntries(ctx, tenantID, ListOptions{
-		Limit:     10000,
+	entries, err := collectAnalyticsReplayEntries(ctx, tenantID, ListOptions{
 		Period:    filters.Period,
 		SessionID: filters.SessionID,
-	})
+	}, analyticsReplayPageSize, es.ListEntries)
 	if err != nil {
 		return nil, fmt.Errorf("ComputeScorecard: %w", err)
 	}
@@ -296,11 +297,10 @@ func (es *EntryStore) ComputeScorecard(ctx context.Context, tenantID string, fil
 // ComputeExplain reads stored entries and runs signal detection.
 // Same conversion pattern as ComputeScorecard -- delegates to internal/signal.
 func (es *EntryStore) ComputeExplain(ctx context.Context, tenantID string, filters analytics.Filters) (interface{}, error) {
-	entries, _, err := es.ListEntries(ctx, tenantID, ListOptions{
-		Limit:     10000,
+	entries, err := collectAnalyticsReplayEntries(ctx, tenantID, ListOptions{
 		Period:    filters.Period,
 		SessionID: filters.SessionID,
-	})
+	}, analyticsReplayPageSize, es.ListEntries)
 	if err != nil {
 		return nil, fmt.Errorf("ComputeExplain: %w", err)
 	}
@@ -328,6 +328,35 @@ func storedRows(entries []StoredEntry) []analyticsdb.StoredRow {
 		})
 	}
 	return rows
+}
+
+func collectAnalyticsReplayEntries(
+	ctx context.Context,
+	tenantID string,
+	baseOpts ListOptions,
+	pageSize int,
+	list func(context.Context, string, ListOptions) ([]StoredEntry, int, error),
+) ([]StoredEntry, error) {
+	if pageSize <= 0 {
+		pageSize = analyticsReplayPageSize
+	}
+
+	opts := baseOpts
+	opts.Limit = pageSize
+	opts.Offset = 0
+
+	all := make([]StoredEntry, 0, pageSize)
+	for {
+		page, total, err := list(ctx, tenantID, opts)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, page...)
+		if len(all) >= total || len(page) < opts.Limit {
+			return all, nil
+		}
+		opts.Offset += len(page)
+	}
 }
 
 func parsePeriod(s string) time.Duration {

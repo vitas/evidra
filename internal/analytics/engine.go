@@ -11,17 +11,6 @@ import (
 	"samebits.com/evidra/pkg/version"
 )
 
-var scorecardSignalOrder = []string{
-	"protocol_violation",
-	"artifact_drift",
-	"retry_loop",
-	"thrashing",
-	"blast_radius",
-	"risk_escalation",
-	"new_scope",
-	"repair_loop",
-}
-
 type ScorecardSignalRow struct {
 	Signal  string  `json:"signal"`
 	Count   int     `json:"count"`
@@ -212,8 +201,9 @@ func countPrescriptions(entries []signal.Entry) int {
 }
 
 func buildScorecardView(sc score.Scorecard, profile score.Profile, signalEntries []signal.Entry, actorID, sessionID, period string, now time.Time) ScorecardView {
-	rows := make([]ScorecardSignalRow, 0, len(scorecardSignalOrder))
-	for _, name := range scorecardSignalOrder {
+	publicSignals := PublicSignalNames(profile)
+	rows := make([]ScorecardSignalRow, 0, len(publicSignals))
+	for _, name := range publicSignals {
 		count := sc.Signals[name]
 		rate := sc.Rates[name]
 		if sc.TotalOperations > 0 && rate == 0 && count > 0 {

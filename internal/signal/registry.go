@@ -38,3 +38,13 @@ func registeredSignals() []signalDefinition {
 	copy(out, signalRegistry)
 	return out
 }
+
+// RegisteredSignalNames returns the registered detector names in stable registry order.
+func RegisteredSignalNames() []string {
+	definitions := registeredSignals()
+	names := make([]string, 0, len(definitions))
+	for _, definition := range definitions {
+		names = append(names, definition.name)
+	}
+	return names
+}

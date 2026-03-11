@@ -13,6 +13,12 @@ import (
 	"samebits.com/evidra/internal/store"
 )
 
+const (
+	keyIssueRateLimitPerIP     = 3
+	keyIssueRateLimitWindow    = time.Hour
+	keyIssueHistorySweepCutoff = 10000
+)
+
 func handleKeys(ks *store.KeyStore, inviteSecret string) http.HandlerFunc {
 	var (
 		mu      sync.Mutex
@@ -29,10 +35,10 @@ func handleKeys(ks *store.KeyStore, inviteSecret string) http.HandlerFunc {
 		ip := clientIP(r)
 		mu.Lock()
 		now := time.Now()
-		cutoff := now.Add(-1 * time.Hour)
+		cutoff := now.Add(-keyIssueRateLimitWindow)
 
 		// Periodic cleanup: prune stale entries when map grows large.
-		if len(history) > 10000 {
+		if len(history) > keyIssueHistorySweepCutoff {
 			for k, timestamps := range history {
 				var fresh []time.Time
 				for _, t := range timestamps {
@@ -54,7 +60,7 @@ func handleKeys(ks *store.KeyStore, inviteSecret string) http.HandlerFunc {
 				recent = append(recent, t)
 			}
 		}
-		if len(recent) >= 3 {
+		if len(recent) >= keyIssueRateLimitPerIP {
 			mu.Unlock()
 			writeError(w, http.StatusTooManyRequests, "rate limit exceeded")
 			return
@@ -102,6 +108,19 @@ func handleKeys(ks *store.KeyStore, inviteSecret string) http.HandlerFunc {
 }
 
 func clientIP(r *http.Request) string {
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil {
+		if isTrustedProxy(host) {
+			if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+				// Use only the leftmost (client) IP when the direct peer is trusted.
+				if i := strings.IndexByte(xff, ','); i > 0 {
+					return strings.TrimSpace(xff[:i])
+				}
+				return strings.TrimSpace(xff)
+			}
+		}
+		return host
+	}
 	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
 		// Use only the leftmost (client) IP.
 		if i := strings.IndexByte(xff, ','); i > 0 {
@@ -109,9 +128,13 @@ func clientIP(r *http.Request) string {
 		}
 		return strings.TrimSpace(xff)
 	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err == nil {
-		return host
-	}
 	return r.RemoteAddr
+}
+
+func isTrustedProxy(host string) bool {
+	ip := net.ParseIP(strings.TrimSpace(host))
+	if ip == nil {
+		return false
+	}
+	return ip.IsLoopback() || ip.IsPrivate()
 }

@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"strconv"
 
@@ -43,10 +42,6 @@ func handleScorecard(sc ScorecardComputer) http.HandlerFunc {
 
 		result, err := sc.ComputeScorecard(r.Context(), tenantID, filters)
 		if err != nil {
-			if errors.Is(err, ErrExperimentalAnalytics) {
-				writeError(w, http.StatusNotImplemented, experimentalAnalyticsMessage)
-				return
-			}
 			writeError(w, http.StatusInternalServerError, "scorecard computation failed")
 			return
 		}

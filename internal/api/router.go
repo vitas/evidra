@@ -48,10 +48,14 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	// Key issuance (gated, not behind standard auth).
 	mux.Handle("POST /v1/keys", handleKeys(cfg.KeyStore, cfg.InviteSecret))
 	if cfg.WebhookStore != nil && cfg.ArgoCDSecret != "" {
-		mux.Handle("POST /v1/hooks/argocd", handleArgoCDWebhookForTenant(cfg.WebhookStore, cfg.WebhookSigner, cfg.ArgoCDSecret, cfg.DefaultTenant))
+		if cfg.KeyStore != nil {
+			mux.Handle("POST /v1/hooks/argocd", handleArgoCDWebhookWithTenantResolver(cfg.WebhookStore, cfg.WebhookSigner, cfg.ArgoCDSecret, tenantResolverFromKeyStore(cfg.KeyStore)))
+		}
 	}
 	if cfg.WebhookStore != nil && cfg.GenericSecret != "" {
-		mux.Handle("POST /v1/hooks/generic", handleGenericWebhookForTenant(cfg.WebhookStore, cfg.WebhookSigner, cfg.GenericSecret, cfg.DefaultTenant))
+		if cfg.KeyStore != nil {
+			mux.Handle("POST /v1/hooks/generic", handleGenericWebhookWithTenantResolver(cfg.WebhookStore, cfg.WebhookSigner, cfg.GenericSecret, tenantResolverFromKeyStore(cfg.KeyStore)))
+		}
 	}
 
 	// Authenticated routes.
