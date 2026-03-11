@@ -12,7 +12,8 @@ const PIPELINE_CHART = `flowchart LR
   D --> E["Risk Matrix"]
   E --> F["Prescription"]
   F --> G[("Evidence<br/>Chain")]
-  H["Verdict<br/>+ context"] --> I["Report"]
+  H1["Execution outcome<br/>verdict + exit_code"] --> I["Report"]
+  H2["Deliberate refusal<br/>verdict=declined + decision_context"] --> I
   I --> G
   G --> J["Signal Detectors<br/>8 signals"]
   J --> K["Scoring Engine"]
@@ -20,20 +21,31 @@ const PIPELINE_CHART = `flowchart LR
 
 const SYSTEM_CHART = `flowchart TB
   subgraph Clients ["Client Layer"]
+    CI["CI / AI Agents<br/>GitHub Actions · Codex · Claude"]
     CLI["evidra CLI<br/>record · import · scorecard"]
     MCP["evidra-mcp<br/>MCP Server for AI Agents"]
-    CI["CI Systems<br/>GitHub Actions · GitLab CI"]
+    Hooks["ArgoCD / generic webhooks"]
   end
-  subgraph Backend ["evidra-api<br/>Self-Hosted · analytics experimental"]
-    API["REST API<br/>ingest · browse · analytics experimental"]
-    DB[("PostgreSQL")]
+  subgraph Local ["Local Path"]
+    LS[("Local Evidence<br/>append-only JSONL")]
+  end
+  subgraph Backend ["evidra-api<br/>Self-Hosted"]
+    API["REST API<br/>ingest · browse · scorecard · explain"]
+    DB[("PostgreSQL<br/>tenant evidence store")]
     API --> DB
   end
+  subgraph Analytics ["Reliability Analytics"]
+    Engine["Shared Signal +<br/>Scoring Engine"]
+  end
+  CI --> CLI
+  CI --> MCP
+  CLI -->|"append evidence"| LS
+  MCP -->|"append evidence"| LS
   CLI -->|"forward"| API
   MCP -->|"forward"| API
-  CI --> CLI
-  CLI --> LS[("Local Evidence<br/>append-only JSONL")]
-  MCP --> LS`;
+  Hooks -->|"webhook ingestion"| API
+  LS --> Engine
+  DB --> Engine`;
 
 const SEQUENCE_CHART = `sequenceDiagram
   participant Agent as AI Agent / CI
@@ -53,9 +65,10 @@ const SEQUENCE_CHART = `sequenceDiagram
   CLI-->>Agent: prescription_id, risk_level
 
   alt Agent executes infrastructure operation
-    Note over Agent: Execute infrastructure operation
+    Note over Agent: Execute infrastructure mutation
     Agent->>CLI: report(prescription_id, verdict, exit_code)
-  else Agent intentionally refuses
+  else Agent denies or deliberately refuses
+    Note over Agent: Record the deny decision explicitly
     Agent->>CLI: report(prescription_id, verdict=declined, decision_context)
   end
   CLI->>Chain: append(report entry, linked)
@@ -97,8 +110,9 @@ docker compose up -d
 # Verify it's running
 curl http://localhost:8080/healthz
 
-# Hosted /v1/evidence/scorecard and /v1/evidence/explain
-# are experimental today. Use CLI or MCP for authoritative analytics.`;
+# Query tenant-wide hosted analytics
+curl -H "Authorization: Bearer $EVIDRA_API_KEY" \\
+  "http://localhost:8080/v1/evidence/scorecard?period=30d"`;
 
 const SIGNALS = [
   { name: "protocol_violation", weight: "0.35", desc: "Missing prescribe or report, duplicate reports", icon: "\u26A0" },
@@ -337,7 +351,7 @@ function Architecture() {
       <Container>
         <SectionLabel>Architecture</SectionLabel>
         <SectionTitle>How It All Fits Together</SectionTitle>
-        <p className="text-fg-muted mb-10 text-[1.14rem]">Three views: scoring pipeline, system deployment, and the protocol sequence.</p>
+        <p className="text-fg-muted mb-10 text-[1.14rem]">Three views: scoring pipeline, protocol sequence, and hosted system architecture.</p>
         <div className="inline-flex bg-accent-subtle border border-border rounded-lg p-[3px] mb-6">
           <TabBtn active={tab === "pipeline"} onClick={() => setTab("pipeline")}>How It Works</TabBtn>
           <TabBtn active={tab === "sequence"} onClick={() => setTab("sequence")}>Protocol Sequence</TabBtn>
@@ -368,7 +382,7 @@ function GettingStarted() {
         <CodeBlock code={code} />
         {tab === "selfhost" && (
           <p className="text-[0.85rem] text-fg-muted mt-4">
-            Self-hosted supports centralized evidence collection today. Hosted <code>/v1/evidence/scorecard</code> and <code>/v1/evidence/explain</code> remain experimental; use CLI or MCP for authoritative analytics.{" "}
+            Self-hosted centralizes forwarded evidence and webhook-ingested events, then serves tenant-wide <code>/v1/evidence/scorecard</code> and <code>/v1/evidence/explain</code> over stored evidence.{" "}
             <a href="https://github.com/vitas/evidra/blob/main/docs/guides/self-hosted-experimental-status.md" target="_blank" rel="noopener" className="font-semibold">Status guide &rarr;</a>
           </p>
         )}
@@ -470,11 +484,11 @@ function ApiReference() {
       <Container>
         <SectionLabel>API</SectionLabel>
         <SectionTitle>API Reference</SectionTitle>
-        <p className="text-fg-muted mb-10 text-[1.14rem]">Full OpenAPI 3.0 documentation for all endpoints, including the current experimental status of hosted analytics routes.</p>
+        <p className="text-fg-muted mb-10 text-[1.14rem]">Full OpenAPI 3.0 documentation for all endpoints, including webhook ingress and hosted analytics routes.</p>
         <a href="/docs/api" className="flex items-center justify-between bg-bg-elevated border border-border rounded-[10px] p-6 px-8 shadow-[var(--shadow-card)] transition-all hover:shadow-[var(--shadow-card-lg)] hover:border-accent no-underline">
           <div>
             <h3 className="text-base text-fg mb-1">Interactive API Documentation</h3>
-            <p className="text-[0.85rem] text-fg-muted">Explore all 15 endpoints with request/response schemas, authentication details, examples, and explicit `501` responses for experimental hosted analytics.</p>
+            <p className="text-[0.85rem] text-fg-muted">Explore all 17 endpoints with request/response schemas, authentication details, examples, webhook payloads, and hosted scorecard/explain analytics contracts.</p>
           </div>
           <div className="font-mono text-[0.8rem] text-accent font-medium whitespace-nowrap">/docs/api &rarr;</div>
         </a>

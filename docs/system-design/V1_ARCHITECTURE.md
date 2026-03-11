@@ -254,6 +254,26 @@ Architecture principle: **graph-ready, graph-free.** Signals work on `[]Entry` s
 
 CLI and MCP are the primary analytics entry points in v1. Self-hosted also exposes tenant-wide `/v1/evidence/scorecard` and `/v1/evidence/explain` over centralized stored evidence using the same signal and scoring path.
 
+## Self-Hosted Mode
+
+Self-hosted mode keeps the same evidence semantics as local CLI and MCP workflows. What changes is ingress and storage, not the scoring model.
+
+- **Forwarded evidence:** CLI and MCP can append evidence locally or forward the same signed entries to `evidra-api` for centralized storage.
+- **Webhook ingress:** ArgoCD and generic webhook sources can submit events to the API, which maps them into the same prescribe/report-oriented evidence model used by local workflows.
+- **Centralized store:** Hosted evidence is persisted in Postgres so teams can browse and replay tenant-wide evidence instead of reading per-machine JSONL chains.
+- **Shared analytics path:** Hosted `scorecard` and `explain` load stored evidence and run the same signal detectors and scoring engine as local analysis.
+- **deliberate refusal:** A deny decision is still explicit evidence, not a side channel. The terminal record remains `report(verdict=declined, decision_context)`, so local and hosted analytics interpret it the same way.
+
+```text
+CLI / MCP ---> signed evidence entries ---> evidra-api ---> Postgres
+    |                                                 |
+    | local JSONL                                     | tenant-wide replay
+    v                                                 v
+local scorecard/explain                     hosted scorecard/explain
+
+ArgoCD / generic webhooks ---> mapped evidence entries ---^
+```
+
 ### v1.x (designed, not started)
 
 | Component | Document |
@@ -464,11 +484,11 @@ type SignalDetector interface {
 
 | Interface | Consumer | Protocol |
 |-----------|----------|----------|
-| **CLI** (`evidra prescribe/report/scorecard`) | CI pipelines, bash scripts, human operators | Shell + JSONL evidence files |
+| **CLI** (`evidra record/import/scorecard`) | CI pipelines, bash scripts, human operators | Shell + JSONL evidence files |
 | **MCP Server** (`evidra-mcp`) | AI agents (Claude Code, Cursor, custom) | JSON-RPC over stdio |
-| **REST API** (`/api/v1/assess`) | Web UI, integrations, LLM augmentation layer | HTTP + JSON |
+| **Self-hosted API** | Forwarded evidence, webhook sources, hosted analytics consumers | HTTP + JSON |
 
-All three share the same engine. Same detectors, same signals, same scorecard. Different entry points.
+All three share the same evidence model and analytics path. Same detectors, same signals, same scorecard. Different entry points and storage boundaries.
 
 ---
 

@@ -36,8 +36,8 @@ Normative behavior is defined in the linked specs.
 
 ### Export
 
-- CLI and MCP outputs are the authoritative analytics surfaces (`scorecard`, `explain`, immediate `report` assessment).
-- Self-hosted API supports ingestion, evidence browsing, and tenant-wide `scorecard`/`explain` over stored evidence.
+- CLI and MCP expose local `scorecard`, `explain`, and immediate `report` assessment over JSONL evidence.
+- Self-hosted API supports centralized ingestion, evidence browsing, and tenant-wide `scorecard`/`explain` over stored evidence.
 - Metrics export via bounded-cardinality labels (`none` or `otlp_http` transport in CLI).
 
 ## Component View
@@ -97,6 +97,26 @@ record/import -> prescribe -> report(verdict) -> evidence -> signals -> scorecar
 - Self-hosted API: centralized evidence collection, key issuance, entry browsing, and tenant-wide scorecard/explain analytics.
 - Evidence-first reliability model with preview/sufficient basis in outputs.
 - Metrics-first observability integration.
+
+## Hosted Mode
+
+Hosted mode changes where evidence is collected and replayed, not what evidence means.
+
+- CLI and MCP can keep evidence local in append-only JSONL or forward the same signed entries to `evidra-api`.
+- Self-hosted also accepts webhook ingestion from systems such as ArgoCD or generic emitters and maps those events into the same evidence model.
+- `evidra-api` stores tenant evidence in Postgres and runs tenant-wide `scorecard` / `explain` over that centralized evidence.
+- Deliberate refusals remain first-class evidence: `report(verdict=declined, decision_context)` is analyzed through the same signal and scoring path as any other terminal report.
+
+```text
+CLI / MCP --------> local JSONL evidence --------> local scorecard / explain
+    \                         \
+     \ forward evidence        \ same evidence model
+      v                         v
+      evidra-api <----- webhook ingestion (ArgoCD / generic)
+          |
+          v
+    Postgres evidence store --------> hosted scorecard / explain
+```
 
 ## Canonical Invariants
 

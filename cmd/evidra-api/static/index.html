@@ -399,10 +399,11 @@
   <div class="container">
     <div class="section-label">Architecture</div>
     <h2 class="section-title">How It All Fits Together</h2>
-    <p class="section-subtitle">Two views: how evidence flows through the scoring pipeline, and how components are deployed.</p>
+    <p class="section-subtitle">Three views: scoring pipeline, protocol sequence, and hosted system architecture.</p>
 
     <div class="tabs" data-tabs="arch">
       <button class="tab-btn active" data-tab="tab-pipeline">How It Works</button>
+      <button class="tab-btn" data-tab="tab-sequence">Protocol Sequence</button>
       <button class="tab-btn" data-tab="tab-system">System Architecture</button>
     </div>
 
@@ -419,11 +420,52 @@ flowchart LR
   D --> E["Risk Matrix"]
   E --> F["Prescription"]
   F --> G[("Evidence<br/>Chain")]
-  H["Exit Code"] --> I["Report"]
+  H1["Execution outcome<br/>verdict + exit_code"] --> I["Report"]
+  H2["Deliberate refusal<br/>verdict=declined + decision_context"] --> I
   I --> G
   G --> J["Signal Detectors<br/>8 signals"]
   J --> K["Scoring Engine"]
   K --> L["Scorecard<br/>+ Band"]
+        </pre>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-sequence">
+      <div class="diagram-panel">
+        <pre class="mermaid">
+sequenceDiagram
+  participant Agent as AI Agent / CI
+  participant CLI as evidra CLI / MCP
+  participant Canon as Canonicalize
+  participant Risk as Risk Engine
+  participant Chain as Evidence Chain
+  participant Signal as Signal Detectors
+  participant Score as Scoring Engine
+
+  Agent->>CLI: prescribe(tool, operation, artifact)
+  CLI->>Canon: SelectAdapter → Normalize
+  Canon-->>CLI: CanonicalAction + digests
+  CLI->>Risk: RiskLevel(op_class, scope_class)
+  Risk-->>CLI: risk_level + risk_tags
+  CLI->>Chain: append(prescription entry)
+  CLI-->>Agent: prescription_id, risk_level
+
+  alt Agent executes infrastructure operation
+    Note over Agent: Execute infrastructure mutation
+    Agent->>CLI: report(prescription_id, verdict, exit_code)
+  else Agent denies or deliberately refuses
+    Note over Agent: Record the deny decision explicitly
+    Agent->>CLI: report(prescription_id, verdict=declined, decision_context)
+  end
+  CLI->>Chain: append(report entry, linked)
+  CLI->>Signal: detect(entries)
+  Signal-->>CLI: signal_summary + confidence
+  CLI-->>Agent: report_id, score_band, signal_summary
+
+  Agent->>CLI: scorecard(filters)
+  CLI->>Score: compute(entries, weights)
+  Score-->>CLI: score, band, confidence
+  CLI-->>Agent: scorecard + band
         </pre>
       </div>
     </div>
@@ -433,20 +475,31 @@ flowchart LR
         <pre class="mermaid">
 flowchart TB
   subgraph Clients ["Client Layer"]
+    CI["CI / AI Agents<br/>GitHub Actions · Codex · Claude"]
     CLI["evidra CLI<br/>record · import · scorecard"]
     MCP["evidra-mcp<br/>MCP Server for AI Agents"]
-    CI["CI Systems<br/>GitHub Actions · GitLab CI"]
+    Hooks["ArgoCD / generic webhooks"]
   end
-  subgraph Backend ["evidra-api<br/>Self-Hosted · centralized analytics"]
+  subgraph Local ["Local Path"]
+    LS[("Local Evidence<br/>append-only JSONL")]
+  end
+  subgraph Backend ["evidra-api<br/>Self-Hosted"]
     API["REST API<br/>ingest · browse · scorecard · explain"]
-    DB[("PostgreSQL")]
+    DB[("PostgreSQL<br/>tenant evidence store")]
     API --> DB
   end
+  subgraph Analytics ["Reliability Analytics"]
+    Engine["Shared Signal +<br/>Scoring Engine"]
+  end
+  CI --> CLI
+  CI --> MCP
+  CLI -->|"append evidence"| LS
+  MCP -->|"append evidence"| LS
   CLI -->|"forward"| API
   MCP -->|"forward"| API
-  CI --> CLI
-  CLI --> LS[("Local Evidence<br/>append-only JSONL")]
-  MCP --> LS
+  Hooks -->|"webhook ingestion"| API
+  LS --> Engine
+  DB --> Engine
         </pre>
       </div>
     </div>
@@ -517,7 +570,7 @@ curl http://localhost:8080/healthz
 curl -H "Authorization: Bearer $EVIDRA_API_KEY" \
   "http://localhost:8080/v1/evidence/scorecard?period=30d"</div>
       </div>
-      <p class="section-subtitle" style="margin-top: 1rem; margin-bottom: 0;">Self-hosted supports centralized evidence collection plus tenant-wide <code>/v1/evidence/scorecard</code> and <code>/v1/evidence/explain</code> over stored evidence; see <a href="https://github.com/vitas/evidra/blob/main/docs/guides/self-hosted-experimental-status.md" target="_blank" rel="noopener">Self-Hosted Experimental Status</a>.</p>
+      <p class="section-subtitle" style="margin-top: 1rem; margin-bottom: 0;">Self-hosted centralizes forwarded evidence and webhook-ingested events, then serves tenant-wide <code>/v1/evidence/scorecard</code> and <code>/v1/evidence/explain</code> over stored evidence; see <a href="https://github.com/vitas/evidra/blob/main/docs/guides/self-hosted-experimental-status.md" target="_blank" rel="noopener">Self-Hosted Experimental Status</a>.</p>
     </div>
   </div>
 </section>
