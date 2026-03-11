@@ -6,9 +6,9 @@ No cluster. No LLM. No API keys. No external data.
 Detailed guide:
 - [`docs/guides/signal-validation.md`](../../docs/guides/signal-validation.md)
 
-Related parity/UX tests for `run` + `record`:
-- CLI tests: `go test ./cmd/evidra -run 'RunAndRecord_|RunOutput_' -count=1`
-- E2E parity (tagged): `go test -tags=e2e ./tests/e2e -run RunRecordParity -count=1`
+Related parity/UX tests for `record` + `import`:
+- CLI tests: `go test ./cmd/evidra -run 'Record|Import' -count=1`
+- E2E parity (tagged): `go test -tags=e2e ./tests/contracts -run RecordImportParity -count=1`
 
 ## Run
 

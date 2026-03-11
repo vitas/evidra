@@ -49,10 +49,8 @@ jobs:
         env:
           EVIDRA_SIGNING_MODE: optional
         run: |
-          evidra run \
-            --tool terraform \
-            --operation apply \
-            --artifact plan.json \
+          evidra record \
+            -f plan.json \
             --environment staging \
             --actor ci-gha \
             -- terraform apply -auto-approve tfplan
@@ -96,8 +94,7 @@ evidra-terraform:
       curl -fsSL "https://github.com/samebits/evidra/releases/download/${VERSION}/evidra_${VERSION#v}_${OS}_${ARCH}.tar.gz" \
         | tar -xz -C /usr/local/bin evidra
     - terraform plan -out=tfplan && terraform show -json tfplan > plan.json
-    - evidra run --tool terraform --operation apply --artifact plan.json
-        --environment staging -- terraform apply -auto-approve tfplan
+    - evidra record -f plan.json --environment staging -- terraform apply -auto-approve tfplan
   variables:
     EVIDRA_SIGNING_MODE: optional
 ```

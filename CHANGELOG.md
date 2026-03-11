@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased
+
+### CLI
+- Rebranded the public CLI surface from `run`/`record`/`ingest-findings` to `record`/`import`/`import-findings`
+- Added compact `-f` artifact support for `record` and `prescribe`
+- Added deterministic `record` inference for wrapped `kubectl`, `oc`, `helm`, `terraform`, `docker`, `argocd`, `kustomize`, and `pulumi` commands
+
+### Documentation And Product Surfaces
+- Updated README, CLI reference, quickstarts, landing page copy, and fallback landing HTML to the new `record`/`import` command language
+- Refreshed examples to prefer the compact live-recording form `evidra record -f <artifact> -- <command>`
+
+### Testing
+- Added CLI coverage for compact wrapped-command inference, explicit error paths, and `import-findings`
+- Updated contract and parity tests to invoke `record`, `import`, and `import-findings`
+
 ## v0.4.5 — 2026-03-10
 
 ### Decision Tracking

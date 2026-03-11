@@ -11,7 +11,7 @@ export EVIDRA_METRICS_TRANSPORT=otlp_http
 export EVIDRA_METRICS_OTLP_ENDPOINT=http://localhost:4318/v1/metrics
 ```
 
-Metrics are emitted on every `evidra run` and `evidra record` invocation. If the endpoint is unreachable, the operation still completes — metrics export is fire-and-forget.
+Metrics are emitted on every `evidra record` and `evidra import` invocation. If the endpoint is unreachable, the operation still completes — metrics export is fire-and-forget.
 
 | Variable | Purpose | Default |
 |---|---|---|
@@ -31,7 +31,7 @@ Use this to track signal frequency over time: how often do retries, drift, or bl
 
 ### `evidra.operation.duration_ms`
 
-Wall-clock duration of the wrapped command (milliseconds). Only meaningful for `evidra run` (where Evidra executes the command). For `evidra record`, this reflects the duration reported in the input payload.
+Wall-clock duration of the wrapped command (milliseconds). Only meaningful for `evidra record` (where Evidra executes the command). For `evidra import`, this reflects the duration reported in the input payload.
 
 ## Label Reference
 
@@ -208,10 +208,8 @@ sum by (tool, environment) (
     EVIDRA_METRICS_OTLP_ENDPOINT: ${{ secrets.OTLP_ENDPOINT }}
     EVIDRA_SIGNING_KEY: ${{ secrets.EVIDRA_SIGNING_KEY }}
   run: |
-    evidra run \
-      --tool terraform \
-      --operation apply \
-      --artifact plan.json \
+    evidra record \
+      -f plan.json \
       --environment production \
       -- terraform apply -auto-approve tfplan
 ```
@@ -228,10 +226,8 @@ deploy:
     - |
       curl -fsSL https://github.com/samebits/evidra/releases/latest/download/evidra_linux_amd64.tar.gz \
         | tar -xz -C /usr/local/bin evidra
-    - evidra run \
-        --tool terraform \
-        --operation apply \
-        --artifact plan.json \
+    - evidra record \
+        -f plan.json \
         --environment production \
         -- terraform apply -auto-approve tfplan
 ```

@@ -16,8 +16,8 @@ Normative behavior is defined in the linked specs.
 
 ### Ingestion
 
-- `run` = Evidra executes and observes a command live.
-- `record` = Evidra ingests a completed operation from structured input.
+- `record` = Evidra executes and observes a command live.
+- `import` = Evidra ingests a completed operation from structured input.
 - `prescribe` / `report` remain the low-level protocol primitives.
 
 ### Processing
@@ -45,7 +45,7 @@ Normative behavior is defined in the linked specs.
 ```text
 Automation (CI / scripts / AI agents)
             |
-            | run / record / prescribe / report
+            | record / import / prescribe / report
             v
      +---------------------+
      |  evidra interfaces  |
@@ -80,7 +80,7 @@ Automation (CI / scripts / AI agents)
 ## Data Flow
 
 ```text
-run/record -> prescribe -> report(verdict) -> evidence -> signals -> scorecard
+record/import -> prescribe -> report(verdict) -> evidence -> signals -> scorecard
 ```
 
 1. Ingestion path receives raw operation context.
@@ -92,7 +92,7 @@ run/record -> prescribe -> report(verdict) -> evidence -> signals -> scorecard
 
 ## Current Product Shape (v1)
 
-- Primary UX: `run`, `record`, `scorecard`, `explain`.
+- Primary UX: `record`, `import`, `scorecard`, `explain`.
 - Integration point: MCP server (`evidra-mcp`).
 - Self-hosted API: centralized evidence collection, key issuance, and entry browsing. Hosted analytics are experimental.
 - Evidence-first reliability model with preview/sufficient basis in outputs.
@@ -100,9 +100,9 @@ run/record -> prescribe -> report(verdict) -> evidence -> signals -> scorecard
 
 ## Canonical Invariants
 
-1. One scoring/signal engine for all ingestion paths (`run`, `record`, MCP, low-level CLI).
+1. One scoring/signal engine for all ingestion paths (`record`, `import`, MCP, low-level CLI).
 2. Evidence is the single source of truth for replayable scoring.
-3. `run` is orchestration, not a second scoring engine.
+3. `record` is orchestration, not a second scoring engine.
 4. Correlation IDs are not default high-cardinality metric labels.
 5. Reliability signals are behavioral indicators, not deny/allow policy enforcement.
 
@@ -117,7 +117,7 @@ Normative contracts:
 
 System design and implementation mapping:
 - [V1 Architecture](system-design/V1_ARCHITECTURE.md)
-- [V1 Run/Record Contract](system-design/V1_RUN_RECORD_CONTRACT.md)
+- [V1 Record/Import Contract](system-design/V1_RUN_RECORD_CONTRACT.md)
 - [CNCF Standards Alignment](system-design/EVIDRA_CNCF_STANDARDS_ALIGNMENT.md)
 
 Operational references:

@@ -205,8 +205,8 @@ and will be rejected.
 
 ### Usage (Phase 2)
 
-```
-evidra ingest-findings --format sarif --file trivy.sarif --artifact-digest sha256:abcd...
+```bash
+evidra import-findings --sarif trivy.sarif --artifact artifact.json
 ```
 
 ### Phase 2
@@ -405,8 +405,8 @@ Each adapter is:
 
 CLI additions:
 
-```
-evidra ingest-findings --format sarif --file <path> --artifact-digest <digest>
+```bash
+evidra import-findings --sarif <path> --artifact <artifact-file>
 evidra export --format cloudevents --session <id>
 evidra export --format intoto --session <id>
 ```

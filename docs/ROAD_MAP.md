@@ -10,13 +10,13 @@ toward broader CNCF ecosystem adoption.
 ## Current State
 
 - CLI and MCP are the authoritative analytics surfaces today.
-- `evidra run`, `record`, `report`, `scorecard`, and `explain` already produce
+- `evidra record`, `import`, `report`, `scorecard`, and `explain` already produce
   evidence-backed behavioral assessments.
 - Self-hosted supports centralized evidence ingestion, key issuance, and entry
   browsing today.
 - Self-hosted analytics endpoints remain experimental until they reuse the
   same engine end to end as CLI and MCP.
-- OTLP/HTTP metrics export is already available for `run` and `record`,
+- OTLP/HTTP metrics export is already available for `record` and `import`,
   including Prometheus and OpenTelemetry-oriented guidance.
 - The core contracts are defined around append-only evidence, canonicalized
   actions, behavioral signals, and scorecards rather than policy enforcement.

@@ -18,12 +18,12 @@ For architecture and protocol semantics, see:
 | `scorecard` | Generate reliability scorecard for an actor/session/window |
 | `explain` | Show signal-level explanation for scorecard |
 | `compare` | Compare actors and workload overlap |
-| `run` | Execute wrapped command and record lifecycle outcome |
-| `record` | Ingest completed operation from structured JSON input |
+| `record` | Execute wrapped command and record lifecycle outcome |
+| `import` | Ingest completed operation from structured JSON input |
 | `prescribe` | Record pre-execution intent/risk |
 | `report` | Record post-execution outcome |
 | `validate` | Validate evidence chain/signatures |
-| `ingest-findings` | Ingest SARIF findings as evidence entries |
+| `import-findings` | Ingest SARIF findings as evidence entries |
 | `prompts` | Prompt artifact generation/verification |
 | `keygen` | Generate Ed25519 keypair |
 | `version` | Print version |
@@ -71,7 +71,7 @@ For architecture and protocol semantics, see:
 
 | Flag | Description |
 |---|---|
-| `--artifact` | Artifact file path (YAML/JSON) |
+| `-f`, `--artifact` | Artifact file path (YAML/JSON) |
 | `--tool` | Tool name (for example `kubectl`, `terraform`) |
 | `--operation` | Operation name (`apply` default) |
 | `--environment` | Environment label |
@@ -110,12 +110,12 @@ For architecture and protocol semantics, see:
 | `--signing-key-path` | PEM Ed25519 private key path |
 | `--signing-mode` | `strict` (default) or `optional` |
 
-### `evidra run` Flags
+### `evidra record` Flags
 
-`run` requires `--` before the wrapped command:
+`record` requires `--` before the wrapped command:
 
 ```bash
-evidra run --tool kubectl --artifact deploy.yaml -- -- sh -c "kubectl apply -f deploy.yaml"
+evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml
 ```
 
 Security boundary: Evidra does not sandbox the wrapped command. Treat it with
@@ -124,9 +124,9 @@ evidence around the command; it does not contain or block it.
 
 | Flag | Description |
 |---|---|
-| `--artifact` | Artifact file path (YAML/JSON) |
-| `--tool` | Tool name |
-| `--operation` | Operation name (`apply` default) |
+| `-f`, `--artifact` | Artifact file path (YAML/JSON) |
+| `--tool` | Tool name override (optional when inferred from wrapped command) |
+| `--operation` | Operation override (optional when inferred from wrapped command) |
 | `--environment` | Environment label |
 | `--evidence-dir` | Evidence directory override |
 | `--actor` | Actor ID |
@@ -138,11 +138,13 @@ evidence around the command; it does not contain or block it.
 | `--signing-key-path` | PEM Ed25519 private key path |
 | `--signing-mode` | `strict` (default) or `optional` |
 
-### `evidra record` Flags
+`record` infers `tool` from the wrapped command's first word for `kubectl`, `oc`, `helm`, `terraform`, `docker`, `argocd`, `kustomize`, and `pulumi`. It infers `operation` only from supported command patterns. Shell wrappers such as `sh -c` require explicit `--tool` and `--operation`.
+
+### `evidra import` Flags
 
 | Flag | Description |
 |---|---|
-| `--input` | Path to record JSON file (`-` for stdin) |
+| `--input` | Path to import JSON file (`-` for stdin) |
 | `--evidence-dir` | Evidence directory override |
 | `--signing-key` | Base64 Ed25519 private key |
 | `--signing-key-path` | PEM Ed25519 private key path |
@@ -155,7 +157,7 @@ evidence around the command; it does not contain or block it.
 
 ### Assessment Snapshot Output
 
-`evidra run` and `evidra record` return the same immediate assessment fields:
+`evidra record` and `evidra import` return the same immediate assessment fields:
 
 - `risk_level`
 - `score`
@@ -185,7 +187,7 @@ The legacy score-band alias is not part of the v1 output contract.
 | `--evidence-dir` | Evidence directory override |
 | `--public-key` | Ed25519 public key PEM (enables signature verification) |
 
-### `evidra ingest-findings` Flags
+### `evidra import-findings` Flags
 
 | Flag | Description |
 |---|---|

@@ -13,14 +13,14 @@ Recommended defaults:
 
 | Pattern | When to use |
 |---|---|
-| `evidra ingest-findings` (standalone) | Scanner runs as a separate CI step, independent of apply |
+| `evidra import-findings` (standalone) | Scanner runs as a separate CI step, independent of apply |
 | `evidra prescribe --scanner-report` | Scanner findings bundled with prescribe in advanced flows |
 
 Both write SARIF findings as evidence entries linked to the same session.
 
 ## Pattern 1: Standalone ingestion (recommended)
 
-Use `ingest-findings` alongside `evidra run`. This is the simplest path — scan and apply are independent steps that share a session ID.
+Use `import-findings` alongside `evidra record`. This is the simplest path — scan and apply are independent steps that share a session ID.
 
 ### Trivy + Terraform
 
@@ -33,15 +33,13 @@ terraform plan -out=tfplan
 terraform show -json tfplan > plan.json
 
 # 3) Apply with Evidra observing
-evidra run \
-  --tool terraform \
-  --operation apply \
-  --artifact plan.json \
+evidra record \
+  -f plan.json \
   --environment staging \
   -- terraform apply -auto-approve tfplan
 
 # 4) Ingest scanner findings into the same evidence store
-evidra ingest-findings \
+evidra import-findings \
   --sarif scanner_report.sarif \
   --artifact plan.json
 ```
@@ -53,22 +51,20 @@ evidra ingest-findings \
 kubescape scan . --format sarif --output scanner_report_k8s.sarif
 
 # 2) Apply with Evidra observing
-evidra run \
-  --tool kubectl \
-  --operation apply \
-  --artifact manifest.yaml \
+evidra record \
+  -f manifest.yaml \
   --environment staging \
   -- kubectl apply -f manifest.yaml
 
 # 3) Ingest scanner findings
-evidra ingest-findings \
+evidra import-findings \
   --sarif scanner_report_k8s.sarif \
   --artifact manifest.yaml
 ```
 
 ## Pattern 2: Bundled with prescribe
 
-Use `--scanner-report` on `evidra prescribe` when you want findings linked directly to the prescription entry. This requires the manual prescribe/report flow instead of `evidra run`.
+Use `--scanner-report` on `evidra prescribe` when you want findings linked directly to the prescription entry. This requires the manual prescribe/report flow instead of `evidra record`.
 
 ```bash
 # 1) Scan
@@ -125,10 +121,8 @@ jobs:
 
       - name: Terraform Apply (observed by Evidra)
         run: |
-          evidra run \
-            --tool terraform \
-            --operation apply \
-            --artifact plan.json \
+          evidra record \
+            -f plan.json \
             --environment ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }} \
             --actor ci-${{ github.repository }} \
             -- terraform apply -auto-approve tfplan
@@ -136,7 +130,7 @@ jobs:
       - name: Ingest Trivy findings
         if: always()
         run: |
-          evidra ingest-findings \
+          evidra import-findings \
             --sarif scanner_report.sarif \
             --artifact plan.json
 
@@ -154,9 +148,8 @@ deploy:
   script:
     - trivy config . --format sarif --output scanner_report.sarif
     - terraform plan -out=tfplan && terraform show -json tfplan > plan.json
-    - evidra run --tool terraform --operation apply --artifact plan.json
-        --environment staging -- terraform apply -auto-approve tfplan
-    - evidra ingest-findings --sarif scanner_report.sarif --artifact plan.json
+    - evidra record -f plan.json --environment staging -- terraform apply -auto-approve tfplan
+    - evidra import-findings --sarif scanner_report.sarif --artifact plan.json
     - evidra scorecard --min-operations 5
 ```
 

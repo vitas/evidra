@@ -87,11 +87,11 @@ Supported in v1:
 
 Not supported in v1:
 
-- `evidra run` emitting `declined`
+- `evidra record` emitting `declined`
 - scoring changes based on decision evidence
 - new decision-specific signals
 
-`run` remains execution-only by design.
+`record` remains execution-only by design.
 
 ---
 

@@ -152,7 +152,7 @@ Current reality:
 | Findings ingest and scanner bundling | `tests/contracts/findings_test.go`, `tests/contracts/scanner_prescribe_test.go` |
 | Session-filtered scoring | `tests/contracts/session_scoring_test.go` |
 | Risk-escalation scorecard surfacing | `tests/contracts/risk_escalation_test.go` |
-| Run vs. record parity | `tests/contracts/run_record_parity_test.go` |
+| Record vs. import parity | `tests/contracts/run_record_parity_test.go` |
 | Signed evidence and tamper detection | `tests/contracts/signing_test.go` |
 | MCP transport and inspector modes | `tests/inspector/run_inspector_tests.sh`, `pkg/mcpserver/e2e_test.go` |
 | Benchmark dataset integrity | `tests/benchmark/scripts/*.sh` and benchmark metadata |
@@ -166,7 +166,7 @@ real-world artifact coverage over time:
 - explain/compare on vendored multi-actor real datasets
 - findings ingest on vendored real SARIF outputs from open-source scanners
 - risk-escalation scenarios expressed with realistic workload histories
-- run/record parity on vendored real artifacts instead of handwritten configmaps
+- record/import parity on vendored real artifacts instead of handwritten configmaps
 
 ## CI Mapping
 

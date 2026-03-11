@@ -23,8 +23,8 @@ These endpoints currently return `501 Not Implemented` with an experimental stat
 
 - `evidra scorecard`
 - `evidra explain`
-- `evidra run`
 - `evidra record`
+- `evidra import`
 - `evidra report`
 - `evidra-mcp report`
 

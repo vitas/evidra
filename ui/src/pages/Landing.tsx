@@ -20,7 +20,7 @@ const PIPELINE_CHART = `flowchart LR
 
 const SYSTEM_CHART = `flowchart TB
   subgraph Clients ["Client Layer"]
-    CLI["evidra CLI<br/>run · record · scorecard"]
+    CLI["evidra CLI<br/>record · import · scorecard"]
     MCP["evidra-mcp<br/>MCP Server for AI Agents"]
     CI["CI Systems<br/>GitHub Actions · GitLab CI"]
   end
@@ -73,7 +73,7 @@ curl -fsSL https://github.com/samebits/evidra/releases/latest/download/evidra_$(
   | tar -xz -C /usr/local/bin evidra
 
 # Run your first observation
-evidra run -- kubectl apply -f deploy.yaml
+evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml
 
 # View the scorecard
 evidra scorecard`;
@@ -82,7 +82,7 @@ const INSTALL_BREW = `# Install via Homebrew
 brew install samebits/tap/evidra
 
 # Run your first observation
-evidra run -- kubectl apply -f deploy.yaml
+evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml
 
 # View the scorecard
 evidra scorecard`;

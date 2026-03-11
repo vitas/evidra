@@ -18,12 +18,12 @@ AI agents are getting access to production infrastructure. Who is recording thei
 
 Two primary operation modes:
 
-- `evidra run` = Evidra executes and observes a command live.
-- `evidra record` = Evidra ingests a completed operation from structured input.
+- `evidra record` = Evidra executes and observes a command live.
+- `evidra import` = Evidra ingests a completed operation from structured input.
 
 Both modes feed the same lifecycle and scoring engine.
 
-Security boundary: `evidra run` executes the wrapped local command directly.
+Security boundary: `evidra record` executes the wrapped local command directly.
 Evidra does not sandbox the wrapped command. Treat it with the same trust model
 as direct shell execution; Evidra records evidence around the command, but it
 does not contain or block it.
@@ -49,19 +49,17 @@ make build    # produces bin/evidra and bin/evidra-mcp
 evidra keygen
 export EVIDRA_SIGNING_KEY=<base64>
 
-# 2) Run and capture one operation
-evidra run \
-  --tool kubectl \
-  --operation apply \
-  --artifact deploy.yaml \
+# 2) Record one live operation
+evidra record \
+  -f deploy.yaml \
   --environment staging \
-  -- -- sh -c "kubectl apply -f deploy.yaml"
+  -- kubectl apply -f deploy.yaml
 
 # 3) View score context
 evidra scorecard --period 30d
 ```
 
-The `run` output includes first useful fields:
+The `record` output includes first useful fields:
 - `risk_level`
 - `score`
 - `score_band`
@@ -71,19 +69,19 @@ The `run` output includes first useful fields:
 
 ### CI/CD Ingestion Path
 
-Use `record` when pipelines already run native commands and you only want ingestion:
+Use `import` when pipelines already run native commands and you only want ingestion:
 
 ```bash
-evidra record --input record.json
+evidra import --input record.json
 ```
 
 Contract details:
-- [V1 Run/Record Contract](docs/system-design/V1_RUN_RECORD_CONTRACT.md)
+- [V1 Record/Import Contract](docs/system-design/V1_RUN_RECORD_CONTRACT.md)
 
 ## How It Works
 
 ```text
-run/record -> prescribe -> report(verdict) -> signals -> scorecard
+record/import -> prescribe -> report(verdict) -> signals -> scorecard
 ```
 
 1. Evidra records operation intent (`prescribe`).
@@ -109,14 +107,14 @@ Full details: [Supported Tools](docs/SUPPORTED_TOOLS.md)
 
 | Command | Purpose |
 |---|---|
-| `run` | Execute command live and record lifecycle outcome |
-| `record` | Ingest completed operation payload |
+| `record` | Execute command live and record lifecycle outcome |
+| `import` | Ingest completed operation payload |
 | `scorecard` | Compute reliability scorecard |
 | `explain` | Show signal-level breakdown |
 | `prescribe` | Record pre-execution intent |
 | `report` | Record post-execution outcome |
 | `validate` | Verify evidence chain and signatures |
-| `ingest-findings` | Ingest SARIF findings |
+| `import-findings` | Ingest SARIF findings |
 | `compare` | Compare actor reliability |
 | `keygen` | Generate Ed25519 signing keypair |
 
@@ -189,10 +187,10 @@ curl http://localhost:8080/healthz
 Point the CLI at the API backend to forward evidence:
 
 ```bash
-evidra run \
+evidra record \
   --url http://localhost:8080 \
   --api-key my-secret-key \
-  --tool kubectl --operation apply --artifact deploy.yaml \
+  -f deploy.yaml \
   -- kubectl apply -f deploy.yaml
 ```
 

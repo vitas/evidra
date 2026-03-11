@@ -1,4 +1,4 @@
-# V1 Run/Record Contract
+# V1 Record/Import Contract
 
 **Status:** Normative for v1 CLI ingestion/orchestration  
 **Date:** 2026-03-09
@@ -9,21 +9,21 @@
 
 This contract defines:
 
-1. `evidra run` orchestration boundary
-2. `evidra record` ingestion schema
+1. `evidra record` orchestration boundary
+2. `evidra import` ingestion schema
 3. required output/basis fields for first-use value
 
 Design rule:
 
-- `run` is orchestration, not a second engine.
-- `record` validates structured input, then uses the same lifecycle pipeline as `run`.
+- `record` is orchestration, not a second engine.
+- `import` validates structured input, then uses the same lifecycle pipeline as `record`.
 
 ---
 
 ## 2. Normative Boundary
 
-- `run` = Evidra executes and observes the command live.
-- `record` = Evidra ingests a completed automation execution from structured input.
+- `record` = Evidra executes and observes the command live.
+- `import` = Evidra ingests a completed automation execution from structured input.
 
 Both modes must produce equivalent prescribe/report semantics for equivalent operations.
 
@@ -73,7 +73,7 @@ Validation rules:
 
 ## 4. First Useful Output (v1)
 
-For `run` and `record`, output must include:
+For `record` and `import`, output must include:
 
 - `risk_level`
 - `score`

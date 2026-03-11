@@ -32,10 +32,8 @@ terraform plan -out=tfplan
 terraform show -json tfplan > plan.json
 
 # Run with Evidra observing
-evidra run \
-  --tool terraform \
-  --operation apply \
-  --artifact plan.json \
+evidra record \
+  -f plan.json \
   --environment staging \
   -- terraform apply -auto-approve tfplan
 ```
@@ -90,7 +88,7 @@ Add `EVIDRA_SIGNING_KEY` to your repository secrets (Settings > Secrets > Action
 
 Generate it locally with `evidra keygen` and copy the base64 private key.
 
-### Workflow using `evidra run`
+### Workflow using `evidra record`
 
 This is the recommended path. Evidra wraps your terraform command and records the full lifecycle automatically.
 
@@ -118,10 +116,8 @@ jobs:
 
       - name: Terraform Apply (observed by Evidra)
         run: |
-          evidra run \
-            --tool terraform \
-            --operation apply \
-            --artifact plan.json \
+          evidra record \
+            -f plan.json \
             --environment ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }} \
             --actor ci-${{ github.repository }} \
             -- terraform apply -auto-approve tfplan
@@ -131,9 +127,9 @@ jobs:
         run: evidra scorecard --min-operations 5
 ```
 
-### Workflow using `evidra record` (post-hoc)
+### Workflow using `evidra import` (post-hoc)
 
-Use `record` when you want to keep your existing pipeline unchanged and only add Evidra as an observer after the fact.
+Use `import` when you want to keep your existing pipeline unchanged and only add Evidra as an observer after the fact.
 
 ```yaml
       - name: Terraform Apply
@@ -163,7 +159,7 @@ Use `record` when you want to keep your existing pipeline unchanged and only add
             "raw_artifact": $PLAN
           }
           EOF
-          evidra record --input record.json
+          evidra import --input record.json
 ```
 
 Note: `raw_artifact` must be the JSON plan output from `terraform show -json`, not a text string like `"terraform apply"`. Without the plan JSON, Evidra falls back to the generic adapter and cannot extract resource-level risk information.
@@ -174,10 +170,10 @@ Note: `raw_artifact` must be the JSON plan output from `terraform show -json`, n
 terraform plan -destroy -out=tfplan
 terraform show -json tfplan > plan.json
 
-evidra run \
+evidra record \
+  -f plan.json \
   --tool terraform \
   --operation destroy \
-  --artifact plan.json \
   --environment staging \
   -- terraform apply -auto-approve tfplan
 ```
