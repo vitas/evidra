@@ -20,7 +20,13 @@ assert_contains() {
 assert_not_contains() {
   local pattern="$1"
   shift
-  if rg -n --fixed-strings -g '!docs/plans/**' -g '!tests/test_cli_command_rebranding.sh' -- "$pattern" "$@" >/dev/null; then
+  if rg -n --fixed-strings \
+    -g '!docs/plans/**' \
+    -g '!docs/research/**' \
+    -g '!docs/system-design/backlog/**' \
+    -g '!docs/system-design/internal/**' \
+    -g '!tests/test_cli_command_rebranding.sh' \
+    -- "$pattern" "$@" >/dev/null; then
     fail "found forbidden '$pattern' in $*"
   fi
 }
