@@ -12,7 +12,7 @@ import (
 	testcli "samebits.com/evidra-benchmark/tests/testutil"
 )
 
-func TestE2E_RunRecordParity(t *testing.T) {
+func TestE2E_RecordImportParity(t *testing.T) {
 	bin := testcli.EvidraBinary(t)
 	tmpDir := t.TempDir()
 	privPath, _ := testcli.GenerateKeyPair(t, tmpDir)
@@ -21,32 +21,32 @@ func TestE2E_RunRecordParity(t *testing.T) {
 		t.Fatalf("write artifact: %v", err)
 	}
 
-	runEvidenceDir := filepath.Join(tmpDir, "run-evidence")
-	runStdout, runStderr, runCode := testcli.RunEvidra(t, bin,
-		"run",
+	recordEvidenceDir := filepath.Join(tmpDir, "record-evidence")
+	recordStdout, recordStderr, recordCode := testcli.RunEvidra(t, bin,
+		"record",
 		"--tool", "kubectl",
 		"--operation", "apply",
 		"--artifact", artifactPath,
 		"--environment", "staging",
 		"--session-id", "e2e-run-session",
 		"--operation-id", "e2e-op-1",
-		"--evidence-dir", runEvidenceDir,
+		"--evidence-dir", recordEvidenceDir,
 		"--signing-key-path", privPath,
 		"--", "sh", "-c", "exit 0",
 	)
-	if runCode != 0 {
-		t.Fatalf("run exit=%d stderr=%s", runCode, runStderr)
+	if recordCode != 0 {
+		t.Fatalf("record exit=%d stderr=%s", recordCode, recordStderr)
 	}
-	var runResult map[string]interface{}
-	if err := json.Unmarshal([]byte(runStdout), &runResult); err != nil {
-		t.Fatalf("decode run output: %v", err)
+	var recordResult map[string]interface{}
+	if err := json.Unmarshal([]byte(recordStdout), &recordResult); err != nil {
+		t.Fatalf("decode record output: %v", err)
 	}
 
-	recordEvidenceDir := filepath.Join(tmpDir, "record-evidence")
-	recordInputPath := filepath.Join(tmpDir, "record.json")
-	recordInput := map[string]interface{}{
+	importEvidenceDir := filepath.Join(tmpDir, "import-evidence")
+	importInputPath := filepath.Join(tmpDir, "record.json")
+	importInput := map[string]interface{}{
 		"contract_version": "v1",
-		"session_id":       "e2e-record-session",
+		"session_id":       "e2e-import-session",
 		"operation_id":     "e2e-op-1",
 		"tool":             "kubectl",
 		"operation":        "apply",
@@ -59,32 +59,32 @@ func TestE2E_RunRecordParity(t *testing.T) {
 		"duration_ms":  1,
 		"raw_artifact": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: parity-e2e\n",
 	}
-	recordBytes, err := json.Marshal(recordInput)
+	recordBytes, err := json.Marshal(importInput)
 	if err != nil {
 		t.Fatalf("marshal record input: %v", err)
 	}
-	if err := os.WriteFile(recordInputPath, recordBytes, 0o644); err != nil {
+	if err := os.WriteFile(importInputPath, recordBytes, 0o644); err != nil {
 		t.Fatalf("write record input: %v", err)
 	}
 
-	recStdout, recStderr, recCode := testcli.RunEvidra(t, bin,
-		"record",
-		"--input", recordInputPath,
-		"--evidence-dir", recordEvidenceDir,
+	importStdout, importStderr, importCode := testcli.RunEvidra(t, bin,
+		"import",
+		"--input", importInputPath,
+		"--evidence-dir", importEvidenceDir,
 		"--signing-key-path", privPath,
 	)
-	if recCode != 0 {
-		t.Fatalf("record exit=%d stderr=%s", recCode, recStderr)
+	if importCode != 0 {
+		t.Fatalf("import exit=%d stderr=%s", importCode, importStderr)
 	}
-	var recResult map[string]interface{}
-	if err := json.Unmarshal([]byte(recStdout), &recResult); err != nil {
-		t.Fatalf("decode record output: %v", err)
+	var importResult map[string]interface{}
+	if err := json.Unmarshal([]byte(importStdout), &importResult); err != nil {
+		t.Fatalf("decode import output: %v", err)
 	}
 
-	runSignals := toIntMap(t, runResult["signal_summary"])
-	recSignals := toIntMap(t, recResult["signal_summary"])
-	if !reflect.DeepEqual(runSignals, recSignals) {
-		t.Fatalf("signal mismatch\nrun=%v\nrecord=%v", runSignals, recSignals)
+	recordSignals := toIntMap(t, recordResult["signal_summary"])
+	importSignals := toIntMap(t, importResult["signal_summary"])
+	if !reflect.DeepEqual(recordSignals, importSignals) {
+		t.Fatalf("signal mismatch\nrecord=%v\nimport=%v", recordSignals, importSignals)
 	}
 }
 

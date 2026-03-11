@@ -104,6 +104,7 @@ func parsePrescribeFlags(args []string, stderr io.Writer) (prescribeFlags, int) 
 	fs := flag.NewFlagSet("prescribe", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	artifactFlag := fs.String("artifact", "", "Path to artifact file (YAML or JSON)")
+	artifactShortFlag := fs.String("f", "", "Path to artifact file (YAML or JSON)")
 	toolFlag := fs.String("tool", "", "Tool name (kubectl, terraform)")
 	operationFlag := fs.String("operation", "apply", "Operation (apply, delete, plan)")
 	envFlag := fs.String("environment", "", "Environment (production, staging, development)")
@@ -120,13 +121,14 @@ func parsePrescribeFlags(args []string, stderr io.Writer) (prescribeFlags, int) 
 	if err := fs.Parse(args); err != nil {
 		return prescribeFlags{}, 2
 	}
-	if *artifactFlag == "" || *toolFlag == "" {
+	artifactPath := firstNonEmpty(*artifactFlag, *artifactShortFlag)
+	if artifactPath == "" || *toolFlag == "" {
 		fmt.Fprintln(stderr, "prescribe requires --artifact and --tool")
 		return prescribeFlags{}, 2
 	}
 
 	return prescribeFlags{
-		artifactPath:        *artifactFlag,
+		artifactPath:        artifactPath,
 		tool:                *toolFlag,
 		operation:           *operationFlag,
 		environment:         *envFlag,

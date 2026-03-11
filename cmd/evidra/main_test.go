@@ -119,7 +119,7 @@ func TestRunPrescribe_ScannerReportCountsWrittenFindings(t *testing.T) {
 	}
 }
 
-func TestRunIngestFindings_DefaultsTraceIDToSessionID(t *testing.T) {
+func TestRunImportFindings_DefaultsTraceIDToSessionID(t *testing.T) {
 	t.Parallel()
 
 	signingKey := testutil.TestSigningKeyBase64(t)
@@ -132,14 +132,14 @@ func TestRunIngestFindings_DefaultsTraceIDToSessionID(t *testing.T) {
 
 	var out, errBuf bytes.Buffer
 	code := run([]string{
-		"ingest-findings",
+		"import-findings",
 		"--sarif", scannerReport,
 		"--session-id", "session-findings-1",
 		"--evidence-dir", evidenceDir,
 		"--signing-key", signingKey,
 	}, &out, &errBuf)
 	if code != 0 {
-		t.Fatalf("ingest-findings exit %d: %s", code, errBuf.String())
+		t.Fatalf("import-findings exit %d: %s", code, errBuf.String())
 	}
 
 	entries, err := evidence.ReadAllEntriesAtPath(evidenceDir)

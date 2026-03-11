@@ -13,7 +13,7 @@ import (
 	"samebits.com/evidra-benchmark/pkg/version"
 )
 
-type ingestFindingsFlags struct {
+type importFindingsFlags struct {
 	sarifPath      string
 	artifactPath   string
 	toolVersion    string
@@ -25,7 +25,7 @@ type ingestFindingsFlags struct {
 	signingMode    string
 }
 
-type ingestFindingsCommand struct {
+type importFindingsCommand struct {
 	findings       []evidence.FindingPayload
 	evidencePath   string
 	artifactDigest string
@@ -45,13 +45,13 @@ type findingAppendConfig struct {
 	artifactDigest string
 }
 
-func cmdIngestFindings(args []string, stdout, stderr io.Writer) int {
-	opts, code := parseIngestFindingsFlags(args, stderr)
+func cmdImportFindings(args []string, stdout, stderr io.Writer) int {
+	opts, code := parseImportFindingsFlags(args, stderr)
 	if code != 0 {
 		return code
 	}
 
-	cmd, err := prepareIngestFindingsCommand(opts)
+	cmd, err := prepareImportFindingsCommand(opts)
 	if err != nil {
 		fmt.Fprintf(stderr, "%v\n", err)
 		return 1
@@ -74,8 +74,8 @@ func cmdIngestFindings(args []string, stdout, stderr io.Writer) int {
 	return writeJSON(stdout, stderr, "encode result", result)
 }
 
-func parseIngestFindingsFlags(args []string, stderr io.Writer) (ingestFindingsFlags, int) {
-	fs := flag.NewFlagSet("ingest-findings", flag.ContinueOnError)
+func parseImportFindingsFlags(args []string, stderr io.Writer) (importFindingsFlags, int) {
+	fs := flag.NewFlagSet("import-findings", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	sarifFlag := fs.String("sarif", "", "Path to SARIF scanner report")
 	artifactFlag := fs.String("artifact", "", "Path to artifact file (for artifact_digest linking)")
@@ -87,14 +87,14 @@ func parseIngestFindingsFlags(args []string, stderr io.Writer) (ingestFindingsFl
 	signingKeyPathFlag := fs.String("signing-key-path", "", "Path to PEM-encoded Ed25519 signing key")
 	signingModeFlag := fs.String("signing-mode", "", "Signing mode: strict (default) or optional")
 	if err := fs.Parse(args); err != nil {
-		return ingestFindingsFlags{}, 2
+		return importFindingsFlags{}, 2
 	}
 	if *sarifFlag == "" {
-		fmt.Fprintln(stderr, "ingest-findings requires --sarif")
-		return ingestFindingsFlags{}, 2
+		fmt.Fprintln(stderr, "import-findings requires --sarif")
+		return importFindingsFlags{}, 2
 	}
 
-	return ingestFindingsFlags{
+	return importFindingsFlags{
 		sarifPath:      *sarifFlag,
 		artifactPath:   *artifactFlag,
 		toolVersion:    *toolVersionFlag,
@@ -107,7 +107,7 @@ func parseIngestFindingsFlags(args []string, stderr io.Writer) (ingestFindingsFl
 	}, 0
 }
 
-func prepareIngestFindingsCommand(opts ingestFindingsFlags) (ingestFindingsCommand, error) {
+func prepareImportFindingsCommand(opts importFindingsFlags) (importFindingsCommand, error) {
 	sessionID := opts.sessionID
 	if sessionID == "" {
 		sessionID = evidence.GenerateSessionID()
@@ -115,12 +115,12 @@ func prepareIngestFindingsCommand(opts ingestFindingsFlags) (ingestFindingsComma
 
 	signer, err := resolveSigner(opts.signingKey, opts.signingKeyPath, opts.signingMode)
 	if err != nil {
-		return ingestFindingsCommand{}, fmt.Errorf("resolve signer: %w", err)
+		return importFindingsCommand{}, fmt.Errorf("resolve signer: %w", err)
 	}
 
 	findings, err := loadSARIFFindings(opts.sarifPath, "sarif")
 	if err != nil {
-		return ingestFindingsCommand{}, err
+		return importFindingsCommand{}, err
 	}
 	if opts.toolVersion != "" {
 		for i := range findings {
@@ -132,7 +132,7 @@ func prepareIngestFindingsCommand(opts ingestFindingsFlags) (ingestFindingsComma
 	if opts.artifactPath != "" {
 		artifactData, err := os.ReadFile(opts.artifactPath)
 		if err != nil {
-			return ingestFindingsCommand{}, fmt.Errorf("read artifact: %w", err)
+			return importFindingsCommand{}, fmt.Errorf("read artifact: %w", err)
 		}
 		artifactDigest = canon.ComputeArtifactDigest(artifactData)
 	}
@@ -142,7 +142,7 @@ func prepareIngestFindingsCommand(opts ingestFindingsFlags) (ingestFindingsComma
 		actorID = "cli"
 	}
 
-	return ingestFindingsCommand{
+	return importFindingsCommand{
 		findings:       findings,
 		evidencePath:   resolveEvidencePath(opts.evidenceDir),
 		artifactDigest: artifactDigest,

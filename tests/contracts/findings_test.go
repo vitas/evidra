@@ -25,7 +25,7 @@ func TestE2E_FindingsIngestion(t *testing.T) {
 
 	// Step 1: Ingest trivy findings (pre-prescribe).
 	stdout, stderr, exitCode := testcli.RunEvidra(t, bin,
-		"ingest-findings",
+		"import-findings",
 		"--sarif", trivySarif,
 		"--artifact", artifactPath,
 		"--evidence-dir", evidenceDir,
@@ -104,7 +104,7 @@ func TestE2E_FindingsIngestion(t *testing.T) {
 
 	// Step 4: Ingest kubescape findings (post-report).
 	stdout, stderr, exitCode = testcli.RunEvidra(t, bin,
-		"ingest-findings",
+		"import-findings",
 		"--sarif", kubescapeSarif,
 		"--artifact", artifactPath,
 		"--evidence-dir", evidenceDir,

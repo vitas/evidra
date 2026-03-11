@@ -7,7 +7,7 @@ import (
 	"samebits.com/evidra-benchmark/internal/telemetry"
 )
 
-func emitOperationMetrics(ctx context.Context, payload runMetricsPayload) error {
+func emitOperationMetrics(ctx context.Context, payload operationMetricsPayload) error {
 	cfg, err := config.ResolveMetricsConfig("", "", "")
 	if err != nil {
 		return err

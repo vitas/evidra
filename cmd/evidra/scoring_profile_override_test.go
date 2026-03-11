@@ -139,7 +139,7 @@ func TestReport_UsesScoringProfileOverride(t *testing.T) {
 	}
 }
 
-func TestRun_UsesScoringProfileOverride(t *testing.T) {
+func TestRecord_UsesScoringProfileOverride(t *testing.T) {
 	t.Parallel()
 
 	signingKey := testutil.TestSigningKeyBase64(t)
@@ -153,7 +153,7 @@ func TestRun_UsesScoringProfileOverride(t *testing.T) {
 
 	var out, errBuf bytes.Buffer
 	code := run([]string{
-		"run",
+		"record",
 		"--tool", "kubectl",
 		"--operation", "apply",
 		"--artifact", artifactPath,
@@ -164,19 +164,19 @@ func TestRun_UsesScoringProfileOverride(t *testing.T) {
 		"--", "sh", "-c", "exit 0",
 	}, &out, &errBuf)
 	if code != 0 {
-		t.Fatalf("run exit=%d stderr=%s", code, errBuf.String())
+		t.Fatalf("record exit=%d stderr=%s", code, errBuf.String())
 	}
 
 	var result map[string]interface{}
 	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
-		t.Fatalf("decode run output: %v", err)
+		t.Fatalf("decode record output: %v", err)
 	}
 	if got := result["scoring_profile_id"]; got != "custom.run-profile" {
 		t.Fatalf("scoring_profile_id = %v, want custom.run-profile", got)
 	}
 }
 
-func TestRecord_UsesScoringProfileOverride(t *testing.T) {
+func TestImport_UsesScoringProfileOverride(t *testing.T) {
 	t.Parallel()
 
 	signingKey := testutil.TestSigningKeyBase64(t)
@@ -211,19 +211,19 @@ func TestRecord_UsesScoringProfileOverride(t *testing.T) {
 
 	var out, errBuf bytes.Buffer
 	code := run([]string{
-		"record",
+		"import",
 		"--input", inputPath,
 		"--evidence-dir", evidenceDir,
 		"--signing-key", signingKey,
 		"--scoring-profile", profilePath,
 	}, &out, &errBuf)
 	if code != 0 {
-		t.Fatalf("record exit=%d stderr=%s", code, errBuf.String())
+		t.Fatalf("import exit=%d stderr=%s", code, errBuf.String())
 	}
 
 	var result map[string]interface{}
 	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
-		t.Fatalf("decode record output: %v", err)
+		t.Fatalf("decode import output: %v", err)
 	}
 	if got := result["scoring_profile_id"]; got != "custom.record-profile" {
 		t.Fatalf("scoring_profile_id = %v, want custom.record-profile", got)
