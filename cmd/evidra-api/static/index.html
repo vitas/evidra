@@ -437,8 +437,8 @@ flowchart TB
     MCP["evidra-mcp<br/>MCP Server for AI Agents"]
     CI["CI Systems<br/>GitHub Actions · GitLab CI"]
   end
-  subgraph Backend ["evidra-api<br/>Self-Hosted · analytics experimental"]
-    API["REST API<br/>ingest · browse · analytics experimental"]
+  subgraph Backend ["evidra-api<br/>Self-Hosted · centralized analytics"]
+    API["REST API<br/>ingest · browse · scorecard · explain"]
     DB[("PostgreSQL")]
     API --> DB
   end
@@ -513,10 +513,11 @@ docker compose up -d
 <span class="comment"># Verify it's running</span>
 curl http://localhost:8080/healthz
 
-<span class="comment"># Hosted /v1/evidence/scorecard and /v1/evidence/explain</span>
-<span class="comment"># are experimental today. Use CLI or MCP for authoritative analytics.</span></div>
+<span class="comment"># Query tenant-wide hosted analytics</span>
+curl -H "Authorization: Bearer $EVIDRA_API_KEY" \
+  "http://localhost:8080/v1/evidence/scorecard?period=30d"</div>
       </div>
-      <p class="section-subtitle" style="margin-top: 1rem; margin-bottom: 0;">Self-hosted supports centralized evidence collection today. Hosted <code>/v1/evidence/scorecard</code> and <code>/v1/evidence/explain</code> remain experimental; see <a href="https://github.com/vitas/evidra/blob/main/docs/guides/self-hosted-experimental-status.md" target="_blank" rel="noopener">Self-Hosted Experimental Status</a>.</p>
+      <p class="section-subtitle" style="margin-top: 1rem; margin-bottom: 0;">Self-hosted supports centralized evidence collection plus tenant-wide <code>/v1/evidence/scorecard</code> and <code>/v1/evidence/explain</code> over stored evidence; see <a href="https://github.com/vitas/evidra/blob/main/docs/guides/self-hosted-experimental-status.md" target="_blank" rel="noopener">Self-Hosted Experimental Status</a>.</p>
     </div>
   </div>
 </section>
@@ -528,11 +529,11 @@ curl http://localhost:8080/healthz
   <div class="container">
     <div class="section-label">API</div>
     <h2 class="section-title">API Reference</h2>
-    <p class="section-subtitle">Full OpenAPI 3.0 documentation for all endpoints, including the current experimental status of hosted analytics routes.</p>
+    <p class="section-subtitle">Full OpenAPI 3.0 documentation for all endpoints, including tenant-wide hosted analytics routes.</p>
     <a class="api-card" href="/docs/api">
       <div class="api-card-left">
         <h3>Interactive API Documentation</h3>
-        <p>Explore all 15 endpoints with request/response schemas, authentication details, examples, and explicit 501 responses for experimental hosted analytics.</p>
+        <p>Explore all 17 endpoints with request/response schemas, authentication details, examples, webhook payloads, and hosted scorecard/explain analytics contracts.</p>
       </div>
       <div class="api-card-right">/docs/api &rarr;</div>
     </a>

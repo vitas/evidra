@@ -1,8 +1,13 @@
 package store
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
+
+	"samebits.com/evidra-benchmark/internal/analytics"
+	testutil "samebits.com/evidra-benchmark/internal/testutil"
+	"samebits.com/evidra-benchmark/pkg/evidence"
 )
 
 func TestListOptions_Defaults(t *testing.T) {
@@ -39,5 +44,363 @@ func TestParsePeriod(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("parsePeriod(%q) = %v, want %v", tt.input, got, tt.want)
 		}
+	}
+}
+
+func TestStoredEntriesToEvidenceEntries_RoundTripRawPayload(t *testing.T) {
+	t.Parallel()
+
+	entry := buildStoredTestPrescription(t, storedEntryFixture{
+		actorID:        "agent-a",
+		sessionID:      "session-a",
+		tool:           "kubectl",
+		scopeClass:     "production",
+		artifactDigest: "artifact-a",
+	})
+
+	got, err := storedEntriesToEvidenceEntries([]StoredEntry{entry})
+	if err != nil {
+		t.Fatalf("storedEntriesToEvidenceEntries: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(got))
+	}
+	if got[0].EntryID != entry.ID {
+		t.Fatalf("entry_id = %q, want %q", got[0].EntryID, entry.ID)
+	}
+	if got[0].Actor.ID != "agent-a" {
+		t.Fatalf("actor_id = %q, want agent-a", got[0].Actor.ID)
+	}
+	if got[0].SessionID != "session-a" {
+		t.Fatalf("session_id = %q, want session-a", got[0].SessionID)
+	}
+	if got[0].Type != evidence.EntryTypePrescribe {
+		t.Fatalf("type = %q, want %q", got[0].Type, evidence.EntryTypePrescribe)
+	}
+}
+
+func TestComputeScorecardFromStoredEntries_AppliesFilters(t *testing.T) {
+	t.Parallel()
+
+	entries := buildStoredFixtureEntries(t)
+
+	got, err := computeScorecardFromStoredEntries(entries, analytics.Filters{
+		Period:        "30d",
+		Actor:         "agent-a",
+		Tool:          "kubectl",
+		Scope:         "production",
+		SessionID:     "session-a",
+		MinOperations: 1,
+	})
+	if err != nil {
+		t.Fatalf("computeScorecardFromStoredEntries: %v", err)
+	}
+	if got.ActorID != "agent-a" {
+		t.Fatalf("actor_id = %q, want agent-a", got.ActorID)
+	}
+	if got.SessionID != "session-a" {
+		t.Fatalf("session_id = %q, want session-a", got.SessionID)
+	}
+	if got.TotalOperations != 1 {
+		t.Fatalf("total_operations = %d, want 1", got.TotalOperations)
+	}
+	if got.Period != "30d" {
+		t.Fatalf("period = %q, want 30d", got.Period)
+	}
+}
+
+func TestComputeExplainFromStoredEntries_AppliesFilters(t *testing.T) {
+	t.Parallel()
+
+	entries := buildStoredFixtureEntries(t)
+
+	got, err := computeExplainFromStoredEntries(entries, analytics.Filters{
+		Period:        "30d",
+		Actor:         "agent-b",
+		Tool:          "terraform",
+		Scope:         "staging",
+		SessionID:     "session-b",
+		MinOperations: 1,
+	})
+	if err != nil {
+		t.Fatalf("computeExplainFromStoredEntries: %v", err)
+	}
+	if got.TotalOps != 1 {
+		t.Fatalf("total_operations = %d, want 1", got.TotalOps)
+	}
+	foundDrift := false
+	for _, sig := range got.Signals {
+		if sig.Signal == "artifact_drift" {
+			if sig.Count != 1 {
+				t.Fatalf("artifact_drift count = %d, want 1", sig.Count)
+			}
+			foundDrift = true
+		}
+	}
+	if !foundDrift {
+		t.Fatalf("artifact_drift signal missing: %+v", got.Signals)
+	}
+}
+
+func TestComputeScorecardFromStoredEntries_MatchesCanonicalEvidence(t *testing.T) {
+	t.Parallel()
+
+	stored := buildStoredFixtureEntries(t)
+	canonical := decodeStoredEntriesForParity(t, stored)
+	filters := analytics.Filters{
+		Period:        "30d",
+		Actor:         "agent-b",
+		Tool:          "terraform",
+		Scope:         "staging",
+		SessionID:     "session-b",
+		MinOperations: 1,
+	}
+
+	want, err := analytics.ComputeScorecard(canonical, filters)
+	if err != nil {
+		t.Fatalf("analytics.ComputeScorecard: %v", err)
+	}
+	got, err := computeScorecardFromStoredEntries(stored, filters)
+	if err != nil {
+		t.Fatalf("computeScorecardFromStoredEntries: %v", err)
+	}
+
+	if got.Score != want.Score {
+		t.Fatalf("score = %.2f, want %.2f", got.Score, want.Score)
+	}
+	if got.Band != want.Band {
+		t.Fatalf("band = %q, want %q", got.Band, want.Band)
+	}
+	if got.TotalOperations != want.TotalOperations {
+		t.Fatalf("total_operations = %d, want %d", got.TotalOperations, want.TotalOperations)
+	}
+	if got.Signals["artifact_drift"] != want.Signals["artifact_drift"] {
+		t.Fatalf("artifact_drift = %d, want %d", got.Signals["artifact_drift"], want.Signals["artifact_drift"])
+	}
+	if got.Confidence != want.Confidence {
+		t.Fatalf("confidence = %+v, want %+v", got.Confidence, want.Confidence)
+	}
+}
+
+func TestComputeExplainFromStoredEntries_MatchesCanonicalEvidence(t *testing.T) {
+	t.Parallel()
+
+	stored := buildStoredFixtureEntries(t)
+	canonical := decodeStoredEntriesForParity(t, stored)
+	filters := analytics.Filters{
+		Period:        "30d",
+		Actor:         "agent-b",
+		Tool:          "terraform",
+		Scope:         "staging",
+		SessionID:     "session-b",
+		MinOperations: 1,
+	}
+
+	want, err := analytics.ComputeExplain(canonical, filters)
+	if err != nil {
+		t.Fatalf("analytics.ComputeExplain: %v", err)
+	}
+	got, err := computeExplainFromStoredEntries(stored, filters)
+	if err != nil {
+		t.Fatalf("computeExplainFromStoredEntries: %v", err)
+	}
+
+	if got.Score != want.Score {
+		t.Fatalf("score = %.2f, want %.2f", got.Score, want.Score)
+	}
+	if got.Band != want.Band {
+		t.Fatalf("band = %q, want %q", got.Band, want.Band)
+	}
+	if got.TotalOps != want.TotalOps {
+		t.Fatalf("total_operations = %d, want %d", got.TotalOps, want.TotalOps)
+	}
+	if len(got.Signals) != len(want.Signals) {
+		t.Fatalf("signals len = %d, want %d", len(got.Signals), len(want.Signals))
+	}
+	gotCounts := explainSignalCounts(got.Signals)
+	wantCounts := explainSignalCounts(want.Signals)
+	if gotCounts["artifact_drift"] != wantCounts["artifact_drift"] {
+		t.Fatalf("artifact_drift = %d, want %d", gotCounts["artifact_drift"], wantCounts["artifact_drift"])
+	}
+}
+
+type storedEntryFixture struct {
+	actorID        string
+	sessionID      string
+	tool           string
+	scopeClass     string
+	artifactDigest string
+}
+
+func buildStoredFixtureEntries(t *testing.T) []StoredEntry {
+	t.Helper()
+
+	prescribeA := buildStoredTestPrescription(t, storedEntryFixture{
+		actorID:        "agent-a",
+		sessionID:      "session-a",
+		tool:           "kubectl",
+		scopeClass:     "production",
+		artifactDigest: "artifact-a",
+	})
+	reportA := buildStoredTestReport(t, prescribeA, storedEntryFixture{
+		actorID:        "agent-a",
+		sessionID:      "session-a",
+		tool:           "kubectl",
+		scopeClass:     "production",
+		artifactDigest: "artifact-a",
+	})
+
+	prescribeB := buildStoredTestPrescription(t, storedEntryFixture{
+		actorID:        "agent-b",
+		sessionID:      "session-b",
+		tool:           "terraform",
+		scopeClass:     "staging",
+		artifactDigest: "artifact-b",
+	})
+	reportB := buildStoredTestReport(t, prescribeB, storedEntryFixture{
+		actorID:        "agent-b",
+		sessionID:      "session-b",
+		tool:           "terraform",
+		scopeClass:     "staging",
+		artifactDigest: "artifact-b-drifted",
+	})
+
+	return []StoredEntry{prescribeA, reportA, prescribeB, reportB}
+}
+
+func decodeStoredEntriesForParity(t *testing.T, entries []StoredEntry) []evidence.EvidenceEntry {
+	t.Helper()
+
+	decoded := make([]evidence.EvidenceEntry, 0, len(entries))
+	for _, entry := range entries {
+		var raw evidence.EvidenceEntry
+		if err := json.Unmarshal(entry.Payload, &raw); err != nil {
+			t.Fatalf("decode stored payload %s: %v", entry.ID, err)
+		}
+		decoded = append(decoded, raw)
+	}
+	return decoded
+}
+
+func explainSignalCounts(details []analytics.SignalDetail) map[string]int {
+	counts := make(map[string]int, len(details))
+	for _, detail := range details {
+		counts[detail.Signal] = detail.Count
+	}
+	return counts
+}
+
+func buildStoredTestPrescription(t *testing.T, fixture storedEntryFixture) StoredEntry {
+	t.Helper()
+
+	canonicalAction, err := json.Marshal(map[string]any{
+		"tool":                fixture.tool,
+		"operation":           "apply",
+		"operation_class":     "mutate",
+		"scope_class":         fixture.scopeClass,
+		"resource_count":      1,
+		"resource_shape_hash": "shape-" + fixture.scopeClass,
+	})
+	if err != nil {
+		t.Fatalf("marshal canonical action: %v", err)
+	}
+	payload, err := json.Marshal(evidence.PrescriptionPayload{
+		PrescriptionID:  "presc-" + fixture.actorID,
+		CanonicalAction: canonicalAction,
+		RiskLevel:       "medium",
+		RiskDetails:     []string{"risk.example"},
+		TTLMs:           evidence.DefaultTTLMs,
+		CanonSource:     "unit-test",
+	})
+	if err != nil {
+		t.Fatalf("marshal prescription payload: %v", err)
+	}
+
+	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
+		Type:           evidence.EntryTypePrescribe,
+		SessionID:      fixture.sessionID,
+		TraceID:        "trace-" + fixture.actorID,
+		Actor:          evidence.Actor{Type: "agent", ID: fixture.actorID, Provenance: "unit-test"},
+		ArtifactDigest: fixture.artifactDigest,
+		Payload:        payload,
+		SpecVersion:    "0.4.6",
+		CanonVersion:   "k8s/v1",
+		AdapterVersion: "unit-test",
+		ScoringVersion: "v1.1.0",
+		Signer:         testutil.TestSigner(t),
+	})
+	if err != nil {
+		t.Fatalf("BuildEntry prescribe: %v", err)
+	}
+
+	raw, err := json.Marshal(entry)
+	if err != nil {
+		t.Fatalf("marshal entry: %v", err)
+	}
+
+	return StoredEntry{
+		ID:          entry.EntryID,
+		TenantID:    "tenant-1",
+		EntryType:   string(entry.Type),
+		SessionID:   entry.SessionID,
+		OperationID: entry.OperationID,
+		Hash:        entry.Hash,
+		Signature:   entry.Signature,
+		Payload:     raw,
+		CreatedAt:   entry.Timestamp,
+	}
+}
+
+func buildStoredTestReport(t *testing.T, prescribe StoredEntry, fixture storedEntryFixture) StoredEntry {
+	t.Helper()
+
+	var prescribeEntry evidence.EvidenceEntry
+	if err := json.Unmarshal(prescribe.Payload, &prescribeEntry); err != nil {
+		t.Fatalf("unmarshal prescribe entry: %v", err)
+	}
+	exitCode := 1
+	payload, err := json.Marshal(evidence.ReportPayload{
+		ReportID:       "report-" + fixture.actorID,
+		PrescriptionID: prescribeEntry.EntryID,
+		ExitCode:       &exitCode,
+		Verdict:        evidence.VerdictFailure,
+	})
+	if err != nil {
+		t.Fatalf("marshal report payload: %v", err)
+	}
+
+	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
+		Type:           evidence.EntryTypeReport,
+		SessionID:      fixture.sessionID,
+		TraceID:        "trace-" + fixture.actorID,
+		Actor:          evidence.Actor{Type: "agent", ID: fixture.actorID, Provenance: "unit-test"},
+		ArtifactDigest: fixture.artifactDigest,
+		Payload:        payload,
+		PreviousHash:   prescribeEntry.Hash,
+		SpecVersion:    "0.4.6",
+		CanonVersion:   "k8s/v1",
+		AdapterVersion: "unit-test",
+		ScoringVersion: "v1.1.0",
+		Signer:         testutil.TestSigner(t),
+	})
+	if err != nil {
+		t.Fatalf("BuildEntry report: %v", err)
+	}
+
+	raw, err := json.Marshal(entry)
+	if err != nil {
+		t.Fatalf("marshal entry: %v", err)
+	}
+
+	return StoredEntry{
+		ID:          entry.EntryID,
+		TenantID:    "tenant-1",
+		EntryType:   string(entry.Type),
+		SessionID:   entry.SessionID,
+		OperationID: entry.OperationID,
+		Hash:        entry.Hash,
+		Signature:   entry.Signature,
+		Payload:     raw,
+		CreatedAt:   entry.Timestamp,
 	}
 }

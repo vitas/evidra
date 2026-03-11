@@ -246,13 +246,13 @@ Architecture principle: **graph-ready, graph-free.** Signals work on `[]Entry` s
 | Detector architecture (registry, metadata, producer chain) | V1_ARCHITECTURE (this doc) | Delivered |
 | Docker adapter + Docker detectors | V1_ARCHITECTURE (this doc) | Delivered |
 | Signal validation harness (A-G scenarios) | V1_ARCHITECTURE (this doc) | Delivered (score sufficiency still gated by operation count) |
-| Self-hosted API | [self-hosted-experimental-status.md](../guides/self-hosted-experimental-status.md) | Experimental (evidence ingestion/browsing supported; hosted analytics return `501`) |
+| Self-hosted API | [self-hosted-experimental-status.md](../guides/self-hosted-experimental-status.md) | Delivered for evidence ingestion, browsing, and tenant-wide scorecard/explain |
 | LLM tag discovery | LLM_RISK_PREDICTION_CONTRACT | Architecture done |
 | Detector registry export + prompt contract integration (Task 1 work plan) | LLM_RISK_PREDICTION_CONTRACT | Planned |
 | MCP contract prompts | MCP_CONTRACT_PROMPTS | Ready to commit |
 | Signal validation | `tests/signal-validation/` scripts | Running in CI/manual flows |
 
-CLI and MCP are the authoritative analytics surfaces in v1. Self-hosted keeps centralized evidence collection available, but `/v1/evidence/scorecard` and `/v1/evidence/explain` remain experimental until parity exists.
+CLI and MCP are the primary analytics entry points in v1. Self-hosted also exposes tenant-wide `/v1/evidence/scorecard` and `/v1/evidence/explain` over centralized stored evidence using the same signal and scoring path.
 
 ### v1.x (designed, not started)
 

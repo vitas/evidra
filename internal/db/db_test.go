@@ -14,8 +14,19 @@ func TestMigrationsEmbedded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read embedded migrations: %v", err)
 	}
-	if len(entries) != 3 {
-		t.Fatalf("expected 3 migration files, got %d", len(entries))
+	found := make(map[string]bool, len(entries))
+	for _, entry := range entries {
+		found[entry.Name()] = true
+	}
+	for _, want := range []string{
+		"001_tenants_and_keys.up.sql",
+		"002_evidence_entries.up.sql",
+		"003_benchmark_runs.up.sql",
+		"004_webhook_events.up.sql",
+	} {
+		if !found[want] {
+			t.Fatalf("missing embedded migration %s", want)
+		}
 	}
 }
 

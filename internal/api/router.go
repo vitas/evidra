@@ -9,6 +9,7 @@ import (
 
 	iauth "samebits.com/evidra-benchmark/internal/auth"
 	"samebits.com/evidra-benchmark/internal/store"
+	pkevidence "samebits.com/evidra-benchmark/pkg/evidence"
 )
 
 // RouterConfig holds dependencies for the API router.
@@ -25,6 +26,10 @@ type RouterConfig struct {
 	InviteSecret   string
 	Pinger         Pinger
 	UIFS           fs.FS // Embedded landing page filesystem
+	WebhookStore   WebhookStore
+	WebhookSigner  pkevidence.Signer
+	ArgoCDSecret   string
+	GenericSecret  string
 }
 
 // NewRouter creates the HTTP handler with all routes and middleware.
@@ -42,6 +47,12 @@ func NewRouter(cfg RouterConfig) http.Handler {
 
 	// Key issuance (gated, not behind standard auth).
 	mux.Handle("POST /v1/keys", handleKeys(cfg.KeyStore, cfg.InviteSecret))
+	if cfg.WebhookStore != nil && cfg.ArgoCDSecret != "" {
+		mux.Handle("POST /v1/hooks/argocd", handleArgoCDWebhookForTenant(cfg.WebhookStore, cfg.WebhookSigner, cfg.ArgoCDSecret, cfg.DefaultTenant))
+	}
+	if cfg.WebhookStore != nil && cfg.GenericSecret != "" {
+		mux.Handle("POST /v1/hooks/generic", handleGenericWebhookForTenant(cfg.WebhookStore, cfg.WebhookSigner, cfg.GenericSecret, cfg.DefaultTenant))
+	}
 
 	// Authenticated routes.
 	authMw := iauth.StaticKeyMiddleware(cfg.APIKey, cfg.DefaultTenant)

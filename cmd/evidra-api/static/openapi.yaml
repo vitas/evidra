@@ -5,7 +5,7 @@ info:
     REST API for the Evidra behavioral reliability platform.
     Receives evidence entries from CLI, MCP server, and CI pipelines.
     Stores append-only evidence for intent, decisions, and outcomes.
-    Hosted analytics remain experimental; CLI and MCP are authoritative today.
+    Exposes tenant-wide scorecard and explain analytics over stored evidence.
   version: 1.0.0
   license:
     name: Apache 2.0
@@ -25,6 +25,8 @@ tags:
     description: Liveness and readiness probes
   - name: Evidence
     description: Evidence entry ingestion and queries
+  - name: Webhooks
+    description: Secret-gated mapped evidence ingestion
   - name: Analytics
     description: Scorecard computation and signal analysis
   - name: Benchmark
@@ -266,6 +268,121 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /v1/hooks/argocd:
+    post:
+      tags: [Webhooks]
+      summary: Ingest ArgoCD sync lifecycle events
+      security: []
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Bearer webhook secret configured via `EVIDRA_WEBHOOK_SECRET_ARGOCD`
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+            example:
+              event: sync_started
+              app_name: payments
+              app_namespace: prod
+              revision: abc123
+              initiated_by: argocd-bot
+              operation_id: op-1
+      responses:
+        '202':
+          description: Webhook accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptedResponse'
+        '200':
+          description: Duplicate webhook ignored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptedResponse'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Invalid webhook secret
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Server signing not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/hooks/generic:
+    post:
+      tags: [Webhooks]
+      summary: Ingest generic controller lifecycle events
+      security: []
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+          description: Bearer webhook secret configured via `EVIDRA_WEBHOOK_SECRET_GENERIC`
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+            example:
+              event_type: operation_started
+              tool: mycontroller
+              operation: reconcile
+              environment: production
+              actor: my-operator
+              session_id: sess-1
+              idempotency_key: evt-1
+      responses:
+        '202':
+          description: Webhook accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptedResponse'
+        '200':
+          description: Duplicate webhook ignored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcceptedResponse'
+        '400':
+          description: Invalid payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Invalid webhook secret
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '503':
+          description: Server signing not configured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /v1/evidence/entries:
     get:
       tags: [Evidence]
@@ -330,7 +447,7 @@ paths:
   /v1/evidence/scorecard:
     get:
       tags: [Analytics]
-      summary: Experimental hosted scorecard endpoint
+      summary: Compute tenant-wide reliability scorecard
       parameters:
         - name: period
           in: query
@@ -338,6 +455,11 @@ paths:
             type: string
             default: 30d
           description: Time period (e.g. 30d, 7d)
+        - name: actor
+          in: query
+          schema:
+            type: string
+          description: Narrow to a single actor ID
         - name: tool
           in: query
           schema:
@@ -348,26 +470,45 @@ paths:
           schema:
             type: string
           description: Filter by scope class
+        - name: session_id
+          in: query
+          schema:
+            type: string
+          description: Narrow to a single session ID
+        - name: min_operations
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+          description: Override the minimum operation threshold for sufficiency
       responses:
-        '501':
-          description: Experimental endpoint; use CLI or MCP for authoritative analytics
+        '200':
+          description: Scorecard computed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScorecardResponse'
+        '400':
+          description: Invalid query parameter
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-              example:
-                error: hosted analytics are experimental; use CLI/MCP for authoritative analytics
 
   /v1/evidence/explain:
     get:
       tags: [Analytics]
-      summary: Experimental hosted explain endpoint
+      summary: Explain tenant-wide analytics signals
       parameters:
         - name: period
           in: query
           schema:
             type: string
             default: 30d
+        - name: actor
+          in: query
+          schema:
+            type: string
         - name: tool
           in: query
           schema:
@@ -376,15 +517,17 @@ paths:
           in: query
           schema:
             type: string
+        - name: session_id
+          in: query
+          schema:
+            type: string
       responses:
-        '501':
-          description: Experimental endpoint; use CLI or MCP for authoritative analytics
+        '200':
+          description: Explain output computed
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                error: hosted analytics are experimental; use CLI/MCP for authoritative analytics
+                $ref: '#/components/schemas/ExplainResponse'
 
   /v1/benchmark/run:
     post:
@@ -509,6 +652,105 @@ components:
         error:
           type: string
       required: [error]
+
+    ScorecardResponse:
+      type: object
+      properties:
+        actor_id:
+          type: string
+        session_id:
+          type: string
+        period:
+          type: string
+        days_observed:
+          type: integer
+        total_operations:
+          type: integer
+        signals:
+          type: object
+          additionalProperties:
+            type: integer
+        rates:
+          type: object
+          additionalProperties:
+            type: number
+        penalty:
+          type: number
+        score:
+          type: number
+        band:
+          type: string
+        sufficient:
+          type: boolean
+        confidence:
+          $ref: '#/components/schemas/Confidence'
+        scoring_profile_id:
+          type: string
+        scoring_version:
+          type: string
+        spec_version:
+          type: string
+        evidra_version:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+
+    ExplainResponse:
+      type: object
+      properties:
+        score:
+          type: number
+        band:
+          type: string
+        total_operations:
+          type: integer
+        scoring_profile_id:
+          type: string
+        signals:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExplainSignalDetail'
+        evidra_version:
+          type: string
+        generated_at:
+          type: string
+          format: date-time
+
+    ExplainSignalDetail:
+      type: object
+      properties:
+        signal:
+          type: string
+        count:
+          type: integer
+        weight:
+          type: number
+        rate:
+          type: number
+        entry_ids:
+          type: array
+          items:
+            type: string
+        sub_signals:
+          type: object
+          additionalProperties:
+            type: integer
+
+    Confidence:
+      type: object
+      properties:
+        level:
+          type: string
+        score_ceiling:
+          type: number
+
+    AcceptedResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: accepted
 
     ForwardResponse:
       type: object

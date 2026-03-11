@@ -127,6 +127,71 @@ func TestEvidenceToSignalEntries_Report(t *testing.T) {
 	}
 }
 
+func TestEvidenceToSignalEntries_ReportInheritsToolAndScopeFromPrescription(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC()
+	canonAction := json.RawMessage(`{"tool":"terraform","operation":"apply","operation_class":"mutate","scope_class":"staging","resource_count":1,"resource_shape_hash":"sha256:shape1"}`)
+	prescPayload, _ := json.Marshal(evidence.PrescriptionPayload{
+		PrescriptionID:  "01PRESC",
+		CanonicalAction: canonAction,
+		RiskLevel:       "medium",
+		RiskDetails:     []string{"risk.example"},
+		TTLMs:           300000,
+		CanonSource:     "adapter",
+	})
+	exitCode := 1
+	reportPayload, _ := json.Marshal(evidence.ReportPayload{
+		ReportID:       "01REPORT",
+		PrescriptionID: "01PRESC",
+		ExitCode:       &exitCode,
+		Verdict:        evidence.VerdictFailure,
+	})
+
+	entries := []evidence.EvidenceEntry{
+		{
+			EntryID:        "01PRESC",
+			Type:           evidence.EntryTypePrescribe,
+			TraceID:        "01TRACE",
+			Actor:          evidence.Actor{Type: "ai_agent", ID: "agent-1", Provenance: "mcp"},
+			Timestamp:      now,
+			ArtifactDigest: "sha256:artifact-a",
+			Payload:        prescPayload,
+		},
+		{
+			EntryID:        "01REPORT",
+			Type:           evidence.EntryTypeReport,
+			TraceID:        "01TRACE",
+			Actor:          evidence.Actor{Type: "ai_agent", ID: "agent-1", Provenance: "mcp"},
+			Timestamp:      now.Add(time.Minute),
+			ArtifactDigest: "sha256:artifact-b",
+			Payload:        reportPayload,
+		},
+	}
+
+	result, err := EvidenceToSignalEntries(entries)
+	if err != nil {
+		t.Fatalf("EvidenceToSignalEntries: %v", err)
+	}
+	if len(result) != 2 {
+		t.Fatalf("expected 2 signal entries, got %d", len(result))
+	}
+
+	report := result[1]
+	if report.Tool != "terraform" {
+		t.Fatalf("report tool = %q, want terraform", report.Tool)
+	}
+	if report.Operation != "apply" {
+		t.Fatalf("report operation = %q, want apply", report.Operation)
+	}
+	if report.OperationClass != "mutate" {
+		t.Fatalf("report operation_class = %q, want mutate", report.OperationClass)
+	}
+	if report.ScopeClass != "staging" {
+		t.Fatalf("report scope_class = %q, want staging", report.ScopeClass)
+	}
+}
+
 func TestEvidenceToSignalEntries_SkipsNonPrescribeReport(t *testing.T) {
 	t.Parallel()
 

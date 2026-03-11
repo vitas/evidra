@@ -157,7 +157,7 @@ Guides:
 
 Run the Evidra API backend with Docker Compose for centralized evidence collection.
 
-Self-hosted supports evidence ingestion, key issuance, and entry browsing today. `/v1/evidence/scorecard` and `/v1/evidence/explain` are experimental and currently return `501 Not Implemented`; use CLI/MCP for authoritative analytics. See [Self-Hosted Experimental Status](docs/guides/self-hosted-experimental-status.md).
+Self-hosted supports evidence ingestion, key issuance, entry browsing, and tenant-wide analytics today. `/v1/evidence/scorecard` and `/v1/evidence/explain` compute against stored evidence with tenant-wide defaults plus optional `actor`, `tool`, `scope`, `session_id`, `period`, and `min_operations` narrowing where supported. See [Self-Hosted Experimental Status](docs/guides/self-hosted-experimental-status.md).
 
 ### Docker Compose Quickstart
 
@@ -173,6 +173,8 @@ curl http://localhost:8080/healthz
 |---|---|---|
 | `DATABASE_URL` | PostgreSQL connection string | *(required)* |
 | `EVIDRA_API_KEY` | API key for authenticated endpoints | *(required)* |
+| `EVIDRA_WEBHOOK_SECRET_ARGOCD` | Bearer secret for `/v1/hooks/argocd` | *(optional)* |
+| `EVIDRA_WEBHOOK_SECRET_GENERIC` | Bearer secret for `/v1/hooks/generic` | *(optional)* |
 | `LISTEN_ADDR` | HTTP listen address | `:8080` |
 | `EVIDRA_SIGNING_KEY` | Base64 Ed25519 private key for signing | *(optional)* |
 | `EVIDRA_SIGNING_KEY_PATH` | Path to PEM Ed25519 private key | *(optional)* |

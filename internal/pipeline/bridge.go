@@ -13,6 +13,20 @@ import (
 // Only prescribe and report entries produce signal entries; other types are skipped.
 func EvidenceToSignalEntries(entries []evidence.EvidenceEntry) ([]signal.Entry, error) {
 	var result []signal.Entry
+	prescriptions := make(map[string]canon.CanonicalAction, len(entries))
+
+	for _, e := range entries {
+		if e.Type != evidence.EntryTypePrescribe {
+			continue
+		}
+		var p evidence.PrescriptionPayload
+		if err := json.Unmarshal(e.Payload, &p); err != nil {
+			return nil, fmt.Errorf("pipeline: unmarshal prescription %s: %w", e.EntryID, err)
+		}
+		if ca, err := extractCanonicalAction(p.CanonicalAction); err == nil {
+			prescriptions[e.EntryID] = ca
+		}
+	}
 
 	for _, e := range entries {
 		se := signal.Entry{
@@ -50,6 +64,14 @@ func EvidenceToSignalEntries(entries []evidence.EvidenceEntry) ([]signal.Entry, 
 			}
 			se.PrescriptionID = r.PrescriptionID
 			se.ExitCode = r.ExitCode
+			if ca, ok := prescriptions[r.PrescriptionID]; ok {
+				se.Tool = ca.Tool
+				se.Operation = ca.Operation
+				se.OperationClass = ca.OperationClass
+				se.ScopeClass = ca.ScopeClass
+				se.ResourceCount = ca.ResourceCount
+				se.ShapeHash = ca.ResourceShapeHash
+			}
 
 		default:
 			// Skip finding, signal, receipt, canonicalization_failure, session_start, session_end, annotation entries

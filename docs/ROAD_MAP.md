@@ -14,8 +14,8 @@ toward broader CNCF ecosystem adoption.
   evidence-backed behavioral assessments.
 - Self-hosted supports centralized evidence ingestion, key issuance, and entry
   browsing today.
-- Self-hosted analytics endpoints remain experimental until they reuse the
-  same engine end to end as CLI and MCP.
+- Self-hosted `scorecard` and `explain` now reuse the same signal/scoring path
+  over centralized stored evidence.
 - OTLP/HTTP metrics export is already available for `record` and `import`,
   including Prometheus and OpenTelemetry-oriented guidance.
 - The core contracts are defined around append-only evidence, canonicalized

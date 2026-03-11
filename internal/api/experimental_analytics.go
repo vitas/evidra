@@ -9,10 +9,10 @@ const experimentalAnalyticsMessage = "hosted analytics are experimental; use CLI
 // ExperimentalAnalytics keeps self-hosted analytics routes explicit until parity exists.
 type ExperimentalAnalytics struct{}
 
-func (ExperimentalAnalytics) ComputeScorecard(string, string, string, string, int) (interface{}, error) {
+func (ExperimentalAnalytics) ComputeScorecard(string, AnalyticsFilters) (interface{}, error) {
 	return nil, ErrExperimentalAnalytics
 }
 
-func (ExperimentalAnalytics) ComputeExplain(string, string) (interface{}, error) {
+func (ExperimentalAnalytics) ComputeExplain(string, AnalyticsFilters) (interface{}, error) {
 	return nil, ErrExperimentalAnalytics
 }

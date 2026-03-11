@@ -3,13 +3,17 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/oklog/ulid/v2"
+	"samebits.com/evidra-benchmark/internal/analytics"
+	"samebits.com/evidra-benchmark/pkg/evidence"
 )
 
 // StoredEntry represents an evidence entry in the database.
@@ -214,54 +218,109 @@ func (es *EntryStore) SaveRaw(ctx context.Context, tenantID string, raw json.Raw
 	return id, nil
 }
 
+// LastHash returns the most recent entry hash for a tenant.
+func (es *EntryStore) LastHash(ctx context.Context, tenantID string) (string, error) {
+	var hash string
+	err := es.pool.QueryRow(ctx,
+		`SELECT hash
+		 FROM evidence_entries
+		 WHERE tenant_id = $1
+		 ORDER BY created_at DESC, id DESC
+		 LIMIT 1`,
+		tenantID,
+	).Scan(&hash)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", nil
+		}
+		return "", fmt.Errorf("store.LastHash: %w", err)
+	}
+	return hash, nil
+}
+
+// ClaimWebhookEvent records an idempotency key. Returns duplicate=true when the
+// key was already observed for the same tenant and source.
+func (es *EntryStore) ClaimWebhookEvent(ctx context.Context, tenantID, source, key string, payload json.RawMessage) (bool, error) {
+	tag, err := es.pool.Exec(ctx,
+		`INSERT INTO webhook_events (tenant_id, source, idempotency_key, payload)
+		 VALUES ($1,$2,$3,$4)
+		 ON CONFLICT DO NOTHING`,
+		tenantID, source, key, payload,
+	)
+	if err != nil {
+		return false, fmt.Errorf("store.ClaimWebhookEvent: %w", err)
+	}
+	return tag.RowsAffected() == 0, nil
+}
+
+// ReleaseWebhookEvent removes a previously claimed idempotency key so callers
+// can retry after a later processing failure.
+func (es *EntryStore) ReleaseWebhookEvent(ctx context.Context, tenantID, source, key string) error {
+	if _, err := es.pool.Exec(ctx,
+		`DELETE FROM webhook_events
+		 WHERE tenant_id = $1 AND source = $2 AND idempotency_key = $3`,
+		tenantID, source, key,
+	); err != nil {
+		return fmt.Errorf("store.ReleaseWebhookEvent: %w", err)
+	}
+	return nil
+}
+
 // ComputeScorecard reads stored entries and runs them through the signal+score engine.
 // Phase 0: reads entries from DB, converts to []evidence.EvidenceEntry, delegates to
 // existing internal/signal and internal/score packages (same engine used by CLI scorecard).
-func (es *EntryStore) ComputeScorecard(tenantID, period, tool, scope string, minOps int) (interface{}, error) {
-	dur := parsePeriod(period)
+func (es *EntryStore) ComputeScorecard(tenantID string, filters analytics.Filters) (interface{}, error) {
 	entries, _, err := es.ListEntries(context.Background(), tenantID, ListOptions{
-		Limit:  10000,
-		Period: period,
+		Limit:     10000,
+		Period:    filters.Period,
+		SessionID: filters.SessionID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ComputeScorecard: %w", err)
 	}
-
-	// Convert StoredEntry -> evidence.EvidenceEntry for the existing score engine.
-	// Then call: signals := signal.DetectAll(evidenceEntries)
-	//            result  := score.Compute(signals, score.DefaultWeights())
-	// This wiring is the implementer's responsibility -- the signal/score packages
-	// already exist and work. The conversion is mechanical (unmarshal payload fields).
-	_ = dur
-	_ = entries
-
-	return map[string]interface{}{
-		"total_operations": len(entries),
-		"period":           period,
-		"note":             "wire StoredEntry -> evidence.EvidenceEntry -> signal.DetectAll -> score.Compute",
-	}, nil
+	return computeScorecardFromStoredEntries(entries, filters)
 }
 
 // ComputeExplain reads stored entries and runs signal detection.
 // Same conversion pattern as ComputeScorecard -- delegates to internal/signal.
-func (es *EntryStore) ComputeExplain(tenantID, period string) (interface{}, error) {
+func (es *EntryStore) ComputeExplain(tenantID string, filters analytics.Filters) (interface{}, error) {
 	entries, _, err := es.ListEntries(context.Background(), tenantID, ListOptions{
-		Limit:  10000,
-		Period: period,
+		Limit:     10000,
+		Period:    filters.Period,
+		SessionID: filters.SessionID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("ComputeExplain: %w", err)
 	}
+	return computeExplainFromStoredEntries(entries, filters)
+}
 
-	// Convert StoredEntry -> evidence.EvidenceEntry, then:
-	//   signals := signal.DetectAll(evidenceEntries)
-	//   return signal breakdown per detector
+func storedEntriesToEvidenceEntries(entries []StoredEntry) ([]evidence.EvidenceEntry, error) {
+	result := make([]evidence.EvidenceEntry, 0, len(entries))
+	for _, stored := range entries {
+		var entry evidence.EvidenceEntry
+		if err := json.Unmarshal(stored.Payload, &entry); err != nil {
+			return nil, fmt.Errorf("stored entry %s: decode evidence payload: %w", stored.ID, err)
+		}
+		result = append(result, entry)
+	}
+	return result, nil
+}
 
-	return map[string]interface{}{
-		"total_entries": len(entries),
-		"period":        period,
-		"note":          "wire StoredEntry -> evidence.EvidenceEntry -> signal.DetectAll",
-	}, nil
+func computeScorecardFromStoredEntries(entries []StoredEntry, filters analytics.Filters) (analytics.ScorecardOutput, error) {
+	evidenceEntries, err := storedEntriesToEvidenceEntries(entries)
+	if err != nil {
+		return analytics.ScorecardOutput{}, err
+	}
+	return analytics.ComputeScorecard(evidenceEntries, filters)
+}
+
+func computeExplainFromStoredEntries(entries []StoredEntry, filters analytics.Filters) (analytics.ExplainOutput, error) {
+	evidenceEntries, err := storedEntriesToEvidenceEntries(entries)
+	if err != nil {
+		return analytics.ExplainOutput{}, err
+	}
+	return analytics.ComputeExplain(evidenceEntries, filters)
 }
 
 func parsePeriod(s string) time.Duration {

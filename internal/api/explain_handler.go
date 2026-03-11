@@ -9,19 +9,25 @@ import (
 
 // ExplainComputer generates signal explanations from stored evidence.
 type ExplainComputer interface {
-	ComputeExplain(tenantID, period string) (interface{}, error)
+	ComputeExplain(tenantID string, filters AnalyticsFilters) (interface{}, error)
 }
 
 func handleExplain(ec ExplainComputer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		tenantID := auth.TenantID(r.Context())
 		q := r.URL.Query()
-		period := q.Get("period")
-		if period == "" {
-			period = "30d"
+		filters := AnalyticsFilters{
+			Period:    q.Get("period"),
+			Actor:     q.Get("actor"),
+			Tool:      q.Get("tool"),
+			Scope:     q.Get("scope"),
+			SessionID: q.Get("session_id"),
+		}
+		if filters.Period == "" {
+			filters.Period = "30d"
 		}
 
-		result, err := ec.ComputeExplain(tenantID, period)
+		result, err := ec.ComputeExplain(tenantID, filters)
 		if err != nil {
 			if errors.Is(err, ErrExperimentalAnalytics) {
 				writeError(w, http.StatusNotImplemented, experimentalAnalyticsMessage)

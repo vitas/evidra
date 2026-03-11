@@ -83,8 +83,12 @@ func run(args []string) int {
 		cfg.KeyStore = store.NewKeyStore(pool)
 		cfg.BenchmarkStore = store.NewBenchmarkStore(pool)
 		cfg.InviteSecret = os.Getenv("EVIDRA_INVITE_SECRET")
-		cfg.Scorecard = api.ExperimentalAnalytics{}
-		cfg.Explain = api.ExperimentalAnalytics{}
+		cfg.Scorecard = es
+		cfg.Explain = es
+		cfg.WebhookStore = es
+		cfg.WebhookSigner = signer
+		cfg.ArgoCDSecret = os.Getenv("EVIDRA_WEBHOOK_SECRET_ARGOCD")
+		cfg.GenericSecret = os.Getenv("EVIDRA_WEBHOOK_SECRET_GENERIC")
 
 		log.Printf("database connected, migrations applied")
 	} else {
