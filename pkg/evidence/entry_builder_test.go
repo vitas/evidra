@@ -10,19 +10,31 @@ func TestFormatDigest(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name  string
-		input string
-		want  string
+		name    string
+		input   string
+		want    string
+		wantErr bool
 	}{
-		{name: "bare hex gets prefix", input: "abc123", want: "sha256:abc123"},
-		{name: "already prefixed is idempotent", input: "sha256:abc123", want: "sha256:abc123"},
+		{name: "bare hex gets prefix", input: strings.Repeat("a", 64), want: "sha256:" + strings.Repeat("a", 64)},
+		{name: "already prefixed is idempotent", input: "sha256:" + strings.Repeat("b", 64), want: "sha256:" + strings.Repeat("b", 64)},
 		{name: "empty stays empty", input: "", want: ""},
+		{name: "rejects non hex", input: "not-a-digest", wantErr: true},
+		{name: "rejects wrong length", input: "sha256:cafebabe", wantErr: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := FormatDigest(tt.input)
+			got, err := FormatDigest(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatalf("FormatDigest(%q) error = nil, want non-nil", tt.input)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("FormatDigest(%q) unexpected error: %v", tt.input, err)
+			}
 			if got != tt.want {
 				t.Errorf("FormatDigest(%q) = %q, want %q", tt.input, got, tt.want)
 			}
@@ -61,8 +73,8 @@ func TestBuildEntry_Prescribe(t *testing.T) {
 		TenantID:       "tenant-1",
 		TraceID:        "TRACE123",
 		Actor:          Actor{Type: "agent", ID: "claude", Provenance: "mcp"},
-		IntentDigest:   "deadbeef",
-		ArtifactDigest: "sha256:cafebabe",
+		IntentDigest:   strings.Repeat("d", 64),
+		ArtifactDigest: "sha256:" + strings.Repeat("c", 64),
 		Payload:        payload,
 		SpecVersion:    "0.3.0",
 		CanonVersion:   "1.0.0",
@@ -82,11 +94,11 @@ func TestBuildEntry_Prescribe(t *testing.T) {
 	if !strings.HasPrefix(entry.Hash, "sha256:") {
 		t.Errorf("hash must have sha256: prefix, got %q", entry.Hash)
 	}
-	if entry.IntentDigest != "sha256:deadbeef" {
-		t.Errorf("intent_digest = %q, want %q", entry.IntentDigest, "sha256:deadbeef")
+	if entry.IntentDigest != "sha256:"+strings.Repeat("d", 64) {
+		t.Errorf("intent_digest = %q, want %q", entry.IntentDigest, "sha256:"+strings.Repeat("d", 64))
 	}
-	if entry.ArtifactDigest != "sha256:cafebabe" {
-		t.Errorf("artifact_digest = %q, want %q", entry.ArtifactDigest, "sha256:cafebabe")
+	if entry.ArtifactDigest != "sha256:"+strings.Repeat("c", 64) {
+		t.Errorf("artifact_digest = %q, want %q", entry.ArtifactDigest, "sha256:"+strings.Repeat("c", 64))
 	}
 	if entry.TraceID != "TRACE123" {
 		t.Errorf("trace_id = %q, want %q", entry.TraceID, "TRACE123")
@@ -158,6 +170,23 @@ func TestBuildEntry_OperationIDAndAttempt(t *testing.T) {
 	}
 	if entry.Attempt != 2 {
 		t.Errorf("expected Attempt 2, got %d", entry.Attempt)
+	}
+}
+
+func TestBuildEntry_RejectsInvalidDigestFormat(t *testing.T) {
+	t.Parallel()
+
+	signer := newTestSigner(t)
+	_, err := BuildEntry(EntryBuildParams{
+		Type:           EntryTypeReport,
+		TraceID:        "trace-1",
+		Actor:          Actor{Type: "agent", ID: "claude", Provenance: "mcp"},
+		ArtifactDigest: "sha256:not-hex",
+		Payload:        json.RawMessage(`{}`),
+		Signer:         signer,
+	})
+	if err == nil {
+		t.Fatal("expected invalid digest error")
 	}
 }
 

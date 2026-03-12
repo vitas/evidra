@@ -11,6 +11,7 @@ import (
 
 	"github.com/oklog/ulid/v2"
 
+	iauth "samebits.com/evidra/internal/auth"
 	"samebits.com/evidra/internal/canon"
 	"samebits.com/evidra/internal/risk"
 	"samebits.com/evidra/internal/store"
@@ -53,6 +54,8 @@ type argoCDWebhookPayload struct {
 	Message      string `json:"message"`
 }
 
+type mappedWebhookBuilder func(lastHash string) (pkevidence.EvidenceEntry, int, error)
+
 func handleGenericWebhookWithTenantResolver(store WebhookStore, signer pkevidence.Signer, secret string, resolveTenant WebhookTenantResolver) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		body, ok := webhookRequestBody(w, r, secret, signer)
@@ -92,28 +95,6 @@ func handleGenericWebhookWithTenantResolver(store WebhookStore, signer pkevidenc
 			idempotencyKey = "generic:" + operationID + ":start"
 		}
 
-		duplicate, release, err := claimWebhook(r.Context(), store, tenantID, "generic", idempotencyKey, body)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "webhook idempotency failed")
-			return
-		}
-		if duplicate {
-			writeJSON(w, http.StatusOK, map[string]string{"status": "duplicate"})
-			return
-		}
-		success := false
-		defer func() {
-			if !success {
-				release()
-			}
-		}()
-
-		lastHash, err := store.LastHash(r.Context(), tenantID)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "load evidence chain failed")
-			return
-		}
-
 		action := mappedCanonicalAction(payload.Tool, payload.Operation, payload.Environment)
 		actor := mappedActor(payload.Actor, "generic")
 		sessionID := strings.TrimSpace(payload.SessionID)
@@ -124,34 +105,19 @@ func handleGenericWebhookWithTenantResolver(store WebhookStore, signer pkevidenc
 		scope := mappedScopeDimensions("generic", payload.Environment, map[string]string{})
 		artifactDigest := canon.SHA256Hex(body)
 
-		var entry pkevidence.EvidenceEntry
-		if payload.EventType == "operation_started" {
-			entry, err = buildMappedPrescribeEntry(lastHash, signer, actor, sessionID, operationID, prescriptionID, action, artifactDigest, scope)
-		} else {
+		processMappedWebhook(w, r, store, tenantID, "generic", idempotencyKey, body, func(lastHash string) (pkevidence.EvidenceEntry, int, error) {
+			if payload.EventType == "operation_started" {
+				entry, err := buildMappedPrescribeEntry(lastHash, signer, actor, sessionID, operationID, prescriptionID, action, artifactDigest, scope)
+				return entry, http.StatusInternalServerError, err
+			}
 			exitCode := payload.ExitCode
 			if exitCode == nil {
 				defaultCode := exitCodeForVerdict(payload.Verdict)
 				exitCode = &defaultCode
 			}
-			entry, err = buildMappedReportEntry(lastHash, signer, actor, sessionID, operationID, prescriptionID, artifactDigest, scope, payload.Verdict, exitCode)
-		}
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "build mapped evidence failed")
-			return
-		}
-
-		raw, err := json.Marshal(entry)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "encode mapped evidence failed")
-			return
-		}
-		if _, err := store.SaveRaw(r.Context(), tenantID, raw); err != nil {
-			writeError(w, http.StatusInternalServerError, "store mapped evidence failed")
-			return
-		}
-
-		success = true
-		writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+			entry, err := buildMappedReportEntry(lastHash, signer, actor, sessionID, operationID, prescriptionID, artifactDigest, scope, payload.Verdict, exitCode)
+			return entry, http.StatusInternalServerError, err
+		})
 	}
 }
 
@@ -184,28 +150,6 @@ func handleArgoCDWebhookWithTenantResolver(store WebhookStore, signer pkevidence
 			idempotencyKey += ":complete"
 		}
 
-		duplicate, release, err := claimWebhook(r.Context(), store, tenantID, source, idempotencyKey, body)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "webhook idempotency failed")
-			return
-		}
-		if duplicate {
-			writeJSON(w, http.StatusOK, map[string]string{"status": "duplicate"})
-			return
-		}
-		success := false
-		defer func() {
-			if !success {
-				release()
-			}
-		}()
-
-		lastHash, err := store.LastHash(r.Context(), tenantID)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "load evidence chain failed")
-			return
-		}
-
 		action := mappedCanonicalAction("argocd", "sync", payload.AppNamespace)
 		actor := mappedActor(payload.InitiatedBy, "argocd")
 		scope := mappedScopeDimensions("argocd", payload.AppNamespace, map[string]string{
@@ -214,38 +158,22 @@ func handleArgoCDWebhookWithTenantResolver(store WebhookStore, signer pkevidence
 		})
 		artifactDigest := canon.SHA256Hex(body)
 
-		var entry pkevidence.EvidenceEntry
-		switch payload.Event {
-		case "sync_started":
-			entry, err = buildMappedPrescribeEntry(lastHash, signer, actor, payload.OperationID, payload.OperationID, sourceKey, action, artifactDigest, scope)
-		case "sync_completed":
-			verdict, exitCode, ok := argoCDVerdict(payload.Phase)
-			if !ok {
-				writeError(w, http.StatusBadRequest, "unsupported argocd phase")
-				return
+		processMappedWebhook(w, r, store, tenantID, source, idempotencyKey, body, func(lastHash string) (pkevidence.EvidenceEntry, int, error) {
+			switch payload.Event {
+			case "sync_started":
+				entry, err := buildMappedPrescribeEntry(lastHash, signer, actor, payload.OperationID, payload.OperationID, sourceKey, action, artifactDigest, scope)
+				return entry, http.StatusInternalServerError, err
+			case "sync_completed":
+				verdict, exitCode, ok := argoCDVerdict(payload.Phase)
+				if !ok {
+					return pkevidence.EvidenceEntry{}, http.StatusBadRequest, fmt.Errorf("unsupported argocd phase")
+				}
+				entry, err := buildMappedReportEntry(lastHash, signer, actor, payload.OperationID, payload.OperationID, sourceKey, artifactDigest, scope, verdict, &exitCode)
+				return entry, http.StatusInternalServerError, err
+			default:
+				return pkevidence.EvidenceEntry{}, http.StatusBadRequest, fmt.Errorf("unsupported argocd event")
 			}
-			entry, err = buildMappedReportEntry(lastHash, signer, actor, payload.OperationID, payload.OperationID, sourceKey, artifactDigest, scope, verdict, &exitCode)
-		default:
-			writeError(w, http.StatusBadRequest, "unsupported argocd event")
-			return
-		}
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "build mapped evidence failed")
-			return
-		}
-
-		raw, err := json.Marshal(entry)
-		if err != nil {
-			writeError(w, http.StatusInternalServerError, "encode mapped evidence failed")
-			return
-		}
-		if _, err := store.SaveRaw(r.Context(), tenantID, raw); err != nil {
-			writeError(w, http.StatusInternalServerError, "store mapped evidence failed")
-			return
-		}
-
-		success = true
-		writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+		})
 	}
 }
 
@@ -296,7 +224,7 @@ func claimWebhook(ctx context.Context, store WebhookStore, tenantID, source, key
 }
 
 func webhookRequestBody(w http.ResponseWriter, r *http.Request, secret string, signer pkevidence.Signer) (json.RawMessage, bool) {
-	if subtle.ConstantTimeCompare([]byte(strings.TrimSpace(bearerToken(r.Header.Get("Authorization")))), []byte(secret)) != 1 {
+	if subtle.ConstantTimeCompare([]byte(strings.TrimSpace(iauth.ParseBearerToken(r.Header.Get("Authorization")))), []byte(secret)) != 1 {
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return nil, false
 	}
@@ -317,14 +245,61 @@ func webhookRequestBody(w http.ResponseWriter, r *http.Request, secret string, s
 	return body, true
 }
 
-func bearerToken(raw string) string {
-	trimmed := strings.TrimSpace(raw)
-	lower := strings.ToLower(trimmed)
-	const prefix = "bearer "
-	if !strings.HasPrefix(lower, prefix) {
-		return ""
+func processMappedWebhook(
+	w http.ResponseWriter,
+	r *http.Request,
+	store WebhookStore,
+	tenantID, source, idempotencyKey string,
+	body json.RawMessage,
+	build mappedWebhookBuilder,
+) {
+	duplicate, release, err := claimWebhook(r.Context(), store, tenantID, source, idempotencyKey, body)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "webhook idempotency failed")
+		return
 	}
-	return trimmed[len(prefix):]
+	if duplicate {
+		writeJSON(w, http.StatusOK, map[string]string{"status": "duplicate"})
+		return
+	}
+	success := false
+	defer func() {
+		if !success {
+			release()
+		}
+	}()
+
+	lastHash, err := store.LastHash(r.Context(), tenantID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "load evidence chain failed")
+		return
+	}
+
+	entry, status, err := build(lastHash)
+	if err != nil {
+		if status == 0 {
+			status = http.StatusInternalServerError
+		}
+		if status == http.StatusInternalServerError {
+			writeError(w, status, "build mapped evidence failed")
+			return
+		}
+		writeError(w, status, err.Error())
+		return
+	}
+
+	raw, err := json.Marshal(entry)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "encode mapped evidence failed")
+		return
+	}
+	if _, err := store.SaveRaw(r.Context(), tenantID, raw); err != nil {
+		writeError(w, http.StatusInternalServerError, "store mapped evidence failed")
+		return
+	}
+
+	success = true
+	writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
 }
 
 func mappedActor(actorID, source string) pkevidence.Actor {

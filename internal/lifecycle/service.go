@@ -35,8 +35,8 @@ func (s *Service) Prescribe(_ context.Context, input PrescribeInput) (PrescribeO
 		traceID = sessionID
 	}
 	actor := normalizeActor(input.Actor)
-	if actor.ID == "" {
-		return PrescribeOutput{}, wrapError(ErrCodeInvalidInput, "actor.id is required", nil)
+	if err := validatePrescribeActor(actor); err != nil {
+		return PrescribeOutput{}, err
 	}
 
 	var cr canon.CanonResult
@@ -465,6 +465,19 @@ func normalizeActor(actor evidence.Actor) evidence.Actor {
 	actor.Version = strings.TrimSpace(actor.Version)
 	actor.SkillVersion = strings.TrimSpace(actor.SkillVersion)
 	return actor
+}
+
+func validatePrescribeActor(actor evidence.Actor) error {
+	switch {
+	case actor.Type == "":
+		return wrapError(ErrCodeInvalidInput, "actor.type is required", nil)
+	case actor.ID == "":
+		return wrapError(ErrCodeInvalidInput, "actor.id is required", nil)
+	case actor.Provenance == "":
+		return wrapError(ErrCodeInvalidInput, "actor.provenance is required", nil)
+	default:
+		return nil
+	}
 }
 
 func normalizeToken(v string) string {

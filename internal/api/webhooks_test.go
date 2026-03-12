@@ -173,6 +173,74 @@ func TestHandleGenericWebhook_UsesOperationIDForLifecycleCorrelation(t *testing.
 	}
 }
 
+func TestHandleArgoCDWebhook_UsesOperationIDForLifecycleCorrelation(t *testing.T) {
+	t.Parallel()
+
+	store := &fakeWebhookStore{}
+	handler := handleArgoCDWebhookWithTenantResolver(store, testutil.TestSigner(t), "route-secret", func(context.Context, string) (string, error) {
+		return "tenant-123", nil
+	})
+
+	startReq := httptest.NewRequest("POST", "/v1/hooks/argocd", strings.NewReader(`{
+		"event":"sync_started",
+		"app_name":"demo-app",
+		"app_namespace":"production",
+		"initiated_by":"argocd-bot",
+		"operation_id":"argo-op-123",
+		"revision":"abc123"
+	}`))
+	startReq.Header.Set("Authorization", "Bearer route-secret")
+	startReq.Header.Set("X-Evidra-API-Key", "tenant-api-key")
+	startReq.Header.Set("Content-Type", "application/json")
+	startRec := httptest.NewRecorder()
+
+	handler.ServeHTTP(startRec, startReq)
+
+	if startRec.Code != http.StatusAccepted {
+		t.Fatalf("start expected 202, got %d", startRec.Code)
+	}
+
+	completeReq := httptest.NewRequest("POST", "/v1/hooks/argocd", strings.NewReader(`{
+		"event":"sync_completed",
+		"app_name":"demo-app",
+		"app_namespace":"production",
+		"initiated_by":"argocd-bot",
+		"operation_id":"argo-op-123",
+		"phase":"Succeeded",
+		"revision":"abc123"
+	}`))
+	completeReq.Header.Set("Authorization", "Bearer route-secret")
+	completeReq.Header.Set("X-Evidra-API-Key", "tenant-api-key")
+	completeReq.Header.Set("Content-Type", "application/json")
+	completeRec := httptest.NewRecorder()
+
+	handler.ServeHTTP(completeRec, completeReq)
+
+	if completeRec.Code != http.StatusAccepted {
+		t.Fatalf("complete expected 202, got %d", completeRec.Code)
+	}
+	if len(store.savedRaw) != 2 {
+		t.Fatalf("saved entries = %d, want 2", len(store.savedRaw))
+	}
+
+	var prescribe evidence.EvidenceEntry
+	if err := json.Unmarshal(store.savedRaw[0], &prescribe); err != nil {
+		t.Fatalf("decode prescribe entry: %v", err)
+	}
+	var report evidence.EvidenceEntry
+	if err := json.Unmarshal(store.savedRaw[1], &report); err != nil {
+		t.Fatalf("decode report entry: %v", err)
+	}
+	var payload evidence.ReportPayload
+	if err := json.Unmarshal(report.Payload, &payload); err != nil {
+		t.Fatalf("decode report payload: %v", err)
+	}
+
+	if payload.PrescriptionID != prescribe.EntryID {
+		t.Fatalf("report prescription_id = %q, want %q", payload.PrescriptionID, prescribe.EntryID)
+	}
+}
+
 type fakeWebhookStore struct {
 	savedTenants []string
 	savedRaw     []json.RawMessage

@@ -47,7 +47,7 @@ func (a *DockerAdapter) Canonicalize(tool, operation, environment string, rawArt
 }
 
 func canonicalizeDocker(tool, operation, environment string, rawArtifact []byte) (CanonResult, error) {
-	artifactDigest := sha256Hex(rawArtifact)
+	artifactDigest := SHA256Hex(rawArtifact)
 
 	var opClass string
 	var resources []ResourceID

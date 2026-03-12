@@ -17,7 +17,7 @@ func (a *GenericAdapter) Canonicalize(tool, operation, environment string, rawAr
 }
 
 func canonicalizeGeneric(tool, operation, environment string, rawArtifact []byte) (CanonResult, error) {
-	artifactDigest := sha256Hex(rawArtifact)
+	artifactDigest := SHA256Hex(rawArtifact)
 
 	identity := []ResourceID{{
 		Name: artifactDigest,
@@ -56,10 +56,5 @@ func SHA256Hex(data []byte) string {
 
 // ComputeArtifactDigest returns the sha256:<hex> digest of raw artifact bytes.
 func ComputeArtifactDigest(data []byte) string {
-	return SHA256Hex(data)
-}
-
-// keep unexported alias for internal use
-func sha256Hex(data []byte) string {
 	return SHA256Hex(data)
 }

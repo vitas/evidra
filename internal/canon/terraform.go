@@ -23,7 +23,7 @@ func (a *TerraformAdapter) Canonicalize(tool, operation, environment string, raw
 }
 
 func canonicalizeTerraform(tool, operation, environment string, rawArtifact []byte) (CanonResult, error) {
-	artifactDigest := sha256Hex(rawArtifact)
+	artifactDigest := SHA256Hex(rawArtifact)
 
 	var plan tfjson.Plan
 	if err := json.Unmarshal(rawArtifact, &plan); err != nil {
@@ -43,7 +43,7 @@ func canonicalizeTerraform(tool, operation, environment string, rawArtifact []by
 			ResourceIdentity:  nil,
 			ScopeClass:        ResolveScopeClass(environment, nil),
 			ResourceCount:     0,
-			ResourceShapeHash: sha256Hex([]byte("empty")),
+			ResourceShapeHash: SHA256Hex([]byte("empty")),
 		}
 		actionJSON, err := json.Marshal(action)
 		if err != nil {
@@ -150,5 +150,5 @@ func computeTerraformShapeHash(changes []*tfjson.ResourceChange) string {
 		return ""
 	}
 
-	return sha256Hex(data)
+	return SHA256Hex(data)
 }

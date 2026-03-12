@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/json"
@@ -10,12 +11,14 @@ import (
 	"time"
 )
 
+const bearerPrefix = "bearer "
+
 // StaticKeyMiddleware authenticates requests using a single static API key.
 // Sets tenant ID to defaultTenant for all authenticated requests.
 func StaticKeyMiddleware(apiKey, defaultTenant string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token := extractBearerToken(r.Header.Get("Authorization"))
+			token := ParseBearerToken(r.Header.Get("Authorization"))
 			if token == "" || subtle.ConstantTimeCompare([]byte(token), []byte(apiKey)) != 1 {
 				authFail(w)
 				return
@@ -27,11 +30,16 @@ func StaticKeyMiddleware(apiKey, defaultTenant string) func(http.Handler) http.H
 }
 
 func extractBearerToken(header string) string {
-	const prefix = "Bearer "
-	if !strings.HasPrefix(header, prefix) {
+	return ParseBearerToken(header)
+}
+
+// ParseBearerToken extracts a bearer token using case-insensitive scheme matching.
+func ParseBearerToken(header string) string {
+	trimmed := strings.TrimSpace(header)
+	if !strings.HasPrefix(strings.ToLower(trimmed), bearerPrefix) {
 		return ""
 	}
-	return header[len(prefix):]
+	return trimmed[len(bearerPrefix):]
 }
 
 func authFail(w http.ResponseWriter) {
@@ -52,18 +60,18 @@ func jitterSleep() {
 }
 
 // KeyStoreAuthFunc is a function that looks up a key and returns a tenant ID.
-type KeyStoreAuthFunc func(plaintext string) (tenantID string, err error)
+type KeyStoreAuthFunc func(ctx context.Context, plaintext string) (tenantID string, err error)
 
 // KeyStoreMiddleware authenticates requests using a database-backed key store.
 func KeyStoreMiddleware(lookup KeyStoreAuthFunc) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token := extractBearerToken(r.Header.Get("Authorization"))
+			token := ParseBearerToken(r.Header.Get("Authorization"))
 			if token == "" {
 				authFail(w)
 				return
 			}
-			tenantID, err := lookup(token)
+			tenantID, err := lookup(r.Context(), token)
 			if err != nil {
 				authFail(w)
 				return

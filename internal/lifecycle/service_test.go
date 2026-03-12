@@ -147,6 +147,54 @@ func TestServicePrescribe_DefaultsTraceIDToSessionIDWhenOmitted(t *testing.T) {
 	}
 }
 
+func TestServicePrescribe_RejectsMissingActorType(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	svc := NewService(Options{
+		EvidencePath: dir,
+		Signer:       testutil.TestSigner(t),
+	})
+
+	_, err := svc.Prescribe(context.Background(), PrescribeInput{
+		Actor:       evidence.Actor{ID: "agent-1", Provenance: "mcp"},
+		Tool:        "kubectl",
+		Operation:   "apply",
+		RawArtifact: []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: cm1\n  namespace: default\n"),
+		SessionID:   "session-missing-type",
+	})
+	if err == nil {
+		t.Fatal("expected invalid_input error")
+	}
+	if ErrorCode(err) != ErrCodeInvalidInput {
+		t.Fatalf("error code=%q, want %q", ErrorCode(err), ErrCodeInvalidInput)
+	}
+}
+
+func TestServicePrescribe_RejectsMissingActorProvenance(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	svc := NewService(Options{
+		EvidencePath: dir,
+		Signer:       testutil.TestSigner(t),
+	})
+
+	_, err := svc.Prescribe(context.Background(), PrescribeInput{
+		Actor:       evidence.Actor{Type: "agent", ID: "agent-1"},
+		Tool:        "kubectl",
+		Operation:   "apply",
+		RawArtifact: []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: cm1\n  namespace: default\n"),
+		SessionID:   "session-missing-provenance",
+	})
+	if err == nil {
+		t.Fatal("expected invalid_input error")
+	}
+	if ErrorCode(err) != ErrCodeInvalidInput {
+		t.Fatalf("error code=%q, want %q", ErrorCode(err), ErrCodeInvalidInput)
+	}
+}
+
 func TestServicePrescribe_CanonicalActionScopeAliasNormalizes(t *testing.T) {
 	t.Parallel()
 

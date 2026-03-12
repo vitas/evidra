@@ -24,16 +24,29 @@ type Signer interface {
 // DefaultTTLMs is the default time-to-live for a prescription in milliseconds (5 minutes).
 const DefaultTTLMs = 300000
 
-// FormatDigest ensures a digest string has the "sha256:" prefix.
+// FormatDigest normalizes digests to sha256:<64 lowercase hex>.
 // Empty strings are returned as-is.
-func FormatDigest(d string) string {
-	if d == "" {
-		return ""
+func FormatDigest(d string) (string, error) {
+	trimmed := strings.TrimSpace(d)
+	if trimmed == "" {
+		return "", nil
 	}
-	if strings.HasPrefix(d, "sha256:") {
-		return d
+
+	hexPart := trimmed
+	if strings.Contains(trimmed, ":") {
+		prefix, rest, ok := strings.Cut(trimmed, ":")
+		if !ok || !strings.EqualFold(prefix, "sha256") {
+			return "", fmt.Errorf("invalid digest %q: expected sha256:<64 hex>", d)
+		}
+		hexPart = rest
 	}
-	return "sha256:" + d
+	if len(hexPart) != sha256.Size*2 {
+		return "", fmt.Errorf("invalid digest %q: expected sha256:<64 hex>", d)
+	}
+	if _, err := hex.DecodeString(hexPart); err != nil {
+		return "", fmt.Errorf("invalid digest %q: expected sha256:<64 hex>", d)
+	}
+	return "sha256:" + strings.ToLower(hexPart), nil
 }
 
 // EntryBuildParams holds all inputs needed to construct an EvidenceEntry.
@@ -70,6 +83,14 @@ func BuildEntry(p EntryBuildParams) (EvidenceEntry, error) {
 	if !p.Type.Valid() {
 		return EvidenceEntry{}, fmt.Errorf("evidence.BuildEntry: invalid entry type %q", p.Type)
 	}
+	intentDigest, err := FormatDigest(p.IntentDigest)
+	if err != nil {
+		return EvidenceEntry{}, fmt.Errorf("evidence.BuildEntry: invalid intent_digest: %w", err)
+	}
+	artifactDigest, err := FormatDigest(p.ArtifactDigest)
+	if err != nil {
+		return EvidenceEntry{}, fmt.Errorf("evidence.BuildEntry: invalid artifact_digest: %w", err)
+	}
 
 	entry := EvidenceEntry{
 		EntryID:         p.EntryID,
@@ -83,8 +104,8 @@ func BuildEntry(p EntryBuildParams) (EvidenceEntry, error) {
 		ParentSpanID:    p.ParentSpanID,
 		Actor:           p.Actor,
 		Timestamp:       time.Now().UTC(),
-		IntentDigest:    FormatDigest(p.IntentDigest),
-		ArtifactDigest:  FormatDigest(p.ArtifactDigest),
+		IntentDigest:    intentDigest,
+		ArtifactDigest:  artifactDigest,
 		Payload:         p.Payload,
 		PreviousHash:    p.PreviousHash,
 		ScopeDimensions: p.ScopeDimensions,

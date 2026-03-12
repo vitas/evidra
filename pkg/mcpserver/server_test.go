@@ -37,7 +37,7 @@ func TestPrescribe_SimpleK8s(t *testing.T) {
 
 	svc := &BenchmarkService{signer: testutil.TestSigner(t)}
 	output := svc.Prescribe(PrescribeInput{
-		Actor:       InputActor{Type: "agent", ID: "test"},
+		Actor:       InputActor{Type: "agent", ID: "test", Origin: "mcp"},
 		Tool:        "kubectl",
 		Operation:   "apply",
 		RawArtifact: k8sDeployment,
@@ -74,7 +74,7 @@ func TestPrescribe_PrivilegedContainer(t *testing.T) {
 
 	svc := &BenchmarkService{signer: testutil.TestSigner(t)}
 	output := svc.Prescribe(PrescribeInput{
-		Actor:       InputActor{Type: "agent", ID: "test"},
+		Actor:       InputActor{Type: "agent", ID: "test", Origin: "mcp"},
 		Tool:        "kubectl",
 		Operation:   "apply",
 		RawArtifact: k8sPrivileged,
@@ -104,7 +104,7 @@ func TestPrescribeCtx_ForwardsCallerContext(t *testing.T) {
 
 	ctx := context.WithValue(context.Background(), ctxKey("trace_id"), "trace-123")
 	output := svc.PrescribeCtx(ctx, PrescribeInput{
-		Actor:       InputActor{Type: "agent", ID: "test"},
+		Actor:       InputActor{Type: "agent", ID: "test", Origin: "mcp"},
 		Tool:        "kubectl",
 		Operation:   "apply",
 		RawArtifact: k8sDeployment,
@@ -123,7 +123,7 @@ func TestPrescribe_ParseError(t *testing.T) {
 
 	svc := &BenchmarkService{signer: testutil.TestSigner(t)}
 	output := svc.Prescribe(PrescribeInput{
-		Actor:       InputActor{Type: "agent", ID: "test"},
+		Actor:       InputActor{Type: "agent", ID: "test", Origin: "mcp"},
 		Tool:        "terraform",
 		Operation:   "apply",
 		RawArtifact: "not valid json {{{",
@@ -160,7 +160,7 @@ func TestRetryTracker_CountsRetries(t *testing.T) {
 	}
 
 	input := PrescribeInput{
-		Actor:       InputActor{Type: "agent", ID: "test"},
+		Actor:       InputActor{Type: "agent", ID: "test", Origin: "mcp"},
 		Tool:        "kubectl",
 		Operation:   "apply",
 		RawArtifact: k8sDeployment,

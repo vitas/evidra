@@ -61,13 +61,13 @@ func NewRouter(cfg RouterConfig) http.Handler {
 	// Authenticated routes.
 	authMw := iauth.StaticKeyMiddleware(cfg.APIKey, cfg.DefaultTenant)
 	if cfg.KeyStore != nil {
-		authMw = iauth.KeyStoreMiddleware(func(token string) (string, error) {
+		authMw = iauth.KeyStoreMiddleware(func(ctx context.Context, token string) (string, error) {
 			// Keep static key valid for Phase 0 compatibility.
 			if subtle.ConstantTimeCompare([]byte(token), []byte(cfg.APIKey)) == 1 {
 				return cfg.DefaultTenant, nil
 			}
 
-			rec, err := cfg.KeyStore.LookupKey(context.Background(), token)
+			rec, err := cfg.KeyStore.LookupKey(ctx, token)
 			if err != nil {
 				return "", err
 			}

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"samebits.com/evidra/internal/analytics"
+	"samebits.com/evidra/internal/canon"
 	testutil "samebits.com/evidra/internal/testutil"
 	"samebits.com/evidra/pkg/evidence"
 )
@@ -358,7 +359,7 @@ func buildStoredTestPrescription(t *testing.T, fixture storedEntryFixture) Store
 		SessionID:      fixture.sessionID,
 		TraceID:        "trace-" + fixture.actorID,
 		Actor:          evidence.Actor{Type: "agent", ID: fixture.actorID, Provenance: "unit-test"},
-		ArtifactDigest: fixture.artifactDigest,
+		ArtifactDigest: canon.SHA256Hex([]byte(fixture.artifactDigest)),
 		Payload:        payload,
 		SpecVersion:    "0.4.6",
 		CanonVersion:   "k8s/v1",
@@ -411,7 +412,7 @@ func buildStoredTestReport(t *testing.T, prescribe StoredEntry, fixture storedEn
 		SessionID:      fixture.sessionID,
 		TraceID:        "trace-" + fixture.actorID,
 		Actor:          evidence.Actor{Type: "agent", ID: fixture.actorID, Provenance: "unit-test"},
-		ArtifactDigest: fixture.artifactDigest,
+		ArtifactDigest: canon.SHA256Hex([]byte(fixture.artifactDigest)),
 		Payload:        payload,
 		PreviousHash:   prescribeEntry.Hash,
 		SpecVersion:    "0.4.6",

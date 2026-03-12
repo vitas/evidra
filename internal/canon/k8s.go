@@ -35,7 +35,7 @@ type identifiedK8sObject struct {
 }
 
 func canonicalizeK8s(tool, operation, environment string, rawArtifact []byte) (CanonResult, error) {
-	artifactDigest := sha256Hex(rawArtifact)
+	artifactDigest := SHA256Hex(rawArtifact)
 
 	objects, err := splitYAMLDocuments(rawArtifact)
 	if err != nil {
