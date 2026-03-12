@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.4.8 — 2026-03-12
 
 ### Hosted Analytics And API Contracts
 - Replayed stored evidence chronologically in hosted scorecard/explain so self-hosted analytics matches CLI/local signal behavior for order-sensitive detectors
@@ -9,9 +9,6 @@
 - Replaced fire-and-forget `last_used_at` writes on API key lookup with bounded inline updates
 - Restored a fixed eight-signal public scorecard contract instead of auto-expanding API output to every registered signal
 
-## v0.4.8 — 2026-03-12
-
-## v0.4.7 — 2026-03-11
 
 ### MCP
 - Fixed the `get_event` MCP tool output contract so stored report events can be returned without structured-output schema validation failure

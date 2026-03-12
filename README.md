@@ -7,10 +7,6 @@
 **Evidra — Flight recorder for Infrastructure Automation**<br>
 **A new observability layer for CI/CD, IaC, and AI agents.**
 
-Evidra records what your automation intended and what actually happened.
-For AI agents, it also records what they decided not to do.
-From this evidence, Evidra computes behavioral signals that answer: is this actor operating reliably?
-
 Infrastructure automation will not become trustworthy because agents stop making mistakes.
 It will become trustworthy because operations are recorded, decisions are explainable, and risky behavior patterns become visible before the next outage.
 
