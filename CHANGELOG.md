@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Hosted Analytics And API Contracts
+- Replayed stored evidence chronologically in hosted scorecard/explain so self-hosted analytics matches CLI/local signal behavior for order-sensitive detectors
+- Added required `operation_id` to generic webhook events and used it as the stable prescribe/report lifecycle correlation key
+- Moved API key issuance quota checks behind invite-secret validation so rejected onboarding attempts do not burn shared rate-limit budget
+- Replaced fire-and-forget `last_used_at` writes on API key lookup with bounded inline updates
+- Restored a fixed eight-signal public scorecard contract instead of auto-expanding API output to every registered signal
+
 ## v0.4.8 — 2026-03-12
 
 ## v0.4.7 — 2026-03-11

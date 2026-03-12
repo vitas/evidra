@@ -1,12 +1,14 @@
 package analytics
 
 import (
+	"reflect"
 	"testing"
 
 	"samebits.com/evidra/internal/score"
+	"samebits.com/evidra/internal/signal"
 )
 
-func TestPublicSignalNames_UsesRegisteredSignals(t *testing.T) {
+func TestPublicSignalNames_ReturnsStableContractOrder(t *testing.T) {
 	t.Parallel()
 
 	profile, err := score.ResolveProfile("")
@@ -15,28 +17,57 @@ func TestPublicSignalNames_UsesRegisteredSignals(t *testing.T) {
 	}
 
 	names := PublicSignalNames(profile)
-	if len(names) == 0 {
-		t.Fatal("expected public signal names")
-	}
-	for _, want := range []string{
+	want := []string{
 		"protocol_violation",
 		"artifact_drift",
 		"retry_loop",
-		"thrashing",
 		"blast_radius",
-		"risk_escalation",
 		"new_scope",
 		"repair_loop",
-	} {
-		found := false
-		for _, got := range names {
-			if got == want {
-				found = true
-				break
-			}
+		"thrashing",
+		"risk_escalation",
+	}
+	if !reflect.DeepEqual(names, want) {
+		t.Fatalf("public signal order = %v, want %v", names, want)
+	}
+}
+
+func TestPublicSignalNames_IgnoresProfileWeightOrdering(t *testing.T) {
+	t.Parallel()
+
+	profile, err := score.ResolveProfile("")
+	if err != nil {
+		t.Fatalf("ResolveProfile: %v", err)
+	}
+	profile.Weights["repair_loop"] = 10.0
+	profile.Weights["protocol_violation"] = 0.01
+
+	got := PublicSignalNames(profile)
+	want := PublicSignalNames(score.Profile{})
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("public signal order should ignore profile weights, got %v want %v", got, want)
+	}
+}
+
+func TestPublicSignalNames_AreRegisteredAndWeighted(t *testing.T) {
+	t.Parallel()
+
+	profile, err := score.ResolveProfile("")
+	if err != nil {
+		t.Fatalf("ResolveProfile: %v", err)
+	}
+
+	registered := make(map[string]struct{}, len(signal.RegisteredSignalNames()))
+	for _, name := range signal.RegisteredSignalNames() {
+		registered[name] = struct{}{}
+	}
+
+	for _, name := range PublicSignalNames(profile) {
+		if _, ok := registered[name]; !ok {
+			t.Fatalf("public signal %q is not registered", name)
 		}
-		if !found {
-			t.Fatalf("missing signal %q in %v", want, names)
+		if _, ok := profile.Weights[name]; !ok {
+			t.Fatalf("public signal %q is missing a scoring weight", name)
 		}
 	}
 }
