@@ -60,26 +60,19 @@ Output includes:
   "risk_level": "medium",
   "score": 95,
   "score_band": "good",
-  "signal_summary": {
-    "artifact_drift": 0,
-    "blast_radius": 0,
-    "new_scope": 1,
-    "protocol_violation": 0,
-    "retry_loop": 0,
-    "repair_loop": 0,
-    "thrashing": 0
-  },
+  "basis": "preview",
+  "confidence": 70,
   "verdict": "success"
 }
 ```
 
 ### Understand first-run signals
 
-On first run you will see `new_scope: 0`. The very first prescription
-establishes the baseline scope and is never penalized — cold start
-should not cost you points. The `new_scope` signal only fires when a
-*subsequent* operation introduces a previously unseen (actor, tool,
-operation_class, scope_class) combination.
+The first prescription establishes the baseline scope and is never penalized.
+`new_scope` only fires on a subsequent operation that introduces a previously
+unseen `(actor, tool, operation_class, scope_class)` combination. See the
+[Signal Specification](../system-design/EVIDRA_SIGNAL_SPEC_V1.md) for the exact
+signal rules.
 
 The score starts in `preview` mode until you reach 100 operations (configurable with `--min-operations`). To see meaningful scores earlier during evaluation:
 

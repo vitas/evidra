@@ -125,20 +125,8 @@ Two primary CLI modes feed the same lifecycle and scoring engine:
 evidra import --input record.json
 ```
 
-Core commands:
-
-| Command | Purpose |
-|---|---|
-| `record` | Execute command live and record lifecycle outcome |
-| `import` | Ingest completed operation payload |
-| `scorecard` | Compute reliability scorecard |
-| `explain` | Show signal-level breakdown |
-| `prescribe` | Record pre-execution intent |
-| `report` | Record post-execution outcome |
-| `validate` | Verify evidence chain and signatures |
-| `import-findings` | Ingest SARIF findings |
-| `compare` | Compare actor reliability |
-| `keygen` | Generate Ed25519 signing keypair |
+Core workflows are `record`, `import`, `scorecard`, `explain`, `prescribe`,
+`report`, `validate`, `import-findings`, and `compare`.
 
 References:
 
@@ -156,7 +144,7 @@ evidra-mcp --evidence-dir ~/.evidra/evidence
 References:
 
 - [MCP server schemas](pkg/mcpserver/schemas/)
-- [MCP contract prompts](docs/system-design/MCP_CONTRACT_PROMPTS.md)
+- [MCP setup guide](docs/guides/mcp-setup.md)
 - [MCP Registry Publication Guide](docs/guides/mcp-registry-publication.md)
 
 ### Self-Hosted API And Webhooks
@@ -185,14 +173,14 @@ References:
 
 ## Supported Tools
 
-| Adapter | Tools | Artifact |
-|---|---|---|
-| **k8s/v1** | kubectl, helm, kustomize, oc (OpenShift) | YAML manifests |
-| **terraform/v1** | terraform | Plan JSON (`terraform show -json`) |
-| **docker/v1** | docker | Container inspect JSON |
-| **generic/v1** | Any (fallback) | Raw bytes — use `--canonical-action` for structured tools |
+Built-in adapters cover the main infrastructure surfaces:
 
-Full details:
+- Kubernetes-family YAML via `kubectl`, `helm`, `kustomize`, and `oc`
+- Terraform plan JSON via `terraform show -json`
+- Docker/container inspect JSON
+- generic fallback ingestion for unsupported tools
+
+Full support details and notes:
 
 - [Supported Tools](docs/supported-tools.md)
 

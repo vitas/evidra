@@ -87,8 +87,7 @@ All evidence entries MUST use one of these values in the `type` field.
 
 ## 2.2 Conceptual Event Taxonomy
 
-The [Session/Operation Event Model](EVIDRA_SESSION_OPERATION_EVENT_MODEL.md)
-defines a higher-level conceptual taxonomy for describing automation workflows:
+The protocol uses a higher-level conceptual taxonomy to describe automation workflows:
 
 | Conceptual event | Internal `EntryType` | Notes |
 |------------------|----------------------|-------|
@@ -103,8 +102,8 @@ defines a higher-level conceptual taxonomy for describing automation workflows:
 The `signal`, `receipt`, and `canonicalization_failure` entry types are
 internal to the Evidra pipeline and have no conceptual event counterpart.
 
-For CloudEvents type mapping (e.g., `evidra.operation.start`), see
-[EVIDRA_CNCF_STANDARDS_ALIGNMENT.md](EVIDRA_CNCF_STANDARDS_ALIGNMENT.md).
+External event-bus and standards mappings are intentionally outside the live
+public protocol contract.
 
 ---
 

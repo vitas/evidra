@@ -7,6 +7,14 @@
 
 Worked example. Updated to match the current canonicalization, protocol, and scoring line.
 
+This document is illustrative. Canonical rules live in:
+
+- [EVIDRA_CANONICALIZATION_CONTRACT_V1.md](EVIDRA_CANONICALIZATION_CONTRACT_V1.md)
+- [EVIDRA_PROTOCOL_V1.md](EVIDRA_PROTOCOL_V1.md)
+- [EVIDRA_CORE_DATA_MODEL_V1.md](EVIDRA_CORE_DATA_MODEL_V1.md)
+- [EVIDRA_SIGNAL_SPEC_V1.md](EVIDRA_SIGNAL_SPEC_V1.md)
+- [default.v1.1.0.md](scoring/default.v1.1.0.md)
+
 ---
 
 ## Scenario
@@ -26,39 +34,12 @@ Goal:
 
 ---
 
-## Canonicalization Fundamentals (Contract v1)
+## Canonicalization Fundamentals
 
-Two digests are always produced:
-
-```
-artifact_digest = SHA256(raw bytes as received)
-intent_digest   = SHA256(canonical JSON of canonical_action)
-```
-
-- `artifact_digest` detects **raw artifact modification** (protocol integrity).
-- `intent_digest` identifies **behavioral identity** (same action intent across formatting noise).
-
-Canonical action schema (simplified):
-
-```json
-{
-  "tool": "kubectl",
-  "operation": "apply",
-  "operation_class": "mutate",
-  "resource_identity": [
-    {"api_version":"apps/v1","kind":"Deployment","namespace":"staging","name":"api-server"}
-  ],
-  "scope_class": "staging",
-  "resource_count": 1,
-  "resource_shape_hash": "sha256:...",
-  "risk_tags": []
-}
-```
-
-Notes:
-- `resource_identity` is stable identity (what resources).
-- `resource_shape_hash` captures normalized spec shape for detectors (not part of `intent_digest`), used to reduce false retry-loop positives when the same resource is intentionally modified.
-- `operation_class` uses `mutate` (not `mutating`) — consistent with risk matrix enum.
+Each operation produces an `artifact_digest` from raw bytes and an
+`intent_digest` from the canonical action. The exact digest rules,
+canonical schema, and adapter behavior are defined in
+[EVIDRA_CANONICALIZATION_CONTRACT_V1.md](EVIDRA_CANONICALIZATION_CONTRACT_V1.md).
 
 ---
 
@@ -166,43 +147,10 @@ risk_tags = []
 
 ## Step 5: Evidra writes a prescription entry to the evidence chain
 
-Evidence JSONL entry (actual `EvidenceEntry` envelope):
-
-```json
-{
-  "entry_id": "01JD7KX9M2...",
-  "previous_hash": "sha256:...",
-  "hash": "sha256:...",
-  "signature": "base64-ed25519-signature",
-  "type": "prescribe",
-  "session_id": "session-20260304-staging",
-  "trace_id": "01JD7KX9M1...",
-  "span_id": "span-prescribe-001",
-  "actor": {"type":"ai_agent","id":"claude-code","provenance":"mcp","instance_id":"pod-abc123","version":"v1.3"},
-  "timestamp": "2026-03-04T10:12:10Z",
-  "intent_digest": "sha256:...",
-  "artifact_digest": "sha256:...",
-  "payload": {
-    "prescription_id": "01JD7KX9M2...",
-    "canonical_action": {"tool":"kubectl","operation":"apply","operation_class":"mutate","...":"..."},
-    "risk_level": "medium",
-    "risk_tags": [],
-    "ttl_ms": 300000,
-    "canon_source": "adapter"
-  },
-  "scope_dimensions": {"cluster":"staging-us-east","namespace":"staging"},
-  "spec_version": "v1.1.0",
-  "canonical_version": "k8s/v1",
-  "adapter_version": "0.4.3",
-  "scoring_version": "v1.1.0"
-}
-```
-
-Note: v0.4.3 writes signed entries. Strict mode requires configured keys;
-optional mode uses an ephemeral in-process key for local/test runs.
-
-Evidra returns the prescription to the agent. No allow/deny —
-just risk assessment and the recorded intent:
+The stored evidence entry includes the prescription ID, actor, digests,
+risk assessment, and version metadata defined in
+[EVIDRA_CORE_DATA_MODEL_V1.md](EVIDRA_CORE_DATA_MODEL_V1.md). The agent sees a
+compact response with the fields it needs to continue:
 
 ```json
 {

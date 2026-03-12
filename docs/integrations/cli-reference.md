@@ -11,8 +11,8 @@ This document is the user-facing command and flag reference for all binaries in 
 
 For architecture and protocol semantics, see:
 - [Integration Protocol](../system-design/EVIDRA_PROTOCOL_V1.md)
-- [Benchmark CLI Design](../system-design/internal/EVIDRA_BENCHMARK_CLI.md)
-- [Prompt Factory Spec](../system-design/internal/EVIDRA_PROMPT_FACTORY_SPEC.md)
+- [Record/Import Contract](../system-design/EVIDRA_RUN_RECORD_CONTRACT_V1.md)
+- [Core Data Model](../system-design/EVIDRA_CORE_DATA_MODEL_V1.md)
 
 ## 1) `evidra` (core CLI)
 

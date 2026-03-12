@@ -9,17 +9,6 @@ fail() {
   exit 1
 }
 
-ALIGN_DOC="docs/system-design/EVIDRA_CNCF_STANDARDS_ALIGNMENT.md"
-
-grep -Fq "Documented mapping only; CloudEvents adapter not implemented on \`main\`." "$ALIGN_DOC" \
-  || fail "CloudEvents section should state adapter status precisely"
-
-grep -Fq "OTLP/HTTP metrics export exists today, but trace/span export is not implemented on \`main\`." "$ALIGN_DOC" \
-  || fail "OpenTelemetry section should distinguish metrics export from trace export"
-
-grep -Fq "Documented export mapping only; no in-toto adapter is implemented on \`main\`." "$ALIGN_DOC" \
-  || fail "in-toto section should state adapter status precisely"
-
 grep -Fq "DB-backed \`scorecard\` and" docs/ROAD_MAP.md \
   || fail "roadmap should describe supported hosted analytics precisely"
 
