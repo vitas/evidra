@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 **Evidra — Flight recorder for Infrastructure Automation**<br>
-**A new observability layer for CI/CD, IaC, and AI agents.**
+**Behavioral Reliability layer for CI/CD, IaC, and AI agents.**
 
 Infrastructure automation will not become trustworthy because agents stop making mistakes.
 It will become trustworthy because operations are recorded, decisions are explainable, and risky behavior patterns become visible before the next outage.
@@ -14,7 +14,7 @@ It will become trustworthy because operations are recorded, decisions are explai
 
 Evidra is the evidence, signal, and scoring layer for infrastructure automation. It captures intent before execution, records outcomes or explicit declines after execution, stores that lifecycle in a tamper-evident append-only evidence chain, and turns the resulting history into behavioral signals and reliability scorecards.
 
-CLI and MCP are the authoritative analytics surfaces today.
+Evidra is not an execution tracer. It does not replace OTel, Datadog, or Logfire. It records what they don't: intent before execution, decisions, and behavioral patterns over time.
 
 It is one platform with three operating surfaces:
 
@@ -24,7 +24,7 @@ It is one platform with three operating surfaces:
 | `evidra-mcp` | Exposes the `prescribe` / `report` lifecycle to MCP-connected automation runtimes |
 | Self-hosted API | Centralizes evidence, webhooks, analytics, and dashboarding across teams |
 
-What teams get from Evidra:
+What you get from Evidra:
 
 - a stable `prescribe` / `report` protocol for infrastructure actions
 - risk tags and risk levels at operation time
