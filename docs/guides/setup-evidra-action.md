@@ -1,5 +1,10 @@
 # Setup Evidra GitHub Action
 
+- Status: Guide
+- Version: current
+- Canonical for: GitHub Action installation workflow
+- Audience: public
+
 `setup-evidra` is a standalone install action.
 It only installs the `evidra` binary and exposes its path; it does not run scoring, validation, or benchmark logic.
 

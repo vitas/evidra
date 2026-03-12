@@ -1,5 +1,10 @@
 # Observability Quickstart
 
+- Status: Guide
+- Version: current
+- Canonical for: metrics export setup
+- Audience: public
+
 Evidra exports operation metrics via OTLP/HTTP. Connect any OTLP-compatible backend (Prometheus, Grafana Cloud, Datadog, New Relic, Honeycomb) to get reliability dashboards out of the box.
 
 ## Enable Metrics Export

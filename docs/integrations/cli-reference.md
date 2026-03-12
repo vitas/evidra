@@ -1,5 +1,10 @@
 # Evidra CLI Reference
 
+- Status: Reference
+- Version: current
+- Canonical for: CLI commands and flags
+- Audience: public
+
 This document is the user-facing command and flag reference for all binaries in this repository:
 - `evidra` (core CLI)
 - `evidra-mcp` (MCP server)

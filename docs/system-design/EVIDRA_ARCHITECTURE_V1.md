@@ -1,4 +1,9 @@
-# Evidra v1 Architecture
+# Evidra Architecture
+
+- Status: Normative
+- Version: v1.0
+- Canonical for: system overview and component boundaries
+- Audience: public
 
 **One page. The complete system.**
 **Consolidated source:** delivered implementation notes from removed `V1_IMPLEMENTATION_NOTES.md` are preserved in this document.

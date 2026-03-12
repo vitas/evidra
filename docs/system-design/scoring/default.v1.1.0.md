@@ -1,4 +1,9 @@
-# Scoring Rationale: `default.v1.1.0`
+# Default Scoring Profile
+
+- Status: Normative
+- Version: v1.1.0
+- Canonical for: default scoring weights, ceilings, and caps
+- Audience: public
 
 This document explains the active default scoring profile used by Evidra on the
 `v1.1.0` scoring line.

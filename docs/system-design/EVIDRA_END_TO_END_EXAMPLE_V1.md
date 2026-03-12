@@ -1,8 +1,11 @@
+# Evidra End-to-End Example
 
-# Evidra — End-to-End Example (v2)
-## Status
-Worked example. Updated to match **Canonicalization Contract v1**, the current
-**Benchmark** model, and the v0.3.x codebase.
+- Status: Example
+- Version: v1.0
+- Canonical for: worked protocol and scorecard walkthrough
+- Audience: public
+
+Worked example. Updated to match the current canonicalization, protocol, and scoring line.
 
 ---
 

@@ -1,5 +1,10 @@
 # API Reference
 
+- Status: Reference
+- Version: current
+- Canonical for: public HTTP endpoints and response examples
+- Audience: public
+
 All endpoints are served by `evidra-api` (default `:8080`).
 
 ## Authentication

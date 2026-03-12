@@ -1,4 +1,9 @@
-# Evidra MCP — Setup & Usage Guide
+# Evidra MCP Setup
+
+- Status: Guide
+- Version: current
+- Canonical for: MCP setup and local operation
+- Audience: public
 
 Evidra MCP is a flight recorder for AI agents that touch infrastructure.
 It records intent, explicit decisions, and outcomes for each reported operation, computes

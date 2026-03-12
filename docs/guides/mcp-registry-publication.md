@@ -1,4 +1,9 @@
-# MCP Registry Publication Guide
+# MCP Registry Publication
+
+- Status: Guide
+- Version: current
+- Canonical for: MCP registry release workflow
+- Audience: public
 
 Evidra is published to two MCP registries:
 

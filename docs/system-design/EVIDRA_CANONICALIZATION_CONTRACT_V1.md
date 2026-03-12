@@ -1,12 +1,11 @@
-# Evidra Canonicalization Contract v1
+# Evidra Canonicalization Contract
 
-## Status
+- Status: Normative
+- Version: v1.0
+- Canonical for: adapter rules, digest semantics, and canonical versions
+- Audience: public
+
 Frozen. Changes to canonical output require version bump.
-
-## Document Type
-**Normative.** This is the single source of truth for artifact
-canonicalization, digest computation, and adapter contracts. The
-key words "MUST", "MUST NOT", "SHOULD", "MAY" are per RFC 2119.
 
 ---
 

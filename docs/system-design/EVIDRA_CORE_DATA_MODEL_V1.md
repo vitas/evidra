@@ -1,8 +1,9 @@
-# Evidra — Core Data Model
+# Evidra Core Data Model
 
-## Status
-**Normative.** This document defines the core data model. All
-implementations MUST conform to these schemas.
+- Status: Normative
+- Version: v1.0
+- Canonical for: public object schemas and field semantics
+- Audience: public
 
 ## Purpose
 

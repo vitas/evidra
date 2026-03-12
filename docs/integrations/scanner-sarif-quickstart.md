@@ -1,5 +1,10 @@
 # Scanner SARIF Quickstart
 
+- Status: Guide
+- Version: current
+- Canonical for: SARIF ingestion workflow
+- Audience: public
+
 Evidra ingests SARIF scanner reports as evidence entries alongside your infrastructure operations.
 This lets you correlate security findings with deployment reliability signals.
 

@@ -1,5 +1,10 @@
 # Tests Index
 
+- Status: Reference
+- Version: current
+- Canonical for: public test map
+- Audience: public
+
 Short map of the main test folders in Evidra. Use this first, then go to
 [E2E_TESTING.md](E2E_TESTING.md) for the detailed suite breakdown.
 

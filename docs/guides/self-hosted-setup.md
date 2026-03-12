@@ -1,4 +1,9 @@
-# Self-Hosted Setup Guide
+# Self-Hosted Setup
+
+- Status: Guide
+- Version: current
+- Canonical for: self-hosted deployment and operator setup
+- Audience: public
 
 This document covers deploying `evidra-api` with the web dashboard, key issuance, and evidence analytics.
 

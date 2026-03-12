@@ -1,4 +1,9 @@
-# Signal Validation Guide
+# Signal Validation
+
+- Status: Guide
+- Version: current
+- Canonical for: signal-validation harness usage
+- Audience: public
 
 Evidra ships a deterministic signal-validation harness for checking whether the
 behavioral signal engine still differentiates meaningful operation patterns.

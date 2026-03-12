@@ -1,4 +1,9 @@
-# Supported Tools (v1)
+# Supported Tools
+
+- Status: Reference
+- Version: current
+- Canonical for: supported tool matrix and adapter coverage
+- Audience: public
 
 Evidra canonicalizes artifacts from the following tools via built-in adapters.
 

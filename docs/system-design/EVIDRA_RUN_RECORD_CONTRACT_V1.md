@@ -1,7 +1,10 @@
-# V1 Record/Import Contract
+# Evidra Record/Import Contract
 
-**Status:** Normative for v1 CLI ingestion/orchestration  
-**Date:** 2026-03-09
+- Status: Normative
+- Version: v1.0
+- Canonical for: record/import orchestration semantics
+- Audience: public
+- Date: 2026-03-09
 
 ---
 

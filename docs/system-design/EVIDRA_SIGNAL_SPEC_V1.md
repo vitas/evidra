@@ -1,4 +1,9 @@
-# Evidra Signal Specification v1.1.0
+# Evidra Signal Specification
+
+- Status: Normative
+- Version: v1.1.0
+- Canonical for: signal definitions, thresholds, and behavior semantics
+- Audience: public
 
 ## What This Is
 An open specification for infrastructure automation behavior
@@ -13,14 +18,7 @@ Any tool that modifies infrastructure can emit Evidra signals.
 Any platform can consume them. The spec is the contract between
 producers and consumers.
 
-## Status
 Stable. All eight signals are v1.1.0 stable (risk_escalation added in v1.1.0).
-
-## Document Type
-**Normative.** This is the single source of truth for signal
-definitions, metric contracts, and scoring formula. The key words
-"MUST", "MUST NOT", "SHOULD", "MAY" in this document are to be
-interpreted as described in RFC 2119.
 
 Other documents reference this spec but do not override it:
 - scoring/default.v1.1.0.md is the active default scoring profile rationale

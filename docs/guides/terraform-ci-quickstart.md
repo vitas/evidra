@@ -1,5 +1,10 @@
 # Terraform CI Quickstart
 
+- Status: Guide
+- Version: current
+- Canonical for: Terraform CI integration quickstart
+- Audience: public
+
 Get Evidra measuring your Terraform operations in 10 minutes.
 
 ## Prerequisites

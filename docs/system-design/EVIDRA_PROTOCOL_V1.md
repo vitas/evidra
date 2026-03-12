@@ -1,6 +1,9 @@
+# Evidra Protocol
 
-# Evidra Protocol v1.0 — Integration Contract
-Status: Draft (Normative for v1 Integrations)
+- Status: Normative
+- Version: v1.0
+- Canonical for: prescribe/report lifecycle, correlation, and delivery semantics
+- Audience: public
 
 This document defines the **minimal protocol contract** required for all Evidra integrations
 (MCP, REST sidecar, CLI, or future SDKs).
