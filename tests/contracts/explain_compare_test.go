@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-testcli "samebits.com/evidra/tests/testutil"
+	testcli "samebits.com/evidra/tests/testutil"
 )
 
 const driftDigest = "sha256:1111111111111111111111111111111111111111111111111111111111111111"

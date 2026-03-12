@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-testcli "samebits.com/evidra/tests/testutil"
+	testcli "samebits.com/evidra/tests/testutil"
 )
 
 const sessionBDigest = "sha256:2222222222222222222222222222222222222222222222222222222222222222"
