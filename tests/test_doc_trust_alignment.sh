@@ -22,12 +22,12 @@ grep -Fq "Requires Go ${go_floor}+." CONTRIBUTING.md \
 grep -Fq "| 0.4.x | Yes |" SECURITY.md \
   || fail "SECURITY.md should list the maintained 0.4.x release line"
 
-for file in README.md SECURITY.md docs/integrations/CLI_REFERENCE.md; do
+for file in README.md SECURITY.md docs/integrations/cli-reference.md; do
   grep -Fq "Evidra does not sandbox the wrapped command" "$file" \
     || fail "$file should document the run command execution boundary"
 done
 
-grep -Fq "same trust model as direct shell execution" docs/integrations/CLI_REFERENCE.md \
+grep -Fq "same trust model as direct shell execution" docs/integrations/cli-reference.md \
   || fail "CLI reference should explain the trust boundary for run"
 
 echo "PASS: test_doc_trust_alignment"

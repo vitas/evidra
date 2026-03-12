@@ -82,7 +82,7 @@ Session (session_id)
 | span_id | MAY | For OTel span hierarchy |
 
 **Implementation status:** `operation_id` and `attempt` are fields on
-`EvidenceEntry` (see [EVIDRA_CORE_DATA_MODEL.md, §5](EVIDRA_CORE_DATA_MODEL.md#5-evidenceentry)).
+`EvidenceEntry` (see [EVIDRA_CORE_DATA_MODEL_V1.md, §5](EVIDRA_CORE_DATA_MODEL_V1.md#5-evidenceentry)).
 They are available via CLI (`--operation-id`, `--attempt`) and MCP server
 input (`operation_id`, `attempt` in prescribe/report). Session lifecycle
 entry types (`session_start`, `session_end`) and `annotation` are

@@ -24,7 +24,7 @@ interpreted as described in RFC 2119.
 
 Other documents reference this spec but do not override it:
 - scoring/default.v1.1.0.md is the active default scoring profile rationale
-- EVIDRA_END_TO_END_EXAMPLE_v2.md is a practical walkthrough of protocol and analytics flow
+- EVIDRA_END_TO_END_EXAMPLE_V1.md is a practical walkthrough of protocol and analytics flow
 - docs/ARCHITECTURE.md is non-normative (overview)
 
 ---

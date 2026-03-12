@@ -5,7 +5,7 @@ This document is the user-facing command and flag reference for all binaries in 
 - `evidra-mcp` (MCP server)
 
 For architecture and protocol semantics, see:
-- [Integration Protocol](../system-design/EVIDRA_PROTOCOL.md)
+- [Integration Protocol](../system-design/EVIDRA_PROTOCOL_V1.md)
 - [Benchmark CLI Design](../system-design/internal/EVIDRA_BENCHMARK_CLI.md)
 - [Prompt Factory Spec](../system-design/internal/EVIDRA_PROMPT_FACTORY_SPEC.md)
 

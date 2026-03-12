@@ -570,7 +570,7 @@ curl http://localhost:8080/healthz
 curl -H "Authorization: Bearer $EVIDRA_API_KEY" \
   "http://localhost:8080/v1/evidence/scorecard?period=30d"</div>
       </div>
-      <p class="section-subtitle" style="margin-top: 1rem; margin-bottom: 0;">Self-hosted centralizes forwarded evidence and webhook-ingested events, then serves tenant-wide <code>/v1/evidence/scorecard</code> and <code>/v1/evidence/explain</code> over stored evidence; see <a href="https://github.com/vitas/evidra/blob/main/docs/guides/self-hosted-experimental-status.md" target="_blank" rel="noopener">Self-Hosted Experimental Status</a>.</p>
+      <p class="section-subtitle" style="margin-top: 1rem; margin-bottom: 0;">Self-hosted centralizes forwarded evidence and webhook-ingested events, then serves tenant-wide <code>/v1/evidence/scorecard</code> and <code>/v1/evidence/explain</code> over stored evidence; see <a href="https://github.com/vitas/evidra/blob/main/docs/guides/self-hosted-setup.md" target="_blank" rel="noopener">Self-Hosted Experimental Status</a>.</p>
     </div>
   </div>
 </section>
@@ -612,7 +612,7 @@ curl -H "Authorization: Bearer $EVIDRA_API_KEY" \
         <h3>Metrics Export</h3>
         <p>Export signals and scores to Grafana, Datadog, or any OTLP-compatible backend.</p>
       </a>
-      <a class="guide-card" href="https://github.com/vitas/evidra/blob/main/docs/integrations/SCANNER_SARIF_QUICKSTART.md" target="_blank" rel="noopener">
+      <a class="guide-card" href="https://github.com/vitas/evidra/blob/main/docs/integrations/scanner-sarif-quickstart.md" target="_blank" rel="noopener">
         <div class="guide-tag">Scanners</div>
         <h3>SARIF Integration</h3>
         <p>Ingest findings from Trivy, Kubescape, or any SARIF-compatible security scanner.</p>

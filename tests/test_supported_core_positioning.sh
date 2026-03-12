@@ -21,7 +21,7 @@ grep -Fq "flight recorder for AI agents that touch infrastructure" docs/guides/m
 grep -Fq "The agent reports voluntarily; Evidra observes, scores, and explains." docs/guides/mcp-setup.md \
   || fail "MCP guide should explain the non-intercepting model"
 
-grep -Fq "Self-hosted remains supported for centralized evidence collection" docs/guides/self-hosted-experimental-status.md \
+grep -Fq "Self-hosted remains supported for centralized evidence collection" docs/guides/self-hosted-setup.md \
   || fail "self-hosted status should keep the centralized evidence boundary explicit"
 
 grep -Fq "CLI and MCP are the authoritative analytics surfaces today." docs/ROAD_MAP.md \

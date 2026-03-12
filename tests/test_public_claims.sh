@@ -23,10 +23,10 @@ grep -Fq "Documented export mapping only; no in-toto adapter is implemented on \
 grep -Fq "DB-backed \`scorecard\` and" docs/ROAD_MAP.md \
   || fail "roadmap should describe supported hosted analytics precisely"
 
-grep -Fq "Hosted \`compare\` is not part of this contract yet." docs/guides/self-hosted-experimental-status.md \
+grep -Fq "Hosted \`compare\` is not part of this contract yet." docs/guides/self-hosted-setup.md \
   || fail "self-hosted status doc should keep hosted compare boundaries explicit"
 
-grep -Fq "X-Evidra-API-Key" docs/guides/self-hosted-experimental-status.md \
+grep -Fq "X-Evidra-API-Key" docs/guides/self-hosted-setup.md \
   || fail "self-hosted status doc should document tenant-aware webhook routing"
 
 echo "PASS: test_public_claims"

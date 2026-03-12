@@ -62,7 +62,7 @@ The `evidra.` prefix is used in CloudEvents `type` to namespace Evidra events.
 
 The CloudEvents type taxonomy follows the session/operation event model.
 It is a **separate namespace** from the internal entry type enum defined in
-[EVIDRA_CORE_DATA_MODEL.md, §5 Entry Types](EVIDRA_CORE_DATA_MODEL.md#5-evidenceentry).
+[EVIDRA_CORE_DATA_MODEL_V1.md, §5 Entry Types](EVIDRA_CORE_DATA_MODEL_V1.md#5-evidenceentry).
 
 | CloudEvents `type` | Internal entry type | Notes |
 |---------------------|---------------------|-------|
@@ -439,10 +439,10 @@ a standalone tool.
 
 ## References
 
-- [EVIDRA_PROTOCOL.md](EVIDRA_PROTOCOL.md) — integration contract
-- [EVIDRA_CORE_DATA_MODEL.md](EVIDRA_CORE_DATA_MODEL.md) — normative data model
+- [EVIDRA_PROTOCOL_V1.md](EVIDRA_PROTOCOL_V1.md) — integration contract
+- [EVIDRA_CORE_DATA_MODEL_V1.md](EVIDRA_CORE_DATA_MODEL_V1.md) — normative data model
 - [EVIDRA_SESSION_OPERATION_EVENT_MODEL.md](EVIDRA_SESSION_OPERATION_EVENT_MODEL.md) — session/operation model with CloudEvents, OTel, K8s mappings
-- [EVIDRA_SIGNAL_SPEC.md](EVIDRA_SIGNAL_SPEC.md) — signal definitions
+- [EVIDRA_SIGNAL_SPEC_V1.md](EVIDRA_SIGNAL_SPEC_V1.md) — signal definitions
 - [CloudEvents v1.0 spec](https://github.com/cloudevents/spec)
 - [SARIF v2.1.0 spec](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html)
 - [in-toto attestation framework](https://github.com/in-toto/attestation)

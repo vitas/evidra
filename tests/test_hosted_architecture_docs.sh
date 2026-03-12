@@ -37,7 +37,7 @@ assert_contains "decision_context" "cmd/evidra-api/static/index.html"
 
 assert_contains "## Hosted Mode" "docs/ARCHITECTURE.md"
 assert_contains "webhook ingestion" "docs/ARCHITECTURE.md"
-assert_contains "## Self-Hosted Mode" "docs/system-design/V1_ARCHITECTURE.md"
-assert_contains "deliberate refusal" "docs/system-design/V1_ARCHITECTURE.md"
+assert_contains "## Self-Hosted Mode" "docs/system-design/EVIDRA_ARCHITECTURE_V1.md"
+assert_contains "deliberate refusal" "docs/system-design/EVIDRA_ARCHITECTURE_V1.md"
 
 echo "hosted architecture docs checks passed"

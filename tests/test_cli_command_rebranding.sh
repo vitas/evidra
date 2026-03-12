@@ -33,11 +33,11 @@ assert_not_contains() {
 
 assert_contains "evidra record" "README.md"
 assert_contains "evidra import" "README.md"
-assert_contains "evidra import-findings" "docs/integrations/SCANNER_SARIF_QUICKSTART.md"
+assert_contains "evidra import-findings" "docs/integrations/scanner-sarif-quickstart.md"
 assert_contains "evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml" "README.md"
 assert_contains "evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml" "ui/src/pages/Landing.tsx"
 assert_contains "evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml" "cmd/evidra-api/static/index.html"
-assert_contains "evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml" "docs/integrations/CLI_REFERENCE.md"
+assert_contains "evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml" "docs/integrations/cli-reference.md"
 
 assert_not_contains "evidra run" README.md docs ui tests cmd
 assert_not_contains "evidra ingest-findings" README.md docs ui tests cmd

@@ -47,7 +47,7 @@ is the same. Including it in intent_digest would break retry loop
 detection (the signal compares intent_digest across operations).
 
 **operation_class values are frozen:** `read`, `mutate`, `destroy`,
-`plan`. See `EVIDRA_CORE_DATA_MODEL.md §9` for the normative enum.
+`plan`. See `EVIDRA_CORE_DATA_MODEL_V1.md §9` for the normative enum.
 All adapters and contract references MUST use these exact values.
 
 ### Adapter Status (MUST be accurate)

@@ -137,7 +137,7 @@ const GUIDES = [
   { tag: "AI Agents", title: "MCP Setup", desc: "Connect Claude, Cursor, Codex, Gemini, or any MCP-capable agent to Evidra for automatic reliability tracking.", href: "https://github.com/vitas/evidra/blob/main/docs/guides/mcp-setup.md" },
   { tag: "CI / CD", title: "CI Integration", desc: "Add reliability scoring to your CI pipeline \u2014 Terraform, Kubernetes, Docker, and more.", href: "https://github.com/vitas/evidra/blob/main/docs/guides/terraform-ci-quickstart.md" },
   { tag: "Observability", title: "Metrics Export", desc: "Export signals and scores to Grafana, Datadog, or any OTLP-compatible backend.", href: "https://github.com/vitas/evidra/blob/main/docs/guides/observability-quickstart.md" },
-  { tag: "Scanners", title: "SARIF Integration", desc: "Ingest findings from Trivy, Kubescape, or any SARIF-compatible security scanner.", href: "https://github.com/vitas/evidra/blob/main/docs/integrations/SCANNER_SARIF_QUICKSTART.md" },
+  { tag: "Scanners", title: "SARIF Integration", desc: "Ingest findings from Trivy, Kubescape, or any SARIF-compatible security scanner.", href: "https://github.com/vitas/evidra/blob/main/docs/integrations/scanner-sarif-quickstart.md" },
 ];
 
 type EditorTab = "claude-code" | "json-config" | "codex" | "gemini";
@@ -386,7 +386,7 @@ function GettingStarted() {
         {tab === "selfhost" && (
           <p className="text-[0.85rem] text-fg-muted mt-4">
             Self-hosted centralizes forwarded evidence and webhook-ingested events, then serves tenant-wide <code>/v1/evidence/scorecard</code> and <code>/v1/evidence/explain</code> over stored evidence.{" "}
-            <a href="https://github.com/vitas/evidra/blob/main/docs/guides/self-hosted-experimental-status.md" target="_blank" rel="noopener" className="font-semibold">Status guide &rarr;</a>
+            <a href="https://github.com/vitas/evidra/blob/main/docs/guides/self-hosted-setup.md" target="_blank" rel="noopener" className="font-semibold">Status guide &rarr;</a>
           </p>
         )}
       </Container>

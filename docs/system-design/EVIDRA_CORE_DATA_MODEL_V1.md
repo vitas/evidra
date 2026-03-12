@@ -438,7 +438,7 @@ version bump.
 | `unknown` | Cannot determine | Default when no match |
 
 Ingress alias normalization and validation requirements are defined in
-[EVIDRA_PROTOCOL.md §5.1](EVIDRA_PROTOCOL.md#51-scope-class).
+[EVIDRA_PROTOCOL_V1.md §5.1](EVIDRA_PROTOCOL_V1.md#51-scope-class).
 
 ### risk_level
 

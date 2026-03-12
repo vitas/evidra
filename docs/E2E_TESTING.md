@@ -5,7 +5,7 @@ exist, what each suite proves, which data they use, and where duplication is
 intentionally forbidden.
 
 For the short directory-by-directory test map, start with
-[TESTS_INDEX.md](TESTS_INDEX.md).
+[tests-index.md](tests-index.md).
 
 ## Test Taxonomy
 

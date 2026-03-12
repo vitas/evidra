@@ -4,6 +4,8 @@ This document covers deploying `evidra-api` with the web dashboard, key issuance
 
 CLI and MCP remain the primary local and agent-facing analytics surfaces. Self-hosted exposes the same scorecard and explain engine over centralized stored evidence, plus a web UI for onboarding and monitoring.
 
+Self-hosted remains supported for centralized evidence collection.
+
 ## Quick Start
 
 ### 1. Configure Environment
@@ -127,7 +129,7 @@ Webhook ingestion is tenant-aware:
 - `Authorization: Bearer <webhook-secret>` gates the route
 - `X-Evidra-API-Key: <tenant-api-key>` selects the tenant that receives the mapped evidence
 
-Full endpoint documentation: [API Reference](../API_REFERENCE.md)
+Full endpoint documentation: [API Reference](../api-reference.md)
 
 ## Pagination
 

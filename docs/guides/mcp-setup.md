@@ -406,7 +406,7 @@ claude mcp add evidra -- evidra-mcp \
 }
 ```
 
-Self-hosted `/v1/evidence/scorecard` and `/v1/evidence/explain` are available for tenant-wide analytics over stored evidence. Use CLI/MCP when you want local-first workflows or immediate command-side assessment. See [Self-Hosted Experimental Status](self-hosted-experimental-status.md).
+Self-hosted `/v1/evidence/scorecard` and `/v1/evidence/explain` are available for tenant-wide analytics over stored evidence. Use CLI/MCP when you want local-first workflows or immediate command-side assessment. See [Self-Hosted Experimental Status](self-hosted-setup.md).
 
 ---
 

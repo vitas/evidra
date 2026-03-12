@@ -16,7 +16,9 @@ It will become trustworthy because operations are recorded, decisions are explai
 
 ## What Evidra Is
 
-Evidra is the evidence, signal, and scoring layer for infrastructure automation. It captures intent before execution, records outcomes or explicit declines after execution, stores that lifecycle in a tamper-evident evidence chain, and turns the resulting history into behavioral signals and reliability scorecards.
+Evidra is the evidence, signal, and scoring layer for infrastructure automation. It captures intent before execution, records outcomes or explicit declines after execution, stores that lifecycle in a tamper-evident append-only evidence chain, and turns the resulting history into behavioral signals and reliability scorecards.
+
+CLI and MCP are the authoritative analytics surfaces today.
 
 It is one platform with three operating surfaces:
 
@@ -53,7 +55,7 @@ CLI / MCP / CI / Webhooks
 
 Signals and scoring details:
 
-- [Signal Specification](docs/system-design/EVIDRA_SIGNAL_SPEC.md)
+- [Signal Specification](docs/system-design/EVIDRA_SIGNAL_SPEC_V1.md)
 - [Scoring Rationale](docs/system-design/scoring/default.v1.1.0.md)
 
 ## Where It Fits
@@ -140,8 +142,8 @@ Core commands:
 
 References:
 
-- [CLI Reference](docs/integrations/CLI_REFERENCE.md)
-- [V1 Record/Import Contract](docs/system-design/V1_RUN_RECORD_CONTRACT.md)
+- [CLI Reference](docs/integrations/cli-reference.md)
+- [V1 Record/Import Contract](docs/system-design/EVIDRA_RUN_RECORD_CONTRACT_V1.md)
 
 ### MCP Service
 
@@ -176,8 +178,8 @@ evidra record --url http://localhost:8080 --api-key my-secret-key -f deploy.yaml
 
 References:
 
-- [Self-Hosted Setup Guide](docs/guides/self-hosted-experimental-status.md)
-- [API Reference](docs/API_REFERENCE.md)
+- [Self-Hosted Setup Guide](docs/guides/self-hosted-setup.md)
+- [API Reference](docs/api-reference.md)
 - [Setup Evidra Action](docs/guides/setup-evidra-action.md)
 - [Terraform CI Quickstart](docs/guides/terraform-ci-quickstart.md)
 
@@ -192,33 +194,33 @@ References:
 
 Full details:
 
-- [Supported Tools](docs/SUPPORTED_TOOLS.md)
+- [Supported Tools](docs/supported-tools.md)
 
 ## Docs Map
 
 Architecture and contracts:
 
-- [V1 Architecture](docs/system-design/V1_ARCHITECTURE.md)
-- [Protocol](docs/system-design/EVIDRA_PROTOCOL.md)
-- [Core Data Model](docs/system-design/EVIDRA_CORE_DATA_MODEL.md)
-- [Canonicalization Contract](docs/system-design/CANONICALIZATION_CONTRACT_V1.md)
-- [Signal Spec](docs/system-design/EVIDRA_SIGNAL_SPEC.md)
+- [V1 Architecture](docs/system-design/EVIDRA_ARCHITECTURE_V1.md)
+- [Protocol](docs/system-design/EVIDRA_PROTOCOL_V1.md)
+- [Core Data Model](docs/system-design/EVIDRA_CORE_DATA_MODEL_V1.md)
+- [Canonicalization Contract](docs/system-design/EVIDRA_CANONICALIZATION_CONTRACT_V1.md)
+- [Signal Spec](docs/system-design/EVIDRA_SIGNAL_SPEC_V1.md)
 - [Scoring Rationale](docs/system-design/scoring/default.v1.1.0.md)
 
 Integration and operations:
 
-- [API Reference](docs/API_REFERENCE.md)
-- [CLI Reference](docs/integrations/CLI_REFERENCE.md)
-- [Supported Tools](docs/SUPPORTED_TOOLS.md)
+- [API Reference](docs/api-reference.md)
+- [CLI Reference](docs/integrations/cli-reference.md)
+- [Supported Tools](docs/supported-tools.md)
 - [Observability Quickstart](docs/guides/observability-quickstart.md)
-- [Scanner SARIF Quickstart](docs/integrations/SCANNER_SARIF_QUICKSTART.md)
-- [Self-Hosted Setup Guide](docs/guides/self-hosted-experimental-status.md)
+- [Scanner SARIF Quickstart](docs/integrations/scanner-sarif-quickstart.md)
+- [Self-Hosted Setup Guide](docs/guides/self-hosted-setup.md)
 
 Developer references:
 
 - [Architecture Overview](docs/ARCHITECTURE.md)
 - [E2E Testing Map](docs/E2E_TESTING.md)
-- [Tests Index](docs/TESTS_INDEX.md)
+- [Tests Index](docs/tests-index.md)
 - [Shared Artifact Fixtures](tests/artifacts/fixtures/README.md)
 
 ## Development

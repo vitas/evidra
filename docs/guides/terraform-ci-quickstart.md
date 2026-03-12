@@ -226,6 +226,6 @@ Behavioral signals tracked over time:
 
 ## Next Steps
 
-- [Scanner SARIF Quickstart](../integrations/SCANNER_SARIF_QUICKSTART.md) — add Trivy/Checkov findings to evidence
-- [Signal Spec](../system-design/EVIDRA_SIGNAL_SPEC.md) — detailed signal definitions
-- [CLI Reference](../integrations/CLI_REFERENCE.md) — all flags and commands
+- [Scanner SARIF Quickstart](../integrations/scanner-sarif-quickstart.md) — add Trivy/Checkov findings to evidence
+- [Signal Spec](../system-design/EVIDRA_SIGNAL_SPEC_V1.md) — detailed signal definitions
+- [CLI Reference](../integrations/cli-reference.md) — all flags and commands

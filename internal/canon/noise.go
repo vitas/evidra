@@ -1,6 +1,6 @@
 package canon
 
-// Frozen noise field lists from CANONICALIZATION_CONTRACT_V1.md §4.5.
+// Frozen noise field lists from EVIDRA_CANONICALIZATION_CONTRACT_V1.md §4.5.
 // These fields are removed before computing resource_shape_hash.
 // The lists are frozen — adding new noise fields requires a new canon version.
 

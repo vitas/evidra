@@ -129,19 +129,19 @@ CLI / MCP --------> local JSONL evidence --------> local scorecard / explain
 ## Where To Find Details
 
 Normative contracts:
-- [Protocol](system-design/EVIDRA_PROTOCOL.md)
-- [Core Data Model](system-design/EVIDRA_CORE_DATA_MODEL.md)
-- [Canonicalization Contract](system-design/CANONICALIZATION_CONTRACT_V1.md)
-- [Signal Spec](system-design/EVIDRA_SIGNAL_SPEC.md)
+- [Protocol](system-design/EVIDRA_PROTOCOL_V1.md)
+- [Core Data Model](system-design/EVIDRA_CORE_DATA_MODEL_V1.md)
+- [Canonicalization Contract](system-design/EVIDRA_CANONICALIZATION_CONTRACT_V1.md)
+- [Signal Spec](system-design/EVIDRA_SIGNAL_SPEC_V1.md)
 - [Session/Operation Event Model](system-design/EVIDRA_SESSION_OPERATION_EVENT_MODEL.md)
 
 System design and implementation mapping:
-- [V1 Architecture](system-design/V1_ARCHITECTURE.md)
-- [V1 Record/Import Contract](system-design/V1_RUN_RECORD_CONTRACT.md)
+- [V1 Architecture](system-design/EVIDRA_ARCHITECTURE_V1.md)
+- [V1 Record/Import Contract](system-design/EVIDRA_RUN_RECORD_CONTRACT_V1.md)
 - [CNCF Standards Alignment](system-design/EVIDRA_CNCF_STANDARDS_ALIGNMENT.md)
 
 Operational references:
-- [CLI Reference](integrations/CLI_REFERENCE.md)
-- [End-to-End Example](system-design/EVIDRA_END_TO_END_EXAMPLE_v2.md)
-- [Self-Hosted Experimental Status](guides/self-hosted-experimental-status.md)
+- [CLI Reference](integrations/cli-reference.md)
+- [End-to-End Example](system-design/EVIDRA_END_TO_END_EXAMPLE_V1.md)
+- [Self-Hosted Experimental Status](guides/self-hosted-setup.md)
 - [Signal Validation Guide](guides/signal-validation.md)

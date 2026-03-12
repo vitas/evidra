@@ -65,7 +65,7 @@ tests/signal-validation/
 ## Related Docs
 
 - [`signal-validation.md`](../../docs/guides/signal-validation.md)
-- [`V1_ARCHITECTURE.md`](../../docs/system-design/V1_ARCHITECTURE.md)
+- [`EVIDRA_ARCHITECTURE_V1.md`](../../docs/system-design/EVIDRA_ARCHITECTURE_V1.md)
 
 ## After Running
 
