@@ -4,29 +4,68 @@
 [![Release Pipeline](https://github.com/vitas/evidra/actions/workflows/release.yml/badge.svg?event=push)](https://github.com/vitas/evidra/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-**Evidra — Flight recorder for AI infrastructure agents**
-A new observability layer for CI/CD, IaC, and AI agents.
+**Evidra — Flight recorder for Infrastructure Automation**<br>
+**A new observability layer for CI/CD, IaC, and AI agents.**
 
-Evidra records what your automation intended and what actually happened. 
-For AI agents, it also records what they decided not to do. 
+Evidra records what your automation intended and what actually happened.
+For AI agents, it also records what they decided not to do.
 From this evidence, Evidra computes behavioral signals that answer: is this actor operating reliably?
 
-Infrastructure automation will not become trustworthy because agents stop making mistakes. 
+Infrastructure automation will not become trustworthy because agents stop making mistakes.
 It will become trustworthy because operations are recorded, decisions are explainable, and risky behavior patterns become visible before the next outage.
 
-## How To Use
+## What Evidra Is
 
-Two primary operation modes:
+Evidra is the evidence, signal, and scoring layer for infrastructure automation. It captures intent before execution, records outcomes or explicit declines after execution, stores that lifecycle in a tamper-evident evidence chain, and turns the resulting history into behavioral signals and reliability scorecards.
 
-- `evidra record` = Evidra executes and observes a command live.
-- `evidra import` = Evidra ingests a completed operation from structured input.
+It is one platform with three operating surfaces:
 
-Both modes feed the same lifecycle and scoring engine.
+| Surface | What it does |
+|---|---|
+| `evidra` CLI | Wraps live commands, imports completed operations, and computes local scorecards |
+| `evidra-mcp` | Exposes the `prescribe` / `report` lifecycle to MCP-connected automation runtimes |
+| Self-hosted API | Centralizes evidence, webhooks, analytics, and dashboarding across teams |
 
-Security boundary: `evidra record` executes the wrapped local command directly.
-Evidra does not sandbox the wrapped command. Treat it with the same trust model
-as direct shell execution; Evidra records evidence around the command, but it
-does not contain or block it.
+What teams get from Evidra:
+
+- a stable `prescribe` / `report` protocol for infrastructure actions
+- risk tags and risk levels at operation time
+- behavioral signals such as retry loops, protocol violations, blast radius, and artifact drift
+- scorecards for comparing reliability across actors, sessions, and time windows
+
+## How It Works
+
+```text
+CLI / MCP / CI / Webhooks
+        -> prescribe
+        -> execute or decline
+        -> report
+        -> evidence chain
+        -> signals engine
+        -> scorecard
+```
+
+1. `prescribe` records the intended action, canonical form, digests, and immediate risk classification.
+2. `report` records the terminal outcome or an intentional refusal with structured context.
+3. Evidence is stored in an append-only chain.
+4. The signals engine detects behavior patterns across that chain.
+5. Scorecards convert those patterns into a reliability score, band, and confidence level.
+
+Signals and scoring details:
+
+- [Signal Specification](docs/system-design/EVIDRA_SIGNAL_SPEC.md)
+- [Scoring Rationale](docs/system-design/scoring/default.v1.1.0.md)
+
+## Where It Fits
+
+Evidra is useful anywhere infrastructure changes need evidence and behavioral accountability:
+
+- CI/CD pipelines that already run `kubectl`, `helm`, or `terraform`
+- GitOps and import-based workflows that want ingestion without wrapping execution
+- MCP-connected automation and AI-assisted tooling that need explicit before/after lifecycle recording
+- platform teams that want centralized evidence, analytics, and actor comparison across environments
+
+## Fastest Path For DevOps
 
 ### Install
 
@@ -39,24 +78,26 @@ curl -fsSL https://github.com/samebits/evidra/releases/latest/download/evidra_$(
   | tar -xz -C /usr/local/bin evidra
 
 # Build from source
-make build    # produces bin/evidra and bin/evidra-mcp
+make build
 ```
 
-### Quick Start (10-minute path)
+### Record One Operation
 
 ```bash
-# 1) Generate a signing key (strict mode)
 evidra keygen
 export EVIDRA_SIGNING_KEY=<base64>
 
-# 2) Record one live operation
 evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml
+```
 
-# 3) View score context
+### See The Score Context
+
+```bash
 evidra scorecard --period 30d
 ```
 
-The `record` output includes first useful fields:
+The `record` output includes the first useful fields:
+
 - `risk_level`
 - `score`
 - `score_band`
@@ -64,43 +105,25 @@ The `record` output includes first useful fields:
 - `basis` (`preview` vs `sufficient`)
 - `confidence`
 
-### CI/CD Ingestion Path
+Security boundary: `evidra record` executes the wrapped local command directly.
+Evidra does not sandbox the wrapped command. Treat it with the same trust model
+as direct shell execution; Evidra records evidence around the command, but it
+does not contain or block it.
 
-Use `import` when pipelines already run native commands and you only want ingestion:
+## Integration Surfaces
+
+### Local CLI
+
+Two primary CLI modes feed the same lifecycle and scoring engine:
+
+- `evidra record` executes a command live and records the full lifecycle
+- `evidra import` ingests a completed operation from structured input
 
 ```bash
 evidra import --input record.json
 ```
 
-Contract details:
-- [V1 Record/Import Contract](docs/system-design/V1_RUN_RECORD_CONTRACT.md)
-
-## How It Works
-
-```text
-record/import -> prescribe -> report(verdict) -> signals -> scorecard
-```
-
-1. Evidra records operation intent (`prescribe`).
-2. A terminal outcome or explicit refusal decision is recorded (`report`).
-3. Signal engine computes behavior signals from evidence.
-4. Score engine calculates reliability score + band + confidence.
-
-Current signals are documented in:
-- [Signal Specification](docs/system-design/EVIDRA_SIGNAL_SPEC.md)
-
-## Supported Tools
-
-| Adapter | Tools | Artifact |
-|---|---|---|
-| **k8s/v1** | kubectl, helm, kustomize, oc (OpenShift) | YAML manifests |
-| **terraform/v1** | terraform | Plan JSON (`terraform show -json`) |
-| **docker/v1** | docker | Container inspect JSON |
-| **generic/v1** | Any (fallback) | Raw bytes — use `--canonical-action` for structured tools |
-
-Full details: [Supported Tools](docs/SUPPORTED_TOOLS.md)
-
-## Core Commands
+Core commands:
 
 | Command | Purpose |
 |---|---|
@@ -115,92 +138,66 @@ Full details: [Supported Tools](docs/SUPPORTED_TOOLS.md)
 | `compare` | Compare actor reliability |
 | `keygen` | Generate Ed25519 signing keypair |
 
-Full flags and subcommands:
+References:
+
 - [CLI Reference](docs/integrations/CLI_REFERENCE.md)
-- [E2E Testing Map](docs/E2E_TESTING.md)
+- [V1 Record/Import Contract](docs/system-design/V1_RUN_RECORD_CONTRACT.md)
 
-## MCP Integration Point
+### MCP Service
 
-Evidra speaks MCP. The MCP server is a flight recorder for AI agents that touch
-infrastructure: the agent reports what it intended to do before execution and
-what it actually did or intentionally declined to do, with a bounded reason.
+Evidra speaks MCP. The MCP service is the same flight recorder lifecycle exposed to automation runtimes: the actor reports what it intended to do before execution and what it actually did or intentionally declined to do afterward.
 
 ```bash
 evidra-mcp --evidence-dir ~/.evidra/evidence
 ```
 
-Details:
+References:
+
 - [MCP server schemas](pkg/mcpserver/schemas/)
 - [MCP contract prompts](docs/system-design/MCP_CONTRACT_PROMPTS.md)
 - [MCP Registry Publication Guide](docs/guides/mcp-registry-publication.md)
 
-## CI Integration
+### Self-Hosted API And Webhooks
 
-### GitHub Actions
-
-```yaml
-- name: Setup Evidra
-  uses: samebits/evidra/.github/actions/setup-evidra@main
-```
-
-### Generic CI (GitLab, Jenkins, CircleCI, etc.)
-
-```bash
-curl -fsSL https://github.com/samebits/evidra/releases/latest/download/evidra_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz \
-  | tar -xz -C /usr/local/bin evidra
-```
-
-Guides:
-- [Setup Evidra Action](docs/guides/setup-evidra-action.md)
-- [Terraform CI Quickstart](docs/guides/terraform-ci-quickstart.md)
-
-## API Backend (Self-Hosted)
-
-Run the Evidra API backend with Docker Compose for centralized evidence collection.
-
-Self-hosted supports evidence ingestion, key issuance, paginated entry browsing, and tenant-wide analytics today. The embedded web UI provides an onboarding wizard for API key generation and a reliability dashboard. See [Self-Hosted Setup Guide](docs/guides/self-hosted-experimental-status.md) and [API Reference](docs/API_REFERENCE.md).
-
-### Docker Compose Quickstart
+Run the Evidra backend when you want centralized evidence collection, webhook ingestion, team-wide analytics, and the embedded UI.
 
 ```bash
 export EVIDRA_API_KEY=my-secret-key
-export EVIDRA_INVITE_SECRET=my-invite-secret   # enables key issuance + onboarding wizard
+export EVIDRA_INVITE_SECRET=my-invite-secret
 docker compose up --build -d
 curl http://localhost:8080/healthz
 ```
 
-### Environment Variables
-
-| Variable | Purpose | Default |
-|---|---|---|
-| `DATABASE_URL` | PostgreSQL connection string | *(required)* |
-| `EVIDRA_API_KEY` | API key for authenticated endpoints | *(required)* |
-| `EVIDRA_WEBHOOK_SECRET_ARGOCD` | Bearer secret for `/v1/hooks/argocd` | *(optional)* |
-| `EVIDRA_WEBHOOK_SECRET_GENERIC` | Bearer secret for `/v1/hooks/generic` | *(optional)* |
-| `LISTEN_ADDR` | HTTP listen address | `:8080` |
-| `EVIDRA_SIGNING_KEY` | Base64 Ed25519 private key for signing | *(optional)* |
-| `EVIDRA_SIGNING_KEY_PATH` | Path to PEM Ed25519 private key | *(optional)* |
-| `EVIDRA_SIGNING_MODE` | `strict` or `optional` | `strict` |
-| `EVIDRA_INVITE_SECRET` | Invite secret for key issuance and onboarding wizard | *(optional)* |
-
-### Online Mode (CLI)
-
-Point the CLI at the API backend to forward evidence:
+The CLI can forward evidence to the backend:
 
 ```bash
 evidra record --url http://localhost:8080 --api-key my-secret-key -f deploy.yaml -- kubectl apply -f deploy.yaml
 ```
 
+References:
+
+- [Self-Hosted Setup Guide](docs/guides/self-hosted-experimental-status.md)
+- [API Reference](docs/API_REFERENCE.md)
+- [Setup Evidra Action](docs/guides/setup-evidra-action.md)
+- [Terraform CI Quickstart](docs/guides/terraform-ci-quickstart.md)
+
+## Supported Tools
+
+| Adapter | Tools | Artifact |
+|---|---|---|
+| **k8s/v1** | kubectl, helm, kustomize, oc (OpenShift) | YAML manifests |
+| **terraform/v1** | terraform | Plan JSON (`terraform show -json`) |
+| **docker/v1** | docker | Container inspect JSON |
+| **generic/v1** | Any (fallback) | Raw bytes — use `--canonical-action` for structured tools |
+
+Full details:
+
+- [Supported Tools](docs/SUPPORTED_TOOLS.md)
+
 ## Docs Map
 
 Architecture and contracts:
-- [API Reference](docs/API_REFERENCE.md)
-- [Public Roadmap](docs/ROAD_MAP.md)
-- [Tests Index](docs/TESTS_INDEX.md)
-- [E2E Testing Map](docs/E2E_TESTING.md)
-- [Shared Artifact Fixtures](tests/artifacts/fixtures/README.md)
-- [Architecture Overview](docs/ARCHITECTURE.md)
-- [Decision Tracking v1](docs/system-design/EVIDRA_DECISION_TRACKING_V1.md)
+
 - [V1 Architecture](docs/system-design/V1_ARCHITECTURE.md)
 - [Protocol](docs/system-design/EVIDRA_PROTOCOL.md)
 - [Core Data Model](docs/system-design/EVIDRA_CORE_DATA_MODEL.md)
@@ -208,35 +205,23 @@ Architecture and contracts:
 - [Signal Spec](docs/system-design/EVIDRA_SIGNAL_SPEC.md)
 - [Scoring Rationale](docs/system-design/scoring/default.v1.1.0.md)
 
-Operational guides:
-- [Acceptance Fixture Status](docs/guides/acceptance-fixture-status.md)
-- [MCP Registry Publication Guide](docs/guides/mcp-registry-publication.md)
+Integration and operations:
+
+- [API Reference](docs/API_REFERENCE.md)
+- [CLI Reference](docs/integrations/CLI_REFERENCE.md)
+- [Supported Tools](docs/SUPPORTED_TOOLS.md)
 - [Observability Quickstart](docs/guides/observability-quickstart.md)
 - [Scanner SARIF Quickstart](docs/integrations/SCANNER_SARIF_QUICKSTART.md)
-- [Self-Hosted Experimental Status](docs/guides/self-hosted-experimental-status.md)
+- [Self-Hosted Setup Guide](docs/guides/self-hosted-experimental-status.md)
 
-## Environment
+Developer references:
 
-| Variable | Purpose |
-|---|---|
-| `EVIDRA_SIGNING_KEY` | Base64 Ed25519 private key |
-| `EVIDRA_SIGNING_KEY_PATH` | PEM Ed25519 private key path |
-| `EVIDRA_SIGNING_MODE` | `strict` (default) or `optional` |
-| `EVIDRA_EVIDENCE_DIR` | Evidence storage directory |
-| `EVIDRA_ENVIRONMENT` | Environment label (MCP server) |
-| `EVIDRA_EVIDENCE_WRITE_MODE` | `strict` or `best_effort` |
-| `EVIDRA_METRICS_TRANSPORT` | `none` (default) or `otlp_http` |
-| `EVIDRA_METRICS_OTLP_ENDPOINT` | OTLP HTTP endpoint |
-| `EVIDRA_METRICS_TIMEOUT` | Metrics export timeout (duration) |
+- [Architecture Overview](docs/ARCHITECTURE.md)
+- [E2E Testing Map](docs/E2E_TESTING.md)
+- [Tests Index](docs/TESTS_INDEX.md)
+- [Shared Artifact Fixtures](tests/artifacts/fixtures/README.md)
 
-Local smoke convenience (ephemeral signing):
-
-```bash
-export EVIDRA_SIGNING_MODE=optional
-make test-mcp-inspector
-```
-
-## Build and Test
+## Development
 
 ```bash
 make build
