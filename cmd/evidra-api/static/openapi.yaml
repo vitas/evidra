@@ -359,6 +359,7 @@ paths:
               event_type: operation_started
               tool: mycontroller
               operation: reconcile
+              operation_id: op-1
               environment: production
               actor: my-operator
               session_id: sess-1

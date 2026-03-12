@@ -33,6 +33,7 @@ type genericWebhookPayload struct {
 	EventType      string             `json:"event_type"`
 	Tool           string             `json:"tool"`
 	Operation      string             `json:"operation"`
+	OperationID    string             `json:"operation_id"`
 	Environment    string             `json:"environment"`
 	Actor          string             `json:"actor"`
 	SessionID      string             `json:"session_id"`
@@ -72,6 +73,11 @@ func handleGenericWebhookWithTenantResolver(store WebhookStore, signer pkevidenc
 			writeError(w, http.StatusBadRequest, "tool and operation are required")
 			return
 		}
+		operationID := strings.TrimSpace(payload.OperationID)
+		if operationID == "" {
+			writeError(w, http.StatusBadRequest, "operation_id is required")
+			return
+		}
 		if payload.EventType != "operation_started" && payload.EventType != "operation_completed" {
 			writeError(w, http.StatusBadRequest, "unsupported event_type")
 			return
@@ -83,7 +89,7 @@ func handleGenericWebhookWithTenantResolver(store WebhookStore, signer pkevidenc
 
 		idempotencyKey := strings.TrimSpace(payload.IdempotencyKey)
 		if idempotencyKey == "" {
-			idempotencyKey = mappedPrescriptionID("generic", payload.Tool, payload.Operation, payload.Actor, payload.SessionID, payload.Environment, "start")
+			idempotencyKey = "generic:" + operationID + ":start"
 		}
 
 		duplicate, release, err := claimWebhook(r.Context(), store, tenantID, "generic", idempotencyKey, body)
@@ -112,22 +118,22 @@ func handleGenericWebhookWithTenantResolver(store WebhookStore, signer pkevidenc
 		actor := mappedActor(payload.Actor, "generic")
 		sessionID := strings.TrimSpace(payload.SessionID)
 		if sessionID == "" {
-			sessionID = idempotencyKey
+			sessionID = operationID
 		}
-		prescriptionID := mappedPrescriptionID("generic", payload.Tool, payload.Operation, actor.ID, sessionID, payload.Environment, "")
+		prescriptionID := mappedPrescriptionID("generic", payload.Tool, payload.Operation, "", operationID, payload.Environment, "")
 		scope := mappedScopeDimensions("generic", payload.Environment, map[string]string{})
 		artifactDigest := canon.SHA256Hex(body)
 
 		var entry pkevidence.EvidenceEntry
 		if payload.EventType == "operation_started" {
-			entry, err = buildMappedPrescribeEntry(lastHash, signer, actor, sessionID, sessionID, prescriptionID, action, artifactDigest, scope)
+			entry, err = buildMappedPrescribeEntry(lastHash, signer, actor, sessionID, operationID, prescriptionID, action, artifactDigest, scope)
 		} else {
 			exitCode := payload.ExitCode
 			if exitCode == nil {
 				defaultCode := exitCodeForVerdict(payload.Verdict)
 				exitCode = &defaultCode
 			}
-			entry, err = buildMappedReportEntry(lastHash, signer, actor, sessionID, sessionID, prescriptionID, artifactDigest, scope, payload.Verdict, exitCode)
+			entry, err = buildMappedReportEntry(lastHash, signer, actor, sessionID, operationID, prescriptionID, artifactDigest, scope, payload.Verdict, exitCode)
 		}
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "build mapped evidence failed")

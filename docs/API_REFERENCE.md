@@ -254,6 +254,10 @@ Generic webhook receiver. Requires:
 
 Maps `operation_started` / `operation_completed` events.
 
+Contract:
+- `operation_id` is required on both start and completion events and is the stable lifecycle identity used to correlate prescribe/report entries.
+- `idempotency_key` remains required on `operation_completed`, but only for duplicate suppression.
+
 ---
 
 ## Benchmark

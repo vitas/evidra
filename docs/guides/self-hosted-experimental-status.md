@@ -159,6 +159,8 @@ The web dashboard uses this pagination automatically.
 - Webhook mapping support:
   - ArgoCD `sync_started` / `sync_completed`
   - Generic `operation_started` / `operation_completed`
+  - generic webhook payloads must include `operation_id` on both start and completion events
+  - `idempotency_key` on generic completion is for duplicate suppression, not lifecycle identity
   - webhook requests must include `X-Evidra-API-Key` so mapped evidence lands in the correct tenant
 - Hosted `compare` is not part of this contract yet.
 
