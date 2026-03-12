@@ -347,6 +347,10 @@ Scorecard summarizes reliability over a dataset.
 
 ### Score Formula
 
+For a plain-language explanation of how counts become rates, how rates become
+penalty contributions, and how caps/ceilings affect the final score, see
+[`EVIDRA_SCORING_MODEL_V1.md`](./EVIDRA_SCORING_MODEL_V1.md).
+
 ```
 score = 100 * (1 - penalty)
 

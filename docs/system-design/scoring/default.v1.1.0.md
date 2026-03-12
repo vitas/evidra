@@ -8,6 +8,9 @@
 This document explains the active default scoring profile used by Evidra on the
 `v1.1.0` scoring line.
 
+For the scoring pipeline itself in plain language, see
+[`EVIDRA_SCORING_MODEL_V1.md`](../EVIDRA_SCORING_MODEL_V1.md).
+
 ## Profile Identity
 
 - profile id: `default.v1.1.0`

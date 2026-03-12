@@ -52,6 +52,7 @@ CLI / MCP / CI / Webhooks
 Signals and scoring details:
 
 - [Signal Specification](docs/system-design/EVIDRA_SIGNAL_SPEC_V1.md)
+- [How Scoring Works](docs/system-design/EVIDRA_SCORING_MODEL_V1.md)
 - [Scoring Rationale](docs/system-design/scoring/default.v1.1.0.md)
 
 ## Where It Fits

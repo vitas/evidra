@@ -29,6 +29,11 @@ The harness exercises these behavioral patterns:
 - runs scripted prescribe/report sequences
 - validates observed signals and score bands against `expected-bands.json`
 
+The expectation windows in `expected-bands.json` are calibration snapshots
+derived from the active scoring model and profile, not an independent scoring
+spec. For the score pipeline itself, see
+[`EVIDRA_SCORING_MODEL_V1.md`](../system-design/EVIDRA_SCORING_MODEL_V1.md).
+
 The harness is intentionally deterministic:
 
 - CLI failures are fatal
