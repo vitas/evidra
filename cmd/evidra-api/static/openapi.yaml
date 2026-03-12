@@ -291,7 +291,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              $ref: '#/components/schemas/ArgoCDWebhookRequest'
             example:
               event: sync_started
               app_name: payments
@@ -354,7 +354,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              $ref: '#/components/schemas/GenericWebhookRequest'
             example:
               event_type: operation_started
               tool: mycontroller
@@ -776,6 +776,64 @@ components:
         status:
           type: string
           example: accepted
+
+    ArgoCDWebhookRequest:
+      type: object
+      properties:
+        event:
+          type: string
+          enum: [sync_started, sync_completed]
+        app_name:
+          type: string
+        app_namespace:
+          type: string
+        revision:
+          type: string
+        initiated_by:
+          type: string
+        operation_id:
+          type: string
+        phase:
+          type: string
+        message:
+          type: string
+      required:
+        - event
+        - app_name
+        - operation_id
+
+    GenericWebhookRequest:
+      type: object
+      properties:
+        event_type:
+          type: string
+          enum: [operation_started, operation_completed]
+        tool:
+          type: string
+        operation:
+          type: string
+        operation_id:
+          type: string
+        environment:
+          type: string
+        actor:
+          type: string
+        session_id:
+          type: string
+        verdict:
+          type: string
+          enum: [succeeded, failed, declined]
+        exit_code:
+          type: integer
+          nullable: true
+        idempotency_key:
+          type: string
+          description: Required for `operation_completed`; used only for duplicate suppression.
+      required:
+        - event_type
+        - tool
+        - operation
+        - operation_id
 
     ForwardResponse:
       type: object
