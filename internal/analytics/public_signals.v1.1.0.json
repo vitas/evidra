@@ -1,0 +1,12 @@
+{
+  "signals": [
+    "protocol_violation",
+    "artifact_drift",
+    "retry_loop",
+    "blast_radius",
+    "new_scope",
+    "repair_loop",
+    "thrashing",
+    "risk_escalation"
+  ]
+}

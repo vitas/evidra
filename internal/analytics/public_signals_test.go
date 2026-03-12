@@ -8,6 +8,28 @@ import (
 	"samebits.com/evidra/internal/signal"
 )
 
+func TestDecodePublicSignalManifest_RejectsEmptySignals(t *testing.T) {
+	t.Parallel()
+
+	_, err := decodePublicSignalManifest([]byte(`{"signals":[]}`))
+	if err == nil {
+		t.Fatal("expected empty manifest to fail")
+	}
+}
+
+func TestDecodePublicSignalManifest_PreservesDeclaredOrder(t *testing.T) {
+	t.Parallel()
+
+	got, err := decodePublicSignalManifest([]byte(`{"signals":["b","a","c"]}`))
+	if err != nil {
+		t.Fatalf("decodePublicSignalManifest: %v", err)
+	}
+	want := []string{"b", "a", "c"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("decoded signals = %v, want %v", got, want)
+	}
+}
+
 func TestPublicSignalNames_ReturnsStableContractOrder(t *testing.T) {
 	t.Parallel()
 
