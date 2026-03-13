@@ -150,19 +150,54 @@ const EDITOR_TABS: { id: EditorTab; label: string }[] = [
   { id: "gemini", label: "Gemini CLI" },
 ];
 
-function mcpConfig(editor: EditorTab, withApi: boolean): string {
-  if (editor === "claude-code") {
-    if (withApi) {
+type LandingConfigMode = "hosted" | "self-hosted" | "local";
+
+const HOSTED_MCP_URL = "https://evidra.cc/mcp";
+
+function mcpConfig(editor: EditorTab, mode: LandingConfigMode): string {
+  if (mode === "hosted") {
+    const url = HOSTED_MCP_URL;
+
+    if (editor === "claude-code") {
+      return `claude mcp add --transport http \\
+  -H "Authorization: Bearer YOUR_KEY" \\
+  -s user evidra ${url}`;
+    }
+
+    if (editor === "codex") {
+      return `# ~/.codex/config.toml
+[mcp_servers.evidra]
+url = "${url}"
+
+[mcp_servers.evidra.headers]
+Authorization = "Bearer YOUR_KEY"`;
+    }
+
+    const jsonObj = {
+      mcpServers: {
+        evidra: {
+          url,
+          headers: { Authorization: "Bearer YOUR_KEY" },
+        },
+      },
+    };
+
+    if (editor === "gemini") {
+      return `// ~/.gemini/settings.json\n${JSON.stringify(jsonObj, null, 2)}`;
+    }
+    return JSON.stringify(jsonObj, null, 2);
+  }
+
+  if (mode === "self-hosted") {
+    if (editor === "claude-code") {
       return `claude mcp add evidra -- evidra-mcp \\
   --signing-mode optional \\
   --url http://localhost:8080 \\
   --api-key YOUR_KEY \\
   --fallback-offline`;
     }
-    return `claude mcp add evidra -- evidra-mcp --signing-mode optional`;
-  }
-  if (editor === "codex") {
-    if (withApi) {
+
+    if (editor === "codex") {
       return `# ~/.codex/config.toml
 [mcp_servers.evidra]
 command = "evidra-mcp"
@@ -173,62 +208,52 @@ EVIDRA_URL = "http://localhost:8080"
 EVIDRA_API_KEY = "YOUR_KEY"
 EVIDRA_FALLBACK = "offline"`;
     }
+
+    const jsonObj = {
+      mcpServers: {
+        evidra: {
+          command: "evidra-mcp",
+          args: ["--signing-mode", "optional"],
+          env: {
+            EVIDRA_URL: "http://localhost:8080",
+            EVIDRA_API_KEY: "YOUR_KEY",
+            EVIDRA_FALLBACK: "offline",
+          },
+        },
+      },
+    };
+
+    if (editor === "gemini") {
+      return `// ~/.gemini/settings.json\n${JSON.stringify(jsonObj, null, 2)}`;
+    }
+    return JSON.stringify(jsonObj, null, 2);
+  }
+
+  // Local mode
+  if (editor === "claude-code") {
+    return `claude mcp add evidra -- evidra-mcp --signing-mode optional`;
+  }
+
+  if (editor === "codex") {
     return `# ~/.codex/config.toml
 [mcp_servers.evidra]
 command = "evidra-mcp"
 args = ["--signing-mode", "optional"]`;
   }
+
+  const jsonObj = {
+    mcpServers: {
+      evidra: {
+        command: "evidra-mcp",
+        args: ["--signing-mode", "optional"],
+      },
+    },
+  };
+
   if (editor === "gemini") {
-    if (withApi) {
-      return `// ~/.gemini/settings.json
-{
-  "mcpServers": {
-    "evidra": {
-      "command": "evidra-mcp",
-      "args": ["--signing-mode", "optional"],
-      "env": {
-        "EVIDRA_URL": "http://localhost:8080",
-        "EVIDRA_API_KEY": "YOUR_KEY",
-        "EVIDRA_FALLBACK": "offline"
-      }
-    }
+    return `// ~/.gemini/settings.json\n${JSON.stringify(jsonObj, null, 2)}`;
   }
-}`;
-    }
-    return `// ~/.gemini/settings.json
-{
-  "mcpServers": {
-    "evidra": {
-      "command": "evidra-mcp",
-      "args": ["--signing-mode", "optional"]
-    }
-  }
-}`;
-  }
-  // json-config (Cursor, Claude Desktop, Windsurf)
-  if (withApi) {
-    return `{
-  "mcpServers": {
-    "evidra": {
-      "command": "evidra-mcp",
-      "args": ["--signing-mode", "optional"],
-      "env": {
-        "EVIDRA_URL": "http://localhost:8080",
-        "EVIDRA_API_KEY": "YOUR_KEY",
-        "EVIDRA_FALLBACK": "offline"
-      }
-    }
-  }
-}`;
-  }
-  return `{
-  "mcpServers": {
-    "evidra": {
-      "command": "evidra-mcp",
-      "args": ["--signing-mode", "optional"]
-    }
-  }
-}`;
+  return JSON.stringify(jsonObj, null, 2);
 }
 
 export function Landing() {
@@ -397,8 +422,8 @@ function GettingStarted() {
 
 function McpSetup() {
   const [editor, setEditor] = useState<EditorTab>("claude-code");
-  const [withApi, setWithApi] = useState(false);
-  const code = mcpConfig(editor, withApi);
+  const [mode, setMode] = useState<LandingConfigMode>("hosted");
+  const code = mcpConfig(editor, mode);
 
   const configPathNote = editor === "json-config"
     ? "Add to .cursor/mcp.json (Cursor), claude_desktop_config.json (Claude Desktop), or ~/.codeium/windsurf/mcp_config.json (Windsurf)."
@@ -413,16 +438,18 @@ function McpSetup() {
         <SectionTitle>MCP Server Setup</SectionTitle>
         <p className="text-fg-muted mb-6 text-[1.14rem]">Connect any MCP-capable AI agent to Evidra for automatic reliability tracking.</p>
 
-        <div className="mb-8">
-          <h3 className="text-[0.95rem] font-bold text-fg mb-3">1. Install</h3>
-          <CodeBlock code="brew install samebits/tap/evidra" />
-          <p className="text-[0.83rem] text-fg-muted mt-2">
-            Or: <code className="text-[0.8rem]">go install samebits.com/evidra/cmd/evidra-mcp@latest</code>
-          </p>
-        </div>
+        {mode !== "hosted" && (
+          <div className="mb-8">
+            <h3 className="text-[0.95rem] font-bold text-fg mb-3">1. Install</h3>
+            <CodeBlock code="brew install samebits/tap/evidra" />
+            <p className="text-[0.83rem] text-fg-muted mt-2">
+              Or: <code className="text-[0.8rem]">go install samebits.com/evidra/cmd/evidra-mcp@latest</code>
+            </p>
+          </div>
+        )}
 
         <div className="mb-8">
-          <h3 className="text-[0.95rem] font-bold text-fg mb-3">2. Connect to your editor</h3>
+          <h3 className="text-[0.95rem] font-bold text-fg mb-3">{mode === "hosted" ? "1" : "2"}. Connect to your editor</h3>
 
           <div className="flex items-center gap-4 mb-4 flex-wrap">
             <div className="inline-flex bg-accent-subtle border border-border rounded-lg p-[3px]">
@@ -430,22 +457,20 @@ function McpSetup() {
                 <TabBtn key={tab.id} active={editor === tab.id} onClick={() => setEditor(tab.id)}>{tab.label}</TabBtn>
               ))}
             </div>
-            <label className="flex items-center gap-2 text-[0.82rem] text-fg-muted cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={withApi}
-                onChange={(e) => setWithApi(e.target.checked)}
-                className="accent-accent"
-              />
-              Forward to API server
-            </label>
+            <div className="inline-flex bg-accent-subtle border border-border rounded-lg p-[3px]">
+              {(["hosted", "self-hosted", "local"] as LandingConfigMode[]).map((m) => (
+                <TabBtn key={m} active={mode === m} onClick={() => setMode(m)}>
+                  {m === "hosted" ? "Hosted" : m === "self-hosted" ? "Self-hosted" : "Local only"}
+                </TabBtn>
+              ))}
+            </div>
           </div>
 
           <p className="text-[0.83rem] text-fg-muted mb-3">{configPathNote}</p>
           <CodeBlock code={code} />
         </div>
 
-        {editor === "claude-code" && (
+        {editor === "claude-code" && mode !== "hosted" && (
           <div className="mb-8">
             <h3 className="text-[0.95rem] font-bold text-fg mb-3">3. Install the Evidra skill</h3>
             <CodeBlock code="evidra skill install" />
@@ -457,7 +482,7 @@ function McpSetup() {
         )}
 
         <div className="mb-8">
-          <h3 className="text-[0.95rem] font-bold text-fg mb-3">{editor === "claude-code" ? "4" : "3"}. Verify</h3>
+          <h3 className="text-[0.95rem] font-bold text-fg mb-3">{editor === "claude-code" && mode !== "hosted" ? "4" : mode === "hosted" ? "2" : "3"}. Verify</h3>
           <p className="text-[0.85rem] text-fg-muted">
             Restart your editor. Ask your agent: <em>&ldquo;What tools do you have from Evidra?&rdquo;</em> &mdash; you should see <code>prescribe</code>, <code>report</code>, and <code>get_event</code>.
           </p>

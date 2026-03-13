@@ -13,13 +13,47 @@ const EDITOR_TABS: { id: EditorTab; label: string }[] = [
   { id: "gemini", label: "Gemini CLI" },
 ];
 
-type ConfigMode = "online" | "local";
+type ConfigMode = "hosted" | "self-hosted" | "local";
+
+const HOSTED_MCP_URL = "https://evidra.cc/mcp";
 
 function mcpConfigWithKey(editor: EditorTab, apiKey: string, serverUrl: string, configMode: ConfigMode): string {
-  const isOnline = configMode === "online";
+  if (configMode === "hosted") {
+    const url = HOSTED_MCP_URL;
+    const authHeader = `Bearer ${apiKey}`;
 
-  if (editor === "claude-code") {
-    if (isOnline) {
+    if (editor === "claude-code") {
+      return `claude mcp add --transport http \\
+  -H "Authorization: ${authHeader}" \\
+  -s user evidra ${url}`;
+    }
+
+    if (editor === "codex") {
+      return `# ~/.codex/config.toml
+[mcp_servers.evidra]
+url = "${url}"
+
+[mcp_servers.evidra.headers]
+Authorization = "${authHeader}"`;
+    }
+
+    const jsonObj = {
+      mcpServers: {
+        evidra: {
+          url,
+          headers: { Authorization: authHeader },
+        },
+      },
+    };
+
+    if (editor === "gemini") {
+      return `// ~/.gemini/settings.json\n${JSON.stringify(jsonObj, null, 2)}`;
+    }
+    return JSON.stringify(jsonObj, null, 2);
+  }
+
+  if (configMode === "self-hosted") {
+    if (editor === "claude-code") {
       return `claude mcp add evidra -- evidra-mcp \\
   --evidence-dir ~/.evidra/evidence \\
   --environment production \\
@@ -28,13 +62,7 @@ function mcpConfigWithKey(editor: EditorTab, apiKey: string, serverUrl: string, 
   --api-key ${apiKey} \\
   --fallback-offline`;
     }
-    return `claude mcp add evidra -- evidra-mcp \\
-  --evidence-dir ~/.evidra/evidence \\
-  --environment development \\
-  --signing-mode optional`;
-  }
 
-  if (isOnline) {
     const envBlock = {
       EVIDRA_EVIDENCE_DIR: "~/.evidra/evidence",
       EVIDRA_ENVIRONMENT: "production",
@@ -70,11 +98,17 @@ EVIDRA_FALLBACK = "offline"`;
     if (editor === "gemini") {
       return `// ~/.gemini/settings.json\n${JSON.stringify(jsonObj, null, 2)}`;
     }
-    // json-config (Cursor, Claude Desktop, Windsurf)
     return JSON.stringify(jsonObj, null, 2);
   }
 
   // Local mode — no URL/API key, just evidence dir + environment
+  if (editor === "claude-code") {
+    return `claude mcp add evidra -- evidra-mcp \\
+  --evidence-dir ~/.evidra/evidence \\
+  --environment development \\
+  --signing-mode optional`;
+  }
+
   const localEnv = {
     EVIDRA_EVIDENCE_DIR: "~/.evidra/evidence",
     EVIDRA_ENVIRONMENT: "development",
@@ -124,7 +158,7 @@ export function Onboarding() {
   const [copied, setCopied] = useState(false);
   const [revealed, setRevealed] = useState(false);
   const [editor, setEditor] = useState<EditorTab>("claude-code");
-  const [configMode, setConfigMode] = useState<ConfigMode>("local");
+  const [configMode, setConfigMode] = useState<ConfigMode>("hosted");
   const { setApiKey } = useAuth();
   const navigate = useNavigate();
   const keyRef = useRef<HTMLDivElement>(null);
@@ -390,10 +424,10 @@ export function Onboarding() {
         >
           {apiKey && (
             <div className="mt-4">
-              {/* Mode toggle: On-Prem (Self-hosted) vs Local-only */}
+              {/* Mode toggle: Hosted / Self-hosted / Local */}
               <div className="flex items-center gap-3 mb-4">
                 <span className="text-[0.76rem] font-medium text-fg-muted">Mode:</span>
-                {(["local", "online"] as ConfigMode[]).map((m) => (
+                {(["hosted", "self-hosted", "local"] as ConfigMode[]).map((m) => (
                   <button
                     key={m}
                     onClick={() => setConfigMode(m)}
@@ -403,19 +437,24 @@ export function Onboarding() {
                         : "bg-transparent border-border-subtle text-fg-muted hover:border-accent/20 hover:text-fg"
                     }`}
                   >
-                    {m === "online" ? "On-Prem (Self-hosted)" : "Local only"}
+                    {m === "hosted" ? "Hosted" : m === "self-hosted" ? "Self-hosted" : "Local only"}
                   </button>
                 ))}
               </div>
 
-              {configMode === "online" && (
+              {configMode === "hosted" && (
                 <div className="mb-4 px-4 py-3 bg-accent-subtle border border-accent/20 rounded-lg text-[0.82rem] text-fg-muted leading-relaxed">
-                  Evidence is stored locally <em>and</em> forwarded to <code className="text-[0.78rem] text-fg">{serverUrl}</code>. Falls back to local-only if the API is unreachable.
+                  Connect directly to <code className="text-[0.78rem] text-fg">{HOSTED_MCP_URL}</code> via HTTP transport. No local binary required — your editor connects to the hosted Evidra MCP server.
+                </div>
+              )}
+              {configMode === "self-hosted" && (
+                <div className="mb-4 px-4 py-3 bg-accent-subtle border border-accent/20 rounded-lg text-[0.82rem] text-fg-muted leading-relaxed">
+                  Evidence is stored locally <em>and</em> forwarded to <code className="text-[0.78rem] text-fg">{serverUrl}</code>. Requires <code className="text-[0.78rem] text-fg">evidra-mcp</code> binary installed locally. Falls back to local-only if the API is unreachable.
                 </div>
               )}
               {configMode === "local" && (
                 <div className="mb-4 px-4 py-3 bg-[var(--color-code-bg)] border border-border rounded-lg text-[0.82rem] text-fg-muted leading-relaxed">
-                  Evidence is stored locally in <code className="text-[0.78rem] text-fg">~/.evidra/evidence</code>. No API connection required. Use <code className="text-[0.78rem] text-fg">evidra scorecard</code> to analyze locally.
+                  Evidence is stored locally in <code className="text-[0.78rem] text-fg">~/.evidra/evidence</code>. Requires <code className="text-[0.78rem] text-fg">evidra-mcp</code> binary installed locally. No API connection required. Use <code className="text-[0.78rem] text-fg">evidra scorecard</code> to analyze locally.
                 </div>
               )}
 
