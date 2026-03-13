@@ -1,0 +1,47 @@
+schema_version: "1.0"
+
+components:
+  k3d_cluster:
+    name: evidra-stand
+    agents: 2
+    ports:
+      - "8080:80@loadbalancer"
+      - "8443:443@loadbalancer"
+    namespaces:
+      - argocd
+      - workloads-dev
+      - workloads-prod
+    healthcheck: "kubectl get nodes -o name | grep -q k3d-evidra-stand"
+
+  argocd:
+    install: helm
+    namespace: argocd
+    depends_on:
+      - k3d_cluster
+    healthcheck: "kubectl get pods -n argocd -l app.kubernetes.io/name=argocd-server -o jsonpath='{.items[0].status.phase}' | grep -q Running"
+
+  evidra_api:
+    install: docker-compose
+    compose_file: evidra/docker-compose.yaml
+    listen_addr: ":8090"
+    depends_on:
+      - postgres
+    healthcheck: "curl -sf http://localhost:8090/healthz"
+    env:
+      LISTEN_ADDR: ":8080"
+      EVIDRA_API_KEY: "${EVIDRA_API_KEY}"
+      EVIDRA_INVITE_SECRET: "${EVIDRA_INVITE_SECRET}"
+      EVIDRA_WEBHOOK_SECRET_ARGOCD: "${EVIDRA_WEBHOOK_SECRET_ARGOCD}"
+      EVIDRA_SIGNING_MODE: "optional"
+
+  postgres:
+    install: docker-compose
+    compose_file: evidra/docker-compose.yaml
+    healthcheck: "pg_isready -h localhost -p 5432"
+
+  evidra_cli:
+    install: local_binary
+    build: "make build"
+    bin_dir: "bin/"
+    path_setup: 'export PATH="$STAND_DIR/../../bin:$PATH"'
+    healthcheck: "evidra version"

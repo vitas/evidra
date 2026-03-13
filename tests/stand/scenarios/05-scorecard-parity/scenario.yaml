@@ -1,0 +1,25 @@
+scenario_id: "05-scorecard-parity"
+title: "Scorecard parity — CLI vs API"
+description: >
+  Re-run scenarios 01-03 with --url and --api-key so CLI commands
+  forward entries to evidra-api in real time. Then compare CLI local
+  scorecard against API scorecard for the same actor/period.
+evidence_source: cli_direct
+requires:
+  - k3d_cluster
+  - evidra_cli
+  - evidra_api
+auth_requires:
+  - EVIDRA_TENANT_API_KEY
+expected_entries: {}
+expected_verdict: null
+expected_signals: []
+parity_checks:
+  - cli_field: score
+    api_field: score
+  - cli_field: band
+    api_field: band
+  - cli_field: total_operations
+    api_field: total_entries
+  - cli_field: signals
+    api_field: signal_summary

@@ -1,0 +1,16 @@
+scenario_id: "02-retry-loop"
+title: "Retry loop detection"
+description: "Apply a broken manifest 4 times, verify retry_loop signal fires"
+evidence_source: cli_direct
+requires:
+  - k3d_cluster
+  - evidra_cli
+workloads:
+  - broken-deploy.yaml
+expected_entries:
+  prescribe: 4
+  report: 4
+expected_verdict: failure
+expected_signals:
+  - signal: retry_loop
+    min_count: 3

@@ -1,0 +1,25 @@
+scenario_id: "04-argocd-sync"
+title: "ArgoCD sync webhook"
+description: "Trigger ArgoCD sync, verify mapped evidence arrives in evidra-api"
+evidence_source: webhook_mapped
+requires:
+  - k3d_cluster
+  - argocd
+  - evidra_api
+  - evidra_cli
+auth_requires:
+  - EVIDRA_TENANT_API_KEY
+  - EVIDRA_WEBHOOK_SECRET_ARGOCD
+workloads:
+  - nginx-dev.yaml
+expected_entries:
+  prescribe: 1
+  report: 1
+expected_verdict: success
+expected_signals: []
+webhook_contract:
+  events:
+    - event: sync_started
+      required_fields: [app_name, operation_id]
+    - event: sync_completed
+      required_fields: [app_name, operation_id, phase]

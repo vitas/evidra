@@ -115,6 +115,11 @@ For architecture and protocol semantics, see:
 | `--signing-key` | Base64 Ed25519 private key |
 | `--signing-key-path` | PEM Ed25519 private key path |
 | `--signing-mode` | `strict` (default) or `optional` |
+| `--url` | Evidra API URL for evidence forwarding |
+| `--api-key` | API key for online mode |
+| `--offline` | Force offline mode |
+| `--fallback-offline` | Fall back to offline mode on API failure |
+| `--timeout` | API request timeout |
 
 ### `evidra record` Flags
 

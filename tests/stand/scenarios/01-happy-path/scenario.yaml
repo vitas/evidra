@@ -1,0 +1,17 @@
+scenario_id: "01-happy-path"
+title: "Happy path — CLI direct apply"
+description: "Record a successful kubectl apply through Evidra CLI"
+evidence_source: cli_direct
+requires:
+  - k3d_cluster
+  - evidra_cli
+workloads:
+  - nginx-dev.yaml
+expected_entries:
+  prescribe: 1
+  report: 1
+expected_verdict: success
+expected_risk_level:
+  - low
+  - medium
+expected_signals: []

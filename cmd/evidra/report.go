@@ -5,8 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"samebits.com/evidra/internal/assessment"
 	"samebits.com/evidra/internal/lifecycle"
@@ -14,21 +16,26 @@ import (
 )
 
 type reportFlags struct {
-	prescriptionID string
-	verdict        evidence.Verdict
-	exitCode       optionalIntFlag
-	declineTrigger string
-	declineReason  string
-	evidenceDir    string
-	scoringProfile string
-	actorID        string
-	artifactDigest string
-	externalRefs   string
-	sessionID      string
-	operationID    string
-	signingKey     string
-	signingKeyPath string
-	signingMode    string
+	prescriptionID  string
+	verdict         evidence.Verdict
+	exitCode        optionalIntFlag
+	declineTrigger  string
+	declineReason   string
+	evidenceDir     string
+	scoringProfile  string
+	actorID         string
+	artifactDigest  string
+	externalRefs    string
+	sessionID       string
+	operationID     string
+	signingKey      string
+	signingKeyPath  string
+	signingMode     string
+	url             string
+	apiKey          string
+	offline         bool
+	fallbackOffline bool
+	timeout         time.Duration
 }
 
 type reportCommand struct {
@@ -109,7 +116,13 @@ func cmdReport(args []string, stdout, stderr io.Writer) int {
 	result["signal_summary"] = snapshot.SignalSummary
 	result["basis"] = snapshot.Basis
 	result["confidence"] = snapshot.Confidence
-	return writeJSON(stdout, stderr, "encode report", result)
+	code = writeJSON(stdout, stderr, "encode report", result)
+	if code != 0 {
+		return code
+	}
+
+	forwardEvidence(opts.url, opts.apiKey, opts.offline, opts.fallbackOffline, opts.timeout, cmd.evidencePath, reportOut.SessionID, stderr)
+	return 0
 }
 
 func parseReportFlags(args []string, stderr io.Writer) (reportFlags, int) {
@@ -131,6 +144,11 @@ func parseReportFlags(args []string, stderr io.Writer) (reportFlags, int) {
 	signingKeyFlag := fs.String("signing-key", "", "Base64-encoded Ed25519 signing key")
 	signingKeyPathFlag := fs.String("signing-key-path", "", "Path to PEM-encoded Ed25519 signing key")
 	signingModeFlag := fs.String("signing-mode", "", "Signing mode: strict (default) or optional")
+	urlFlag := fs.String("url", os.Getenv("EVIDRA_URL"), "Evidra API URL")
+	apiKeyFlag := fs.String("api-key", os.Getenv("EVIDRA_API_KEY"), "Evidra API key")
+	offlineFlag := fs.Bool("offline", false, "Force offline mode")
+	fallbackOfflineFlag := fs.Bool("fallback-offline", false, "Fall back to offline on API failure")
+	timeoutFlag := fs.Duration("timeout", 30*time.Second, "API request timeout")
 	if err := fs.Parse(args); err != nil {
 		return reportFlags{}, 2
 	}
@@ -157,21 +175,26 @@ func parseReportFlags(args []string, stderr io.Writer) (reportFlags, int) {
 	}
 
 	return reportFlags{
-		prescriptionID: *prescriptionFlag,
-		verdict:        verdict,
-		exitCode:       exitCodeFlag,
-		declineTrigger: strings.TrimSpace(*declineTriggerFlag),
-		declineReason:  strings.TrimSpace(*declineReasonFlag),
-		evidenceDir:    *evidenceFlag,
-		scoringProfile: *scoringProfileFlag,
-		actorID:        *actorFlag,
-		artifactDigest: *artifactDigestFlag,
-		externalRefs:   *externalRefsFlag,
-		sessionID:      *sessionIDFlag,
-		operationID:    *operationIDFlag,
-		signingKey:     *signingKeyFlag,
-		signingKeyPath: *signingKeyPathFlag,
-		signingMode:    *signingModeFlag,
+		prescriptionID:  *prescriptionFlag,
+		verdict:         verdict,
+		exitCode:        exitCodeFlag,
+		declineTrigger:  strings.TrimSpace(*declineTriggerFlag),
+		declineReason:   strings.TrimSpace(*declineReasonFlag),
+		evidenceDir:     *evidenceFlag,
+		scoringProfile:  *scoringProfileFlag,
+		actorID:         *actorFlag,
+		artifactDigest:  *artifactDigestFlag,
+		externalRefs:    *externalRefsFlag,
+		sessionID:       *sessionIDFlag,
+		operationID:     *operationIDFlag,
+		signingKey:      *signingKeyFlag,
+		signingKeyPath:  *signingKeyPathFlag,
+		signingMode:     *signingModeFlag,
+		url:             *urlFlag,
+		apiKey:          *apiKeyFlag,
+		offline:         *offlineFlag,
+		fallbackOffline: *fallbackOfflineFlag,
+		timeout:         *timeoutFlag,
 	}, 0
 }
 

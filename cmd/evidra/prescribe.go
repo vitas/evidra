@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"samebits.com/evidra/internal/lifecycle"
 	"samebits.com/evidra/pkg/evidence"
@@ -27,6 +28,11 @@ type prescribeFlags struct {
 	signingKey          string
 	signingKeyPath      string
 	signingMode         string
+	url                 string
+	apiKey              string
+	offline             bool
+	fallbackOffline     bool
+	timeout             time.Duration
 }
 
 type prescribeCommand struct {
@@ -97,7 +103,12 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 		}, stderr)
 	}
 
-	return writeJSON(stdout, stderr, "encode prescription", result)
+	if writeJSON(stdout, stderr, "encode prescription", result) != 0 {
+		return 1
+	}
+
+	forwardEvidence(opts.url, opts.apiKey, opts.offline, opts.fallbackOffline, opts.timeout, cmd.evidencePath, prescOut.SessionID, stderr)
+	return 0
 }
 
 func parsePrescribeFlags(args []string, stderr io.Writer) (prescribeFlags, int) {
@@ -118,6 +129,11 @@ func parsePrescribeFlags(args []string, stderr io.Writer) (prescribeFlags, int) 
 	signingKeyFlag := fs.String("signing-key", "", "Base64-encoded Ed25519 signing key")
 	signingKeyPathFlag := fs.String("signing-key-path", "", "Path to PEM-encoded Ed25519 signing key")
 	signingModeFlag := fs.String("signing-mode", "", "Signing mode: strict (default) or optional")
+	urlFlag := fs.String("url", os.Getenv("EVIDRA_URL"), "Evidra API URL")
+	apiKeyFlag := fs.String("api-key", os.Getenv("EVIDRA_API_KEY"), "Evidra API key")
+	offlineFlag := fs.Bool("offline", false, "Force offline mode")
+	fallbackOfflineFlag := fs.Bool("fallback-offline", false, "Fall back to offline on API failure")
+	timeoutFlag := fs.Duration("timeout", 30*time.Second, "API request timeout")
 	if err := fs.Parse(args); err != nil {
 		return prescribeFlags{}, 2
 	}
@@ -142,6 +158,11 @@ func parsePrescribeFlags(args []string, stderr io.Writer) (prescribeFlags, int) 
 		signingKey:          *signingKeyFlag,
 		signingKeyPath:      *signingKeyPathFlag,
 		signingMode:         *signingModeFlag,
+		url:                 *urlFlag,
+		apiKey:              *apiKeyFlag,
+		offline:             *offlineFlag,
+		fallbackOffline:     *fallbackOfflineFlag,
+		timeout:             *timeoutFlag,
 	}, 0
 }
 

@@ -1,0 +1,16 @@
+scenario_id: "03-declined-decision"
+title: "Declined decision with reason"
+description: "Prescribe a risky operation, report declined with risk_threshold_exceeded"
+evidence_source: cli_direct
+requires:
+  - evidra_cli
+workloads:
+  - risky-deploy.yaml
+expected_entries:
+  prescribe: 1
+  report: 1
+expected_verdict: declined
+expected_risk_level:
+  - high
+  - critical
+expected_signals: []

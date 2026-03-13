@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx-dev
+  namespace: argocd
+  annotations:
+    notifications.argoproj.io/subscribe.on-evidra-sync-started.webhook: evidra
+    notifications.argoproj.io/subscribe.on-evidra-sync-completed.webhook: evidra
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    targetRevision: HEAD
+    path: guestbook
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: workloads-dev
+  syncPolicy: {}
