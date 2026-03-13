@@ -65,6 +65,12 @@ func RenderFiles(rootDir string, bundle Bundle) ([]RenderedFile, error) {
 			generated: filepath.Join("prompts", "generated", bundle.Contract.Version, "experiments", "runtime", "agent_contract_v1.md"),
 			active:    filepath.Join("prompts", "experiments", "runtime", "agent_contract_v1.md"),
 		},
+		{
+			id:        "skill.skill",
+			template:  "templates/skill/SKILL.tmpl",
+			generated: filepath.Join("prompts", "generated", bundle.Contract.Version, "skill", "SKILL.md"),
+			active:    filepath.Join("prompts", "skill", "SKILL.md"),
+		},
 	}
 
 	data := renderData{

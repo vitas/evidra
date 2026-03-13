@@ -12,6 +12,7 @@ const (
 	MCPReportDescriptionPath      = "mcpserver/tools/report_description.txt"
 	MCPGetEventDescriptionPath    = "mcpserver/tools/get_event_description.txt"
 	MCPAgentContractPath          = "mcpserver/resources/content/agent_contract_v1.md"
+	SkillPath                     = "skill/SKILL.md"
 
 	DefaultContractVersion      = "v1.0.1"
 	DefaultContractSkillVersion = "1.0.1"
