@@ -132,7 +132,7 @@ Returns:
 
 ### If prescribe fails
 
-**If prescribe fails, do not execute the infrastructure command.**
+**CRITICAL: If prescribe returns ok=false, do not execute the infrastructure command. Investigate the error before retrying.**
 
 The error codes are:
 - `parse_error` — the artifact couldn't be parsed (check format)
@@ -208,6 +208,8 @@ Note: `exit_code` is **forbidden** for declined verdicts. Use `decision_context`
 - If prescription_id is lost, call prescribe again before execution.
 - Actor identity should match the original prescribe actor.
 - Include actor.skill_version for behavior slicing.
+- exit_code is required for success/failure/error verdicts and forbidden for declined verdicts.
+- On retry, call prescribe again to get a new prescription_id before re-executing. Each attempt is a separate prescribe/report pair.
 
 ### What report returns
 

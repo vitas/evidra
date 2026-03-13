@@ -46,7 +46,7 @@ mcp:
       - "risk_level, risk_tags"
       - "artifact_digest, intent_digest"
       - "resource_shape_hash, operation_class, scope_class"
-    failure_rule: "If prescribe fails, do not execute the infrastructure command."
+    failure_rule: "CRITICAL: If prescribe returns ok=false, do not execute the infrastructure command. Investigate the error before retrying."
 
   report:
     intro: "Record the terminal verdict AFTER an infrastructure operation completes or is intentionally declined."
@@ -71,6 +71,8 @@ mcp:
       - "If prescription_id is lost, call prescribe again before execution."
       - "Actor identity should match the original prescribe actor."
       - "Include actor.skill_version for behavior slicing."
+      - "exit_code is required for success/failure/error verdicts and forbidden for declined verdicts."
+      - "On retry, call prescribe again to get a new prescription_id before re-executing. Each attempt is a separate prescribe/report pair."
     returns:
       - "ok"
       - "report_id"

@@ -39,4 +39,4 @@ Returns:
 - resource_shape_hash, operation_class, scope_class
 
 
-If prescribe fails, do not execute the infrastructure command.
+CRITICAL: If prescribe returns ok=false, do not execute the infrastructure command. Investigate the error before retrying.

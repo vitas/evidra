@@ -71,6 +71,8 @@ If you want one task grouped in one session, reuse the same `session_id`.
 - If prescription_id is lost, call prescribe again before execution.
 - Actor identity should match the original prescribe actor.
 - Include actor.skill_version for behavior slicing.
+- exit_code is required for success/failure/error verdicts and forbidden for declined verdicts.
+- On retry, call prescribe again to get a new prescription_id before re-executing. Each attempt is a separate prescribe/report pair.
 
 
 ## Risk Output
