@@ -496,8 +496,8 @@ function McpSetup() {
     <section id="mcp-setup" className="py-14 bg-bg-alt">
       <Container>
         <SectionLabel>AI Agents</SectionLabel>
-        <SectionTitle>MCP Server Setup</SectionTitle>
-        <p className="text-fg-muted mb-6 text-[1.14rem]">Connect any MCP-capable AI agent to Evidra for automatic reliability tracking.</p>
+        <SectionTitle>Give Your Agent the Protocol</SectionTitle>
+        <p className="text-fg-muted mb-6 text-[1.14rem]">Connect any MCP-capable agent to Evidra. The agent prescribes before every infrastructure mutation and reports the outcome. When it decides not to act, it reports why.</p>
 
         {mode !== "hosted" && (
           <div className="mb-8">
@@ -552,20 +552,20 @@ function McpSetup() {
         <div className="bg-bg-elevated border border-border rounded-[10px] p-6 shadow-[var(--shadow-card)]">
           <h3 className="text-[0.92rem] font-bold text-fg mb-2">How it works</h3>
           <p className="text-[0.83rem] text-fg-muted leading-relaxed mb-3">
-            The MCP server exposes three tools. Your agent calls <code>prescribe</code> before every infrastructure mutation and <code>report</code> with an explicit terminal verdict after execution or deliberate refusal. Evidra records the evidence, detects behavioral signals, and produces reliability scores.
+            Every infrastructure mutation follows the same lifecycle. The agent calls <code>prescribe</code> with the artifact before execution &mdash; Evidra returns risk level, risk tags, and a prescription ID. After execution (or refusal), the agent calls <code>report</code> with the outcome. The evidence chain grows. Behavioral patterns become visible.
           </p>
           <div className="grid grid-cols-3 gap-4 max-sm:grid-cols-1">
             <div className="text-center">
               <div className="font-mono text-[0.78rem] font-semibold text-accent mb-1">prescribe</div>
-              <div className="text-[0.78rem] text-fg-muted">Record intent before execution</div>
+              <div className="text-[0.78rem] text-fg-muted">What does the agent intend to do? Record before execution.</div>
             </div>
             <div className="text-center">
               <div className="font-mono text-[0.78rem] font-semibold text-accent mb-1">report</div>
-              <div className="text-[0.78rem] text-fg-muted">Record outcome or declined decision</div>
+              <div className="text-[0.78rem] text-fg-muted">What actually happened? Or why did the agent refuse?</div>
             </div>
             <div className="text-center">
               <div className="font-mono text-[0.78rem] font-semibold text-accent mb-1">get_event</div>
-              <div className="text-[0.78rem] text-fg-muted">Look up evidence for audit</div>
+              <div className="text-[0.78rem] text-fg-muted">Look up any evidence entry by ID.</div>
             </div>
           </div>
         </div>
