@@ -427,11 +427,18 @@ assert_has_field() {
 assert_risk_tag_contains() {
   local name="$1" body_json="$2" tag="$3"
   local found
-  found=$(echo "$body_json" | jq --arg t "$tag" '[.risk_tags[]? | select(. == $t)] | length')
+  found=$(echo "$body_json" | jq --arg t "$tag" '
+    [
+      .risk_tags[]?,
+      .risk_inputs[]?.risk_tags[]?
+    ]
+    | map(select(. == $t))
+    | length
+  ')
   if [[ "$found" -gt 0 ]]; then
     return 0
   fi
-  fail "$name" "expected risk_tags to contain '$tag'"
+  fail "$name" "expected risk tags to contain '$tag'"
   return 1
 }
 

@@ -128,7 +128,7 @@ not intercept commands, block execution, or enforce policy.
 ```
 You → Agent: "Deploy nginx to production"
        Agent → Evidra: prescribe(kubectl, apply, artifact=deployment.yaml, env=production)
-       Evidra → Agent: ok=true, prescription_id=rx-01JQ..., risk_level=high
+       Evidra → Agent: ok=true, prescription_id=rx-01JQ..., effective_risk=high, risk_inputs=[...]
        Agent → executes kubectl apply -f deployment.yaml
        Agent → Evidra: report(prescription_id=rx-01JQ..., verdict=success, exit_code=0)
        Evidra → Agent: ok=true, report_id=rep-01JQ..., score_band=excellent, signal_summary={...}
@@ -251,7 +251,7 @@ Declined example:
   "verdict": "declined",
   "decision_context": {
     "trigger": "risk_threshold_exceeded",
-    "reason": "risk_level=critical and blast_radius covers production namespace"
+    "reason": "effective_risk=critical and blast_radius covers production namespace"
   },
   "actor": {
     "type": "agent",

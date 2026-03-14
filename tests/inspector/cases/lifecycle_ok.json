@@ -11,7 +11,7 @@
       },
       "assert": {
         "ok": true,
-        "has_fields": ["prescription_id", "risk_level", "artifact_digest", "intent_digest"]
+        "has_fields": ["prescription_id", "effective_risk", "artifact_digest", "intent_digest"]
       }
     },
     {
