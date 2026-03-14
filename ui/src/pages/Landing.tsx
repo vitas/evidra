@@ -435,17 +435,17 @@ function Signals() {
 }
 
 function Architecture() {
-  const [tab, setTab] = useState<"pipeline" | "system" | "sequence">("pipeline");
+  const [tab, setTab] = useState<"pipeline" | "system" | "sequence">("sequence");
   return (
     <section id="architecture" className="py-14 bg-bg-alt">
       <Container>
         <SectionLabel>Architecture</SectionLabel>
-        <SectionTitle>How It All Fits Together</SectionTitle>
-        <p className="text-fg-muted mb-10 text-[1.14rem]">Three views: scoring pipeline, protocol sequence, and hosted system architecture.</p>
+        <SectionTitle>From Agent Intent to Signed Evidence</SectionTitle>
+        <p className="text-fg-muted mb-10 text-[1.14rem]">Follow one operation through the protocol &mdash; from the moment an agent decides to act, through execution, to fleet-wide analytics.</p>
         <div className="inline-flex bg-accent-subtle border border-border rounded-lg p-[3px] mb-6">
-          <TabBtn active={tab === "pipeline"} onClick={() => setTab("pipeline")}>How It Works</TabBtn>
-          <TabBtn active={tab === "sequence"} onClick={() => setTab("sequence")}>Protocol Sequence</TabBtn>
+          <TabBtn active={tab === "sequence"} onClick={() => setTab("sequence")}>Protocol Flow</TabBtn>
           <TabBtn active={tab === "system"} onClick={() => setTab("system")}>System Architecture</TabBtn>
+          <TabBtn active={tab === "pipeline"} onClick={() => setTab("pipeline")}>Scoring Pipeline</TabBtn>
         </div>
         {tab === "pipeline" && <MermaidDiagram chart={PIPELINE_CHART} />}
         {tab === "system" && <MermaidDiagram chart={SYSTEM_CHART} />}
