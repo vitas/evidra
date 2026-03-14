@@ -45,17 +45,28 @@ type DecisionContext struct {
 	Reason  string `json:"reason"`
 }
 
+// RiskInput records one source's risk assessment at prescribe time.
+type RiskInput struct {
+	Source    string   `json:"source"`
+	RiskLevel string   `json:"risk_level"`
+	RiskTags  []string `json:"risk_tags,omitempty"`
+	Detail    string   `json:"detail,omitempty"`
+}
+
 // PrescriptionPayload is the typed payload for EntryTypePrescribe entries.
 // It captures the pre-execution risk assessment for a canonical action.
 type PrescriptionPayload struct {
 	PrescriptionID  string          `json:"prescription_id"`
 	CanonicalAction json.RawMessage `json:"canonical_action"`
-	RiskLevel       string          `json:"risk_level"`
+	RiskInputs      []RiskInput     `json:"risk_inputs,omitempty"`
+	EffectiveRisk   string          `json:"effective_risk,omitempty"`
+	// Deprecated: kept for legacy readers during the contract transition.
+	RiskLevel string `json:"risk_level,omitempty"`
 	// RiskDetails is the canonical risk field used by benchmark validators.
-	// Preferred field since v0.3.1.
+	// Deprecated: superseded by RiskInputs.
 	RiskDetails []string `json:"risk_details,omitempty"`
 	// RiskTags is kept for backward compatibility with older readers.
-	// Deprecated: use RiskDetails. Planned removal in v0.5.0.
+	// Deprecated: use RiskInputs. Planned removal in a later cleanup.
 	RiskTags    []string `json:"risk_tags,omitempty"`
 	TTLMs       int64    `json:"ttl_ms"`
 	CanonSource string   `json:"canon_source"`
@@ -68,6 +79,20 @@ func (p PrescriptionPayload) EffectiveRiskDetails() []string {
 		return p.RiskDetails
 	}
 	return p.RiskTags
+}
+
+// NativeRiskTags returns the risk_tags from the evidra/native input.
+// If the payload predates risk_inputs, it falls back to legacy risk details.
+func (p PrescriptionPayload) NativeRiskTags() []string {
+	if len(p.RiskInputs) > 0 {
+		for _, ri := range p.RiskInputs {
+			if ri.Source == "evidra/native" {
+				return ri.RiskTags
+			}
+		}
+		return nil
+	}
+	return p.EffectiveRiskDetails()
 }
 
 // ExternalRef is an external reference attached to a report entry.

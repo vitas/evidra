@@ -51,7 +51,7 @@ func (s *sessionState) observeEntry(entry evidence.EvidenceEntry) error {
 			ArtifactDigest: entry.ArtifactDigest,
 			IntentDigest:   entry.IntentDigest,
 			IsPrescription: true,
-			RiskTags:       p.EffectiveRiskDetails(),
+			RiskTags:       p.NativeRiskTags(),
 		}
 		if ca, err := extractCanonicalAction(p.CanonicalAction); err == nil {
 			s.prescriptions[entry.EntryID] = ca

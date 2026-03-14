@@ -64,11 +64,30 @@ func (s *Service) Prescribe(_ context.Context, input PrescribeInput) (PrescribeO
 		}
 	}
 
-	riskTags := detectors.ProduceAll(cr.CanonicalAction, input.RawArtifact)
-	riskLevel := risk.ElevateRiskLevel(
-		risk.RiskLevel(cr.CanonicalAction.OperationClass, cr.CanonicalAction.ScopeClass),
-		riskTags,
-	)
+	matrixLevel := risk.RiskLevel(cr.CanonicalAction.OperationClass, cr.CanonicalAction.ScopeClass)
+	var riskInputs []evidence.RiskInput
+	if len(input.RawArtifact) > 0 {
+		nativeTags := detectors.ProduceAll(cr.CanonicalAction, input.RawArtifact)
+		nativeLevel := risk.ElevateRiskLevel(matrixLevel, nativeTags)
+		riskInputs = append(riskInputs, evidence.RiskInput{
+			Source:    "evidra/native",
+			RiskLevel: nativeLevel,
+			RiskTags:  nativeTags,
+		})
+	} else {
+		riskInputs = append(riskInputs, evidence.RiskInput{
+			Source:    "evidra/matrix",
+			RiskLevel: matrixLevel,
+		})
+	}
+	for _, src := range input.ExternalFindings {
+		riskInputs = append(riskInputs, buildSARIFRiskInput(src))
+	}
+	effectiveRisk := computeEffectiveRisk(riskInputs)
+	nativeTags := []string(nil)
+	if len(riskInputs) > 0 && riskInputs[0].Source == "evidra/native" {
+		nativeTags = riskInputs[0].RiskTags
+	}
 
 	retryCount := 0
 	if s.retryTracker != nil {
@@ -83,9 +102,8 @@ func (s *Service) Prescribe(_ context.Context, input PrescribeInput) (PrescribeO
 	prescPayload := evidence.PrescriptionPayload{
 		PrescriptionID:  ulid.Make().String(),
 		CanonicalAction: cr.RawAction,
-		RiskLevel:       riskLevel,
-		RiskDetails:     riskTags,
-		RiskTags:        riskTags,
+		RiskInputs:      riskInputs,
+		EffectiveRisk:   effectiveRisk,
 		TTLMs:           evidence.DefaultTTLMs,
 		CanonSource:     canonSource,
 	}
@@ -139,8 +157,10 @@ func (s *Service) Prescribe(_ context.Context, input PrescribeInput) (PrescribeO
 		SessionID:      sessionID,
 		TraceID:        traceID,
 		Actor:          actor,
-		RiskLevel:      riskLevel,
-		RiskTags:       riskTags,
+		RiskInputs:     riskInputs,
+		EffectiveRisk:  effectiveRisk,
+		RiskLevel:      effectiveRisk,
+		RiskTags:       nativeTags,
 		ArtifactDigest: cr.ArtifactDigest,
 		IntentDigest:   cr.IntentDigest,
 		ShapeHash:      cr.CanonicalAction.ResourceShapeHash,

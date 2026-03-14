@@ -11,11 +11,23 @@ func TestPrescriptionPayload_Marshal(t *testing.T) {
 	original := PrescriptionPayload{
 		PrescriptionID:  "rx_01ABC",
 		CanonicalAction: json.RawMessage(`{"op":"apply","resource":"deployment/nginx"}`),
-		RiskLevel:       "high",
-		RiskTags:        []string{"privileged-container", "host-network"},
-		RiskDetails:     []string{"container runs as root"},
-		TTLMs:           30000,
-		CanonSource:     "k8s",
+		RiskInputs: []RiskInput{
+			{
+				Source:    "evidra/native",
+				RiskLevel: "high",
+				RiskTags:  []string{"k8s.privileged_container"},
+				Detail:    "native detector output",
+			},
+			{
+				Source:    "trivy/0.58.0",
+				RiskLevel: "critical",
+				RiskTags:  []string{"trivy.DS002"},
+				Detail:    "7 findings (3 critical, 2 high, 2 medium)",
+			},
+		},
+		EffectiveRisk: "critical",
+		TTLMs:         30000,
+		CanonSource:   "k8s",
 	}
 
 	data, err := json.Marshal(original)
@@ -37,11 +49,17 @@ func TestPrescriptionPayload_Marshal(t *testing.T) {
 	if decoded.CanonSource != "k8s" {
 		t.Errorf("canon_source = %q, want %q", decoded.CanonSource, "k8s")
 	}
-	if decoded.RiskLevel != "high" {
-		t.Errorf("risk_level = %q, want %q", decoded.RiskLevel, "high")
+	if decoded.EffectiveRisk != "critical" {
+		t.Errorf("effective_risk = %q, want %q", decoded.EffectiveRisk, "critical")
 	}
-	if len(decoded.RiskTags) != 2 {
-		t.Errorf("risk_tags len = %d, want 2", len(decoded.RiskTags))
+	if len(decoded.RiskInputs) != 2 {
+		t.Fatalf("risk_inputs len = %d, want 2", len(decoded.RiskInputs))
+	}
+	if decoded.RiskInputs[0].Source != "evidra/native" {
+		t.Fatalf("risk_inputs[0].source = %q, want evidra/native", decoded.RiskInputs[0].Source)
+	}
+	if got := decoded.NativeRiskTags(); len(got) != 1 || got[0] != "k8s.privileged_container" {
+		t.Fatalf("NativeRiskTags() = %v, want native-only tag", got)
 	}
 
 	// Verify JSON field names.
@@ -49,7 +67,7 @@ func TestPrescriptionPayload_Marshal(t *testing.T) {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		t.Fatalf("raw unmarshal: %v", err)
 	}
-	for _, key := range []string{"prescription_id", "canonical_action", "risk_level", "ttl_ms", "canon_source"} {
+	for _, key := range []string{"prescription_id", "canonical_action", "risk_inputs", "effective_risk", "ttl_ms", "canon_source"} {
 		if _, ok := raw[key]; !ok {
 			t.Errorf("missing JSON key %q", key)
 		}
@@ -62,7 +80,7 @@ func TestPrescriptionPayload_OmitEmpty(t *testing.T) {
 	p := PrescriptionPayload{
 		PrescriptionID:  "rx_02",
 		CanonicalAction: json.RawMessage(`{}`),
-		RiskLevel:       "low",
+		EffectiveRisk:   "low",
 		TTLMs:           5000,
 		CanonSource:     "generic",
 	}
@@ -76,36 +94,48 @@ func TestPrescriptionPayload_OmitEmpty(t *testing.T) {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		t.Fatalf("raw unmarshal: %v", err)
 	}
-	if _, ok := raw["risk_tags"]; ok {
-		t.Error("risk_tags should be omitted when empty")
+	if _, ok := raw["risk_inputs"]; ok {
+		t.Error("risk_inputs should be omitted when empty")
 	}
-	if _, ok := raw["risk_details"]; ok {
-		t.Error("risk_details should be omitted when empty")
+	if _, ok := raw["risk_level"]; ok {
+		t.Error("legacy risk_level should be omitted when unset")
 	}
 }
 
-func TestPrescriptionPayload_EffectiveRiskDetails_PrefersRiskDetails(t *testing.T) {
+func TestPrescriptionPayload_NativeRiskTags_ReturnsNativeOnly(t *testing.T) {
 	t.Parallel()
 
 	p := PrescriptionPayload{
-		RiskDetails: []string{"k8s.privileged_container"},
-		RiskTags:    []string{"legacy-tag"},
+		RiskInputs: []RiskInput{
+			{Source: "evidra/native", RiskTags: []string{"k8s.privileged_container"}},
+			{Source: "trivy/0.58.0", RiskTags: []string{"trivy.DS002"}},
+		},
 	}
-	got := p.EffectiveRiskDetails()
+	got := p.NativeRiskTags()
 	if len(got) != 1 || got[0] != "k8s.privileged_container" {
-		t.Fatalf("EffectiveRiskDetails() = %v, want risk_details value", got)
+		t.Fatalf("NativeRiskTags() = %v, want native-only tags", got)
 	}
 }
 
-func TestPrescriptionPayload_EffectiveRiskDetails_FallsBackToRiskTags(t *testing.T) {
+func TestPrescriptionPayload_NativeRiskTags_NoNativeInput(t *testing.T) {
 	t.Parallel()
 
 	p := PrescriptionPayload{
-		RiskTags: []string{"legacy-tag"},
+		RiskInputs: []RiskInput{
+			{Source: "trivy/0.58.0", RiskTags: []string{"trivy.DS002"}},
+		},
 	}
-	got := p.EffectiveRiskDetails()
-	if len(got) != 1 || got[0] != "legacy-tag" {
-		t.Fatalf("EffectiveRiskDetails() = %v, want risk_tags fallback", got)
+	if got := p.NativeRiskTags(); got != nil {
+		t.Fatalf("NativeRiskTags() = %v, want nil", got)
+	}
+}
+
+func TestPrescriptionPayload_NativeRiskTags_EmptyInputs(t *testing.T) {
+	t.Parallel()
+
+	p := PrescriptionPayload{}
+	if got := p.NativeRiskTags(); got != nil {
+		t.Fatalf("NativeRiskTags() = %v, want nil", got)
 	}
 }
 
