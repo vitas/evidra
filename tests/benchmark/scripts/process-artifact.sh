@@ -224,10 +224,16 @@ contract_json="$(echo "$prescribe_out" | jq -c \
   --arg processed_at "$processed_at" \
   --arg tool "$TOOL" \
   --arg operation "$OPERATION" '
+  ([.risk_inputs[]? | select(.source == "evidra/native") | .risk_tags[]?]) as $native_risk_tags |
 {
   ground_truth_pattern: (.ground_truth_pattern // ""),
-  risk_level: (.risk_level // "unknown"),
-  risk_details: (.risk_details // .risk_tags // []),
+  risk_level: (.effective_risk // .risk_level // "unknown"),
+  risk_details: (
+    if ($native_risk_tags | length) > 0
+    then $native_risk_tags
+    else (.risk_details // .risk_tags // [])
+    end
+  ),
   operation_class: (.operation_class // ""),
   scope_class: (.scope_class // ""),
   resource_count: (.resource_count // 0),
