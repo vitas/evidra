@@ -91,7 +91,7 @@ func cmdImport(args []string, stdout, stderr io.Writer) int {
 	assessment, err := buildOperationAssessmentWithProfile(
 		cmd.evidencePath,
 		opResult.ReportOutput.SessionID,
-		opResult.PrescribeOutput.RiskLevel,
+		opResult.PrescribeOutput.EffectiveRisk,
 		profile,
 	)
 	if err != nil {
@@ -121,8 +121,8 @@ func cmdImport(args []string, stdout, stderr io.Writer) int {
 		"exit_code":          cmd.input.ExitCode,
 		"verdict":            evidence.VerdictFromExitCode(cmd.input.ExitCode),
 		"duration_ms":        cmd.input.DurationMs,
-		"risk_level":         assessment.RiskLevel,
-		"risk_tags":          opResult.PrescribeOutput.RiskTags,
+		"risk_inputs":        opResult.PrescribeOutput.RiskInputs,
+		"effective_risk":     opResult.PrescribeOutput.EffectiveRisk,
 		"score":              assessment.Score,
 		"score_band":         assessment.ScoreBand,
 		"scoring_profile_id": assessment.ScoringProfileID,

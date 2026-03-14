@@ -33,8 +33,11 @@ func TestPrescribeReport_Lifecycle(t *testing.T) {
 	if prescOutput.PrescriptionID == "" {
 		t.Error("prescription_id must not be empty")
 	}
-	if prescOutput.RiskLevel == "" {
-		t.Error("risk_level must not be empty")
+	if prescOutput.EffectiveRisk == "" {
+		t.Error("effective_risk must not be empty")
+	}
+	if len(prescOutput.RiskInputs) == 0 {
+		t.Error("risk_inputs must not be empty")
 	}
 
 	// Report

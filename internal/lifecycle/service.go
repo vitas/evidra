@@ -146,6 +146,9 @@ func (s *Service) Prescribe(_ context.Context, input PrescribeInput) (PrescribeO
 	if err != nil {
 		return PrescribeOutput{}, err
 	}
+	if persisted {
+		s.writeFindingsEvidence(input.ExternalFindings, sessionID, traceID, strings.TrimSpace(input.OperationID), input.Attempt, actor, cr.ArtifactDigest)
+	}
 
 	rawEntry, err := json.Marshal(entry)
 	if err != nil {
@@ -418,6 +421,52 @@ func (s *Service) writeUnknownPrescriptionSignal(actor evidence.Actor, prescript
 	})
 	if err == nil {
 		_ = evidence.AppendEntryAtPath(s.evidencePath, entry) // best-effort: signal entry is advisory
+	}
+}
+
+func (s *Service) writeFindingsEvidence(sources []ExternalFindingsSource, sessionID, traceID, operationID string, attempt int, actor evidence.Actor, artifactDigest string) {
+	if s.evidencePath == "" {
+		return
+	}
+	if traceID == "" {
+		traceID = sessionID
+	}
+
+	for _, src := range sources {
+		for _, finding := range src.Findings {
+			payload, err := json.Marshal(finding)
+			if err != nil {
+				slog.Warn("failed to marshal finding payload", "rule_id", finding.RuleID, "error", err)
+				continue
+			}
+			lastHash, err := s.lastHash()
+			if err != nil {
+				slog.Warn("failed to read last hash for finding entry", "rule_id", finding.RuleID, "error", err)
+				continue
+			}
+			entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
+				Type:           evidence.EntryTypeFinding,
+				SessionID:      sessionID,
+				OperationID:    operationID,
+				Attempt:        attempt,
+				TraceID:        traceID,
+				Actor:          actor,
+				ArtifactDigest: artifactDigest,
+				Payload:        payload,
+				PreviousHash:   lastHash,
+				SpecVersion:    version.SpecVersion,
+				AdapterVersion: version.Version,
+				ScoringVersion: version.ScoringVersion,
+				Signer:         s.signer,
+			})
+			if err != nil {
+				slog.Warn("failed to build finding entry", "rule_id", finding.RuleID, "error", err)
+				continue
+			}
+			if _, err := s.appendEntry(entry); err != nil {
+				slog.Warn("failed to append finding entry", "rule_id", finding.RuleID, "error", err)
+			}
+		}
 	}
 }
 

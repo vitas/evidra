@@ -29,10 +29,11 @@ func toEntryAPIResponse(e store.StoredEntry) entryAPIResponse {
 
 	// Extract fields from Payload JSON.
 	var payload struct {
-		Tool      string `json:"tool"`
-		Operation string `json:"operation"`
-		RiskLevel string `json:"risk_level"`
-		Actor     struct {
+		Tool          string `json:"tool"`
+		Operation     string `json:"operation"`
+		EffectiveRisk string `json:"effective_risk"`
+		RiskLevel     string `json:"risk_level"`
+		Actor         struct {
 			ID string `json:"id"`
 		} `json:"actor"`
 		CanonicalAction struct {
@@ -50,7 +51,10 @@ func toEntryAPIResponse(e store.StoredEntry) entryAPIResponse {
 	resp.Actor = payload.Actor.ID
 	resp.Verdict = payload.Verdict
 	resp.ExitCode = payload.ExitCode
-	resp.RiskLevel = payload.RiskLevel
+	resp.RiskLevel = payload.EffectiveRisk
+	if resp.RiskLevel == "" {
+		resp.RiskLevel = payload.RiskLevel
+	}
 
 	// Prefer canonical_action fields, fall back to top-level.
 	resp.Tool = payload.CanonicalAction.Tool

@@ -34,9 +34,13 @@ When to call:
 
 Returns:
 - prescription_id (required for report)
-- risk_level, risk_tags
+- risk_inputs, effective_risk
 - artifact_digest, intent_digest
 - resource_shape_hash, operation_class, scope_class
 
+
+Interpretation:
+- `effective_risk` is the summarized decision hint.
+- `risk_inputs` contains the per-source risk observations behind that summary.
 
 CRITICAL: If prescribe returns ok=false, do not execute the infrastructure command. Investigate the error before retrying.

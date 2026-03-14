@@ -40,4 +40,16 @@ func TestPrescribeSupportsArtifactShortFlag(t *testing.T) {
 	if result["ok"] != true {
 		t.Fatalf("prescribe result not ok: %#v", result)
 	}
+	if _, ok := result["risk_inputs"]; !ok {
+		t.Fatalf("missing risk_inputs: %#v", result)
+	}
+	if _, ok := result["effective_risk"]; !ok {
+		t.Fatalf("missing effective_risk: %#v", result)
+	}
+	if _, ok := result["risk_level"]; ok {
+		t.Fatalf("risk_level must not be present: %#v", result)
+	}
+	if _, ok := result["risk_tags"]; ok {
+		t.Fatalf("risk_tags must not be present: %#v", result)
+	}
 }

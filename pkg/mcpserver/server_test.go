@@ -143,8 +143,11 @@ func TestPrescribe_SimpleK8s(t *testing.T) {
 	if output.PrescriptionID == "" {
 		t.Fatal("missing prescription_id")
 	}
-	if output.RiskLevel == "" {
-		t.Fatal("missing risk_level")
+	if output.EffectiveRisk == "" {
+		t.Fatal("missing effective_risk")
+	}
+	if len(output.RiskInputs) == 0 {
+		t.Fatal("missing risk_inputs")
 	}
 	if output.ArtifactDigest == "" {
 		t.Fatal("missing artifact_digest")
@@ -177,7 +180,10 @@ func TestPrescribe_PrivilegedContainer(t *testing.T) {
 	if !output.OK {
 		t.Fatalf("prescribe failed: %v", output.Error)
 	}
-	assertTagPresent(t, output.RiskTags, "k8s.privileged_container")
+	if len(output.RiskInputs) == 0 {
+		t.Fatal("missing risk_inputs")
+	}
+	assertRiskInputTagPresent(t, output.RiskInputs, "evidra/native", "k8s.privileged_container")
 }
 
 func TestPrescribeCtx_ForwardsCallerContext(t *testing.T) {
@@ -333,6 +339,22 @@ func assertTagPresent(t *testing.T, tags []string, want string) {
 		}
 	}
 	t.Errorf("tags %v does not contain %q", tags, want)
+}
+
+func assertRiskInputTagPresent(t *testing.T, inputs []evidence.RiskInput, source, want string) {
+	t.Helper()
+	for _, input := range inputs {
+		if input.Source != source {
+			continue
+		}
+		for _, tag := range input.RiskTags {
+			if tag == want {
+				return
+			}
+		}
+		t.Fatalf("risk input %q tags %v do not contain %q", source, input.RiskTags, want)
+	}
+	t.Fatalf("missing risk input source %q", source)
 }
 
 const k8sDeployment = `apiVersion: apps/v1

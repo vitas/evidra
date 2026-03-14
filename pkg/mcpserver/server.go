@@ -63,19 +63,19 @@ type PrescribeInput struct {
 
 // PrescribeOutput is returned by the prescribe tool.
 type PrescribeOutput struct {
-	OK             bool     `json:"ok"`
-	PrescriptionID string   `json:"prescription_id"`
-	RiskLevel      string   `json:"risk_level"`
-	RiskTags       []string `json:"risk_tags,omitempty"`
-	ArtifactDigest string   `json:"artifact_digest"`
-	IntentDigest   string   `json:"intent_digest"`
-	ShapeHash      string   `json:"resource_shape_hash"`
-	ResourceCount  int      `json:"resource_count"`
-	OperationClass string   `json:"operation_class"`
-	ScopeClass     string   `json:"scope_class"`
-	CanonVersion   string   `json:"canon_version"`
-	RetryCount     int      `json:"retry_count,omitempty"`
-	Error          *ErrInfo `json:"error,omitempty"`
+	OK             bool                 `json:"ok"`
+	PrescriptionID string               `json:"prescription_id"`
+	RiskInputs     []evidence.RiskInput `json:"risk_inputs,omitempty"`
+	EffectiveRisk  string               `json:"effective_risk,omitempty"`
+	ArtifactDigest string               `json:"artifact_digest"`
+	IntentDigest   string               `json:"intent_digest"`
+	ShapeHash      string               `json:"resource_shape_hash"`
+	ResourceCount  int                  `json:"resource_count"`
+	OperationClass string               `json:"operation_class"`
+	ScopeClass     string               `json:"scope_class"`
+	CanonVersion   string               `json:"canon_version"`
+	RetryCount     int                  `json:"retry_count,omitempty"`
+	Error          *ErrInfo             `json:"error,omitempty"`
 }
 
 // ReportInput is the input schema for the report tool.
@@ -142,7 +142,7 @@ type MCPService struct {
 
 const (
 	defaultPrescribeToolDescription = "Analyze an infrastructure artifact BEFORE execution. " +
-		"Returns risk level, canonical digests, and a prescription ID. " +
+		"Returns risk inputs, effective risk, canonical digests, and a prescription ID. " +
 		"Call this BEFORE running kubectl apply, terraform apply, or similar commands."
 
 	defaultReportToolDescription = "Report the terminal outcome of an infrastructure operation or decision. " +
@@ -400,8 +400,8 @@ func (s *MCPService) PrescribeCtx(ctx context.Context, input PrescribeInput) Pre
 	return PrescribeOutput{
 		OK:             true,
 		PrescriptionID: out.PrescriptionID,
-		RiskLevel:      out.RiskLevel,
-		RiskTags:       out.RiskTags,
+		RiskInputs:     out.RiskInputs,
+		EffectiveRisk:  out.EffectiveRisk,
 		ArtifactDigest: out.ArtifactDigest,
 		IntentDigest:   out.IntentDigest,
 		ShapeHash:      out.ShapeHash,

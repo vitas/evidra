@@ -20,7 +20,7 @@ import (
 
 const testCanonicalAction = `{"tool":"terraform","operation":"apply","operation_class":"mutate","scope_class":"production","resource_count":1,"resource_shape_hash":"sha256:test"}`
 
-func TestRunPrescribe_ScannerReportParseError(t *testing.T) {
+func TestRunPrescribe_FindingsParseError(t *testing.T) {
 	t.Parallel()
 	signingKey := testutil.TestSigningKeyBase64(t)
 
@@ -40,7 +40,7 @@ func TestRunPrescribe_ScannerReportParseError(t *testing.T) {
 		"--tool", "terraform",
 		"--artifact", artifact,
 		"--canonical-action", testCanonicalAction,
-		"--scanner-report", badSarif,
+		"--findings", badSarif,
 		"--evidence-dir", tmp,
 		"--signing-key", signingKey,
 	}
@@ -50,12 +50,12 @@ func TestRunPrescribe_ScannerReportParseError(t *testing.T) {
 	if code == 0 {
 		t.Fatal("expected non-zero exit code")
 	}
-	if !strings.Contains(errBuf.String(), "parse scanner report") {
-		t.Fatalf("stderr missing parse scanner report: %s", errBuf.String())
+	if !strings.Contains(errBuf.String(), "parse findings") {
+		t.Fatalf("stderr missing parse findings: %s", errBuf.String())
 	}
 }
 
-func TestRunPrescribe_ScannerReportCountsWrittenFindings(t *testing.T) {
+func TestRunPrescribe_FindingsInfluenceRiskInputsAndWriteEvidence(t *testing.T) {
 	t.Parallel()
 	signingKey := testutil.TestSigningKeyBase64(t)
 
@@ -75,7 +75,7 @@ func TestRunPrescribe_ScannerReportCountsWrittenFindings(t *testing.T) {
 		"--tool", "terraform",
 		"--artifact", artifact,
 		"--canonical-action", testCanonicalAction,
-		"--scanner-report", scannerReport,
+		"--findings", scannerReport,
 		"--evidence-dir", tmp,
 		"--signing-key", signingKey,
 	}
@@ -90,12 +90,15 @@ func TestRunPrescribe_ScannerReportCountsWrittenFindings(t *testing.T) {
 	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
 		t.Fatalf("decode output: %v", err)
 	}
-	count, ok := result["findings_count"].(float64)
-	if !ok {
-		t.Fatalf("findings_count missing or non-number: %#v", result["findings_count"])
+	riskInputs, ok := result["risk_inputs"].([]interface{})
+	if !ok || len(riskInputs) != 2 {
+		t.Fatalf("risk_inputs = %#v, want 2 entries", result["risk_inputs"])
 	}
-	if int(count) != 1 {
-		t.Fatalf("findings_count = %d, want 1", int(count))
+	if _, ok := result["effective_risk"].(string); !ok {
+		t.Fatalf("effective_risk missing or non-string: %#v", result["effective_risk"])
+	}
+	if _, ok := result["risk_level"]; ok {
+		t.Fatalf("risk_level must not be present: %#v", result)
 	}
 
 	entries, err := evidence.ReadAllEntriesAtPath(tmp)
