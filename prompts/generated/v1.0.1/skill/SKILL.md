@@ -114,8 +114,14 @@ Keep `session_id` stable within one task. Use `scope_dimensions` to provide clus
 {
   "ok": true,
   "prescription_id": "01ABC...",
-  "risk_level": "high",
-  "risk_tags": ["k8s.privileged_container"],
+  "risk_inputs": [
+    {
+      "source": "evidra/native",
+      "risk_level": "high",
+      "risk_tags": ["k8s.privileged_container"]
+    }
+  ],
+  "effective_risk": "high",
   "artifact_digest": "sha256:...",
   "intent_digest": "sha256:...",
   "operation_class": "mutate",
@@ -126,7 +132,7 @@ Keep `session_id` stable within one task. Use `scope_dimensions` to provide clus
 
 Returns:
 - prescription_id (required for report)
-- risk_level, risk_tags
+- risk_inputs, effective_risk
 - artifact_digest, intent_digest
 - resource_shape_hash, operation_class, scope_class
 

@@ -8,17 +8,19 @@ import (
 	"samebits.com/evidra/pkg/evidence"
 )
 
-func TestRiskContract_PrescribeUsesRiskDetailsWhenPresent(t *testing.T) {
+func TestRiskContract_PrescribeUsesNativeRiskInputOnly(t *testing.T) {
 	t.Parallel()
 
 	payload, err := json.Marshal(evidence.PrescriptionPayload{
 		PrescriptionID:  "P1",
 		CanonicalAction: json.RawMessage(`{"tool":"kubectl","operation":"apply","operation_class":"mutate","scope_class":"production","resource_count":1,"resource_shape_hash":"sha256:shape"}`),
-		RiskLevel:       "high",
-		RiskDetails:     []string{"k8s.privileged_container"},
-		RiskTags:        []string{"legacy.value"},
-		TTLMs:           evidence.DefaultTTLMs,
-		CanonSource:     "adapter",
+		RiskInputs: []evidence.RiskInput{
+			{Source: "evidra/native", RiskLevel: "high", RiskTags: []string{"k8s.privileged_container"}},
+			{Source: "trivy/0.58.0", RiskLevel: "critical", RiskTags: []string{"trivy.DS002"}},
+		},
+		EffectiveRisk: "critical",
+		TTLMs:         evidence.DefaultTTLMs,
+		CanonSource:   "adapter",
 	})
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)
@@ -42,7 +44,7 @@ func TestRiskContract_PrescribeUsesRiskDetailsWhenPresent(t *testing.T) {
 		t.Fatalf("entry count = %d, want 1", len(got))
 	}
 	if len(got[0].RiskTags) != 1 || got[0].RiskTags[0] != "k8s.privileged_container" {
-		t.Fatalf("RiskTags = %v, want risk_details value", got[0].RiskTags)
+		t.Fatalf("RiskTags = %v, want native-only value", got[0].RiskTags)
 	}
 }
 

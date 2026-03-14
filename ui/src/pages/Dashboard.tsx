@@ -315,7 +315,7 @@ function DashboardContent() {
             <BreakdownPanel title="Actors" items={actorBreakdown} icon={"\u{1F464}"} />
             <BreakdownPanel title="Tools" items={toolBreakdown} icon={"\u{1F527}"} />
             <BreakdownPanel title="Scopes" items={scopeBreakdown} icon={"\u{1F30D}"} />
-            <BreakdownPanel title="Risk Distribution" items={riskBreakdown} icon={"\u{26A1}"} colorFn={riskItemColor} />
+            <BreakdownPanel title="Effective Risk" items={riskBreakdown} icon={"\u{26A1}"} colorFn={riskItemColor} />
           </div>
         )}
 
@@ -376,7 +376,7 @@ function DashboardContent() {
                 <div>Actor</div>
                 <div>Operation</div>
                 <div>Scope</div>
-                <div className="text-right">Risk</div>
+                <div className="text-right">Effective Risk</div>
               </div>
               {entries.map((entry) => (
                 <EntryRow key={entry.id} entry={entry} />

@@ -64,11 +64,30 @@ func (s *Service) Prescribe(_ context.Context, input PrescribeInput) (PrescribeO
 		}
 	}
 
-	riskTags := detectors.ProduceAll(cr.CanonicalAction, input.RawArtifact)
-	riskLevel := risk.ElevateRiskLevel(
-		risk.RiskLevel(cr.CanonicalAction.OperationClass, cr.CanonicalAction.ScopeClass),
-		riskTags,
-	)
+	matrixLevel := risk.RiskLevel(cr.CanonicalAction.OperationClass, cr.CanonicalAction.ScopeClass)
+	var riskInputs []evidence.RiskInput
+	if len(input.RawArtifact) > 0 {
+		nativeTags := detectors.ProduceAll(cr.CanonicalAction, input.RawArtifact)
+		nativeLevel := risk.ElevateRiskLevel(matrixLevel, nativeTags)
+		riskInputs = append(riskInputs, evidence.RiskInput{
+			Source:    "evidra/native",
+			RiskLevel: nativeLevel,
+			RiskTags:  nativeTags,
+		})
+	} else {
+		riskInputs = append(riskInputs, evidence.RiskInput{
+			Source:    "evidra/matrix",
+			RiskLevel: matrixLevel,
+		})
+	}
+	for _, src := range input.ExternalFindings {
+		riskInputs = append(riskInputs, buildSARIFRiskInput(src))
+	}
+	effectiveRisk := computeEffectiveRisk(riskInputs)
+	nativeTags := []string(nil)
+	if len(riskInputs) > 0 && riskInputs[0].Source == "evidra/native" {
+		nativeTags = riskInputs[0].RiskTags
+	}
 
 	retryCount := 0
 	if s.retryTracker != nil {
@@ -83,9 +102,8 @@ func (s *Service) Prescribe(_ context.Context, input PrescribeInput) (PrescribeO
 	prescPayload := evidence.PrescriptionPayload{
 		PrescriptionID:  ulid.Make().String(),
 		CanonicalAction: cr.RawAction,
-		RiskLevel:       riskLevel,
-		RiskDetails:     riskTags,
-		RiskTags:        riskTags,
+		RiskInputs:      riskInputs,
+		EffectiveRisk:   effectiveRisk,
 		TTLMs:           evidence.DefaultTTLMs,
 		CanonSource:     canonSource,
 	}
@@ -128,6 +146,9 @@ func (s *Service) Prescribe(_ context.Context, input PrescribeInput) (PrescribeO
 	if err != nil {
 		return PrescribeOutput{}, err
 	}
+	if persisted {
+		s.writeFindingsEvidence(input.ExternalFindings, sessionID, traceID, strings.TrimSpace(input.OperationID), input.Attempt, actor, cr.ArtifactDigest)
+	}
 
 	rawEntry, err := json.Marshal(entry)
 	if err != nil {
@@ -139,8 +160,10 @@ func (s *Service) Prescribe(_ context.Context, input PrescribeInput) (PrescribeO
 		SessionID:      sessionID,
 		TraceID:        traceID,
 		Actor:          actor,
-		RiskLevel:      riskLevel,
-		RiskTags:       riskTags,
+		RiskInputs:     riskInputs,
+		EffectiveRisk:  effectiveRisk,
+		RiskLevel:      effectiveRisk,
+		RiskTags:       nativeTags,
 		ArtifactDigest: cr.ArtifactDigest,
 		IntentDigest:   cr.IntentDigest,
 		ShapeHash:      cr.CanonicalAction.ResourceShapeHash,
@@ -398,6 +421,52 @@ func (s *Service) writeUnknownPrescriptionSignal(actor evidence.Actor, prescript
 	})
 	if err == nil {
 		_ = evidence.AppendEntryAtPath(s.evidencePath, entry) // best-effort: signal entry is advisory
+	}
+}
+
+func (s *Service) writeFindingsEvidence(sources []ExternalFindingsSource, sessionID, traceID, operationID string, attempt int, actor evidence.Actor, artifactDigest string) {
+	if s.evidencePath == "" {
+		return
+	}
+	if traceID == "" {
+		traceID = sessionID
+	}
+
+	for _, src := range sources {
+		for _, finding := range src.Findings {
+			payload, err := json.Marshal(finding)
+			if err != nil {
+				slog.Warn("failed to marshal finding payload", "rule_id", finding.RuleID, "error", err)
+				continue
+			}
+			lastHash, err := s.lastHash()
+			if err != nil {
+				slog.Warn("failed to read last hash for finding entry", "rule_id", finding.RuleID, "error", err)
+				continue
+			}
+			entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
+				Type:           evidence.EntryTypeFinding,
+				SessionID:      sessionID,
+				OperationID:    operationID,
+				Attempt:        attempt,
+				TraceID:        traceID,
+				Actor:          actor,
+				ArtifactDigest: artifactDigest,
+				Payload:        payload,
+				PreviousHash:   lastHash,
+				SpecVersion:    version.SpecVersion,
+				AdapterVersion: version.Version,
+				ScoringVersion: version.ScoringVersion,
+				Signer:         s.signer,
+			})
+			if err != nil {
+				slog.Warn("failed to build finding entry", "rule_id", finding.RuleID, "error", err)
+				continue
+			}
+			if _, err := s.appendEntry(entry); err != nil {
+				slog.Warn("failed to append finding entry", "rule_id", finding.RuleID, "error", err)
+			}
+		}
 	}
 }
 

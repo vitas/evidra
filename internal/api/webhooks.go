@@ -370,9 +370,16 @@ func buildMappedPrescribeEntry(lastHash string, signer pkevidence.Signer, actor 
 	payload, err := json.Marshal(pkevidence.PrescriptionPayload{
 		PrescriptionID:  prescriptionID,
 		CanonicalAction: rawAction,
-		RiskLevel:       riskLevel,
-		TTLMs:           pkevidence.DefaultTTLMs,
-		CanonSource:     "mapped",
+		RiskInputs: []pkevidence.RiskInput{
+			{
+				Source:    "evidra/matrix",
+				RiskLevel: riskLevel,
+			},
+		},
+		EffectiveRisk: riskLevel,
+		RiskLevel:     riskLevel,
+		TTLMs:         pkevidence.DefaultTTLMs,
+		CanonSource:   "mapped",
 	})
 	if err != nil {
 		return pkevidence.EvidenceEntry{}, err

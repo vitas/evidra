@@ -43,7 +43,7 @@ mcp:
       - "Keep session/operation/trace identifiers stable within one task."
     returns:
       - "prescription_id (required for report)"
-      - "risk_level, risk_tags"
+      - "risk_inputs, effective_risk"
       - "artifact_digest, intent_digest"
       - "resource_shape_hash, operation_class, scope_class"
     failure_rule: "CRITICAL: If prescribe returns ok=false, do not execute the infrastructure command. Investigate the error before retrying."

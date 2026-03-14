@@ -42,19 +42,25 @@ func NewService(opts Options) *Service {
 
 // PrescribeInput captures pre-execution operation context.
 type PrescribeInput struct {
-	Actor           evidence.Actor
-	Tool            string
-	Operation       string
-	RawArtifact     []byte
-	Environment     string
-	CanonicalAction *canon.CanonicalAction
-	SessionID       string
-	OperationID     string
-	Attempt         int
-	TraceID         string
-	SpanID          string
-	ParentSpanID    string
-	ScopeDimensions map[string]string
+	Actor            evidence.Actor
+	Tool             string
+	Operation        string
+	RawArtifact      []byte
+	Environment      string
+	CanonicalAction  *canon.CanonicalAction
+	ExternalFindings []ExternalFindingsSource
+	SessionID        string
+	OperationID      string
+	Attempt          int
+	TraceID          string
+	SpanID           string
+	ParentSpanID     string
+	ScopeDimensions  map[string]string
+}
+
+type ExternalFindingsSource struct {
+	Source   string
+	Findings []evidence.FindingPayload
 }
 
 // PrescribeOutput contains stable data adapters need to render responses.
@@ -63,6 +69,9 @@ type PrescribeOutput struct {
 	SessionID      string
 	TraceID        string
 	Actor          evidence.Actor
+	RiskInputs     []evidence.RiskInput
+	EffectiveRisk  string
+	// Deprecated compatibility fields for callers not yet migrated.
 	RiskLevel      string
 	RiskTags       []string
 	ArtifactDigest string

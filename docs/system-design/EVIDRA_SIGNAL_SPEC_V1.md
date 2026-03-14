@@ -241,10 +241,10 @@ chain. Deterministic: same input → same output.
 
 ### Prescription Risk Field Contract
 
-- Canonical field: `risk_details` (array of detector-emitted tags)
-- Legacy compatibility field: `risk_tags` (deprecated)
-- Consumers SHOULD read `risk_details` first, and MAY fallback to `risk_tags` for older evidence
-- Producers SHOULD dual-write both fields during migration; removal target for `risk_tags` is v0.5.0
+- Canonical fields: `risk_inputs` + `effective_risk`
+- Signal readers SHOULD extract native detector tags from `risk_inputs[source=evidra/native]`
+- Legacy compatibility field: `risk_tags` on older evidence remains a valid fallback
+- `effective_risk` is the rolled-up severity used for human-facing guidance; the signal engine still derives risk escalation from operation context plus native detector tags
 
 ---
 
@@ -751,8 +751,9 @@ status:  stable
 
 ### Detection Contract
 
-**Input:** All prescription entries with their risk levels computed
-from operation_class, scope_class, and risk_tags.
+**Input:** All prescription entries with native detector tags extracted from
+`risk_inputs[source=evidra/native]` when present, or legacy `risk_tags`
+for older evidence.
 
 **Algorithm:**
 
@@ -762,7 +763,7 @@ For each actor+tool behavior stream:
 
   For each prescription P in chronological order:
     key = (P.actor_id, P.tool)
-    current = ElevateRiskLevel(RiskLevel(op_class, scope_class), risk_tags)
+    current = ElevateRiskLevel(RiskLevel(op_class, scope_class), native_risk_tags)
 
     prior = prescriptions for key within 30 days before P.timestamp
 

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Phase 1 Risk Inputs
+- CLI `prescribe`, `record`, and `import` now expose `risk_inputs` and `effective_risk` instead of flat top-level prescribe risk fields
+- `--findings` replaces `--scanner-report` on prescribe/record for bundled SARIF inputs
+- MCP prescribe output, prompt contracts, mapped webhook prescriptions, and key system/user docs now align on the Phase 1 `risk_inputs` model
+
 ## v0.4.9 — 2026-03-13
 
 ## v0.4.8 — 2026-03-12

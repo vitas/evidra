@@ -23,6 +23,20 @@ var riskSeverity = map[string]int{
 	"critical": 3,
 }
 
+// SeverityHigherThan reports whether severity a outranks severity b.
+// Unrecognized severities never outrank recognized ones.
+func SeverityHigherThan(a, b string) bool {
+	aSeverity, ok := riskSeverity[a]
+	if !ok {
+		return false
+	}
+	bSeverity, ok := riskSeverity[b]
+	if !ok {
+		bSeverity = -1
+	}
+	return aSeverity > bSeverity
+}
+
 // RiskLevel returns the risk level for the given operation and scope classes.
 // Unknown combinations default to "high".
 func RiskLevel(operationClass, scopeClass string) string {

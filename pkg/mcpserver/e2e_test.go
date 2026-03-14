@@ -103,8 +103,11 @@ func TestE2E_PrescribeReportLifecycle(t *testing.T) {
 	if prescribeOut.PrescriptionID == "" {
 		t.Fatal("prescribe returned empty prescription_id")
 	}
-	if prescribeOut.RiskLevel == "" {
-		t.Fatal("prescribe returned empty risk_level")
+	if prescribeOut.EffectiveRisk == "" {
+		t.Fatal("prescribe returned empty effective_risk")
+	}
+	if len(prescribeOut.RiskInputs) == 0 {
+		t.Fatal("prescribe returned empty risk_inputs")
 	}
 	if prescribeOut.ArtifactDigest == "" {
 		t.Fatal("prescribe returned empty artifact_digest")

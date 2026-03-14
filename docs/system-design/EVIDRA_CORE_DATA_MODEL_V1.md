@@ -78,12 +78,15 @@ Prescription records intent before execution.
 | canonical_action | CanonicalAction | MUST | Normalized action (contains tool) |
 | intent_digest | string | MUST | SHA256 of canonical JSON |
 | artifact_digest | string | MUST | SHA256 of raw artifact bytes |
-| risk_level | string | MUST | From risk matrix (low, medium, high, critical) |
-| risk_tags | []string | MAY | From catastrophic risk detectors |
-| risk_details | []string | MAY | Human-readable risk descriptions |
+| risk_inputs | []RiskInput | MUST | Per-source prescribe-time panel (`evidra/native` or `evidra/matrix`, plus external findings) |
+| effective_risk | string | MUST | Highest-severity roll-up across `risk_inputs` |
 | ttl_ms | integer | MUST | Time-to-live in milliseconds (materialized, not inferred) |
 | canon_source | string | MUST | "adapter" (Evidra parsed) or "external" (tool self-reported) |
 | timestamp | datetime | MUST | RFC 3339, UTC |
+
+Legacy compatibility note:
+- older evidence MAY still contain `risk_level`, `risk_tags`, or `risk_details`
+- current producers SHOULD write `risk_inputs` + `effective_risk`
 
 ### Actor
 
@@ -169,7 +172,7 @@ Wire/storage mapping:
 Evidra computes and adds to the stored Prescription:
 prescription_id, session_id (if not caller-provided), trace_id (defaults to session_id when not caller-provided), tenant_id,
 canonical_action (if not pre-provided), intent_digest,
-artifact_digest, risk_level, risk_tags, risk_details, ttl_ms,
+artifact_digest, risk_inputs, effective_risk, ttl_ms,
 canon_source, timestamp.
 
 #### report tool input
@@ -445,7 +448,9 @@ version bump.
 Ingress alias normalization and validation requirements are defined in
 [EVIDRA_PROTOCOL_V1.md §5.1](EVIDRA_PROTOCOL_V1.md#51-scope-class).
 
-### risk_level
+### effective_risk and risk_inputs
+
+`effective_risk` uses the same severity vocabulary as previous `risk_level` fields:
 
 | Value | Meaning |
 |-------|---------|
@@ -453,6 +458,11 @@ Ingress alias normalization and validation requirements are defined in
 | `medium` | Elevated risk, worth noting |
 | `high` | Significant risk, agent should consider human approval |
 | `critical` | Catastrophic risk pattern detected |
+
+`risk_inputs` records why that roll-up was chosen. Current producers use:
+- `evidra/native` when raw artifact bytes are available, including native detector tags
+- `evidra/matrix` when only canonical context is available
+- external findings sources when SARIF findings are attached at prescribe time
 
 ### entry_type
 

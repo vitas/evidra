@@ -18,7 +18,7 @@ type prescribeFlags struct {
 	tool                string
 	operation           string
 	environment         string
-	scannerReportPath   string
+	findingsPaths       multiStringFlag
 	evidenceDir         string
 	actorID             string
 	canonicalActionJSON string
@@ -39,7 +39,6 @@ type prescribeCommand struct {
 	service      *lifecycle.Service
 	input        lifecycle.PrescribeInput
 	evidencePath string
-	signer       evidence.Signer
 }
 
 func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
@@ -76,31 +75,13 @@ func cmdPrescribe(args []string, stdout, stderr io.Writer) int {
 		"ok":              true,
 		"prescription_id": prescOut.PrescriptionID,
 		"session_id":      prescOut.SessionID,
-		"risk_level":      prescOut.RiskLevel,
-		"risk_tags":       prescOut.RiskTags,
+		"risk_inputs":     prescOut.RiskInputs,
+		"effective_risk":  prescOut.EffectiveRisk,
 		"artifact_digest": prescOut.ArtifactDigest,
 		"intent_digest":   prescOut.IntentDigest,
 		"operation_class": prescOut.OperationClass,
 		"scope_class":     prescOut.ScopeClass,
 		"canon_version":   prescOut.CanonVersion,
-	}
-
-	if opts.scannerReportPath != "" {
-		findings, err := loadSARIFFindings(opts.scannerReportPath, "scanner report")
-		if err != nil {
-			fmt.Fprintf(stderr, "%v\n", err)
-			return 1
-		}
-		result["findings_count"] = appendFindingsAsEvidence(findings, findingAppendConfig{
-			evidencePath:   cmd.evidencePath,
-			signer:         cmd.signer,
-			sessionID:      prescOut.SessionID,
-			operationID:    opts.operationID,
-			attempt:        opts.attempt,
-			traceID:        prescOut.TraceID,
-			actor:          prescOut.Actor,
-			artifactDigest: prescOut.ArtifactDigest,
-		}, stderr)
 	}
 
 	if writeJSON(stdout, stderr, "encode prescription", result) != 0 {
@@ -119,7 +100,8 @@ func parsePrescribeFlags(args []string, stderr io.Writer) (prescribeFlags, int) 
 	toolFlag := fs.String("tool", "", "Tool name (kubectl, terraform)")
 	operationFlag := fs.String("operation", "apply", "Operation (apply, delete, plan)")
 	envFlag := fs.String("environment", "", "Environment (production, staging, development)")
-	scannerFlag := fs.String("scanner-report", "", "SARIF scanner report file")
+	var findingsPaths multiStringFlag
+	fs.Var(&findingsPaths, "findings", "SARIF findings file (repeatable)")
 	evidenceFlag := fs.String("evidence-dir", "", "Evidence directory")
 	actorFlag := fs.String("actor", "", "Actor ID (e.g. ci-pipeline-123)")
 	canonicalActionFlag := fs.String("canonical-action", "", "Pre-canonicalized action JSON (bypasses adapter)")
@@ -148,7 +130,7 @@ func parsePrescribeFlags(args []string, stderr io.Writer) (prescribeFlags, int) 
 		tool:                *toolFlag,
 		operation:           *operationFlag,
 		environment:         *envFlag,
-		scannerReportPath:   *scannerFlag,
+		findingsPaths:       findingsPaths,
 		evidenceDir:         *evidenceFlag,
 		actorID:             *actorFlag,
 		canonicalActionJSON: *canonicalActionFlag,
@@ -167,7 +149,7 @@ func parsePrescribeFlags(args []string, stderr io.Writer) (prescribeFlags, int) 
 }
 
 func preparePrescribeCommand(opts prescribeFlags) (prescribeCommand, error) {
-	svc, evidencePath, signer, err := newLifecycleServiceForCommand(opts.evidenceDir, opts.signingKey, opts.signingKeyPath, opts.signingMode)
+	svc, evidencePath, _, err := newLifecycleServiceForCommand(opts.evidenceDir, opts.signingKey, opts.signingKeyPath, opts.signingMode)
 	if err != nil {
 		return prescribeCommand{}, err
 	}
@@ -188,20 +170,31 @@ func preparePrescribeCommand(opts prescribeFlags) (prescribeCommand, error) {
 	}
 	actor := evidence.Actor{Type: "cli", ID: actorID, Provenance: "cli"}
 
+	var externalFindings []lifecycle.ExternalFindingsSource
+	for _, path := range opts.findingsPaths {
+		findings, err := loadSARIFFindings(path, "findings")
+		if err != nil {
+			return prescribeCommand{}, err
+		}
+		externalFindings = append(externalFindings, lifecycle.ExternalFindingsSource{
+			Findings: findings,
+		})
+	}
+
 	return prescribeCommand{
 		service: svc,
 		input: lifecycle.PrescribeInput{
-			Actor:           actor,
-			Tool:            opts.tool,
-			Operation:       opts.operation,
-			RawArtifact:     data,
-			Environment:     opts.environment,
-			CanonicalAction: preCanon,
-			SessionID:       opts.sessionID,
-			OperationID:     opts.operationID,
-			Attempt:         opts.attempt,
+			Actor:            actor,
+			Tool:             opts.tool,
+			Operation:        opts.operation,
+			RawArtifact:      data,
+			Environment:      opts.environment,
+			CanonicalAction:  preCanon,
+			ExternalFindings: externalFindings,
+			SessionID:        opts.sessionID,
+			OperationID:      opts.operationID,
+			Attempt:          opts.attempt,
 		},
 		evidencePath: evidencePath,
-		signer:       signer,
 	}, nil
 }

@@ -19,10 +19,13 @@ func TestEvidenceToSignalEntries_Prescribe(t *testing.T) {
 	prescPayload, _ := json.Marshal(evidence.PrescriptionPayload{
 		PrescriptionID:  "01PRESC",
 		CanonicalAction: canonAction,
-		RiskLevel:       "high",
-		RiskTags:        []string{"privileged_container"},
-		TTLMs:           300000,
-		CanonSource:     "adapter",
+		RiskInputs: []evidence.RiskInput{
+			{Source: "evidra/native", RiskLevel: "high", RiskTags: []string{"privileged_container"}},
+			{Source: "trivy/0.58.0", RiskLevel: "critical", RiskTags: []string{"trivy.DS002"}},
+		},
+		EffectiveRisk: "critical",
+		TTLMs:         300000,
+		CanonSource:   "adapter",
 	})
 
 	entries := []evidence.EvidenceEntry{
@@ -135,10 +138,12 @@ func TestEvidenceToSignalEntries_ReportInheritsToolAndScopeFromPrescription(t *t
 	prescPayload, _ := json.Marshal(evidence.PrescriptionPayload{
 		PrescriptionID:  "01PRESC",
 		CanonicalAction: canonAction,
-		RiskLevel:       "medium",
-		RiskDetails:     []string{"risk.example"},
-		TTLMs:           300000,
-		CanonSource:     "adapter",
+		RiskInputs: []evidence.RiskInput{
+			{Source: "evidra/native", RiskLevel: "medium", RiskTags: []string{"risk.example"}},
+		},
+		EffectiveRisk: "medium",
+		TTLMs:         300000,
+		CanonSource:   "adapter",
 	})
 	exitCode := 1
 	reportPayload, _ := json.Marshal(evidence.ReportPayload{

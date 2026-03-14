@@ -14,7 +14,7 @@ describe("App", () => {
     render(<App />);
     expect(
       screen.getByRole("heading", {
-        name: /Flight recorder for\s+Infrastructure Automation/i,
+        name: /Know what your agent intended\.\s*Know what actually happened\./i,
       }),
     ).toBeInTheDocument();
   });
@@ -41,5 +41,12 @@ describe("App", () => {
     expect(screen.queryByText("0.25")).not.toBeInTheDocument();
     expect(screen.queryByText("0.15")).not.toBeInTheDocument();
     expect(screen.queryByText("−0.05")).not.toBeInTheDocument();
+  });
+
+  it("describes prescribe output as risk_inputs and effective_risk", () => {
+    render(<App />);
+
+    expect(screen.getByText(/risk_inputs/i)).toBeInTheDocument();
+    expect(screen.getByText(/effective_risk/i)).toBeInTheDocument();
   });
 });

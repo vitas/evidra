@@ -121,3 +121,22 @@ func TestElevateRiskLevel(t *testing.T) {
 		})
 	}
 }
+
+func TestSeverityHigherThan(t *testing.T) {
+	t.Parallel()
+
+	if !SeverityHigherThan("critical", "high") {
+		t.Fatal("expected critical > high")
+	}
+	if SeverityHigherThan("medium", "critical") {
+		t.Fatal("expected medium !> critical")
+	}
+}
+
+func TestSeverityHigherThan_UnrecognizedLevel(t *testing.T) {
+	t.Parallel()
+
+	if SeverityHigherThan("catastrophic", "low") {
+		t.Fatal("unrecognized level must not outrank recognized levels")
+	}
+}

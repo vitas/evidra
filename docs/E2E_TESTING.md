@@ -37,7 +37,7 @@ Real-world artifact-backed acceptance is the authoritative top-level e2e layer.
 | `tests/contracts/findings_test.go` | synthetic contract | Validates findings ingest before and after lifecycle events and evidence-chain integrity | `tests/contracts/fixtures/*.sarif`, `k8s_deployment.yaml` |
 | `tests/contracts/risk_escalation_test.go` | synthetic contract | Validates scorecard-level `risk_escalation` emission from staged risk changes | `tests/contracts/fixtures/k8s_deployment.yaml` |
 | `tests/contracts/run_record_parity_test.go` | synthetic contract | Validates that `run` and `record` emit equivalent signal summaries for the same logical operation | generated configmap + record payload |
-| `tests/contracts/scanner_prescribe_test.go` | synthetic contract | Validates `prescribe --scanner-report` bundling behavior | `tests/contracts/fixtures/trivy.sarif` |
+| `tests/contracts/scanner_prescribe_test.go` | synthetic contract | Validates `prescribe --findings` bundling behavior | `tests/contracts/fixtures/trivy.sarif` |
 | `tests/contracts/session_scoring_test.go` | synthetic contract | Validates `scorecard --session-id` filtering and mixed-session scoring | `tests/contracts/fixtures/k8s_deployment.yaml` |
 | `tests/contracts/signing_test.go` | synthetic contract | Validates signed evidence, validation, and tamper detection | `tests/contracts/fixtures/k8s_deployment.yaml` |
 

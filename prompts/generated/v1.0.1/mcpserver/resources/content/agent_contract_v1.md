@@ -78,12 +78,12 @@ If you want one task grouped in one session, reuse the same `session_id`.
 ## Risk Output
 `prescribe` may return:
 - `prescription_id (required for report)`
-- `risk_level, risk_tags`
+- `risk_inputs, effective_risk`
 - `artifact_digest, intent_digest`
 - `resource_shape_hash, operation_class, scope_class`
 
 
-Risk level is informational guidance for decision quality.
+`effective_risk` is the roll-up guidance. `risk_inputs` shows the underlying instrument panel Evidra saw at prescribe time.
 
 ## Reliability Measurement
 Your reliability is measured from evidence-chain behavior.

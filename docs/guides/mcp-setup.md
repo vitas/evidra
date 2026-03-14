@@ -150,8 +150,8 @@ On deliberate refusal:
 ```
 You → Agent: "Apply this privileged manifest to production"
        Agent → Evidra: prescribe(kubectl, apply, artifact=privileged.yaml, env=production)
-       Evidra → Agent: ok=true, prescription_id=rx-01JS..., risk_level=critical, risk_tags=[...]
-       Agent → Evidra: report(prescription_id=rx-01JS..., verdict=declined, decision_context={trigger:"risk_threshold_exceeded", reason:"risk_level=critical and blast_radius covers production namespace"})
+       Evidra → Agent: ok=true, prescription_id=rx-01JS..., effective_risk=critical, risk_inputs=[...]
+       Agent → Evidra: report(prescription_id=rx-01JS..., verdict=declined, decision_context={trigger:"risk_threshold_exceeded", reason:"effective_risk=critical and blast_radius covers production namespace"})
        Evidra → Agent: ok=true, report_id=rep-01JS..., verdict=declined
 Agent → You: "I declined to apply it because the assessed risk was critical and the blast radius reached production."
 ```
@@ -263,7 +263,7 @@ Declined example:
 
 ### Handling responses
 
-**prescribe returns `ok=true`:** Proceed with execution. Note `risk_level` and `risk_tags` for context.
+**prescribe returns `ok=true`:** Proceed with execution. Note `effective_risk` and the `risk_inputs` panel for context.
 
 **report returns an assessment snapshot:** Informational. Note `score_band`, `signal_summary`, `basis`, and `confidence`, then continue — Evidra observes, it does not block.
 

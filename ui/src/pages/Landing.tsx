@@ -10,8 +10,8 @@ const PIPELINE_CHART = `flowchart LR
   B -->|Docker| C3["Docker Adapter"]
   B -->|Other| C4["Generic Adapter"]
   C1 & C2 & C3 & C4 --> D["CanonicalAction"]
-  D --> E["Risk Matrix"]
-  E --> F["Prescription"]
+  D --> E["Risk Assembly<br/>native or matrix + findings"]
+  E --> F["Prescription<br/>risk inputs + effective risk"]
   F --> G[("Evidence<br/>Chain")]
   H1["Execution outcome<br/>verdict + exit_code"] --> I["Report"]
   H2["Deliberate refusal<br/>verdict=declined + decision_context"] --> I
@@ -60,25 +60,25 @@ const SEQUENCE_CHART = `sequenceDiagram
   Agent->>CLI: prescribe(tool, operation, artifact)
   CLI->>Canon: SelectAdapter → Normalize
   Canon-->>CLI: CanonicalAction + digests
-  CLI->>Risk: RiskLevel(op_class, scope_class)
-  Risk-->>CLI: risk_level + risk_tags
+  CLI->>Risk: build risk inputs
+  Risk-->>CLI: risk inputs + effective risk
   CLI->>Chain: append(prescription entry)
-  CLI-->>Agent: prescription_id, risk_level
+  CLI-->>Agent: prescription id + effective risk
 
   alt Agent executes infrastructure operation
     Note over Agent: Execute infrastructure mutation
-    Agent->>CLI: report(prescription_id, verdict, exit_code)
+    Agent->>CLI: report(prescription id, verdict, exit code)
   else Agent denies or deliberately refuses
     Note over Agent: Record the deny decision explicitly
-    Agent->>CLI: report(prescription_id, verdict=declined, decision_context)
+    Agent->>CLI: report(prescription id, declined, decision context)
   end
   CLI->>Chain: append(report entry, linked)
-  CLI->>Signal: detect(entries)
+  CLI->>Signal: detect patterns
   Signal-->>CLI: signal_summary + confidence
-  CLI-->>Agent: report_id, score_band, signal_summary
+  CLI-->>Agent: report id + score band
 
   Agent->>CLI: scorecard(filters)
-  CLI->>Score: compute(entries, scoring_profile)
+  CLI->>Score: compute(entries, scoring profile)
   Score-->>CLI: score, band, confidence
   CLI-->>Agent: scorecard + band`;
 
@@ -137,7 +137,7 @@ const PRIMARY_SIGNALS = [
 ];
 
 const FEATURES = [
-  { icon: "\u25CE", title: "Prescribe", desc: "Before kubectl runs, the evidence already exists. Record the artifact, its canonical form, risk level, and digests \u2014 at the moment of intent." },
+  { icon: "\u25CE", title: "Prescribe", desc: "Before kubectl runs, the evidence already exists. Record the artifact, its canonical form, the full risk_inputs panel, and the rolled-up effective_risk \u2014 at the moment of intent." },
   { icon: "\u25A4", title: "Report", desc: "Record the terminal outcome \u2014 success, failure, or an explicit refusal with structured context. Every prescribe gets exactly one report. No silent gaps." },
   { icon: "\u2605", title: "Evidence", desc: "Signed, timestamped, hash-chained. The evidence chain is append-only and tamper-evident. Cryptographically verifiable by anyone, editable by no one." },
   { icon: "\u21C4", title: "Detect", desc: "The protocol structure makes behavioral patterns visible: agents stuck in retry loops, broken prescribe/report pairs, high-impact deletions. Reliability scorecards across actors, sessions, and time." },

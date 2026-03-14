@@ -171,6 +171,20 @@ func TestHandleGenericWebhook_UsesOperationIDForLifecycleCorrelation(t *testing.
 	if payload.PrescriptionID != prescribe.EntryID {
 		t.Fatalf("report prescription_id = %q, want %q", payload.PrescriptionID, prescribe.EntryID)
 	}
+
+	var prescribePayload evidence.PrescriptionPayload
+	if err := json.Unmarshal(prescribe.Payload, &prescribePayload); err != nil {
+		t.Fatalf("decode prescribe payload: %v", err)
+	}
+	if prescribePayload.EffectiveRisk == "" {
+		t.Fatal("mapped prescribe payload missing effective_risk")
+	}
+	if len(prescribePayload.RiskInputs) != 1 {
+		t.Fatalf("mapped prescribe risk_inputs len = %d, want 1", len(prescribePayload.RiskInputs))
+	}
+	if prescribePayload.RiskInputs[0].Source != "evidra/matrix" {
+		t.Fatalf("mapped prescribe risk_inputs[0].source = %q, want evidra/matrix", prescribePayload.RiskInputs[0].Source)
+	}
 }
 
 func TestHandleArgoCDWebhook_UsesOperationIDForLifecycleCorrelation(t *testing.T) {

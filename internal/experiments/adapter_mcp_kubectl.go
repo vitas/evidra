@@ -33,8 +33,7 @@ func (a *mcpKubectlAgent) RunExecution(ctx context.Context, req ExecutionAgentRe
 		return rt.missingPrescriptionID(), errors.New("missing prescription_id")
 	}
 
-	riskLevel := emptyTo(readString(prescribeBody, "risk_level"), "unknown")
-	riskTags := normalizeTags(readStringSlice(prescribeBody, "risk_tags"))
+	riskLevel, riskTags := extractPrescribeRisk(prescribeBody)
 	cmdExitCode := runShellCommand(ctx, req.Scenario.ExecuteCommand)
 
 	reportBody, callErr := rt.report(ctx, prescriptionID, cmdExitCode, actor, req, riskLevel, riskTags)
@@ -255,6 +254,39 @@ func buildExecutionOutput(req ExecutionAgentRequest, reportBody map[string]any, 
 		"execute_cmd":     req.Scenario.ExecuteCommand,
 		"report_response": reportBody,
 	}
+}
+
+func extractPrescribeRisk(prescribeBody map[string]any) (string, []string) {
+	riskLevel := strings.TrimSpace(readString(prescribeBody, "effective_risk"))
+	if riskLevel == "" {
+		riskLevel = strings.TrimSpace(readString(prescribeBody, "risk_level"))
+	}
+
+	riskTags := readStringSlice(prescribeBody, "risk_tags")
+	if len(riskTags) > 0 {
+		return emptyTo(riskLevel, "unknown"), normalizeTags(riskTags)
+	}
+
+	rawInputs, ok := prescribeBody["risk_inputs"].([]any)
+	if !ok {
+		return emptyTo(riskLevel, "unknown"), nil
+	}
+
+	for _, raw := range rawInputs {
+		input, ok := raw.(map[string]any)
+		if !ok {
+			continue
+		}
+		if strings.TrimSpace(readString(input, "source")) != "evidra/native" {
+			continue
+		}
+		if riskLevel == "" {
+			riskLevel = strings.TrimSpace(readString(input, "risk_level"))
+		}
+		return emptyTo(riskLevel, "unknown"), normalizeTags(readStringSlice(input, "risk_tags"))
+	}
+
+	return emptyTo(riskLevel, "unknown"), nil
 }
 
 func (rt *mcpRuntime) reportNotOK(output map[string]any) ExecutionAgentResult {

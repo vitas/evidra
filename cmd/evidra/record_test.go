@@ -105,7 +105,8 @@ func TestRecordOutput_ContainsFirstUsefulOutputFields(t *testing.T) {
 	}
 
 	for _, key := range []string{
-		"risk_level",
+		"risk_inputs",
+		"effective_risk",
 		"score",
 		"score_band",
 		"signal_summary",
@@ -115,6 +116,12 @@ func TestRecordOutput_ContainsFirstUsefulOutputFields(t *testing.T) {
 		if _, ok := result[key]; !ok {
 			t.Fatalf("missing first-use field %q in output: %#v", key, result)
 		}
+	}
+	if _, ok := result["risk_level"]; ok {
+		t.Fatalf("risk_level must not be present: %#v", result)
+	}
+	if _, ok := result["risk_tags"]; ok {
+		t.Fatalf("risk_tags must not be present: %#v", result)
 	}
 	if _, ok := result["risk_classification"]; ok {
 		t.Fatalf("risk_classification must not be present: %#v", result)

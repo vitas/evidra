@@ -35,7 +35,7 @@ while [[ $# -gt 0 ]]; do
 done
 if [[ "$tool" == "prescribe" ]]; then
   cat <<'JSON'
-{"structuredContent":{"ok":true,"prescription_id":"rx-123","risk_level":"critical","risk_tags":["k8s.privileged_container"]}}
+{"structuredContent":{"ok":true,"prescription_id":"rx-123","effective_risk":"critical","risk_inputs":[{"source":"evidra/native","risk_level":"critical","risk_tags":["k8s.privileged_container"]}]}}
 JSON
   exit 0
 fi

@@ -117,8 +117,7 @@ Evidra produces a canonical action:
   ],
   "scope_class": "staging",
   "resource_count": 1,
-  "resource_shape_hash": "sha256:9a1b...",
-  "risk_tags": []
+  "resource_shape_hash": "sha256:9a1b..."
 }
 ```
 
@@ -142,7 +141,7 @@ Examples it may detect:
 In this example, no catastrophic patterns are found:
 
 ```
-risk_tags = []
+native detector tags = []
 ```
 
 ## Step 5: Evidra writes a prescription entry to the evidence chain
@@ -156,9 +155,13 @@ compact response with the fields it needs to continue:
 {
   "ok": true,
   "prescription_id": "01JD7KX9M2...",
-  "risk_level": "medium",
-  "risk_tags": [],
-  "risk_details": [],
+  "risk_inputs": [
+    {
+      "source": "evidra/native",
+      "risk_level": "medium"
+    }
+  ],
+  "effective_risk": "medium",
   "artifact_digest": "sha256:...",
   "intent_digest": "sha256:...",
   "resource_shape_hash": "sha256:...",
@@ -169,8 +172,8 @@ compact response with the fields it needs to continue:
 }
 ```
 
-risk_level = medium (mutate × staging from the risk matrix).
-No risk_tags because no catastrophic patterns found.
+effective_risk = medium (mutate × staging from the risk matrix).
+No native detector tags because no catastrophic patterns found.
 
 ## Step 6: Agent executes kubectl apply
 
@@ -287,8 +290,7 @@ Example canonical action (simplified):
   ],
   "scope_class": "production",
   "resource_count": 1,
-  "resource_shape_hash": "sha256:4c2e...",
-  "risk_tags": ["world-open ingress"]
+  "resource_shape_hash": "sha256:4c2e..."
 }
 ```
 
@@ -298,9 +300,9 @@ uses `type + name + actions` only. Full address is preserved in
 evidence for human readability.
 
 If a catastrophic detector finds a pattern (e.g., 0.0.0.0/0 ingress),
-it is recorded in `risk_tags` AND elevates `risk_level` above the
-matrix value. Evidra remains an inspector — no blocking. The risk
-is visible in the prescription and in the scorecard.
+it is recorded inside `risk_inputs[source=evidra/native].risk_tags` and
+elevates `effective_risk` above the matrix value. Evidra remains an
+inspector — no blocking. The risk is visible in the prescription and in the scorecard.
 
 Prescription returned:
 
@@ -308,15 +310,21 @@ Prescription returned:
 {
   "ok": true,
   "prescription_id": "01JD8ABC12...",
-  "risk_level": "critical",
-  "risk_tags": ["world-open ingress"],
+  "risk_inputs": [
+    {
+      "source": "evidra/native",
+      "risk_level": "critical",
+      "risk_tags": ["world-open ingress"]
+    }
+  ],
+  "effective_risk": "critical",
   "artifact_digest": "sha256:...",
   "intent_digest": "sha256:...",
   "canon_version": "tf/v1"
 }
 ```
 
-risk_level = critical because risk_tags elevated it above the matrix
+effective_risk = critical because native detector tags elevated it above the matrix
 value (mutate × production = high from matrix, but catastrophic
 detector found open ingress → critical).
 
@@ -357,7 +365,7 @@ When an agent intentionally refuses to execute after assessment:
 evidra report --prescription "$PRESCRIPTION_ID" \
   --verdict declined \
   --decline-trigger risk_threshold_exceeded \
-  --decline-reason "risk_level=critical and blast_radius covers production namespace"
+  --decline-reason "effective_risk=critical and blast_radius covers production namespace"
 ```
 
 The refusal is preserved as the terminal report for that prescription.

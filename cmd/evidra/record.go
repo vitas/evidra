@@ -21,6 +21,7 @@ type recordFlags struct {
 	tool                string
 	operation           string
 	environment         string
+	findingsPaths       multiStringFlag
 	evidenceDir         string
 	scoringProfile      string
 	actorID             string
@@ -97,7 +98,7 @@ func cmdRecord(args []string, stdout, stderr io.Writer) int {
 	assessment, err := buildOperationAssessmentWithProfile(
 		cmd.evidencePath,
 		opResult.ReportOutput.SessionID,
-		opResult.PrescribeOutput.RiskLevel,
+		opResult.PrescribeOutput.EffectiveRisk,
 		profile,
 	)
 	if err != nil {
@@ -126,8 +127,8 @@ func cmdRecord(args []string, stdout, stderr io.Writer) int {
 		"exit_code":          exitCode,
 		"verdict":            evidence.VerdictFromExitCode(exitCode),
 		"duration_ms":        durationMs,
-		"risk_level":         assessment.RiskLevel,
-		"risk_tags":          opResult.PrescribeOutput.RiskTags,
+		"risk_inputs":        opResult.PrescribeOutput.RiskInputs,
+		"effective_risk":     opResult.PrescribeOutput.EffectiveRisk,
 		"score":              assessment.Score,
 		"score_band":         assessment.ScoreBand,
 		"scoring_profile_id": assessment.ScoringProfileID,
@@ -155,6 +156,8 @@ func parseRecordFlags(args []string, stderr io.Writer) (recordFlags, []string, i
 	toolFlag := fs.String("tool", "", "Tool name (kubectl, terraform)")
 	operationFlag := fs.String("operation", "", "Operation (apply, delete, plan)")
 	envFlag := fs.String("environment", "", "Environment (production, staging, development)")
+	var findingsPaths multiStringFlag
+	fs.Var(&findingsPaths, "findings", "SARIF findings file (repeatable)")
 	evidenceFlag := fs.String("evidence-dir", "", "Evidence directory")
 	scoringProfileFlag := fs.String("scoring-profile", "", "Path to scoring profile JSON")
 	actorFlag := fs.String("actor", "", "Actor ID (e.g. ci-pipeline-123)")
@@ -198,6 +201,7 @@ func parseRecordFlags(args []string, stderr io.Writer) (recordFlags, []string, i
 		tool:                tool,
 		operation:           operation,
 		environment:         *envFlag,
+		findingsPaths:       findingsPaths,
 		evidenceDir:         *evidenceFlag,
 		scoringProfile:      *scoringProfileFlag,
 		actorID:             *actorFlag,
@@ -250,19 +254,31 @@ func prepareRecordCommand(opts recordFlags, wrapped []string) (recordCommand, er
 	}
 	actor := evidence.Actor{Type: "cli", ID: actorID, Provenance: "cli"}
 
+	var externalFindings []lifecycle.ExternalFindingsSource
+	for _, path := range opts.findingsPaths {
+		findings, err := loadSARIFFindings(path, "findings")
+		if err != nil {
+			return recordCommand{}, err
+		}
+		externalFindings = append(externalFindings, lifecycle.ExternalFindingsSource{
+			Findings: findings,
+		})
+	}
+
 	return recordCommand{
 		service:      svc,
 		evidencePath: evidencePath,
 		prescribeInput: lifecycle.PrescribeInput{
-			Actor:           actor,
-			Tool:            opts.tool,
-			Operation:       opts.operation,
-			RawArtifact:     data,
-			Environment:     opts.environment,
-			CanonicalAction: preCanon,
-			SessionID:       opts.sessionID,
-			OperationID:     opts.operationID,
-			Attempt:         opts.attempt,
+			Actor:            actor,
+			Tool:             opts.tool,
+			Operation:        opts.operation,
+			RawArtifact:      data,
+			Environment:      opts.environment,
+			CanonicalAction:  preCanon,
+			ExternalFindings: externalFindings,
+			SessionID:        opts.sessionID,
+			OperationID:      opts.operationID,
+			Attempt:          opts.attempt,
 		},
 		wrapped: wrapped,
 	}, nil

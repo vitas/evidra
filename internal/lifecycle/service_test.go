@@ -123,6 +123,59 @@ func TestServicePrescribe_CanonicalActionNormalizesToolOperation(t *testing.T) {
 	}
 }
 
+func TestServicePrescribe_PopulatesRiskInputsAndEffectiveRisk(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	svc := NewService(Options{
+		EvidencePath: dir,
+		Signer:       testutil.TestSigner(t),
+	})
+
+	out, err := svc.Prescribe(context.Background(), PrescribeInput{
+		Actor:       evidence.Actor{Type: "agent", ID: "agent-1", Provenance: "mcp"},
+		Tool:        "kubectl",
+		Operation:   "apply",
+		RawArtifact: []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: cm1\n  namespace: default\n"),
+		SessionID:   "session-risk-inputs",
+	})
+	if err != nil {
+		t.Fatalf("Prescribe: %v", err)
+	}
+	if out.EffectiveRisk == "" {
+		t.Fatal("expected effective_risk")
+	}
+	if len(out.RiskInputs) != 1 {
+		t.Fatalf("risk_inputs len = %d, want 1", len(out.RiskInputs))
+	}
+	if out.RiskInputs[0].Source != "evidra/native" {
+		t.Fatalf("risk_inputs[0].source = %q, want evidra/native", out.RiskInputs[0].Source)
+	}
+
+	var payload evidence.PrescriptionPayload
+	if err := json.Unmarshal(out.Entry.Payload, &payload); err != nil {
+		t.Fatalf("unmarshal prescription payload: %v", err)
+	}
+	if payload.EffectiveRisk != out.EffectiveRisk {
+		t.Fatalf("payload effective_risk = %q, want %q", payload.EffectiveRisk, out.EffectiveRisk)
+	}
+	if len(payload.RiskInputs) != 1 {
+		t.Fatalf("payload risk_inputs len = %d, want 1", len(payload.RiskInputs))
+	}
+	if payload.RiskInputs[0].Source != "evidra/native" {
+		t.Fatalf("payload risk_inputs[0].source = %q, want evidra/native", payload.RiskInputs[0].Source)
+	}
+	if payload.RiskLevel != "" {
+		t.Fatalf("legacy payload risk_level = %q, want empty", payload.RiskLevel)
+	}
+	if len(payload.RiskDetails) != 0 {
+		t.Fatalf("legacy payload risk_details = %v, want empty", payload.RiskDetails)
+	}
+	if len(payload.RiskTags) != 0 {
+		t.Fatalf("legacy payload risk_tags = %v, want empty", payload.RiskTags)
+	}
+}
+
 func TestServicePrescribe_DefaultsTraceIDToSessionIDWhenOmitted(t *testing.T) {
 	t.Parallel()
 
