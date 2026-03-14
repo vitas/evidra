@@ -301,16 +301,16 @@ function Hero() {
       <Container className="relative">
         <div className="inline-flex items-center gap-2 font-mono text-[0.75rem] font-medium text-accent bg-accent-subtle border border-border rounded-full px-4 py-1 mb-6 tracking-wide">
           <span className="w-1.5 h-1.5 rounded-full bg-accent inline-block animate-pulse" />
-          Open Source &middot; Apache 2.0
+          Open Source &middot; Apache 2.0 &middot; Flight Recorder for AI Infrastructure Agents
         </div>
         <h1 className="text-[clamp(2.2rem,5vw,3.2rem)] font-extrabold text-fg leading-[1.15] tracking-tighter mb-5">
-          Flight recorder for  <br />Infrastructure Automation
+          Know what your agent intended.<br />Know what actually happened.
         </h1>
         <p className="text-[1.15rem] text-fg-muted max-w-[640px] mx-auto mb-3 leading-relaxed">
-          A new observability layer for CI/CD, IaC, and AI agents.
+          The prescribe/report protocol for AI infrastructure agents.
         </p>
         <p className="text-[0.92rem] text-fg-muted max-w-[580px] mx-auto mb-10 leading-relaxed opacity-80">
-          Records what your automation intended, decided, and did. Computes behavioral signals from signed evidence.
+          Evidra records intent before execution and outcome after &mdash; in a signed evidence chain that no one can edit after the fact. When your agent decides not to act, that decision is recorded too.
         </p>
         <div className="flex gap-3 justify-center flex-wrap">
           <a href="#get-started" className="btn-primary inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold bg-accent text-white transition-all hover:bg-accent-bright hover:-translate-y-0.5 hover:shadow-lg no-underline">
