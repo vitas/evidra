@@ -29,14 +29,14 @@ examples, rationale).
 }
 ```
 
-risk_tags MUST NOT be in CanonicalAction. They belong in Prescription.
+Risk outputs MUST NOT be in CanonicalAction. They belong in the Prescription wrapper.
 
 ### Digest Rules (MUST)
 
 | Digest | Input | Includes | Excludes |
 |--------|-------|----------|----------|
 | artifact_digest | Raw bytes | Everything | Nothing (raw SHA256) |
-| intent_digest | Canonical JSON of identity fields | tool, operation, operation_class, resource_identity, scope_class, resource_count | resource_shape_hash, risk_tags |
+| intent_digest | Canonical JSON of identity fields | tool, operation, operation_class, resource_identity, scope_class, resource_count | resource_shape_hash, risk_inputs, effective_risk |
 | resource_shape_hash | Normalized spec | Spec content after noise removal | Identity fields, noise annotations |
 
 **intent_digest MUST exclude resource_shape_hash.** The shape hash
@@ -235,9 +235,9 @@ Fields:
 | resource_count | int | from adapter | number of resources in artifact |
 | resource_shape_hash | string | from adapter | SHA256 of normalized spec content |
 
-**risk_tags are NOT part of CanonicalAction.** They are populated
-by catastrophic risk detectors AFTER canonicalization and belong
-to the Prescription wrapper:
+**risk outputs are NOT part of CanonicalAction.** Native detector tags are populated
+AFTER canonicalization and stored inside the Prescription wrapper's
+`risk_inputs` panel:
 
 ```go
 type Prescription struct {
@@ -245,15 +245,15 @@ type Prescription struct {
     CanonicalAction CanonicalAction `json:"canonical_action"`
     ArtifactDigest  string          `json:"artifact_digest"`
     IntentDigest    string          `json:"intent_digest"`
-    RiskLevel       string          `json:"risk_level"`
-    RiskTags        []string        `json:"risk_tags"`      // detector output, not canon output
+    RiskInputs      []RiskInput     `json:"risk_inputs"`    // prescribe-time panel
+    EffectiveRisk   string          `json:"effective_risk"` // rolled-up severity
     Timestamp       time.Time       `json:"ts"`
     Signature       string          `json:"signature"`
 }
 ```
 
 CanonicalAction is pure adapter output (deterministic, testable).
-RiskTags are detector output (separate concern, separate timing).
+Native detector tags are analysis output (separate concern, separate timing).
 
 **resource_identity** is the stable identity. Same deployment with
 different image tags → same resource_identity. This is intentional —
@@ -295,7 +295,7 @@ resource_shape_hash excluded from intent_digest. Intent captures
 "what resources are being touched." Shape captures "what's the
 content." These are different questions.
 
-risk_tags excluded. They are analysis output, not intent identity.
+native detector tags excluded. They are analysis output, not intent identity.
 
 ### Retry loop detection uses BOTH digests
 
@@ -936,7 +936,7 @@ This gives:
 
 - Blast radius signal effectively disabled (always 1)
 - No catastrophic risk detectors (no schema to inspect)
-- risk_level from matrix only (operation_class × scope_class)
+- effective_risk from `evidra/matrix` only (operation_class × scope_class)
 - resource_identity is opaque — human-readable scorecard shows
   digest, not resource names
 - Lower-quality scorecard (fewer signals, less detail)
@@ -1120,7 +1120,7 @@ Examples: `k8s/v1`, `tf/v1`, `helm/v1`, `argocd/v1`, `generic/v1`
 | Remove field from noise list | YES |
 | Change sort order | YES |
 | Change canonical JSON rules | YES |
-| Add new risk detector | NO (risk_tags not in intent_digest) |
+| Add new risk detector | NO (native tags not in intent_digest) |
 | Fix parser bug that changes output | YES |
 | Fix parser bug that doesn't change output | NO |
 | Update library minor version | NO (unless output changes) |
@@ -1174,8 +1174,8 @@ changes do not.
 
 | Change | Why non-breaking |
 |--------|-----------------|
-| Add new risk detector | risk_tags not in intent_digest or shape_hash |
-| Change risk matrix thresholds | risk_level not in any digest |
+| Add new risk detector | native tags / risk_inputs not in intent_digest or shape_hash |
+| Change risk matrix thresholds | effective_risk not in any digest |
 | Add new adapter for new tool | Existing adapters unchanged |
 | Fix parser bug without output change | Golden corpus unchanged |
 | Library minor version bump | Unless output changes (verify with fixtures) |
@@ -1310,7 +1310,7 @@ parsing.
   (unstructured) is sufficient.
 - Do not put spec fields into intent_digest. Intent = identity.
   Spec = for risk detectors.
-- Do not put risk_tags into intent_digest. They are analysis
+- Do not put native detector tags or risk_inputs into intent_digest. They are analysis
   output, not intent identity.
 - Do not modify the noise list without a version bump.
 - Do not modify canonicalization fixture corpus cases without a version bump.

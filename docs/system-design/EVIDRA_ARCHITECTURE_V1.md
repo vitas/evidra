@@ -12,6 +12,11 @@
 
 ## Pipeline
 
+Phase 1 terminology note:
+- detector output still starts as native detector tags
+- the stored prescribe contract is `risk_inputs[] + effective_risk`
+- `risk_tags` in the detector lane below refers to native tags inside `risk_inputs[source=evidra/native]`
+
 ```
                     ┌─────────────────────────────────────────────────────────────┐
                     │                                                             │
@@ -20,39 +25,39 @@
         │           │   ┌──────────┐          ┌──────────────┐                    │
         ▼           │   │ K8s      │    ┌────▸│ k8s/         │                    │
    ┌──────────┐     │   │ Terraform│    │     │  privileged  │                    │
-   │ prescribe│────▸│   │ Docker   │────┘     │  hostpath    │──▸ risk_tags       │
+   │ prescribe│────▸│   │ Docker   │────┘     │  hostpath    │──▸ native tags     │
    │          │     │   │ Generic  │          │  docker_sock │                    │
    └──────────┘     │   └──────────┘          │  run_as_root │                    │
         │           │        │                │  ...         │                    │
         │           │        ▼                ├──────────────┤                    │
         │           │   CanonicalAction       │ terraform/   │                    │
         │           │   + ArtifactDigest      │  aws/        │                    │
-        │           │   + IntentDigest        │    s3_public │──▸ risk_tags       │
+        │           │   + IntentDigest        │    s3_public │──▸ native tags     │
         │           │                         │    iam_wild  │                    │
         │           │                         │  gcp/        │                    │
         │           │                         │  azure/      │                    │
         │           │                         ├──────────────┤                    │
         │           │                         │ ops/         │                    │
-        │           │                         │  mass_delete │──▸ risk_tags       │
+        │           │                         │  mass_delete │──▸ native tags     │
         │           │                         │  kube_system │                    │
         │           │                         ├──────────────┤                    │
         │           │                         │ docker/      │                    │
-        │           │                         │  privileged  │──▸ risk_tags       │
+        │           │                         │  privileged  │──▸ native tags     │
         │           │                         └──────────────┘                    │
         │           │                                │                            │
-        │           │                    risk_tags + canonical_action             │
+        │           │                native tags + canonical_action               │
         │           │                                │                            │
         │           │                         ┌──────▼──────┐                     │
         │           │                         │ Risk Matrix │                     │
         │           │                         │             │                     │
         │           │                         │ base_sev    │                     │
-        │           │                         │ × op_class  │──▸ risk_level       │
+        │           │                         │ × op_class  │──▸ effective_risk   │
         │           │                         │ × scope     │                     │
         │           │                         └─────────────┘                     │
         │           │                                                             │
         ▼           │                                                             │
    ┌─────────┐      │                                                             │
-   │ EVIDENCE│◀─────│── prescribe entry (risk_tags, risk_level, digests)          │
+   │ EVIDENCE│◀─────│── prescribe entry (risk_inputs, effective_risk, digests)    │
    │ CHAIN   │      │                                                             │
    │ (JSONL) │      │                                                             │
    │         │◀─────│── report entry (verdict, exit_code?, decision_context?, artifact_digest) │
@@ -138,8 +143,8 @@
 | # | Layer | Input | Output | What It Does |
 |---|-------|-------|--------|-------------|
 | 1 | **Adapters** | Raw artifact + tool name | CanonicalAction + digests | Normalizes YAML/JSON/HCL into structured representation |
-| 2 | **Detectors** | CanonicalAction + raw bytes | risk_tags[] | Pattern-matches misconfigs. One file, one tag, self-registering |
-| 3 | **Risk Matrix** | risk_tags + op_class + scope | risk_level | Computes severity from base_severity × context |
+| 2 | **Detectors** | CanonicalAction + raw bytes | native detector tags[] | Pattern-matches misconfigs. One file, one tag, self-registering |
+| 3 | **Risk Assembly** | native tags + op_class + scope + external findings | risk_inputs[] + effective_risk | Computes per-source prescribe-time inputs and the rolled-up severity |
 | 4 | **Evidence Chain** | prescribe + report entries | Signed JSONL segments | Tamper-evident append-only log of all operations |
 | 5 | **Signals Engine** | Evidence entries (sequence) | signal counts + rates | Detects behavioral patterns across operation sequences |
 | 6 | **Scorecard** | Signal counts + rates | score (0-100) + band | Weighted penalty model → reliability metric |
@@ -190,14 +195,16 @@ Architecture principle: **graph-ready, graph-free.** Signals work on `[]Entry` s
      k8s.privileged_container → fires (privileged: true)
      k8s.run_as_root → fires (runAsNonRoot absent)
 
-4. Risk matrix:
+4. Risk assembly:
      base_severity = max(critical, medium) = critical
      context = mutate × staging → no elevation
-     risk_level = critical
+     risk_inputs = [{source=evidra/native, risk_level=critical,
+                     risk_tags=[k8s.privileged_container, k8s.run_as_root]}]
+     effective_risk = critical
 
 5. Evidence entry written:
-     type=prescribe, risk_tags=[k8s.privileged_container, k8s.run_as_root],
-     risk_level=critical, prescription_id=01HXY...
+     type=prescribe, risk_inputs=[...],
+     effective_risk=critical, prescription_id=01HXY...
 
 6. Agent executes kubectl apply → fails (exit_code=1)
 
@@ -214,7 +221,7 @@ Architecture principle: **graph-ready, graph-free.** Signals work on `[]Entry` s
       artifact_drift: count=0 (artifact unchanged)
 
 11. Scorecard:
-      score = 100 - (retry_loop_penalty × 3) - (risk_tag_penalties)
+      score = 100 - (retry_loop_penalty × 3)
       score = 62, band = fair
 
 12. Output:

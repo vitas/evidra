@@ -29,6 +29,8 @@ Design rule:
 - `import` = Evidra ingests a completed automation execution from structured input.
 
 Both modes must produce equivalent prescribe/report semantics for equivalent operations.
+When the lifecycle input is the same, they should also expose the same prescribe-time
+`risk_inputs` panel and `effective_risk` roll-up.
 
 ---
 
@@ -78,7 +80,8 @@ Validation rules:
 
 For `record` and `import`, output must include:
 
-- `risk_level`
+- `risk_inputs`
+- `effective_risk`
 - `score`
 - `score_band`
 - `signal_summary`
