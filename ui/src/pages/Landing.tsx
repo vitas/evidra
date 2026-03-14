@@ -463,7 +463,7 @@ function GettingStarted() {
       <Container>
         <SectionLabel>Quick Start</SectionLabel>
         <SectionTitle>Getting Started</SectionTitle>
-        <p className="text-fg-muted mb-10 text-[1.14rem]">Up and running in under 5 minutes.</p>
+        <p className="text-fg-muted mb-10 text-[1.14rem]">Record your first prescribe/report lifecycle in under 5 minutes. Works with kubectl, helm, terraform, and docker.</p>
         <div className="inline-flex bg-accent-subtle border border-border rounded-lg p-[3px] mb-6">
           <TabBtn active={tab === "binary"} onClick={() => setTab("binary")}>Binary</TabBtn>
           <TabBtn active={tab === "brew"} onClick={() => setTab("brew")}>Homebrew</TabBtn>
@@ -472,7 +472,7 @@ function GettingStarted() {
         <CodeBlock code={code} />
         {tab === "selfhost" && (
           <p className="text-[0.85rem] text-fg-muted mt-4">
-            Self-hosted centralizes forwarded evidence and webhook-ingested events, then serves tenant-wide <code>/v1/evidence/scorecard</code> and <code>/v1/evidence/explain</code> over stored evidence.{" "}
+            Self-hosted centralizes evidence across agents and pipelines. Compare agent reliability fleet-wide, ingest ArgoCD webhooks, and run team-wide analytics over stored evidence.{" "}
             <a href="https://github.com/vitas/evidra/blob/main/docs/guides/self-hosted-setup.md" target="_blank" rel="noopener" className="font-semibold">Status guide &rarr;</a>
           </p>
         )}
