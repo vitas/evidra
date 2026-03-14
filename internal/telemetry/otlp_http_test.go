@@ -1,47 +1,77 @@
 package telemetry
 
 import (
+	"compress/gzip"
 	"context"
-	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
-	"sync/atomic"
+	"sync"
 	"testing"
 	"time"
+
+	colmetricpb "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
+	"google.golang.org/protobuf/proto"
 
 	"samebits.com/evidra/internal/config"
 )
 
-func TestOTLPExporterFlushesAtEnd(t *testing.T) {
+func TestOTLPHTTP_EmitAndFlush_SendsProtobuf(t *testing.T) {
 	t.Parallel()
 
-	var requests int32
-	var got struct {
-		Metrics []OperationMetric `json:"metrics"`
-	}
+	var mu sync.Mutex
+	var received []*colmetricpb.ExportMetricsServiceRequest
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		atomic.AddInt32(&requests, 1)
-		defer func() {
-			_ = r.Body.Close()
-		}()
-		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
-			t.Fatalf("decode payload: %v", err)
+		if ct := r.Header.Get("Content-Type"); ct != "application/x-protobuf" {
+			t.Errorf("Content-Type=%q want application/x-protobuf", ct)
 		}
-		w.WriteHeader(http.StatusAccepted)
+
+		var body io.Reader = r.Body
+		if r.Header.Get("Content-Encoding") == "gzip" {
+			gz, err := gzip.NewReader(r.Body)
+			if err != nil {
+				t.Errorf("gzip reader: %v", err)
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			defer func() { _ = gz.Close() }()
+			body = gz
+		}
+
+		data, err := io.ReadAll(body)
+		if err != nil {
+			t.Errorf("read body: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		defer func() { _ = r.Body.Close() }()
+
+		var req colmetricpb.ExportMetricsServiceRequest
+		if err := proto.Unmarshal(data, &req); err != nil {
+			t.Errorf("unmarshal protobuf: %v", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		mu.Lock()
+		received = append(received, &req)
+		mu.Unlock()
+
+		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
 
-	transport, err := NewTransport(config.MetricsConfig{
-		Transport:    config.MetricsTransportOTLPHTTP,
+	transport, err := NewOTLPHTTP(config.MetricsConfig{
 		OTLPEndpoint: server.URL,
-		Timeout:      2 * time.Second,
+		Timeout:      5 * time.Second,
 	})
 	if err != nil {
-		t.Fatalf("NewTransport: %v", err)
+		t.Fatalf("NewOTLPHTTP: %v", err)
 	}
 
-	err = transport.Emit(context.Background(), OperationMetric{
+	ctx := context.Background()
+	err = transport.Emit(ctx, OperationMetric{
 		Name: "evidra.operation.signal.count",
 		Labels: MetricLabels{
 			Tool:           "kubectl",
@@ -56,17 +86,51 @@ func TestOTLPExporterFlushesAtEnd(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Emit: %v", err)
 	}
-	if err := transport.Flush(context.Background()); err != nil {
+
+	if err := transport.Flush(ctx); err != nil {
 		t.Fatalf("Flush: %v", err)
 	}
+	if err := transport.Close(); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
 
-	if gotReq := atomic.LoadInt32(&requests); gotReq != 1 {
-		t.Fatalf("requests=%d want 1", gotReq)
+	mu.Lock()
+	defer mu.Unlock()
+
+	if len(received) == 0 {
+		t.Fatal("no OTLP requests received")
 	}
-	if len(got.Metrics) != 1 {
-		t.Fatalf("metrics len=%d want 1", len(got.Metrics))
+
+	req := received[0]
+	if len(req.ResourceMetrics) == 0 {
+		t.Fatal("no ResourceMetrics in request")
 	}
-	if got.Metrics[0].Labels.Tool != "kubectl" {
-		t.Fatalf("tool=%q want kubectl", got.Metrics[0].Labels.Tool)
+	rm := req.ResourceMetrics[0]
+	if len(rm.ScopeMetrics) == 0 {
+		t.Fatal("no ScopeMetrics in ResourceMetrics")
+	}
+}
+
+func TestOTLPHTTP_MissingEndpoint_Error(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewOTLPHTTP(config.MetricsConfig{
+		OTLPEndpoint: "",
+		Timeout:      2 * time.Second,
+	})
+	if err == nil {
+		t.Fatal("expected error for empty endpoint")
+	}
+}
+
+func TestOTLPHTTP_InvalidTimeout_Error(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewOTLPHTTP(config.MetricsConfig{
+		OTLPEndpoint: "http://localhost:4318",
+		Timeout:      0,
+	})
+	if err == nil {
+		t.Fatal("expected error for zero timeout")
 	}
 }
