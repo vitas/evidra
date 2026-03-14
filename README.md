@@ -35,7 +35,7 @@ execute    →  run the command (or decline to act)
 report     →  record verdict, exit code, or refusal reason
 ```
 
-`prescribe` captures intent **before** the command runs — the artifact, its canonical form, digests, risk level, and risk tags. `report` captures what **actually happened** — success, failure, or an explicit decision not to act, with structured context for each.
+`prescribe` captures intent **before** the command runs — the artifact, its canonical form, digests, the per-source `risk_inputs` panel, and the rolled-up `effective_risk`. `report` captures what **actually happened** — success, failure, or an explicit decision not to act, with structured context for each.
 
 The evidence chain links prescriptions to reports through signed entries with hash chaining. Every entry is timestamped, actor-attributed, and cryptographically verifiable. Evidence cannot be modified after the fact.
 
@@ -53,7 +53,7 @@ Evidra is one platform with three operating surfaces:
 
 From the evidence chain, Evidra computes:
 
-- **Risk classification** at operation time — risk level, risk tags, canonical action digest
+- **Risk classification** at operation time — `risk_inputs`, `effective_risk`, canonical action digest
 - **Behavioral signals** — protocol violations, retry loops, blast radius detection
 - **Reliability scorecards** — score, band, and confidence for comparing agents, sessions, and time windows
 
@@ -84,7 +84,7 @@ export EVIDRA_SIGNING_KEY=<base64>
 evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml
 ```
 
-The output includes: `risk_level`, `risk_tags`, `score`, `score_band`, `signal_summary`, `basis`, and `confidence`.
+The output includes: `risk_inputs`, `effective_risk`, `score`, `score_band`, `signal_summary`, `basis`, and `confidence`.
 
 ### See The Scorecard
 
@@ -114,7 +114,7 @@ How the protocol looks from the agent's perspective:
 ```text
 Agent: "I need to kubectl apply this deployment"
   → prescribe(tool=kubectl, operation=apply, raw_artifact=<yaml>)
-  ← prescription_id, risk_level=high, risk_tags=[k8s.privileged_container]
+  ← prescription_id, effective_risk=high, risk_inputs=[{source=evidra/native, ...}]
 
 Agent: decides to proceed (or decline based on risk)
   → executes kubectl apply

@@ -165,6 +165,10 @@ List evidence entries with pagination and optional filters.
 }
 ```
 
+Compatibility note: this query surface still returns a flat `risk_level` field.
+For prescribe entries, it is derived from the stored `effective_risk` when present,
+with fallback to legacy payloads.
+
 **Pagination example:**
 
 ```bash

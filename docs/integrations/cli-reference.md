@@ -81,7 +81,7 @@ For architecture and protocol semantics, see:
 | `--tool` | Tool name (for example `kubectl`, `terraform`) |
 | `--operation` | Operation name (`apply` default) |
 | `--environment` | Environment label |
-| `--scanner-report` | SARIF report path for finding ingestion |
+| `--findings` | SARIF findings path (repeatable) |
 | `--evidence-dir` | Evidence directory override |
 | `--actor` | Actor ID |
 | `--canonical-action` | Pre-canonicalized JSON action (bypasses adapter) |
@@ -149,6 +149,7 @@ evidence around the command; it does not contain or block it.
 | `--tool` | Tool name override (optional when inferred from wrapped command) |
 | `--operation` | Operation override (optional when inferred from wrapped command) |
 | `--environment` | Environment label |
+| `--findings` | SARIF findings path (repeatable) |
 | `--evidence-dir` | Evidence directory override |
 | `--actor` | Actor ID |
 | `--canonical-action` | Pre-canonicalized JSON action |
@@ -180,7 +181,8 @@ evidence around the command; it does not contain or block it.
 
 `evidra record` and `evidra import` return the same immediate assessment fields:
 
-- `risk_level`
+- `risk_inputs`
+- `effective_risk`
 - `score`
 - `score_band`
 - `signal_summary`

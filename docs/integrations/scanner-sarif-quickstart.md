@@ -19,9 +19,9 @@ Recommended defaults:
 | Pattern | When to use |
 |---|---|
 | `evidra import-findings` (standalone) | Scanner runs as a separate CI step, independent of apply |
-| `evidra prescribe --scanner-report` | Scanner findings bundled with prescribe in advanced flows |
+| `evidra prescribe --findings` | Scanner findings bundled with prescribe in advanced flows |
 
-Both write SARIF findings as evidence entries linked to the same session.
+Both write SARIF findings as evidence entries linked to the same session. The bundled prescribe path also folds them into the prescribe-time `risk_inputs` panel and `effective_risk`.
 
 ## Pattern 1: Standalone ingestion (recommended)
 
@@ -84,7 +84,7 @@ evidra import-findings \
 
 ## Pattern 2: Bundled with prescribe
 
-Use `--scanner-report` on `evidra prescribe` when you want findings linked directly to the prescription entry. This requires the manual prescribe/report flow instead of `evidra record`.
+Use `--findings` on `evidra prescribe` when you want findings linked directly to the prescription entry. This requires the manual prescribe/report flow instead of `evidra record`.
 
 ```bash
 # 1) Scan
@@ -100,7 +100,7 @@ PRESCRIPTION_ID=$(evidra prescribe \
   --operation apply \
   --artifact plan.json \
   --environment staging \
-  --scanner-report scanner_report.sarif \
+  --findings scanner_report.sarif \
   | jq -r .prescription_id)
 
 # 4) Apply
