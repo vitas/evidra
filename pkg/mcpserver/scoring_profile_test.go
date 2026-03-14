@@ -29,7 +29,7 @@ func TestReport_UsesConfiguredScoringProfile(t *testing.T) {
 	}
 	_ = server
 
-	svc := &BenchmarkService{
+	svc := &MCPService{
 		evidencePath: dir,
 		signer:       testutil.TestSigner(t),
 	}

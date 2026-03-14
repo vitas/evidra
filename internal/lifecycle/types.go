@@ -1,6 +1,7 @@
 package lifecycle
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -72,6 +73,9 @@ type PrescribeOutput struct {
 	ScopeClass     string
 	CanonVersion   string
 	RetryCount     int
+	Entry          evidence.EvidenceEntry
+	RawEntry       json.RawMessage
+	Persisted      bool
 }
 
 // ReportInput captures post-execution operation context.
@@ -99,6 +103,9 @@ type ReportOutput struct {
 	Verdict         evidence.Verdict
 	ExitCode        *int
 	DecisionContext *evidence.DecisionContext
+	Entry           evidence.EvidenceEntry
+	RawEntry        json.RawMessage
+	Persisted       bool
 }
 
 // Code is a stable adapter-facing lifecycle error code.

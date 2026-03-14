@@ -117,24 +117,27 @@ type ErrInfo struct {
 }
 
 type prescribeHandler struct {
-	service *BenchmarkService
+	service *MCPService
 }
 
 type reportHandler struct {
-	service *BenchmarkService
+	service *MCPService
 }
 
-// BenchmarkService provides prescribe and report operations.
-type BenchmarkService struct {
-	evidencePath     string
-	retryTracker     *RetryTracker
-	signer           evidence.Signer
-	bestEffortWrites bool
-	lifecycle        *lifecycle.Service
-	forwardFunc      ForwardFunc
-	scoringProfile   score.Profile
-	initOnce         sync.Once
-	initErr          error
+// MCPService provides prescribe and report operations.
+type MCPService struct {
+	evidencePath      string
+	retryTracker      *RetryTracker
+	signer            evidence.Signer
+	bestEffortWrites  bool
+	lifecycle         *lifecycle.Service
+	forwardFunc       ForwardFunc
+	scoringProfile    score.Profile
+	assessmentTracker *assessment.Tracker
+	initOnce          sync.Once
+	initErr           error
+	closeOnce         sync.Once
+	closeErr          error
 }
 
 const (
@@ -177,16 +180,22 @@ func init() {
 	}
 }
 
-// NewServer creates a new benchmark MCP server with prescribe and report tools.
+// NewServer creates a new Evidra MCP server with prescribe and report tools.
 func NewServer(opts Options) (*mcp.Server, error) {
+	server, _, err := NewServerWithCleanup(opts)
+	return server, err
+}
+
+// NewServerWithCleanup creates a new Evidra MCP server and returns a cleanup function.
+func NewServerWithCleanup(opts Options) (*mcp.Server, func() error, error) {
 	if opts.Name == "" {
 		opts.Name = "evidra-benchmark"
 	}
 	opts.Version = defaultServerVersion(opts.Version)
 
-	svc, err := newBenchmarkService(opts)
+	svc, err := newMCPService(opts)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	prescribe := &prescribeHandler{service: svc}
@@ -195,19 +204,19 @@ func NewServer(opts Options) (*mcp.Server, error) {
 
 	prescribeSchema, err := loadSchema(prescribeSchemaBytes, "schemas/prescribe.schema.json")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	reportSchema, err := loadSchema(reportSchemaBytes, "schemas/report.schema.json")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	getEventSchema, err := loadSchema(getEventSchemaBytes, "schemas/get_event.schema.json")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	getEventOutputSchema, err := loadSchema(getEventOutputSchemaBytes, "schemas/get_event.output.schema.json")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	server := mcp.NewServer(
@@ -276,15 +285,16 @@ func NewServer(opts Options) (*mcp.Server, error) {
 		URI:         "evidra://evidence/manifest",
 	}, svc.readResourceManifest)
 
-	return server, nil
+	return server, svc.Close, nil
 }
 
-func newBenchmarkService(opts Options) (*BenchmarkService, error) {
-	svc := &BenchmarkService{
-		evidencePath:     opts.EvidencePath,
-		signer:           opts.Signer,
-		bestEffortWrites: opts.BestEffortWrites,
-		forwardFunc:      opts.Forward,
+func newMCPService(opts Options) (*MCPService, error) {
+	svc := &MCPService{
+		evidencePath:      opts.EvidencePath,
+		signer:            opts.Signer,
+		bestEffortWrites:  opts.BestEffortWrites,
+		forwardFunc:       opts.Forward,
+		assessmentTracker: assessment.NewTracker(opts.EvidencePath),
 	}
 	if opts.RetryTracker {
 		svc.retryTracker = NewRetryTracker(10 * time.Minute)
@@ -324,7 +334,7 @@ func (h *reportHandler) Handle(
 	return &mcp.CallToolResult{}, output, nil
 }
 
-func (s *BenchmarkService) newLifecycleService() *lifecycle.Service {
+func (s *MCPService) newLifecycleService() *lifecycle.Service {
 	return lifecycle.NewService(lifecycle.Options{
 		EvidencePath:     s.evidencePath,
 		Signer:           s.signer,
@@ -333,7 +343,7 @@ func (s *BenchmarkService) newLifecycleService() *lifecycle.Service {
 	})
 }
 
-func (s *BenchmarkService) ensureInitialized() error {
+func (s *MCPService) ensureInitialized() error {
 	s.initOnce.Do(func() {
 		if s.scoringProfile.ID == "" {
 			s.scoringProfile, s.initErr = score.ResolveProfile("")
@@ -348,15 +358,24 @@ func (s *BenchmarkService) ensureInitialized() error {
 	return s.initErr
 }
 
-func (s *BenchmarkService) lifecycleService() (*lifecycle.Service, error) {
+func (s *MCPService) lifecycleService() (*lifecycle.Service, error) {
 	if err := s.ensureInitialized(); err != nil {
 		return nil, err
 	}
 	return s.lifecycle, nil
 }
 
+func (s *MCPService) Close() error {
+	s.closeOnce.Do(func() {
+		if s.retryTracker != nil {
+			s.retryTracker.Stop()
+		}
+	})
+	return s.closeErr
+}
+
 // PrescribeCtx records intent and returns risk assessment metadata with context propagation.
-func (s *BenchmarkService) PrescribeCtx(ctx context.Context, input PrescribeInput) PrescribeOutput {
+func (s *MCPService) PrescribeCtx(ctx context.Context, input PrescribeInput) PrescribeOutput {
 	svc, err := s.lifecycleService()
 	if err != nil {
 		return PrescribeOutput{
@@ -373,7 +392,10 @@ func (s *BenchmarkService) PrescribeCtx(ctx context.Context, input PrescribeInpu
 		}
 	}
 
-	s.tryForwardEntry(ctx, out.PrescriptionID)
+	if out.Persisted {
+		s.observeWrittenEntry(out.Entry)
+		s.tryForwardEntry(ctx, out.RawEntry)
+	}
 
 	return PrescribeOutput{
 		OK:             true,
@@ -392,7 +414,7 @@ func (s *BenchmarkService) PrescribeCtx(ctx context.Context, input PrescribeInpu
 }
 
 // ReportCtx records the outcome of an operation with context propagation.
-func (s *BenchmarkService) ReportCtx(ctx context.Context, input ReportInput) ReportOutput {
+func (s *MCPService) ReportCtx(ctx context.Context, input ReportInput) ReportOutput {
 	svc, err := s.lifecycleService()
 	if err != nil {
 		return ReportOutput{
@@ -419,9 +441,12 @@ func (s *BenchmarkService) ReportCtx(ctx context.Context, input ReportInput) Rep
 		}
 	}
 
-	s.tryForwardEntry(ctx, out.ReportID)
+	if out.Persisted {
+		s.observeWrittenEntry(out.Entry)
+		s.tryForwardEntry(ctx, out.RawEntry)
+	}
 
-	snapshot, err := assessment.BuildAtPathWithProfile(s.evidencePath, out.SessionID, s.scoringProfile)
+	snapshot, err := s.sessionSnapshot(out.SessionID)
 	if err != nil {
 		return ReportOutput{
 			OK:              false,
@@ -451,32 +476,38 @@ func (s *BenchmarkService) ReportCtx(ctx context.Context, input ReportInput) Rep
 }
 
 // Prescribe is a convenience wrapper that calls PrescribeCtx with context.Background().
-func (s *BenchmarkService) Prescribe(input PrescribeInput) PrescribeOutput {
+func (s *MCPService) Prescribe(input PrescribeInput) PrescribeOutput {
 	return s.PrescribeCtx(context.Background(), input)
 }
 
 // Report is a convenience wrapper that calls ReportCtx with context.Background().
-func (s *BenchmarkService) Report(input ReportInput) ReportOutput {
+func (s *MCPService) Report(input ReportInput) ReportOutput {
 	return s.ReportCtx(context.Background(), input)
 }
 
-// tryForwardEntry best-effort reads an entry by ID and calls the forward func.
-func (s *BenchmarkService) tryForwardEntry(ctx context.Context, eventID string) {
-	if s.forwardFunc == nil || eventID == "" || s.evidencePath == "" {
+func (s *MCPService) observeWrittenEntry(entry evidence.EvidenceEntry) {
+	if s.assessmentTracker == nil || entry.EntryID == "" {
+		return
+	}
+	_ = s.assessmentTracker.Observe(entry)
+}
+
+func (s *MCPService) sessionSnapshot(sessionID string) (assessment.Snapshot, error) {
+	if s.assessmentTracker != nil {
+		return s.assessmentTracker.Snapshot(sessionID, s.scoringProfile)
+	}
+	return assessment.BuildAtPathWithProfile(s.evidencePath, sessionID, s.scoringProfile)
+}
+
+// tryForwardEntry best-effort forwards a freshly written entry.
+func (s *MCPService) tryForwardEntry(ctx context.Context, entry json.RawMessage) {
+	if s.forwardFunc == nil || len(entry) == 0 {
 		return
 	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	entry, found, err := evidence.FindEntryByID(s.evidencePath, eventID)
-	if err != nil || !found {
-		return
-	}
-	raw, err := json.Marshal(entry)
-	if err != nil {
-		return
-	}
-	s.forwardFunc(ctx, raw)
+	s.forwardFunc(ctx, entry)
 }
 
 func lifecycleErrInfo(err error) *ErrInfo {
@@ -490,7 +521,7 @@ func lifecycleErrInfo(err error) *ErrInfo {
 // --- get_event tool ---
 
 type getEventHandler struct {
-	service *BenchmarkService
+	service *MCPService
 }
 
 type getEventInput struct {
@@ -513,7 +544,7 @@ func (h *getEventHandler) Handle(
 	return &mcp.CallToolResult{}, output, nil
 }
 
-func (s *BenchmarkService) GetEvent(eventID string) GetEventOutput {
+func (s *MCPService) GetEvent(eventID string) GetEventOutput {
 	if eventID == "" {
 		return GetEventOutput{OK: false, Error: &ErrInfo{Code: "invalid_input", Message: "event_id is required"}}
 	}
@@ -532,7 +563,7 @@ func (s *BenchmarkService) GetEvent(eventID string) GetEventOutput {
 
 // --- resource handlers ---
 
-func (s *BenchmarkService) readResourceEvent(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+func (s *MCPService) readResourceEvent(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
 	eventID := strings.TrimPrefix(req.Params.URI, "evidra://event/")
 	if eventID == "" || eventID == req.Params.URI {
 		return nil, mcp.ResourceNotFoundError(req.Params.URI)
@@ -551,7 +582,7 @@ func (s *BenchmarkService) readResourceEvent(_ context.Context, req *mcp.ReadRes
 	return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{URI: req.Params.URI, MIMEType: "application/json", Text: string(b)}}}, nil
 }
 
-func (s *BenchmarkService) readResourceManifest(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+func (s *MCPService) readResourceManifest(_ context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
 	if s.evidencePath == "" {
 		return nil, mcp.ResourceNotFoundError(req.Params.URI)
 	}

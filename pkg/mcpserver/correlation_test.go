@@ -15,7 +15,7 @@ func TestConcurrentReportCorrelation_NoCrossCallContamination(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	svc := &BenchmarkService{
+	svc := &MCPService{
 		evidencePath: dir,
 		signer:       testutil.TestSigner(t),
 	}

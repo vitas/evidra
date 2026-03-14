@@ -14,7 +14,7 @@ func TestPrescribeReport_Lifecycle(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	svc := &BenchmarkService{
+	svc := &MCPService{
 		evidencePath: dir,
 		signer:       testutil.TestSigner(t),
 	}
@@ -72,7 +72,7 @@ func TestReport_ExplicitActor(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	svc := &BenchmarkService{
+	svc := &MCPService{
 		evidencePath: dir,
 		signer:       testutil.TestSigner(t),
 	}
@@ -113,7 +113,7 @@ func TestPrescribeReport_ChainIntegrity(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	svc := &BenchmarkService{
+	svc := &MCPService{
 		evidencePath: dir,
 		signer:       testutil.TestSigner(t),
 	}
@@ -155,7 +155,7 @@ func TestReport_SessionMismatchRejected(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	svc := &BenchmarkService{
+	svc := &MCPService{
 		evidencePath: dir,
 		signer:       testutil.TestSigner(t),
 	}
@@ -197,7 +197,7 @@ func TestReport_DeclinedRequiresReasonAndEchoesDecisionContext(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	svc := &BenchmarkService{
+	svc := &MCPService{
 		evidencePath: dir,
 		signer:       testutil.TestSigner(t),
 	}
@@ -264,7 +264,7 @@ func TestPrescribe_DefaultTraceIDMatchesSessionIDWhenOmitted(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	svc := &BenchmarkService{
+	svc := &MCPService{
 		evidencePath: dir,
 		signer:       testutil.TestSigner(t),
 	}
@@ -299,7 +299,7 @@ func TestPrescribe_InvalidCanonicalScopeClassRejected(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	svc := &BenchmarkService{
+	svc := &MCPService{
 		evidencePath: dir,
 		signer:       testutil.TestSigner(t),
 	}
@@ -343,7 +343,7 @@ func TestPrescribe_BestEffortWriteModeSuppressesStoreError(t *testing.T) {
 		t.Fatalf("write evidence file: %v", err)
 	}
 
-	svc := &BenchmarkService{
+	svc := &MCPService{
 		evidencePath:     evidencePath,
 		signer:           testutil.TestSigner(t),
 		bestEffortWrites: true,

@@ -6,7 +6,9 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
+	"samebits.com/evidra/internal/lifecycle"
 	"samebits.com/evidra/internal/testutil"
 	"samebits.com/evidra/pkg/evidence"
 	"samebits.com/evidra/pkg/version"
@@ -18,6 +20,98 @@ func TestDefaultServerVersion_UsesRuntimeVersion(t *testing.T) {
 	got := defaultServerVersion("")
 	if got != version.Version {
 		t.Fatalf("defaultServerVersion(\"\") = %q, want %q", got, version.Version)
+	}
+}
+
+func TestMCPServiceForwardUsesWrittenEntryBytes(t *testing.T) {
+	t.Parallel()
+
+	signer := testutil.TestSigner(t)
+	writeDir := t.TempDir()
+	readDir := t.TempDir()
+	gotForward := make(chan json.RawMessage, 1)
+
+	svc := &MCPService{
+		evidencePath: readDir,
+		signer:       signer,
+		lifecycle: lifecycle.NewService(lifecycle.Options{
+			EvidencePath: writeDir,
+			Signer:       signer,
+		}),
+		forwardFunc: func(_ context.Context, entry json.RawMessage) {
+			gotForward <- append(json.RawMessage(nil), entry...)
+		},
+	}
+
+	output := svc.PrescribeCtx(context.Background(), PrescribeInput{
+		Actor:       InputActor{Type: "agent", ID: "test", Origin: "mcp"},
+		Tool:        "kubectl",
+		Operation:   "apply",
+		RawArtifact: k8sDeployment,
+	})
+	if !output.OK {
+		t.Fatalf("prescribe failed: %v", output.Error)
+	}
+
+	select {
+	case raw := <-gotForward:
+		if len(raw) == 0 {
+			t.Fatal("forwarded entry is empty")
+		}
+		var entry evidence.EvidenceEntry
+		if err := json.Unmarshal(raw, &entry); err != nil {
+			t.Fatalf("json.Unmarshal(forwarded): %v", err)
+		}
+		if entry.EntryID != output.PrescriptionID {
+			t.Fatalf("forwarded entry_id = %q, want %q", entry.EntryID, output.PrescriptionID)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("forward callback was not invoked")
+	}
+}
+
+func TestMCPServiceClose_StopsRetryTracker(t *testing.T) {
+	t.Parallel()
+
+	svc := &MCPService{
+		retryTracker: NewRetryTracker(10 * time.Minute),
+	}
+
+	if err := svc.Close(); err != nil {
+		t.Fatalf("Close(first): %v", err)
+	}
+	select {
+	case <-svc.retryTracker.stop:
+	default:
+		t.Fatal("retry tracker stop channel is still open")
+	}
+
+	if err := svc.Close(); err != nil {
+		t.Fatalf("Close(second): %v", err)
+	}
+}
+
+func TestNewServerWithCleanup_ReturnsIdempotentCleanup(t *testing.T) {
+	t.Parallel()
+
+	server, cleanup, err := NewServerWithCleanup(Options{
+		Signer:       testutil.TestSigner(t),
+		RetryTracker: true,
+	})
+	if err != nil {
+		t.Fatalf("NewServerWithCleanup: %v", err)
+	}
+	if server == nil {
+		t.Fatal("server is nil")
+	}
+	if cleanup == nil {
+		t.Fatal("cleanup is nil")
+	}
+	if err := cleanup(); err != nil {
+		t.Fatalf("cleanup(first): %v", err)
+	}
+	if err := cleanup(); err != nil {
+		t.Fatalf("cleanup(second): %v", err)
 	}
 }
 
@@ -35,7 +129,7 @@ func TestInitializeInstructions_IncludeContractVersion(t *testing.T) {
 func TestPrescribe_SimpleK8s(t *testing.T) {
 	t.Parallel()
 
-	svc := &BenchmarkService{signer: testutil.TestSigner(t)}
+	svc := &MCPService{signer: testutil.TestSigner(t)}
 	output := svc.Prescribe(PrescribeInput{
 		Actor:       InputActor{Type: "agent", ID: "test", Origin: "mcp"},
 		Tool:        "kubectl",
@@ -72,7 +166,7 @@ func TestPrescribe_SimpleK8s(t *testing.T) {
 func TestPrescribe_PrivilegedContainer(t *testing.T) {
 	t.Parallel()
 
-	svc := &BenchmarkService{signer: testutil.TestSigner(t)}
+	svc := &MCPService{signer: testutil.TestSigner(t)}
 	output := svc.Prescribe(PrescribeInput{
 		Actor:       InputActor{Type: "agent", ID: "test", Origin: "mcp"},
 		Tool:        "kubectl",
@@ -93,7 +187,7 @@ func TestPrescribeCtx_ForwardsCallerContext(t *testing.T) {
 
 	dir := t.TempDir()
 	gotCtxValue := make(chan string, 1)
-	svc := &BenchmarkService{
+	svc := &MCPService{
 		evidencePath: dir,
 		signer:       testutil.TestSigner(t),
 		forwardFunc: func(ctx context.Context, _ json.RawMessage) {
@@ -121,7 +215,7 @@ func TestPrescribeCtx_ForwardsCallerContext(t *testing.T) {
 func TestPrescribe_ParseError(t *testing.T) {
 	t.Parallel()
 
-	svc := &BenchmarkService{signer: testutil.TestSigner(t)}
+	svc := &MCPService{signer: testutil.TestSigner(t)}
 	output := svc.Prescribe(PrescribeInput{
 		Actor:       InputActor{Type: "agent", ID: "test", Origin: "mcp"},
 		Tool:        "terraform",
@@ -140,7 +234,7 @@ func TestPrescribe_ParseError(t *testing.T) {
 func TestReport_MissingPrescriptionID(t *testing.T) {
 	t.Parallel()
 
-	svc := &BenchmarkService{signer: testutil.TestSigner(t)}
+	svc := &MCPService{signer: testutil.TestSigner(t)}
 	output := svc.Report(ReportInput{Verdict: evidence.VerdictSuccess, ExitCode: intPtr(0)})
 
 	if output.OK {
@@ -154,7 +248,7 @@ func TestReport_MissingPrescriptionID(t *testing.T) {
 func TestRetryTracker_CountsRetries(t *testing.T) {
 	t.Parallel()
 
-	svc := &BenchmarkService{
+	svc := &MCPService{
 		retryTracker: NewRetryTracker(10 * 60 * 1e9), // 10 minutes
 		signer:       testutil.TestSigner(t),
 	}

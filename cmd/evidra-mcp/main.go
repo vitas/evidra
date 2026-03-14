@@ -98,7 +98,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 
-	server, err := mcpserver.NewServer(mcpserver.Options{
+	server, cleanup, err := mcpserver.NewServerWithCleanup(mcpserver.Options{
 		Name:             "evidra-benchmark",
 		Version:          version.Version,
 		EvidencePath:     evidencePath,
@@ -112,6 +112,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "initialize server: %v\n", err)
 		return 1
 	}
+	defer func() {
+		if cleanupErr := cleanup(); cleanupErr != nil {
+			log.New(stderr, "", log.LstdFlags).Printf("warning: cleanup mcp service: %v", cleanupErr)
+		}
+	}()
 
 	logger := log.New(stderr, "", log.LstdFlags)
 	logger.Printf("evidra-mcp running (evidence: %s, env: %s)", evidencePath, environment)

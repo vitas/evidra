@@ -41,11 +41,18 @@ func BuildAtPath(evidencePath, sessionID string) (Snapshot, error) {
 }
 
 func BuildAtPathWithProfile(evidencePath, sessionID string, profile score.Profile) (Snapshot, error) {
+	if sessionID != "" {
+		return TrackerForPath(evidencePath).Snapshot(sessionID, profile)
+	}
+
 	entries, err := evidence.ReadAllEntriesAtPath(evidencePath)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("read evidence for assessment: %w", err)
 	}
+	return buildSnapshotFromEntries(entries, sessionID, profile)
+}
 
+func buildSnapshotFromEntries(entries []evidence.EvidenceEntry, sessionID string, profile score.Profile) (Snapshot, error) {
 	filtered := filterEntries(entries, sessionID)
 	signalEntries, err := pipeline.EvidenceToSignalEntries(filtered)
 	if err != nil {

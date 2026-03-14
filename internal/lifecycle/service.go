@@ -124,8 +124,14 @@ func (s *Service) Prescribe(_ context.Context, input PrescribeInput) (PrescribeO
 		return PrescribeOutput{}, wrapError(ErrCodeInternal, err.Error(), err)
 	}
 
-	if err := s.appendEntry(entry); err != nil {
+	persisted, err := s.appendEntry(entry)
+	if err != nil {
 		return PrescribeOutput{}, err
+	}
+
+	rawEntry, err := json.Marshal(entry)
+	if err != nil {
+		return PrescribeOutput{}, wrapError(ErrCodeInternal, "failed to marshal evidence entry", err)
 	}
 
 	return PrescribeOutput{
@@ -143,6 +149,9 @@ func (s *Service) Prescribe(_ context.Context, input PrescribeInput) (PrescribeO
 		ScopeClass:     cr.CanonicalAction.ScopeClass,
 		CanonVersion:   cr.CanonVersion,
 		RetryCount:     retryCount,
+		Entry:          entry,
+		RawEntry:       rawEntry,
+		Persisted:      persisted,
 	}, nil
 }
 
@@ -257,8 +266,14 @@ func (s *Service) Report(_ context.Context, input ReportInput) (ReportOutput, er
 		return ReportOutput{}, wrapError(ErrCodeInternal, err.Error(), err)
 	}
 
-	if err := s.appendEntry(entry); err != nil {
+	persisted, err := s.appendEntry(entry)
+	if err != nil {
 		return ReportOutput{}, err
+	}
+
+	rawEntry, err := json.Marshal(entry)
+	if err != nil {
+		return ReportOutput{}, wrapError(ErrCodeInternal, "failed to marshal evidence entry", err)
 	}
 
 	return ReportOutput{
@@ -270,6 +285,9 @@ func (s *Service) Report(_ context.Context, input ReportInput) (ReportOutput, er
 		Verdict:         input.Verdict,
 		ExitCode:        input.ExitCode,
 		DecisionContext: decisionContext,
+		Entry:           entry,
+		RawEntry:        rawEntry,
+		Persisted:       persisted,
 	}, nil
 }
 
@@ -383,9 +401,9 @@ func (s *Service) writeUnknownPrescriptionSignal(actor evidence.Actor, prescript
 	}
 }
 
-func (s *Service) appendEntry(entry evidence.EvidenceEntry) error {
+func (s *Service) appendEntry(entry evidence.EvidenceEntry) (bool, error) {
 	if s.evidencePath == "" {
-		return nil
+		return false, nil
 	}
 	if err := evidence.AppendEntryAtPath(s.evidencePath, entry); err != nil {
 		if s.bestEffortWrites {
@@ -395,11 +413,11 @@ func (s *Service) appendEntry(entry evidence.EvidenceEntry) error {
 				"entry_type", string(entry.Type),
 				"error", err,
 			)
-			return nil
+			return false, nil
 		}
-		return wrapError(ErrCodeEvidenceWrite, fmt.Sprintf("failed to write evidence: %v", err), err)
+		return false, wrapError(ErrCodeEvidenceWrite, fmt.Sprintf("failed to write evidence: %v", err), err)
 	}
-	return nil
+	return true, nil
 }
 
 func (s *Service) lastHash() (string, error) {
