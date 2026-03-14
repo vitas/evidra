@@ -127,10 +127,10 @@ const SIGNALS = [
 ];
 
 const FEATURES = [
-  { icon: "\u25CE", title: "Observe", desc: "Record every infrastructure operation and deliberate refusal as signed evidence in an append-only, hash-linked chain." },
-  { icon: "\u25A4", title: "Measure", desc: "Detect 8 behavioral signals: retry loops, artifact drift, protocol violations, blast radius, and more." },
-  { icon: "\u2605", title: "Score", desc: "Compute reliability scorecards with signal penalties, safety floors, and confidence levels." },
-  { icon: "\u21C4", title: "Compare", desc: "Compare actors, tools, and scopes side-by-side with workload overlap analysis." },
+  { icon: "\u25CE", title: "Prescribe", desc: "Before kubectl runs, the evidence already exists. Record the artifact, its canonical form, risk level, and digests \u2014 at the moment of intent." },
+  { icon: "\u25A4", title: "Report", desc: "Record the terminal outcome \u2014 success, failure, or an explicit refusal with structured context. Every prescribe gets exactly one report. No silent gaps." },
+  { icon: "\u2605", title: "Evidence", desc: "Signed, timestamped, hash-chained. The evidence chain is append-only and tamper-evident. Cryptographically verifiable by anyone, editable by no one." },
+  { icon: "\u21C4", title: "Detect", desc: "The protocol structure makes behavioral patterns visible: agents stuck in retry loops, broken prescribe/report pairs, high-impact deletions. Reliability scorecards across actors, sessions, and time." },
 ];
 
 const GUIDES = [
@@ -372,9 +372,9 @@ function Features() {
   return (
     <section id="features" className="py-14">
       <Container>
-        <SectionLabel>Capabilities</SectionLabel>
-        <SectionTitle>What It Does</SectionTitle>
-        <p className="text-fg-muted mb-10 text-[1.14rem]">A flight recorder for infrastructure automation and agent judgment &mdash; observe intent, decisions, execution, and reliability.</p>
+        <SectionLabel>The Protocol</SectionLabel>
+        <SectionTitle>Prescribe Before. Report After. Evidence Always.</SectionTitle>
+        <p className="text-fg-muted mb-10 text-[1.14rem]">Every infrastructure mutation follows the same lifecycle. The agent records what it intends to do, does it (or refuses), and records what happened. Evidra stores the evidence.</p>
         <div className="grid grid-cols-4 gap-5 max-md:grid-cols-2 max-sm:grid-cols-1">
           {FEATURES.map((f) => (
             <div key={f.title} className="bg-bg-elevated border border-border border-l-[3px] border-l-accent rounded-lg p-6 shadow-[var(--shadow-card)] transition-all hover:shadow-[var(--shadow-card-lg)] hover:-translate-y-0.5">
