@@ -38,6 +38,7 @@ var orderedCommands = []commandSpec{
 	{name: "import-findings", description: "Ingest SARIF scanner findings as evidence entries", run: cmdImportFindings},
 	{name: "prompts", description: "Prompt contract generation and verification", run: cmdPrompts},
 	{name: "detectors", description: "Detector registry command group", run: cmdDetectors},
+	{name: "export", description: "Export anonymized evidence bundle for sharing", run: runExport},
 	{name: "keygen", description: "Generate Ed25519 signing keypair", run: cmdKeygen},
 	{name: "skill", description: "Install Evidra skill for AI agent protocol compliance", run: cmdSkill},
 	{name: "version", description: "Print version information", run: cmdVersion},
