@@ -44,8 +44,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 	if *showVersion {
-		fmt.Fprintf(stdout, "evidra-mcp %s (commit: %s, built: %s)\n",
-			version.Version, version.Commit, version.Date)
+		fmt.Fprintln(stdout, version.BuildString("evidra-mcp"))
 		return 0
 	}
 	if *helpFlag {

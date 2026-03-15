@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"samebits.com/evidra/internal/auth"
@@ -35,6 +36,10 @@ func handleBenchmarkRun(bs benchmarkStore) http.HandlerFunc {
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			writeError(w, http.StatusBadRequest, "invalid JSON")
+			return
+		}
+		if strings.TrimSpace(req.Suite) == "" {
+			writeError(w, http.StatusBadRequest, "suite is required")
 			return
 		}
 
@@ -71,6 +76,9 @@ func handleBenchmarkRuns(bs benchmarkStore) http.HandlerFunc {
 		q := r.URL.Query()
 		limit, _ := strconv.Atoi(q.Get("limit"))
 		offset, _ := strconv.Atoi(q.Get("offset"))
+		if limit <= 0 || limit > 100 {
+			limit = 100
+		}
 
 		runs, err := bs.ListRuns(r.Context(), tenantID, limit, offset)
 		if err != nil {

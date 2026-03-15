@@ -1,6 +1,22 @@
 # Changelog
 
-## v0.4.9 — 2026-03-14 
+## v0.4.10 — 2026-03-15
+
+### Shared Execution Contracts
+- Extracted prescribe/report JSON schemas into `pkg/execcontract` for reuse across CLI, MCP server, and API clients
+- Added `ValidatePrescribeInput` and `ValidateReportInput` contract validation
+- Unified version output across all binaries via `version.BuildString`
+
+### Benchmark API
+- Added benchmark table to landing page UI
+- Added input validation for benchmark run suite field
+- Capped benchmark list query limit to 100
+
+### Cleanup
+- Removed execution-mode experiments (moved to evidra-infra-bench)
+- Fixed `evidra-exp execution` subcommand to return exit 0 with migration notice
+
+## v0.4.9 — 2026-03-14
 
 ### Phase 1 Risk Inputs
 - CLI `prescribe`, `record`, and `import` now expose `risk_inputs` and `effective_risk` instead of flat top-level prescribe risk fields

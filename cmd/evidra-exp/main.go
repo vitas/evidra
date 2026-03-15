@@ -29,7 +29,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		printUsage(stdout)
 		return 0
 	case "version":
-		fmt.Fprintf(stdout, "evidra-exp %s (commit: %s, built: %s)\n", version.Version, version.Commit, version.Date)
+		fmt.Fprintln(stdout, version.BuildString("evidra-exp"))
 		return 0
 	case "artifact":
 		return runArtifactSubcommand(args[1:], stdout, stderr)

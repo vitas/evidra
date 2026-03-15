@@ -37,8 +37,7 @@ func run(args []string) int {
 	}
 
 	if *versionFlag {
-		fmt.Printf("evidra-api %s (commit: %s, built: %s)\n",
-			version.Version, version.Commit, version.Date)
+		fmt.Println(version.BuildString("evidra-api"))
 		return 0
 	}
 
