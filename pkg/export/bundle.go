@@ -29,6 +29,8 @@ type BundleMetadata struct {
 	TotalOperations int            `json:"total_operations"`
 	SignalSummary   map[string]int `json:"signal_summary"`
 	Actors          []string       `json:"actors"`
+	ActorVersions   []string       `json:"actor_versions,omitempty"`
+	SkillVersions   []string       `json:"skill_versions,omitempty"`
 	Tools           []string       `json:"tools"`
 	ScopeClasses    []string       `json:"scope_classes"`
 	TimeRange       *TimeRange     `json:"time_range,omitempty"`
@@ -159,6 +161,8 @@ func buildMetadata(entries []evidence.EvidenceEntry) BundleMetadata {
 		SignalSummary: make(map[string]int),
 	}
 	actors := map[string]bool{}
+	actorVersions := map[string]bool{}
+	skillVersions := map[string]bool{}
 	tools := map[string]bool{}
 	scopes := map[string]bool{}
 	var first, last time.Time
@@ -173,6 +177,12 @@ func buildMetadata(entries []evidence.EvidenceEntry) BundleMetadata {
 
 		if e.Actor.ID != "" {
 			actors[e.Actor.ID] = true
+		}
+		if e.Actor.Version != "" {
+			actorVersions[e.Actor.Version] = true
+		}
+		if e.Actor.SkillVersion != "" {
+			skillVersions[e.Actor.SkillVersion] = true
 		}
 
 		switch e.Type {
@@ -191,6 +201,12 @@ func buildMetadata(entries []evidence.EvidenceEntry) BundleMetadata {
 
 	for a := range actors {
 		meta.Actors = append(meta.Actors, a)
+	}
+	for v := range actorVersions {
+		meta.ActorVersions = append(meta.ActorVersions, v)
+	}
+	for v := range skillVersions {
+		meta.SkillVersions = append(meta.SkillVersions, v)
 	}
 	for t := range tools {
 		meta.Tools = append(meta.Tools, t)

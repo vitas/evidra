@@ -158,16 +158,10 @@ func (a *Anonymizer) anonymizeReportPayload(raw map[string]json.RawMessage) {
 	}
 
 	// Keep: verdict, exit_code, signal_summary, score — no PII
-	// Strip: decision_context.reason (may contain sensitive text)
-	if _, ok := raw["decision_context"]; ok {
-		var dc map[string]json.RawMessage
-		if json.Unmarshal(raw["decision_context"], &dc) == nil {
-			if _, hasReason := dc["reason"]; hasReason {
-				dc["reason"], _ = json.Marshal("[redacted]")
-				raw["decision_context"], _ = json.Marshal(dc)
-			}
-		}
-	}
+	// Keep: decision_context (trigger + reason) — operational signal, not PII.
+	// The reason explains why the agent declined (e.g. "risk too high",
+	// "privileged container detected"). This is the most valuable data
+	// for understanding agent judgment behavior.
 }
 
 func (a *Anonymizer) anonymizeCanonicalAction(ca canon.CanonicalAction) canon.CanonicalAction {
