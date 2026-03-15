@@ -3,8 +3,6 @@ package version
 import "testing"
 
 func TestBuildString_UsesInjectedBuildMetadata(t *testing.T) {
-	t.Parallel()
-
 	originalVersion, originalCommit, originalDate := Version, Commit, Date
 	t.Cleanup(func() {
 		Version = originalVersion
@@ -24,8 +22,6 @@ func TestBuildString_UsesInjectedBuildMetadata(t *testing.T) {
 }
 
 func TestBuildString_UsesDefaultsWhenBuildMetadataMissing(t *testing.T) {
-	t.Parallel()
-
 	originalVersion, originalCommit, originalDate := Version, Commit, Date
 	t.Cleanup(func() {
 		Version = originalVersion
