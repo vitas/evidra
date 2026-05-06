@@ -8,7 +8,7 @@ const (
 	// ScoringVersion is the scoring model version written into entries and score outputs.
 	ScoringVersion = "v1.1.0"
 	// BaseVersion is the semantic release version before build metadata is injected.
-	BaseVersion = "0.5.21"
+	BaseVersion = "0.5.22"
 )
 
 var (

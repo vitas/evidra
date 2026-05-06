@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.5.22 — 2026-05-06
+
 ## v0.5.21 — 2026-05-06
 
 ### Repository Scope
