@@ -19,15 +19,6 @@ func TestMarkdownAPIReference_CoversLiveExternalIngestSurface(t *testing.T) {
 		"### `POST /v1/evidence/ingest/report`",
 		"### `HEAD /auth/check`",
 		"`{\"status\":\"ok\"}`",
-		"#### POST /v1/bench/trigger",
-		"#### GET /v1/runners/jobs",
-		"#### POST /v1/runners/jobs/{id}/complete",
-		"All | Baseline | Evidra",
-		"`all|none|evidra`",
-		"Requires `model`, `scenarios`, and `evidence_mode` in the request body.",
-		"`execution_mode`",
-		"`execution_mode` defaults to `provider` when omitted.",
-		"claimed job payload includes `evidence_mode` and `execution_mode`",
 	}
 	for _, snippet := range requiredSnippets {
 		if !strings.Contains(doc, snippet) {
@@ -48,31 +39,6 @@ func TestOpenAPIReference_StaysAlignedWithLiveRoutes(t *testing.T) {
 	assertQueryParameterDefaults(t, spec, "/v1/evidence/entries", "limit", "100", "1000")
 	assertOperationHasQueryParameter(t, spec, "/v1/evidence/entries", "get", "period")
 	assertRequestBodyDoesNotRequireField(t, spec, "/v1/keys", "post", "label")
-}
-
-func TestMarkdownAPIReference_BenchEvidenceModeContract(t *testing.T) {
-	t.Parallel()
-
-	doc := loadMarkdownAPIReference(t)
-
-	required := []string{
-		"Query params: `evidence_mode` (`\"\"` = all, `none` = baseline only, `evidra` = non-`none`, other non-empty values match stored modes exactly)",
-		"`evidence_mode` follows the bench contract:",
-		"- empty means all runs",
-		"- `none` returns baseline runs only",
-		"- `evidra` returns all non-`none` runs",
-		"- any other non-empty value is an exact-match filter against stored modes",
-		"Both pairwise and matrix modes honor `evidence_mode` with the same contract as leaderboard/runs/stats.",
-		"Query params: `evidence_mode` (`\"\"` = all, `none` = baseline only, `evidra` = non-`none`, other non-empty values match stored modes exactly), `since` (RFC3339).",
-	}
-	for _, snippet := range required {
-		if !strings.Contains(doc, snippet) {
-			t.Fatalf("markdown api reference missing %q", snippet)
-		}
-	}
-	if strings.Contains(doc, "proxy|smart") || strings.Contains(doc, "default: proxy") || strings.Contains(doc, "internal callers") {
-		t.Fatal("markdown api reference still contains stale proxy-based evidence_mode contract")
-	}
 }
 
 func loadMarkdownAPIReference(t *testing.T) string {
@@ -108,63 +74,6 @@ func assertOperationHasQueryParameter(t *testing.T, spec *yaml.Node, path, metho
 			return
 		}
 	}
-	t.Fatalf("%s %s missing query parameter %s", strings.ToUpper(method), path, paramName)
-}
-
-func assertQueryParameterDescriptionContains(t *testing.T, spec *yaml.Node, path, method, paramName string, snippets ...string) {
-	t.Helper()
-
-	params := operationParameters(t, spec, path, method)
-	for _, param := range params.Content {
-		name := findMappingValueOptional(param, "name")
-		in := findMappingValueOptional(param, "in")
-		if name == nil || in == nil || name.Value != paramName || in.Value != "query" {
-			continue
-		}
-
-		description := findMappingValueOptional(param, "description")
-		if description == nil {
-			t.Fatalf("%s %s query param %s missing description", strings.ToUpper(method), path, paramName)
-		}
-		for _, snippet := range snippets {
-			if !strings.Contains(description.Value, snippet) {
-				t.Fatalf("%s %s query param %s description = %q, want %q", strings.ToUpper(method), path, paramName, description.Value, snippet)
-			}
-		}
-		return
-	}
-
-	t.Fatalf("%s %s missing query parameter %s", strings.ToUpper(method), path, paramName)
-}
-
-func assertQueryParameterHasNoStaleProxyContract(t *testing.T, spec *yaml.Node, path, method, paramName string) {
-	t.Helper()
-
-	params := operationParameters(t, spec, path, method)
-	for _, param := range params.Content {
-		name := findMappingValueOptional(param, "name")
-		in := findMappingValueOptional(param, "in")
-		if name == nil || in == nil || name.Value != paramName || in.Value != "query" {
-			continue
-		}
-
-		schema := findMappingValueOptional(param, "schema")
-		if schema == nil {
-			t.Fatalf("%s %s query param %s missing schema", strings.ToUpper(method), path, paramName)
-		}
-		if def := findMappingValueOptional(schema, "default"); def != nil && def.Value == "proxy" {
-			t.Fatalf("%s %s query param %s still defaults to proxy", strings.ToUpper(method), path, paramName)
-		}
-		if enum := findMappingValueOptional(schema, "enum"); enum != nil {
-			for _, item := range enum.Content {
-				if item.Value == "proxy" || item.Value == "smart" {
-					t.Fatalf("%s %s query param %s enum still contains stale value %q", strings.ToUpper(method), path, paramName, item.Value)
-				}
-			}
-		}
-		return
-	}
-
 	t.Fatalf("%s %s missing query parameter %s", strings.ToUpper(method), path, paramName)
 }
 

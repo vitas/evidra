@@ -633,4 +633,4 @@ infra-bench bench --model your-model --provider bifrost --smart-prescribe \
   --evidra-url http://localhost:8080 --evidra-api-key your-key
 ```
 
-Results appear at `/bench` on your evidra dashboard.
+Results appear in Evidra Bench at `https://lab.evidra.cc/bench/runs`.

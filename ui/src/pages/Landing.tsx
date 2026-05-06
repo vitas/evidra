@@ -12,7 +12,7 @@ const PIPELINE_CHART = `flowchart LR
   E --> G["Signal Detectors<br/>8 behavioral signals"]
   G --> H["Scoring Engine"]
   H --> I["Scorecard<br/>0-100 + Band"]
-  I --> J["Bench Comparison<br/>leaderboard · regression"]`;
+  I --> J["External Benchmark<br/>agent evaluation"]`;
 
 const SYSTEM_CHART = `flowchart TB
   subgraph Agent ["AI Agent"]
@@ -32,8 +32,7 @@ const SYSTEM_CHART = `flowchart TB
   subgraph Intelligence ["Intelligence"]
     Signals["8 Signal Detectors"]
     Scoring["Scoring 0-100"]
-    Bench["Benchmarking"]
-    Trigger["Bench Trigger<br/>pluggable executor"]
+    Bench["External Benchmarking"]
   end
   subgraph Storage ["Storage"]
     DB[("PostgreSQL")]
@@ -43,8 +42,7 @@ const SYSTEM_CHART = `flowchart TB
   AE --> Pipeline
   PS --> Pipeline
   Store --> DB
-  DB --> Signals --> Scoring --> Bench
-  Trigger --> Bench`;
+  DB --> Signals --> Scoring --> Bench`;
 
 export const SEQUENCE_CHART = `sequenceDiagram
   participant Agent as AI Agent
@@ -332,7 +330,7 @@ function Hero() {
           <a href="/docs/api" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold glass text-fg-muted transition-all hover:border-accent hover:text-fg no-underline">
             API Docs
           </a>
-          <a href="/lab" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold glass text-fg-muted transition-all hover:border-accent hover:text-fg no-underline">
+          <a href="https://lab.evidra.cc" target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold glass text-fg-muted transition-all hover:border-accent hover:text-fg no-underline">
             Test Your Agent Skills
           </a>
         </div>
@@ -628,7 +626,9 @@ function Benchmark() {
             <p className="text-[0.83rem] text-fg-muted leading-relaxed">62 real infrastructure scenarios across Kubernetes, Helm, Argo CD, Terraform, and AWS. Test role-based skills (k8s-admin, security-ops, platform-eng) against real clusters. Skills that pass ship in evidra-mcp.</p>
           </div>
           <a
-            href="/bench"
+            href="https://lab.evidra.cc/bench/runs"
+            target="_blank"
+            rel="noopener"
             className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold bg-accent text-white transition-all hover:bg-accent-bright hover:-translate-y-0.5 hover:shadow-lg no-underline whitespace-nowrap"
           >
             Open Bench &rarr;

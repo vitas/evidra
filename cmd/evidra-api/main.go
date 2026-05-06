@@ -17,7 +17,6 @@ import (
 	evidrabenchmark "samebits.com/evidra"
 	"samebits.com/evidra/internal/analyticsvc"
 	"samebits.com/evidra/internal/api"
-	"samebits.com/evidra/internal/benchsvc"
 	"samebits.com/evidra/internal/db"
 	ievsigner "samebits.com/evidra/internal/evidence"
 	argocdgitops "samebits.com/evidra/internal/gitops/argocd"
@@ -47,11 +46,9 @@ type argocdControllerConfig struct {
 }
 
 type persistenceResources struct {
-	Pinger       api.Pinger
-	EntryStore   *store.EntryStore
-	KeyStore     *store.KeyStore
-	BenchService *benchsvc.Service
-	BenchRepo    benchsvc.Repository
+	Pinger     api.Pinger
+	EntryStore *store.EntryStore
+	KeyStore   *store.KeyStore
 }
 
 type runDeps struct {
@@ -132,10 +129,6 @@ func runWithDeps(args []string, deps runDeps) int {
 				deps.logf("argocd controller error: %v", err)
 			}
 		}()
-	}
-
-	if setup.resources.BenchRepo != nil {
-		go benchsvc.StartRunnerJanitor(ctx, setup.resources.BenchRepo, 10*time.Second)
 	}
 
 	serverErrCh := make(chan error, 1)
@@ -292,7 +285,6 @@ func configurePersistence(deps runDeps, databaseURL string, signer pkevidence.Si
 	cfg.EntryStore = resources.EntryStore
 	cfg.RawStore = resources.EntryStore
 	cfg.KeyStore = resources.KeyStore
-	cfg.BenchService = resources.BenchService
 	cfg.InviteSecret = os.Getenv("EVIDRA_INVITE_SECRET")
 	analyticsSvc := analyticsvc.NewService(resources.EntryStore)
 	cfg.Scorecard = analyticsSvc
@@ -322,33 +314,10 @@ func defaultSetupPersistence(databaseURL string) (persistenceResources, func(), 
 	}
 
 	es := store.NewEntryStore(pool)
-	defaultTenant := os.Getenv("EVIDRA_DEFAULT_TENANT")
-	if defaultTenant == "" {
-		defaultTenant = "default"
-	}
-	triggerStore := benchsvc.NewTriggerStore()
-	var executor benchsvc.RunExecutor
-	if benchServiceURL := os.Getenv("EVIDRA_BENCH_SERVICE_URL"); benchServiceURL != "" {
-		executor = benchsvc.NewRemoteExecutor(benchServiceURL)
-		log.Printf("bench executor: remote (%s)", benchServiceURL)
-	} else {
-		executor = benchsvc.NewLocalExecutor(os.Getenv("KUBECONFIG"), triggerStore)
-		log.Printf("bench executor: local")
-	}
-
-	repo := benchsvc.NewPgStore(pool)
-	benchService := benchsvc.NewService(repo, benchsvc.ServiceConfig{
-		PublicTenant: envOr("EVIDRA_BENCH_PUBLIC_TENANT", defaultTenant),
-		TriggerStore: triggerStore,
-		Executor:     executor,
-		Dispatcher:   &benchsvc.PoolDispatcher{},
-	})
 	return persistenceResources{
-			Pinger:       pool,
-			EntryStore:   es,
-			KeyStore:     store.NewKeyStore(pool),
-			BenchService: benchService,
-			BenchRepo:    repo,
+			Pinger:     pool,
+			EntryStore: es,
+			KeyStore:   store.NewKeyStore(pool),
 		}, func() {
 			pool.Close()
 		}, nil

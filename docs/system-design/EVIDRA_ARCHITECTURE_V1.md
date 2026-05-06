@@ -93,7 +93,7 @@ AI agent, a workflow runner, or a controller such as Argo CD.
                      │ scorecard    │   │ prescribe    │   │ /v1/evidence/    │
                      │ explain      │   │ report       │   │   scorecard      │
                      │ record       │   │ get_event    │   │   explain        │
-                     │ compare      │   │              │   │ /v1/bench/*      │
+                     │ compare      │   │              │   │                  │
                      └──────────────┘   └──────────────┘   └──────────────────┘
 ```
 
@@ -239,9 +239,7 @@ Architecture principle: **graph-ready, graph-free.** Signals work on `[]Entry` s
 
 CLI and MCP are the primary local analytics entry points in v1. Self-hosted also
 exposes tenant-wide `/v1/evidence/scorecard` and `/v1/evidence/explain` over
-centralized stored evidence using the same signal and scoring path. The adjacent
-`/v1/bench/*` surface shares the same API process and auth shell, but it is not
-part of the core v1 evidence and scorecard contract described in this document.
+centralized stored evidence using the same signal and scoring path. Agent benchmarking lives in the separate evidra-infra-bench repository and consumes Evidra evidence through the public API.
 
 ## Self-Hosted Mode
 
@@ -494,7 +492,7 @@ Evidra separates two concerns:
 **Intelligence** (read path, post-hoc):
 - Signal detection across evidence sequences
 - Scoring (weighted penalty → 0-100 reliability metric)
-- Benchmarking (run comparison, leaderboards)
+- External benchmarking handoff through the public evidence API
 - Analytics (scorecards, explain, trends)
 
 The recorder is on the hot path — it must be fast. The intelligence layer
@@ -527,22 +525,6 @@ consults Evidra, gets risk back, and the agent never changes.
 | **OTLP bridge** (separate repo) | AgentGateway telemetry | gRPC/HTTP OTLP → Evidra ingest |
 
 All share the same evidence model and analytics path. Same detectors, same signals, same scorecard. Different entry points and storage boundaries.
-
----
-
-## Bench Execution
-
-Benchmark scenario execution is delegated to a pluggable `RunExecutor`:
-
-| Executor | Config | Description |
-|----------|--------|-------------|
-| LocalExecutor | Default | Runs in evidra-mcp process |
-| RemoteExecutor | `EVIDRA_BENCH_SERVICE_URL` | Calls external REST service |
-
-The trigger API (`POST /v1/bench/trigger`) accepts a model, scenario list, coarse `evidence_mode`, and optional hosted `execution_mode`. Evidra owns that control-plane field and carries it through trigger state plus poll-based runner claims. For direct executor runs, `execution_mode=a2a` is translated at the executor boundary into the bench contract's internal `config.adapter=a2a`. Progress is reported via `POST /v1/bench/trigger/{id}/progress` webhook and consumed via `GET /v1/bench/trigger/{id}` (JSON polling or SSE streaming).
-
-The executor contract (v1.0.0) is an open specification for third-party executors.
-See [Executor Contract v1.0.0](../contracts/EXECUTOR_CONTRACT_V1.md).
 
 ---
 

@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	iauth "samebits.com/evidra/internal/auth"
-	"samebits.com/evidra/internal/benchsvc"
 	"samebits.com/evidra/internal/ingest"
 	"samebits.com/evidra/internal/store"
 	pkevidence "samebits.com/evidra/pkg/evidence"
@@ -22,7 +21,6 @@ type RouterConfig struct {
 	EntryStore    *store.EntryStore
 	Ingest        IngestPort
 	KeyStore      *store.KeyStore
-	BenchService  *benchsvc.Service
 	RawStore      RawEntryStore
 	Scorecard     ScorecardComputer
 	Explain       ExplainComputer
@@ -111,31 +109,10 @@ func NewRouter(cfg RouterConfig) http.Handler {
 		mux.Handle("GET /v1/evidence/explain", authMw(handleExplain(cfg.Explain)))
 	}
 
-	// Bench intelligence layer.
-	if cfg.BenchService != nil {
-		benchsvc.RegisterRoutes(mux, cfg.BenchService, authMw)
-		mux.Handle("PUT /v1/admin/bench/models/{model_id}",
-			inviteSecretMiddleware(benchsvc.HandleUpdateGlobalModel(cfg.BenchService), cfg.InviteSecret))
-	}
-
 	// Embedded landing page.
 	if cfg.UIFS != nil {
 		mux.Handle("/", uiHandler(cfg.UIFS))
 	}
 
 	return wrapMiddleware(mux)
-}
-
-func inviteSecretMiddleware(next http.Handler, inviteSecret string) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if inviteSecret == "" {
-			writeError(w, http.StatusServiceUnavailable, "invite-gated admin route disabled: invite secret not configured")
-			return
-		}
-		if subtle.ConstantTimeCompare([]byte(r.Header.Get("X-Invite-Secret")), []byte(inviteSecret)) != 1 {
-			writeError(w, http.StatusForbidden, "invite required")
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
 }

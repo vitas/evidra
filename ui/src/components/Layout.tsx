@@ -16,9 +16,7 @@ const LANDING_LINKS = [
   { href: "#api", label: "API" },
   { href: "#guides", label: "Guides" },
   { href: "/evidence", label: "Evidence" },
-  { href: "/bench", label: "Bench" },
-  { href: "/bench/runs", label: "Runs" },
-  { href: "/lab", label: "Lab" },
+  { href: "https://lab.evidra.cc", label: "Lab", external: true },
 ];
 
 export function Layout({ children }: LayoutProps) {
@@ -82,16 +80,10 @@ function Header() {
                 >
                   Evidence
                 </Link>
-                <Link
-                  to="/bench"
-                  className={`text-[0.82rem] font-medium tracking-wide no-underline transition-colors ${
-                    pathname.startsWith("/bench") ? "text-accent" : "text-fg-muted hover:text-fg"
-                  }`}
-                >
-                  Bench
-                </Link>
                 <a
-                  href="/lab"
+                  href="https://lab.evidra.cc"
+                  target="_blank"
+                  rel="noopener"
                   className="text-[0.82rem] font-medium tracking-wide no-underline transition-colors text-fg-muted hover:text-fg"
                 >
                   Lab
@@ -165,11 +157,7 @@ function Footer() {
           github.com/vitas/evidra
         </a>
         {" \u00B7 "}
-        <a href="/bench" className="text-fg-muted font-medium hover:text-accent">
-          Bench
-        </a>
-        {" \u00B7 "}
-        <a href="/lab" className="text-fg-muted font-medium hover:text-accent">
+        <a href="https://lab.evidra.cc" target="_blank" rel="noopener" className="text-fg-muted font-medium hover:text-accent">
           Lab
         </a>
         {" \u00B7 Apache 2.0"}

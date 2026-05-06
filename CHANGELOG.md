@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Repository Scope
+- Removed the hosted bench API, runner control plane, and embedded `/bench` UI from the core Evidra API; Evidra Bench now lives in the separate `evidra-infra-bench` repository and at `https://lab.evidra.cc`.
+
 ## v0.5.20 — 2026-04-13
 
 ## v0.5.19 — 2026-04-13

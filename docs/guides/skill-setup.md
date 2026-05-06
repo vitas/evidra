@@ -131,4 +131,4 @@ infra-bench bench --model sonnet --proxy-mode
 infra-bench bench --model sonnet --smart-prescribe
 ```
 
-Compare results on the evidra dashboard at `/bench`.
+Compare results in Evidra Bench at `https://lab.evidra.cc/bench/runs`.

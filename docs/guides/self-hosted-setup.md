@@ -219,15 +219,6 @@ The web dashboard uses this pagination automatically.
   - webhook requests must include `X-Evidra-API-Key` so mapped evidence lands in the correct tenant
 - Hosted `compare` is not part of this contract yet.
 
-### Bench Tables
-
-The bench intelligence layer adds three tables via migration `006_bench_tables.up.sql`:
-- `bench_runs` — benchmark run results
-- `bench_artifacts` — transcripts and tool-call logs
-- `bench_scenarios` — scenario catalog (global, not tenant-scoped)
-
-These are created automatically when `evidra-api` starts.
-
 ## Connecting CLI and MCP
 
 ### CLI forwarding

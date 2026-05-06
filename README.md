@@ -216,7 +216,6 @@ The proxy records evidence when it sees `run_command` or other mutation-shaped M
 - [API Reference](docs/api-reference.md)
 - [Architecture](docs/system-design/EVIDRA_ARCHITECTURE_V1.md)
 - [Protocol Specification](docs/system-design/EVIDRA_PROTOCOL_V1.md)
-- [Executor Contract](docs/contracts/EXECUTOR_CONTRACT_V1.md)
 - [Supported Tools](docs/supported-tools.md)
 
 ## Development

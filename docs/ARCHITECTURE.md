@@ -32,7 +32,7 @@ execution. Passive recording (bridge/proxy mode) works without it.
 **Intelligence** (read path, post-hoc):
 - Signal detection: 8 behavioral detectors across evidence sequences
 - Scoring: weighted penalty model → 0-100 reliability metric
-- Benchmarking: run comparison, leaderboards, model evaluation
+- External benchmarking: Evidra Bench consumes scorecards and evidence through the public Evidra API
 - Analytics: scorecards, explain, trends
 
 ## Observation Modes
@@ -68,81 +68,6 @@ At prescribe time, risk assessment runs through the pluggable `internal/assess/`
 
 The pipeline replaces the former monolithic risk computation that was duplicated across lifecycle and ingest services.
 
-## Bench Execution
-
-Evidra supports two benchmark execution paths:
-
-| Mode | When | How |
-|------|------|-----|
-| **Direct executor** | Default local flow, or `EVIDRA_BENCH_SERVICE_URL` is set | `POST /v1/bench/trigger` starts a `RunExecutor` immediately |
-| **Poll-based runners** | Runner dispatcher enabled and at least one healthy runner is registered | `POST /v1/bench/trigger` enqueues a persisted job; runners claim it via `/v1/runners/jobs` |
-
-### Direct Executor Flow
-
-| Executor | When | How |
-|----------|------|-----|
-| **LocalExecutor** | Default (OSS) | Basic scenario execution via kubectl |
-| **RemoteExecutor** | `EVIDRA_BENCH_SERVICE_URL` set | Delegates to external REST service |
-
-LocalExecutor provides basic trigger flow. Full scenario orchestration (seed, agent, verify) requires RemoteExecutor with an external bench service.
-
-```text
-POST /v1/bench/trigger { model, provider?, execution_mode?, evidence_mode, scenarios[] }
-        ↓
-  RunExecutor.Start()
-        ↓
-  Evidence → POST /v1/evidence/forward
-  Bench runs → POST /v1/bench/runs
-  Progress → POST /v1/bench/trigger/{id}/progress
-        ↓
-  UI polls GET /v1/bench/trigger/{id}
-```
-
-The direct-executor contract (v1.0.0) is an open specification. Third-party
-executors can implement it to plug into Evidra's analytics.
-See [Executor Contract v1.0.0](contracts/EXECUTOR_CONTRACT_V1.md).
-
-### Poll-Based Runner Flow
-
-The runner control plane persists execution in PostgreSQL:
-
-- `bench_infra` stores registered runners and their advertised capabilities
-- `bench_jobs` stores queued/running/completed jobs and liveness timestamps
-- `last_progress_at` allows stale claimed jobs to be re-queued if a runner stops reporting
-
-```text
-POST /v1/bench/trigger { model, provider?, runner_id?, execution_mode?, evidence_mode, scenarios[] }
-        ↓
-  bench_jobs row inserted with status=queued
-        ↓
-  Runner registers capabilities → POST /v1/runners/register
-        ↓
-  Runner heartbeat + poll → GET /v1/runners/jobs?runner_id=...
-        ↓
-  Claim next matching job via SELECT ... FOR UPDATE SKIP LOCKED
-        ↓
-  Optional trigger compatibility progress → POST /v1/bench/trigger/{id}/progress
-        ↓
-  Final ownership-checked completion → POST /v1/runners/jobs/{id}/complete
-        ↓
-  UI polls GET /v1/bench/trigger/{id}
-```
-
-Control-plane invariants:
-
-- `evidence_mode` on `POST /v1/bench/trigger` is required and limited to `none|smart`
-- only healthy runners can poll and claim work
-- `runner_id` on `POST /v1/bench/trigger` pins a job to one specific runner
-- runner poll payloads include the requested `evidence_mode`
-- a runner can only complete a job it currently owns
-- the janitor marks silent runners unhealthy and re-queues stale claimed jobs
-
-Public dashboard filters use the coarse `All | Baseline | Evidra` aliases
-(`all|none|evidra`). Exact-match stored subtypes such as `proxy`, `direct`,
-and `mcp` stay internal until the advanced filter story is documented.
-
-See [Bench Runner Control Plane Contract v1](contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md).
-
 ## Hosted Mode
 
 Hosted mode changes where evidence is collected and replayed, not what evidence means.
@@ -163,14 +88,13 @@ Hosted mode changes where evidence is collected and replayed, not what evidence 
   CLI record/import ───┤                                   ┌──────────────────┐
                        ├──▸ canonicalize ──▸ assess.Pipeline ──▸ sign ──▸ store ──▸ signals    │
   OTLP bridge ─────────┤                     (assess risk,     chain      │     scoring     │
-  Webhooks ────────────┤                      aggregate)                  │     benchmarks  │
+  Webhooks ────────────┤                      aggregate)                  │     analytics   │
   Ext-authz (future) ──┘                                                  │     analytics   │
                                                             └──────────────────┘
                                                                     │
   Storage:                                                          ▼
     local ──▸ JSONL evidence chain                          scorecard / explain
     hosted ──▸ Postgres (evidra-api)                        bench comparison
-                                                            leaderboards
 ```
 
 ## Where To Find Details
@@ -180,46 +104,11 @@ Normative contracts:
 - [Core Data Model](system-design/EVIDRA_CORE_DATA_MODEL_V1.md)
 - [Canonicalization Contract](contracts/EVIDRA_CANONICALIZATION_CONTRACT_V1.md)
 - [Signal Spec](system-design/EVIDRA_SIGNAL_SPEC_V1.md)
-- [Executor Contract](contracts/EXECUTOR_CONTRACT_V1.md)
-- [Bench Runner Control Plane Contract](contracts/BENCH_RUNNER_CONTROL_PLANE_V1.md)
 
 System design and implementation mapping:
 - [Architecture](system-design/EVIDRA_ARCHITECTURE_V1.md)
 - [Record/Import Contract](contracts/EVIDRA_RUN_RECORD_CONTRACT_V1.md)
 - [Default Scoring Profile](system-design/scoring/default.v1.1.0.md)
-
-### Bench Intelligence Layer
-
-Infrastructure agent benchmark results and analytics.
-
-**Public types:** `pkg/bench/` — RunRecord, RunFilters, timeline parser
-**Private implementation:** `internal/benchsvc/` — request-scoped `Service`, internal `Repository` contract, `PgStore`, HTTP handlers, JSONL import
-**Database:** `bench_runs`, `bench_artifacts`, `bench_scenarios`, `bench_jobs`, `bench_infra`
-**UI:** `ui/src/pages/bench/` — Leaderboard, Dashboard, Runs, RunDetail
-
-The bench layer uses an internal `Service -> Repository` seam: `benchsvc.Service`
-accepts a tenant ID per call, and the underlying `PgStore` repository handles
-persistence without tenant assumptions. The repository contract is intentionally
-kept inside `internal/benchsvc/`; `pkg/bench/` only carries data types shared by
-the API, UI, and import/export paths.
-
-Run ingestion is transactional at the service boundary. `POST /v1/bench/runs`
-commits the run and any attached artifacts atomically, and
-`POST /v1/bench/runs/batch` is idempotent by `run.id`: duplicate IDs are treated
-as no-ops and do not mutate artifacts for existing runs.
-
-Trigger-originated jobs use two compatibility layers:
-
-- persisted queue state in `bench_jobs`
-- in-memory `TriggerStore` state for `/v1/bench/trigger/{id}` polling and SSE
-
-This keeps the existing bench dashboard contract stable while allowing direct
-executor mode and poll-based runner mode to share one trigger surface.
-
-The supported HTTP contract for the bench surface is `/v1/bench/*`. The checked-in
-OpenAPI specs in `cmd/evidra-api/static/openapi.yaml` and `ui/public/openapi.yaml`
-must describe the same live bench routes so fallback builds and UI builds expose
-the same API contract.
 
 Operational references:
 - [CLI Reference](integrations/cli-reference.md)

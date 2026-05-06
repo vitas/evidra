@@ -26,7 +26,7 @@ Always use Signed-off-by to make a git commits
 
 ## Architecture
 
-Evidra Benchmark is a **flight recorder for infrastructure automation** — it observes and measures AI agent and CI pipeline reliability without blocking operations.
+Evidra is a **flight recorder for infrastructure automation** — it observes and measures AI agent and CI pipeline reliability without blocking operations.
 
 **Module:** `samebits.com/evidra` (Go 1.24)
 
@@ -72,7 +72,7 @@ exit code + prescription_id → Report → signal detectors → Scorecard
 
 - **`pkg/mcpserver/`** — MCP server implementation. Tools: `prescribe_full`, `prescribe_smart`, `report`, `get_event`, `run_command`, `collect_diagnostics`, `write_file`, `describe_tool`. JSON schemas embedded from `pkg/mcpserver/schemas/`.
 - **`pkg/proxy/`** — MCP stdio proxy: mutation detection, JSON-RPC interception, evidence auto-recording
-- **`internal/api/`** — HTTP API router and handlers for benchmarks, entries, scorecards, webhooks, and auth.
+- **`internal/api/`** — HTTP API router and handlers for entries, scorecards, webhooks, and auth.
 - **`internal/auth/`** — Authentication middleware for API keys and tenant context.
 - **`internal/store/`** — Database store for entries and API keys.
 - **`internal/db/`** — PostgreSQL connection pooling and schema migration.
@@ -114,22 +114,21 @@ It consolidates key decisions, invariants, and known gaps from the former review
 - `EVIDRA_EVIDENCE_DIR` — evidence storage directory (default: `~/.evidra/evidence`)
 - `EVIDRA_ENVIRONMENT` — environment label (MCP server only)
 - `EVIDRA_RETRY_TRACKER` — enable retry loop tracking (MCP server only)
-- `EVIDRA_BENCH_SERVICE_URL` — remote bench executor URL for `POST /v1/bench/trigger` (optional; falls back to local executor)
 
 ## API Changes — Mandatory Checklist
 
 When adding, modifying, or removing any REST API endpoint, ALL of the following must be updated:
 
 ### Step 1: Implementation
-- Handler in `internal/benchsvc/handlers.go` (or `internal/api/` for core endpoints)
+- Handler in `internal/api/`
 - Route registration in `RegisterRoutes`
-- Repository method in `internal/benchsvc/service.go` (interface) and query implementation
-- Types in `pkg/bench/types.go` (for bench) or appropriate package
+- Repository method and query implementation when persistence changes
+- Types in the appropriate package
 
 ### Step 2: Tests
-- Handler test in `internal/benchsvc/handlers_test.go` — at minimum: happy path + error case
+- Handler test — at minimum: happy path + error case
 - Update ALL fake/mock repos that implement the Repository interface (there are multiple in tests)
-- Run: `go test ./internal/benchsvc/ -v -count=1`
+- Run the relevant package tests, usually `go test ./internal/api/... -v -count=1`
 
 ### Step 3: OpenAPI Specification
 - Update `cmd/evidra-api/static/openapi.yaml` — full endpoint definition with:
