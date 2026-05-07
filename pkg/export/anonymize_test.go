@@ -52,7 +52,7 @@ func TestAnonymizeEntry_PreservesStructure(t *testing.T) {
 		Actor: evidence.Actor{
 			Type:         "agent",
 			ID:           "claude-code",
-			Provenance:   "infra-bench",
+			Provenance:   "ci-runner",
 			InstanceID:   "runner-pod-1",
 			Version:      "1.0",
 			SkillVersion: "v1.0.1",
@@ -82,7 +82,7 @@ func TestAnonymizeEntry_PreservesStructure(t *testing.T) {
 	if anon.Actor.ID == "claude-code" {
 		t.Fatal("actor.id not anonymized")
 	}
-	if anon.Actor.Provenance == "infra-bench" {
+	if anon.Actor.Provenance == "ci-runner" {
 		t.Fatal("actor.provenance not anonymized")
 	}
 	if anon.SessionID == "session-abc" {

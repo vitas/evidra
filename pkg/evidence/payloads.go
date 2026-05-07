@@ -90,7 +90,7 @@ type PrescriptionPayload struct {
 	EffectiveRisk   string          `json:"effective_risk,omitempty"`
 	// Deprecated: kept for legacy readers during the contract transition.
 	RiskLevel string `json:"risk_level,omitempty"`
-	// RiskDetails is the canonical risk field used by benchmark validators.
+	// RiskDetails was the canonical risk field for older validators.
 	// Deprecated: superseded by RiskInputs.
 	RiskDetails []string `json:"risk_details,omitempty"`
 	// RiskTags is kept for backward compatibility with older readers.

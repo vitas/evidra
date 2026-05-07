@@ -889,13 +889,13 @@ func TestHandleIngestPrescribe_ValidPayload(t *testing.T) {
 
 	body := `{
 		"contract_version":"v1",
-		"actor":{"type":"agent","id":"bench-bot","provenance":"infra-bench"},
+		"actor":{"type":"agent","id":"demo-bot","provenance":"ci-runner"},
 		"session_id":"sess-1",
 		"operation_id":"op-1",
 		"trace_id":"trace-1",
 		"flavor":"imperative",
 		"evidence":{"kind":"declared"},
-		"source":{"system":"bench"},
+		"source":{"system":"ci"},
 		"smart_target":{"tool":"kubectl","operation":"apply","resource":"deployment/nginx"}
 	}`
 	req := httptest.NewRequest("POST", "/v1/evidence/ingest/prescribe", strings.NewReader(body))

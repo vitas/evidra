@@ -478,17 +478,17 @@ func TestE2E_CollectDiagnostics(t *testing.T) {
 	kubectlPath := filepath.Join(dir, "kubectl")
 	kubectlScript := `#!/bin/sh
 case "$*" in
-  "get pods -n bench")
+  "get pods -n demo")
     cat <<'EOF'
 NAME      READY   STATUS             RESTARTS   AGE
 web-abc   0/1     CrashLoopBackOff   3          2m
 web-def   1/1     Running            0          5m
 EOF
     ;;
-  "describe deployment/web -n bench")
+  "describe deployment/web -n demo")
     cat <<'EOF'
 Name:                   web
-Namespace:              bench
+Namespace:              demo
 Replicas:               1 desired | 1 updated | 1 total | 0 available | 1 unavailable
 Conditions:
   Type           Status  Reason
@@ -500,13 +500,13 @@ Events:
   Warning  FailedPull        2m    kubelet                Failed to pull image "nginx:99.99"
 EOF
     ;;
-  "get events -n bench --sort-by=.lastTimestamp")
+  "get events -n demo --sort-by=.lastTimestamp")
     cat <<'EOF'
 LAST SEEN   TYPE      REASON      OBJECT      MESSAGE
 2m          Warning   FailedPull  pod/web-abc Failed to pull image "nginx:99.99"
 EOF
     ;;
-  "logs web-abc -n bench --tail=50")
+  "logs web-abc -n demo --tail=50")
     cat <<'EOF'
 panic: image pull failed
 back-off pulling image
@@ -557,7 +557,7 @@ esac
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{
 		Name: "collect_diagnostics",
 		Arguments: map[string]any{
-			"namespace":    "bench",
+			"namespace":    "demo",
 			"workload":     "deployment/web",
 			"include_logs": true,
 		},
@@ -576,8 +576,8 @@ esac
 	if len(out.Commands) != 4 {
 		t.Fatalf("commands len=%d, want 4 (%v)", len(out.Commands), out.Commands)
 	}
-	if out.Commands[3] != "kubectl logs web-abc -n bench --tail=50" {
-		t.Fatalf("logs command=%q, want kubectl logs web-abc -n bench --tail=50", out.Commands[3])
+	if out.Commands[3] != "kubectl logs web-abc -n demo --tail=50" {
+		t.Fatalf("logs command=%q, want kubectl logs web-abc -n demo --tail=50", out.Commands[3])
 	}
 	if len(out.Findings) == 0 {
 		t.Fatalf("collect_diagnostics returned no findings: %+v", out)

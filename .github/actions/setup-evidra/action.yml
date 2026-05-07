@@ -1,5 +1,5 @@
 name: 'Setup Evidra'
-description: 'Install evidra CLI without running benchmark/score steps'
+description: 'Install the evidra CLI without running validation or scoring steps'
 
 inputs:
   evidra-version:

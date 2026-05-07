@@ -26,7 +26,7 @@ func TestMarkdownAPIReference_CoversLiveExternalIngestSurface(t *testing.T) {
 		}
 	}
 	if strings.Contains(doc, "proxy|smart") {
-		t.Fatal("api reference still uses proxy|smart wording for top-level bench filters")
+		t.Fatal("api reference still uses proxy|smart wording for top-level mode filters")
 	}
 }
 

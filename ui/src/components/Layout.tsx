@@ -16,7 +16,6 @@ const LANDING_LINKS = [
   { href: "#api", label: "API" },
   { href: "#guides", label: "Guides" },
   { href: "/evidence", label: "Evidence" },
-  { href: "https://lab.evidra.cc", label: "Lab", external: true },
 ];
 
 export function Layout({ children }: LayoutProps) {
@@ -80,14 +79,6 @@ function Header() {
                 >
                   Evidence
                 </Link>
-                <a
-                  href="https://lab.evidra.cc"
-                  target="_blank"
-                  rel="noopener"
-                  className="text-[0.82rem] font-medium tracking-wide no-underline transition-colors text-fg-muted hover:text-fg"
-                >
-                  Lab
-                </a>
               </>
             )}
           </nav>
@@ -155,10 +146,6 @@ function Footer() {
       <div className="max-w-[980px] mx-auto px-8">
         <a href="https://github.com/vitas/evidra" target="_blank" rel="noopener" className="text-fg-muted font-medium hover:text-accent">
           github.com/vitas/evidra
-        </a>
-        {" \u00B7 "}
-        <a href="https://lab.evidra.cc" target="_blank" rel="noopener" className="text-fg-muted font-medium hover:text-accent">
-          Lab
         </a>
         {" \u00B7 Apache 2.0"}
       </div>

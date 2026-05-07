@@ -7,7 +7,7 @@ func TestIsMutation(t *testing.T) {
 
 	mutations := []string{
 		"kubectl apply -f manifest.yaml",
-		"kubectl patch deployment web -n bench",
+		"kubectl patch deployment web -n demo",
 		"kubectl delete pod nginx",
 		"kubectl create configmap foo",
 		"kubectl scale deployment web --replicas=3",
@@ -32,7 +32,7 @@ func TestIsMutation(t *testing.T) {
 	}
 
 	readOnly := []string{
-		"kubectl get pods -n bench",
+		"kubectl get pods -n demo",
 		"kubectl describe deployment web",
 		"kubectl logs nginx",
 		"kubectl top pods",

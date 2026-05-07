@@ -12,7 +12,7 @@ func TestFormatSmartOutput_GetDeployment(t *testing.T) {
 web     0/2     2            0           5m
 api     3/3     3            3           10m`
 
-	got := FormatSmartOutput("kubectl get deployments -n bench", raw, 0)
+	got := FormatSmartOutput("kubectl get deployments -n demo", raw, 0)
 
 	if !strings.Contains(got, "deployment/web") {
 		t.Errorf("expected deployment/web in output, got:\n%s", got)
@@ -34,7 +34,7 @@ func TestFormatSmartOutput_GetDeployment_SingleDeploy(t *testing.T) {
 	raw := `NAME   READY   UP-TO-DATE   AVAILABLE   AGE
 web    0/2     2            0           5m`
 
-	got := FormatSmartOutput("kubectl get deploy -n bench", raw, 0)
+	got := FormatSmartOutput("kubectl get deploy -n demo", raw, 0)
 
 	if !strings.Contains(got, "deployment/web") {
 		t.Errorf("expected deployment/web in output, got:\n%s", got)
@@ -49,7 +49,7 @@ web-abc12   1/1     Running        0          5m
 web-def34   1/1     Running        0          5m
 web-ghi56   0/1     ErrImagePull   0          2m`
 
-	got := FormatSmartOutput("kubectl get pods -n bench", raw, 0)
+	got := FormatSmartOutput("kubectl get pods -n demo", raw, 0)
 
 	if !strings.Contains(got, "3 total") {
 		t.Errorf("expected '3 total' in output, got:\n%s", got)
@@ -69,7 +69,7 @@ func TestFormatSmartOutput_Describe(t *testing.T) {
 	t.Parallel()
 
 	raw := `Name:                   web
-Namespace:              bench
+Namespace:              demo
 Replicas:               2 desired | 2 updated | 2 total | 0 available | 2 unavailable
 Conditions:
   Type           Status  Reason
@@ -83,7 +83,7 @@ Events:
   Normal   Pulling           3m    kubelet                Pulling image "nginx:99.99"
   Normal   ScaledUpReplica   5m    deployment-controller  Scaled up replica set web-abc to 2`
 
-	got := FormatSmartOutput("kubectl describe deployment web -n bench", raw, 0)
+	got := FormatSmartOutput("kubectl describe deployment web -n demo", raw, 0)
 
 	if !strings.Contains(got, "Name:") {
 		t.Errorf("expected Name: in output, got:\n%s", got)
@@ -112,7 +112,7 @@ func TestFormatSmartOutput_Logs(t *testing.T) {
 	}
 	raw := strings.Join(lines, "\n")
 
-	got := FormatSmartOutput("kubectl logs web-abc12 -n bench", raw, 0)
+	got := FormatSmartOutput("kubectl logs web-abc12 -n demo", raw, 0)
 
 	if !strings.Contains(got, "logs web-abc12") {
 		t.Errorf("expected 'logs web-abc12' in output, got:\n%s", got)
@@ -139,7 +139,7 @@ func TestFormatSmartOutput_JsonPassthrough(t *testing.T) {
   "kind": "Deployment",
   "metadata": {
     "name": "web",
-    "namespace": "bench",
+    "namespace": "demo",
     "uid": "12345-abcde",
     "resourceVersion": "999",
     "generation": 2,
@@ -151,7 +151,7 @@ func TestFormatSmartOutput_JsonPassthrough(t *testing.T) {
   }
 }`
 
-	got := FormatSmartOutput("kubectl get deployment web -n bench -o json", raw, 0)
+	got := FormatSmartOutput("kubectl get deployment web -n demo -o json", raw, 0)
 
 	if strings.Contains(got, "managedFields") {
 		t.Errorf("expected managedFields stripped, got:\n%s", got)
@@ -175,7 +175,7 @@ func TestFormatSmartOutput_Error(t *testing.T) {
 
 	raw := "Error from server (NotFound): deployments.apps \"web\" not found"
 
-	got := FormatSmartOutput("kubectl get deployment web -n bench", raw, 1)
+	got := FormatSmartOutput("kubectl get deployment web -n demo", raw, 1)
 
 	if !strings.Contains(got, "error (exit code 1)") {
 		t.Errorf("expected 'error (exit code 1)' in output, got:\n%s", got)
@@ -255,16 +255,16 @@ func TestFormatSmartOutput_HelmStatus(t *testing.T) {
 
 	raw := `NAME: web
 LAST DEPLOYED: Tue Mar 24 12:00:00 2026
-NAMESPACE: bench
+NAMESPACE: demo
 STATUS: deployed
 REVISION: 3`
 
-	got := FormatSmartOutput("helm status web -n bench", raw, 0)
+	got := FormatSmartOutput("helm status web -n demo", raw, 0)
 
 	if !strings.Contains(got, "helm release web: deployed") {
 		t.Fatalf("expected helm release status summary, got:\n%s", got)
 	}
-	if !strings.Contains(got, "namespace: bench") {
+	if !strings.Contains(got, "namespace: demo") {
 		t.Fatalf("expected namespace in summary, got:\n%s", got)
 	}
 	if !strings.Contains(got, "revision: 3") {
@@ -276,15 +276,15 @@ func TestFormatSmartOutput_HelmList(t *testing.T) {
 	t.Parallel()
 
 	raw := `NAME	NAMESPACE	REVISION	UPDATED	STATUS	CHART	APP VERSION
-web	bench	3	2026-03-24 12:00:00	deployed	web-1.2.3	1.2.3
-api	bench	1	2026-03-24 11:00:00	failed	api-0.1.0	0.1.0`
+web	demo	3	2026-03-24 12:00:00	deployed	web-1.2.3	1.2.3
+api	demo	1	2026-03-24 11:00:00	failed	api-0.1.0	0.1.0`
 
-	got := FormatSmartOutput("helm list -n bench", raw, 0)
+	got := FormatSmartOutput("helm list -n demo", raw, 0)
 
-	if !strings.Contains(got, "release/web (bench): deployed") {
+	if !strings.Contains(got, "release/web (demo): deployed") {
 		t.Fatalf("expected web release summary, got:\n%s", got)
 	}
-	if !strings.Contains(got, "release/api (bench): failed") {
+	if !strings.Contains(got, "release/api (demo): failed") {
 		t.Fatalf("expected api release summary, got:\n%s", got)
 	}
 }

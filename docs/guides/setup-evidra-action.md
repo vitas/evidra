@@ -6,7 +6,7 @@
 - Audience: public
 
 `setup-evidra` is a standalone install action.
-It only installs the `evidra` binary and exposes its path; it does not run scoring, validation, or benchmark logic.
+It only installs the `evidra` binary and exposes its path; it does not run scoring or validation logic.
 
 Action path in this repository:
 

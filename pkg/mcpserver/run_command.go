@@ -67,7 +67,7 @@ var runCommandInputSchema = map[string]any{
 	"properties": map[string]any{
 		"command": map[string]any{
 			"type":        "string",
-			"description": "Shell command to execute (e.g., 'kubectl get pods -n bench')",
+			"description": "Shell command to execute (e.g., 'kubectl get pods -n demo')",
 		},
 	},
 }
@@ -75,13 +75,13 @@ var runCommandInputSchema = map[string]any{
 const defaultRunCommandToolDescription = `Execute kubectl, helm, terraform, or aws commands with token-efficient output summaries.
 
 Investigate before fixing:
-- kubectl get pods -n bench
-- kubectl describe pod web-abc -n bench
-- kubectl logs web-abc -n bench --tail=50
+- kubectl get pods -n demo
+- kubectl describe pod web-abc -n demo
+- kubectl logs web-abc -n demo --tail=50
 
 Fix and verify:
-- kubectl patch deployment/web -n bench --type=merge -p '{"spec":{"template":{"spec":{}}}}'
-- kubectl rollout status deployment/web -n bench --timeout=60s
+- kubectl patch deployment/web -n demo --type=merge -p '{"spec":{"template":{"spec":{}}}}'
+- kubectl rollout status deployment/web -n demo --timeout=60s
 
 Mutations are automatically recorded as evidence. Use prescribe_smart or prescribe_full explicitly when you need tighter control before execution.`
 

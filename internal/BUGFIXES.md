@@ -35,14 +35,3 @@ Each entry documents the broken behavior, the fix, and affected versions.
 **Root cause:** `"ok": true` was hardcoded in both `run.go` and `record.go`.
 **Fix:** Changed to `"ok": exitCode == 0`.
 **Impact:** Consumers checking the `ok` field could not distinguish success from failure.
-
----
-
-## BUG-004: Benchmark contracts break on version bump
-
-**Fixed in:** v0.4.1
-**File:** `tests/benchmark/scripts/refresh-contracts.sh`
-**Symptom:** Every version bump causes all 10 benchmark contracts to fail drift check, requiring `make benchmark-refresh-contracts` despite no behavioral change.
-**Root cause:** The contract diff included `evidra_version`, which changes with every release. The check already excluded `processed_at` and `prescription_id` but not `evidra_version`.
-**Fix:** Added `evidra_version` to the `jq del(...)` exclusion list in the diff check.
-**Impact:** CI false failures on every version bump.

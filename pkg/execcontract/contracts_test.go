@@ -75,7 +75,7 @@ func TestValidatePrescribeFullInput_RequiresRawArtifact(t *testing.T) {
 		Operation: "apply",
 		Actor: Actor{
 			Type:   "agent",
-			ID:     "bench",
+			ID:     "demo",
 			Origin: "mcp-stdio",
 		},
 	})
@@ -92,7 +92,7 @@ func TestValidatePrescribeSmartInput_RequiresResource(t *testing.T) {
 		Operation: "apply",
 		Actor: Actor{
 			Type:   "agent",
-			ID:     "bench",
+			ID:     "demo",
 			Origin: "mcp-stdio",
 		},
 	})
@@ -111,7 +111,7 @@ func TestValidatePrescribeSmartInput_AllowsNamespaceTarget(t *testing.T) {
 		Namespace: "default",
 		Actor: Actor{
 			Type:   "agent",
-			ID:     "bench",
+			ID:     "demo",
 			Origin: "mcp-stdio",
 		},
 	})

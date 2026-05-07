@@ -72,7 +72,7 @@ func TestPrescribePersistsExtendedActorMetadata(t *testing.T) {
 		"--artifact", artifactPath,
 		"--tool", "kubectl",
 		"--operation", "apply",
-		"--actor", "bench-agent",
+		"--actor", "demo-agent",
 		"--actor-type", "agent",
 		"--actor-origin", "mcp-stdio",
 		"--actor-instance-id", "session-123",
@@ -95,7 +95,7 @@ func TestPrescribePersistsExtendedActorMetadata(t *testing.T) {
 	if entries[0].Actor.Type != "agent" {
 		t.Fatalf("actor.type = %q", entries[0].Actor.Type)
 	}
-	if entries[0].Actor.ID != "bench-agent" {
+	if entries[0].Actor.ID != "demo-agent" {
 		t.Fatalf("actor.id = %q", entries[0].Actor.ID)
 	}
 	if entries[0].Actor.Provenance != "mcp-stdio" {

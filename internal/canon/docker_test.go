@@ -39,7 +39,7 @@ func TestDockerAdapterCanHandle(t *testing.T) {
 
 func TestDockerAdapterMassRemove(t *testing.T) {
 	a := &canon.DockerAdapter{}
-	artifact := "nerdctl rm -f bench-worker-1 bench-worker-2 bench-worker-3 bench-worker-4 bench-worker-5 bench-worker-6"
+	artifact := "nerdctl rm -f demo-worker-1 demo-worker-2 demo-worker-3 demo-worker-4 demo-worker-5 demo-worker-6"
 	result, err := a.Canonicalize("nerdctl", "rm", "development", []byte(artifact))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -58,7 +58,7 @@ func TestDockerAdapterMassRemove(t *testing.T) {
 func TestDockerAdapterMassRemove_BlastRadiusTrigger(t *testing.T) {
 	// 8 containers: resource_count > BlastRadiusThreshold (5) so blast_radius can fire.
 	a := &canon.DockerAdapter{}
-	artifact := "nerdctl rm bench-1 bench-2 bench-3 bench-4 bench-5 bench-6 bench-7 bench-8"
+	artifact := "nerdctl rm demo-1 demo-2 demo-3 demo-4 demo-5 demo-6 demo-7 demo-8"
 	result, err := a.Canonicalize("nerdctl", "rm", "", []byte(artifact))
 	if err != nil {
 		t.Fatal(err)
@@ -352,7 +352,7 @@ func TestDockerAdapterCompatibleToolPrefixes(t *testing.T) {
 		{
 			name:  "lima",
 			tool:  "lima",
-			cmd:   "lima rm bench-1 bench-2 bench-3 bench-4 bench-5 bench-6",
+			cmd:   "lima rm demo-1 demo-2 demo-3 demo-4 demo-5 demo-6",
 			count: 6,
 		},
 	}

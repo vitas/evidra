@@ -5,7 +5,7 @@ import "testing"
 func TestParseCommand_PreservesQuotedPatchPayload(t *testing.T) {
 	t.Parallel()
 
-	args, err := parseCommand(`kubectl patch deployment/web -n bench --type=merge -p '{"spec":{"replicas":2}}'`)
+	args, err := parseCommand(`kubectl patch deployment/web -n demo --type=merge -p '{"spec":{"replicas":2}}'`)
 	if err != nil {
 		t.Fatalf("parseCommand: %v", err)
 	}

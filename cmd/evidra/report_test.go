@@ -169,7 +169,7 @@ func TestRunReport_PersistsExtendedActorMetadata(t *testing.T) {
 		"--prescription", prescriptionID,
 		"--verdict", "success",
 		"--exit-code", "0",
-		"--actor", "bench-agent",
+		"--actor", "demo-agent",
 		"--actor-type", "agent",
 		"--actor-origin", "mcp-stdio",
 		"--actor-instance-id", "session-123",
@@ -192,7 +192,7 @@ func TestRunReport_PersistsExtendedActorMetadata(t *testing.T) {
 	if entries[1].Actor.Type != "agent" {
 		t.Fatalf("actor.type = %q", entries[1].Actor.Type)
 	}
-	if entries[1].Actor.ID != "bench-agent" {
+	if entries[1].Actor.ID != "demo-agent" {
 		t.Fatalf("actor.id = %q", entries[1].Actor.ID)
 	}
 	if entries[1].Actor.Provenance != "mcp-stdio" {

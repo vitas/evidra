@@ -258,4 +258,4 @@ Single source contract ownership:
 
 Review requirement for contract changes:
 1. protocol correctness review
-2. benchmark comparability review
+2. cross-run comparability review
