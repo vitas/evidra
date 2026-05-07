@@ -20,10 +20,6 @@ if [[ -d "tests/${legacy_term}" ]]; then
   fail "legacy canonicalization fixture directory still exists"
 fi
 
-if find tests/benchmark/cases -type d -name "$legacy_term" -print -quit | grep -q .; then
-  fail "legacy benchmark snapshot directory still exists under tests/benchmark/cases"
-fi
-
 if rg -n "${legacy_word_pattern}|${legacy_path_pattern}" README.md docs tests internal scripts .github Makefile \
   --glob '!docs/plans/**' \
   --glob '!docs/system-design/done/**' \

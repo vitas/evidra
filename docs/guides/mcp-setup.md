@@ -141,7 +141,7 @@ Enable `--full-prescribe` when you also want `prescribe_full` for artifact-aware
 {"apiVersion":"apps/v1","metadata":{"managedFields":[...],...},...}
 
 # Smart output (~80 tokens):
-deployment/web (bench): 0/2 ready | image: nginx:99.99 | Available=False
+deployment/web (demo): 0/2 ready | image: nginx:99.99 | Available=False
 ```
 
 ### Auto-evidence
@@ -445,7 +445,7 @@ Declined example:
 For agents without automatic MCP tool discovery, add this to your system prompt:
 
 ```
-## Infrastructure Reliability Benchmark (Evidra)
+## Evidra MCP Operating Contract
 
 You have access to MCP tools: "run_command", "collect_diagnostics", "write_file", "prescribe_smart", "report", and "get_event". If the server was started with "--full-prescribe", you also have "prescribe_full".
 
@@ -621,16 +621,3 @@ Self-hosted `/v1/evidence/scorecard` and `/v1/evidence/explain` are available fo
 **Scorecard shows insufficient data:**
 - Minimum 100 operations required for scoring
 - Check with: `evidra scorecard --evidence-dir ~/.evidra/evidence`
-
----
-
-## Testing Protocol Compliance
-
-Use [evidra-infra-bench](https://github.com/vitas/evidra-infra-bench) to benchmark your agent's protocol compliance across 36 real infrastructure scenarios:
-
-```bash
-infra-bench bench --model your-model --provider bifrost --smart-prescribe \
-  --evidra-url http://localhost:8080 --evidra-api-key your-key
-```
-
-Results appear in Evidra Bench at `https://lab.evidra.cc/bench/runs`.

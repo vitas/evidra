@@ -332,7 +332,6 @@
         <a href="#get-started">Get Started</a>
         <a href="#api">API</a>
         <a href="#guides">Guides</a>
-        <a href="https://lab.evidra.cc/bench/runs" target="_blank" rel="noopener">Bench</a>
       </nav>
     </div>
     <div class="header-right">
@@ -514,62 +513,6 @@ flowchart TB
 
 <hr class="divider">
 
-<!-- Benchmark -->
-<section id="benchmark">
-  <div class="container">
-    <div class="section-label">Benchmark</div>
-    <h2 class="section-title">MCP Tool Descriptions Are Enough</h2>
-    <p class="section-subtitle">The prescribe/report protocol works out of the box with capable models through MCP tool descriptions alone. The Evidra skill doesn&rsquo;t enable the protocol &mdash; it sharpens it: fewer turns, fewer tokens, correct behavior on first attempt.</p>
-    <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
-      <thead>
-        <tr style="border-bottom:2px solid var(--border);">
-          <th style="text-align:left; padding:0.75rem 1rem 0.75rem 0; color:var(--fg-muted);"></th>
-          <th style="text-align:left; padding:0.75rem 1rem; color:var(--fg-muted);">Haiku / no skill</th>
-          <th style="text-align:left; padding:0.75rem 1rem; color:var(--fg-muted);">Sonnet / no skill</th>
-          <th style="text-align:left; padding:0.75rem 1rem; color:var(--accent); font-weight:600;">Sonnet / skill</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr style="border-bottom:1px solid var(--border-subtle);">
-          <td style="padding:0.75rem 1rem 0.75rem 0; font-weight:500; color:var(--fg);">Protocol compliance</td>
-          <td style="padding:0.75rem 1rem; color:var(--fg-muted);">None</td>
-          <td style="padding:0.75rem 1rem; color:var(--fg-muted);">Self-discovered, self-correcting</td>
-          <td style="padding:0.75rem 1rem; color:var(--fg); font-weight:500;">Clean, first-try</td>
-        </tr>
-        <tr style="border-bottom:1px solid var(--border-subtle);">
-          <td style="padding:0.75rem 1rem 0.75rem 0; font-weight:500; color:var(--fg);">Evidence chain</td>
-          <td style="padding:0.75rem 1rem; color:var(--fg-muted);">Empty</td>
-          <td style="padding:0.75rem 1rem; color:var(--fg-muted);">Complete</td>
-          <td style="padding:0.75rem 1rem; color:var(--fg); font-weight:500;">Complete</td>
-        </tr>
-        <tr style="border-bottom:1px solid var(--border-subtle);">
-          <td style="padding:0.75rem 1rem 0.75rem 0; font-weight:500; color:var(--fg);">Turns</td>
-          <td style="padding:0.75rem 1rem; color:var(--fg-muted);">2</td>
-          <td style="padding:0.75rem 1rem; color:var(--fg-muted);">30</td>
-          <td style="padding:0.75rem 1rem; color:var(--fg); font-weight:500;">26</td>
-        </tr>
-        <tr>
-          <td style="padding:0.75rem 1rem 0.75rem 0; font-weight:500; color:var(--fg);">Tokens</td>
-          <td style="padding:0.75rem 1rem; color:var(--fg-muted);">4,381</td>
-          <td style="padding:0.75rem 1rem; color:var(--fg-muted);">2,633</td>
-          <td style="padding:0.75rem 1rem; color:var(--fg); font-weight:500;">2,051</td>
-        </tr>
-      </tbody>
-    </table>
-    <p style="font-size:0.85rem; color:var(--fg-muted); margin-top:1.5rem;">Sonnet discovers and follows the protocol without any skill &mdash; it self-corrects along the way. The skill removes the exploration overhead: correct behavior on first attempt, 23% fewer tokens.</p>
-    <div style="margin-top:2rem; padding:1.25rem 1.5rem; background:var(--accent-subtle); border:1px solid var(--border); border-radius:10px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;">
-      <div>
-        <div style="font-family:'JetBrains Mono',monospace; font-size:0.72rem; font-weight:500; letter-spacing:0.06em; text-transform:uppercase; color:var(--accent); margin-bottom:0.4rem;">Live Demo</div>
-        <div style="font-size:0.92rem; font-weight:600; color:var(--fg); margin-bottom:0.25rem;">Infra Bench &mdash; Agent Benchmark Harness</div>
-        <div style="font-size:0.83rem; color:var(--fg-muted); line-height:1.5;">34 real Kubernetes failure scenarios. Run agents against crashloops, drift, RBAC issues, and safety tradeoffs. Browse results, compare models, and explore protocol compliance.</div>
-      </div>
-      <a class="btn btn-primary" href="https://lab.evidra.cc/bench/runs" target="_blank" rel="noopener" style="white-space:nowrap;">Open Bench &rarr;</a>
-    </div>
-  </div>
-</section>
-
-<hr class="divider">
-
 <!-- Getting Started -->
 <section id="get-started">
   <div class="container">
@@ -705,7 +648,6 @@ curl -H "Authorization: Bearer $EVIDRA_API_KEY" \
 <footer>
   <div class="container">
     <a href="https://github.com/vitas/evidra" target="_blank" rel="noopener">github.com/vitas/evidra</a>
-    &middot; <a href="https://lab.evidra.cc/bench/runs" target="_blank" rel="noopener">lab.evidra.cc/bench</a>
     &middot; Apache 2.0
   </div>
 </footer>

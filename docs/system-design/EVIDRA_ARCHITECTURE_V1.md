@@ -239,7 +239,7 @@ Architecture principle: **graph-ready, graph-free.** Signals work on `[]Entry` s
 
 CLI and MCP are the primary local analytics entry points in v1. Self-hosted also
 exposes tenant-wide `/v1/evidence/scorecard` and `/v1/evidence/explain` over
-centralized stored evidence using the same signal and scoring path. Agent benchmarking lives in the separate evidra-infra-bench repository and consumes Evidra evidence through the public API.
+centralized stored evidence using the same signal and scoring path.
 
 ## Self-Hosted Mode
 
@@ -266,7 +266,6 @@ GitOps controllers / webhooks ---> mapped or controller-observed evidence ---^
 | Component | Status / notes |
 |-----------|----------------|
 | Community contribution + percentiles | Planned. No checked-in design doc yet. |
-| Benchmark dataset (corpus + cases) | Planned. No checked-in design doc yet. |
 | Agent experiment (multi-model) | Not planned in this snapshot. |
 | Fault injection CI job | Planned. No checked-in design doc yet. |
 | Scanner mapping lifecycle (Trivy/Checkov/Kubescape) | Planned. Current notes live in this document; no dedicated checked-in design doc yet. |
@@ -492,7 +491,6 @@ Evidra separates two concerns:
 **Intelligence** (read path, post-hoc):
 - Signal detection across evidence sequences
 - Scoring (weighted penalty → 0-100 reliability metric)
-- External benchmarking handoff through the public evidence API
 - Analytics (scorecards, explain, trends)
 
 The recorder is on the hot path — it must be fast. The intelligence layer

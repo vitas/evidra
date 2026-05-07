@@ -121,9 +121,6 @@ jobs:
       # - name: Run MCP Inspector tests
       #   run: make test-mcp-inspector-ci
 
-      - name: Validate benchmark source composition
-        run: bash tests/benchmark/scripts/validate-source-composition.sh
-
       - name: Upload inspector log
         if: always()
         uses: actions/upload-artifact@v7

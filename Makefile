@@ -1,6 +1,4 @@
 .PHONY: build test e2e clean canon-fixtures-update docker-mcp docker-cli docker-api docker-up docker-down fmt lint tidy \
-	benchmark-validate benchmark-coverage benchmark-process-artifact benchmark-refresh-contracts benchmark-check-contracts \
-	benchmark-detect-duplicates bench-add \
 	test-contracts test-mcp-inspector test-mcp-inspector-ci test-mcp-inspector-hosted \
 	prompts-generate prompts-verify test-signals \
 	ui-build build-api
@@ -36,28 +34,6 @@ test-mcp-inspector-ci:
 
 test-mcp-inspector-hosted:
 	EVIDRA_TEST_MODE=hosted-mcp bash tests/inspector/run_inspector_tests.sh
-
-benchmark-validate:
-	bash tests/benchmark/scripts/validate-dataset.sh
-
-benchmark-coverage:
-	bash tests/benchmark/scripts/generate-coverage.sh > tests/benchmark/COVERAGE.md
-
-benchmark-process-artifact:
-	@test -n "$(ARTIFACT)" || (echo "ARTIFACT is required, e.g. make benchmark-process-artifact ARTIFACT=tests/inspector/fixtures/safe-nginx-deployment.yaml" >&2; exit 2)
-	bash tests/benchmark/scripts/process-artifact.sh --artifact "$(ARTIFACT)" $(if $(TOOL),--tool $(TOOL)) $(if $(OPERATION),--operation $(OPERATION)) $(if $(OUT),--out $(OUT)) $(if $(EVIDRA_BIN),--evidra-bin $(EVIDRA_BIN))
-
-benchmark-refresh-contracts:
-	bash tests/benchmark/scripts/refresh-contracts.sh $(if $(CASE_ID),--case $(CASE_ID)) $(if $(OPERATION),--operation $(OPERATION)) $(if $(EVIDRA_BIN),--evidra-bin $(EVIDRA_BIN))
-
-benchmark-check-contracts:
-	bash tests/benchmark/scripts/refresh-contracts.sh --check $(if $(CASE_ID),--case $(CASE_ID)) $(if $(OPERATION),--operation $(OPERATION)) $(if $(EVIDRA_BIN),--evidra-bin $(EVIDRA_BIN))
-
-benchmark-detect-duplicates:
-	bash tests/benchmark/scripts/detect-duplicates.sh
-
-bench-add:
-	bash scripts/bench-add.sh $(CASE_ID) $(if $(ARTIFACT),--artifact $(ARTIFACT)) $(if $(SOURCE),--source $(SOURCE)) $(if $(TOOL),--tool $(TOOL)) $(if $(OPERATION),--operation $(OPERATION)) $(if $(EVIDRA_BIN),--evidra-bin $(EVIDRA_BIN)) $(if $(NO_PROCESS),--no-process)
 
 prompts-generate:
 	bash scripts/prompts-generate.sh

@@ -32,7 +32,6 @@ execution. Passive recording (bridge/proxy mode) works without it.
 **Intelligence** (read path, post-hoc):
 - Signal detection: 8 behavioral detectors across evidence sequences
 - Scoring: weighted penalty model → 0-100 reliability metric
-- External benchmarking: Evidra Bench consumes scorecards and evidence through the public Evidra API
 - Analytics: scorecards, explain, trends
 
 ## Observation Modes
@@ -94,7 +93,7 @@ Hosted mode changes where evidence is collected and replayed, not what evidence 
                                                                     │
   Storage:                                                          ▼
     local ──▸ JSONL evidence chain                          scorecard / explain
-    hosted ──▸ Postgres (evidra-api)                        bench comparison
+    hosted ──▸ Postgres (evidra-api)                        trend comparison
 ```
 
 ## Where To Find Details

@@ -116,19 +116,3 @@ When you update Evidra (`brew upgrade evidra` or download a new release), run `e
 | Cursor | Planned | — |
 | Codex | Planned | — |
 | Windsurf | Planned | — |
-
----
-
-## Measuring Skill Impact
-
-Run benchmarks with and without the skill to measure its impact:
-
-```bash
-# Without skill (proxy mode — baseline)
-infra-bench bench --model sonnet --proxy-mode
-
-# With skill (smart prescribe)
-infra-bench bench --model sonnet --smart-prescribe
-```
-
-Compare results in Evidra Bench at `https://lab.evidra.cc/bench/runs`.

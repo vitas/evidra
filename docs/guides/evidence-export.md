@@ -3,7 +3,7 @@
 ## Overview
 
 `evidra export` creates anonymized evidence bundles that are safe to share
-in GitHub issues, benchmark reports, or with the evidra team. All behavioral
+in GitHub issues, support threads, or with the Evidra team. All behavioral
 signals and scores are preserved; all identifying information is replaced
 with deterministic hashes.
 
@@ -12,11 +12,6 @@ with deterministic hashes.
 ```bash
 # Export your latest evidence (anonymized by default)
 evidra export --evidence-dir ~/.evidra/evidence
-
-# Export a specific run from infra-bench
-evidra export \
-  --evidence-dir runs/e2e/broken-deployment-sonnet/evidence/<session-dir> \
-  --include-scorecard
 
 # Export with custom output path
 evidra export \
@@ -80,23 +75,22 @@ evidra export --evidence-dir ~/.evidra/evidence --output issue-evidence
 tar czf issue-evidence.tar.gz issue-evidence/
 ```
 
-### Share Benchmark Results
+### Share a Session With Scorecard Context
 
 ```bash
-# After running infra-bench
 evidra export \
-  --evidence-dir runs/e2e/broken-deployment-sonnet/evidence/<session> \
+  --evidence-dir ~/.evidra/evidence \
   --include-scorecard \
-  --output benchmark-broken-deployment
+  --output scored-session-evidence
 ```
 
-### Contribute to Community Dataset
+### Export Multiple Local Sessions
 
 ```bash
-# Export all evidence from a benchmark run
-for session in runs/e2e/*/evidence/*/; do
-  name=$(basename $(dirname $(dirname "$session")))
-  evidra export --evidence-dir "$session" --output "dataset/$name"
+# Export every local evidence directory under a custom root
+for session in /path/to/evidence-sessions/*/; do
+  name=$(basename "$session")
+  evidra export --evidence-dir "$session" --output "exports/$name"
 done
 ```
 

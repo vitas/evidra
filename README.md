@@ -59,13 +59,13 @@ brew install samebits/tap/evidra
 ### Smart output — fewer tokens, same information
 
 ```
-Agent: run_command("kubectl get deployment web -n bench")
+Agent: run_command("kubectl get deployment web -n demo")
 
 # Without evidra-mcp (raw JSON): ~2,400 tokens
 {"apiVersion":"apps/v1","metadata":{"managedFields":[...],...},"spec":{...},"status":{...}}
 
 # With evidra-mcp (smart output): ~40 tokens
-deployment/web (bench): 0/2 ready | image: nginx:99.99 | Available=False
+deployment/web (demo): 0/2 ready | image: nginx:99.99 | Available=False
 ```
 
 ### Auto-evidence for mutations — zero agent code
@@ -80,12 +80,11 @@ Agent: run_command("kubectl apply -f fix.yaml")
 
 Read-only commands (`get`, `describe`, `logs`) execute directly — no overhead.
 
-### Skills — tested on real infrastructure
+### Skills
 
 Install the [Evidra skill](docs/guides/skill-setup.md) to give your agent
 operational discipline: diagnosis before fix, safety boundaries, domain-specific
-patterns. Skills are tested on 62 real scenarios via [infra-bench](https://lab.evidra.cc)
-before shipping — skills that hurt performance don't ship.
+patterns.
 
 ### 7 default tools, plus optional Full Prescribe
 
@@ -111,7 +110,7 @@ Most agents only need `run_command`. Use `collect_diagnostics` when the model wo
 | Output | Raw JSON (~2400 tokens) | Smart summary (~40 tokens) |
 | Evidence | None | Auto prescribe/report for mutations |
 | Security | Open | Command allowlist + blocked subcommands |
-| Skills | None | Bench-tested, installable |
+| Skills | None | Installable role guidance |
 | Scoring | None | Reliability scorecards + behavioral signals |
 
 ## For Platform Teams
@@ -141,24 +140,6 @@ evidra scorecard --period 30d
 ```
 
 References: [Self-hosted setup](docs/guides/self-hosted-setup.md) · [CLI reference](docs/integrations/cli-reference.md) · [API reference](docs/api-reference.md)
-
-## For Agent Benchmarking
-
-Test which skills and tools actually improve your agent. 62 real scenarios
-on real Kubernetes clusters.
-
-```bash
-# Baseline — no skill
-infra-bench certify --track cka --model sonnet --provider bifrost
-
-# With role skill
-infra-bench certify --track cka --model sonnet --role k8s-admin
-
-# Result: skills help L1 (75% fewer turns) but break L2 diagnosis
-```
-
-Bench repo: [evidra-infra-bench](https://github.com/vitas/evidra-infra-bench) |
-Dashboard: [lab.evidra.cc/bench](https://lab.evidra.cc/bench)
 
 ## Intelligence Layer
 

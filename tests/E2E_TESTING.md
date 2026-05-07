@@ -16,7 +16,6 @@ Real-world artifact-backed acceptance is the authoritative top-level e2e layer.
 | `tests/e2e` | Real-world product acceptance | Curated acceptance artifacts plus promoted OSS corpus fixtures referenced through `tests/artifacts/catalog.yaml` | Canonicalization, classification, findings, and noise handling on realistic artifacts |
 | `tests/contracts` | Synthetic contract and integration validation | Small handcrafted fixtures in `tests/contracts/fixtures/` | CLI workflow contracts, output shape, signing, explain/compare, session filtering, scanner ingest |
 | `tests/inspector` | MCP Inspector and transport integration | Curated JSON cases + transport fixtures | Inspector runner behavior, stdio/REST/hosted transport coverage |
-| `tests/benchmark` | Dataset and benchmark contract validation | Benchmark cases, contract snapshots, and corpus metadata | Dataset integrity, benchmark contract drift, coverage reporting |
 | `tests/signal-validation` | Retained signal/scoring calibration harness | Local evidence sequences, no external infra | Signal differentiation and scoring sanity |
 | Package tests under `cmd/`, `internal/`, `pkg/` | Narrow local behavior | Temp files, unit fixtures | Parser behavior, detector logic, scoring math, command-specific contracts |
 
@@ -54,17 +53,6 @@ This suite covers:
 - local MCP stdio
 - local REST backend integration
 - hosted MCP and hosted REST modes when network tests are explicitly enabled
-
-### `tests/benchmark`
-
-The benchmark layer is not product e2e. It validates the benchmark dataset and
-its contract surfaces:
-
-- dataset schema and metadata
-- shared vendored artifact fixtures under `tests/artifacts/fixtures/`
-- importer availability for the first reviewed upstream sources
-- contract drift for promoted cases
-- coverage reporting for the limited benchmark dataset
 
 ### `tests/signal-validation`
 
@@ -115,8 +103,7 @@ Recent reduction applied:
 Primary acceptance artifacts are vendored under git:
 
 - real-world acceptance catalog: `tests/artifacts/catalog.yaml`
-- shared vendored fixtures for acceptance and benchmark flows: `tests/artifacts/fixtures/`
-- benchmark case metadata: `tests/benchmark/cases/`
+- shared vendored fixtures for acceptance flows: `tests/artifacts/fixtures/`
 - synthetic contract fixtures: `tests/contracts/fixtures/`
 
 Rules:
@@ -124,20 +111,14 @@ Rules:
 - no runtime downloading for primary CI acceptance coverage
 - no mirroring of full upstream repositories when a curated artifact slice is enough
 - every real-world artifact should have provenance metadata and intended coverage
-- benchmark cases reference the shared corpus directly instead of copying
-  case-local duplicates
 
 Current reality:
 
-- the limited benchmark dataset now references reviewed first-wave fixtures from
-  Kubescape, Checkov, and Kubernetes docs under `tests/artifacts/fixtures/`
 - the real-world acceptance suite now consumes shared Kubernetes and Terraform
   fixtures directly from that root through the acceptance catalog
 - the exact split between promoted OSS fixtures and remaining curated
   acceptance-only artifacts is documented in
   [Acceptance Fixture Status](../docs/guides/acceptance-fixture-status.md)
-- benchmark source manifests must carry exact upstream refs instead of local
-  snapshot placeholders
 - some real fixtures are still curated local slices with partial provenance
 - the next artifact-acquisition wave should replace those with better documented
   open-source fixture captures
@@ -156,7 +137,6 @@ Current reality:
 | Record vs. import parity | `tests/contracts/run_record_parity_test.go` |
 | Signed evidence and tamper detection | `tests/contracts/signing_test.go` |
 | MCP transport and inspector modes | `tests/inspector/run_inspector_tests.sh`, `pkg/mcpserver/e2e_test.go` |
-| Benchmark dataset integrity | `tests/benchmark/scripts/*.sh` and benchmark metadata |
 | Signal differentiation | `tests/signal-validation/validate-signals-engine.sh` |
 
 ## Current Gaps
@@ -177,9 +157,6 @@ real-world artifact coverage over time:
 | `make test-contracts` | synthetic contract suite (`tests/contracts`) |
 | `make test-mcp-inspector-ci` | inspector/transport suite |
 | `make test-signals` | retained signal/scoring calibration |
-| `make benchmark-validate` | benchmark dataset validation |
-| `make benchmark-check-contracts` | benchmark contract drift checks |
-| `make benchmark-coverage` | benchmark coverage report |
 
 The CI workflow should keep these layers visible as separate steps so repo
 readers can map suite names directly to pipeline execution.

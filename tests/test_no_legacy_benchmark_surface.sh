@@ -25,6 +25,22 @@ if [ -d pkg/signalaudit ]; then
   fail_found "signal audit package belongs in evidra-bench, not core"
 fi
 
+if [ -d tests/benchmark ]; then
+  fail_found "legacy benchmark corpus still present in core"
+fi
+
+if [ -e scripts/bench-add.sh ]; then
+  fail_found "legacy benchmark corpus helper still present in core"
+fi
+
+if grep -nE '^[[:space:]]*(benchmark-[A-Za-z0-9_-]+|bench-add):' Makefile 2>/dev/null; then
+  fail_found "legacy benchmark Make targets still present in core"
+fi
+
+if grep -rnE 'tests/benchmark|benchmark-validate|benchmark-check-contracts|benchmark-coverage|bench-add' .github/workflows 2>/dev/null; then
+  fail_found "legacy benchmark CI/release hooks still present in core"
+fi
+
 if find internal/db/migrations -maxdepth 1 -type f \( -name '*bench*' -o -name '*benchmark*' \) -print -quit | grep -q .; then
   find internal/db/migrations -maxdepth 1 -type f \( -name '*bench*' -o -name '*benchmark*' \) -print >&2
   fail_found "core migration filenames should not carry bench-specific names"

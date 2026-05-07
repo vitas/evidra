@@ -15,11 +15,6 @@ fail() {
 [[ -f .github/workflows/dco.yml ]] || fail "DCO workflow should exist"
 [[ -x tests/test_acceptance_corpus_promotion.sh ]] || fail "acceptance corpus promotion guard should exist"
 [[ -x tests/test_unified_artifact_layout.sh ]] || fail "unified artifact layout guard should exist"
-[[ -x tests/benchmark/scripts/validate-provenance.sh ]] || fail "benchmark provenance validator should exist"
-[[ -x tests/benchmark/scripts/validate-case-metadata.sh ]] || fail "benchmark case metadata validator should exist"
-[[ -x tests/benchmark/scripts/import-kubescape-fixtures.sh ]] || fail "Kubescape importer should exist"
-[[ -x tests/benchmark/scripts/import-checkov-fixtures.sh ]] || fail "Checkov importer should exist"
-[[ -x tests/benchmark/scripts/import-k8s-doc-examples.sh ]] || fail "Kubernetes docs importer should exist"
 
 grep -Fq "Developer Certificate of Origin" CONTRIBUTING.md \
   || fail "CONTRIBUTING.md should document the DCO policy"

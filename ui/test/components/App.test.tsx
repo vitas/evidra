@@ -47,7 +47,7 @@ describe("App", () => {
     );
   });
 
-  it("renders a Bench CTA in the hero actions", () => {
+  it("renders core hero actions", () => {
     render(<App />);
 
     const hero = screen
@@ -59,9 +59,9 @@ describe("App", () => {
     expect(hero).not.toBeNull();
     expect(
       within(hero as HTMLElement).getByRole("link", {
-        name: "Test Your Agent Skills",
+        name: "Get API Key",
       }),
-    ).toHaveAttribute("href", "https://lab.evidra.cc");
+    ).toHaveAttribute("href", "/onboarding");
   });
 
   it("does not expose raw signal weights on the landing page", () => {

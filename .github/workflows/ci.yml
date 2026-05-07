@@ -106,35 +106,11 @@ jobs:
       - name: Check test naming consistency
         run: bash tests/test_fixture_snapshot_names.sh
 
-      - name: Check OSS dataset provenance
-        run: bash tests/test_oss_dataset_provenance.sh
-
-      - name: Check benchmark case metadata
-        run: bash tests/test_benchmark_case_metadata.sh
-
       - name: Check OSS dataset corpus
         run: bash tests/test_oss_dataset_corpus.sh
-
-      - name: Check bench-add corpus scaffolding
-        run: bash tests/test_bench_add_corpus_scaffold.sh
 
       - name: Check acceptance corpus promotion
         run: bash tests/test_acceptance_corpus_promotion.sh
 
       - name: Check unified artifact layout
         run: bash tests/test_unified_artifact_layout.sh
-
-      - name: Validate benchmark dataset
-        run: make benchmark-validate
-
-      - name: Check benchmark contract snapshot drift
-        run: make benchmark-check-contracts EVIDRA_BIN=bin/evidra
-
-      - name: Generate benchmark coverage report
-        run: make benchmark-coverage
-
-      - name: Upload benchmark coverage report
-        uses: actions/upload-artifact@v7
-        with:
-          name: benchmark-coverage
-          path: tests/benchmark/COVERAGE.md

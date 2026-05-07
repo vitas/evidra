@@ -17,7 +17,7 @@ fixtures lives in:
 
 ## Current Promoted OSS Fixtures
 
-These fixtures are now first-class acceptance inputs, not just benchmark inputs.
+These fixtures are first-class acceptance inputs with exact upstream provenance.
 
 | Fixture | Path | Upstream Source | Why It Is Promoted |
 | --- | --- | --- | --- |
@@ -45,8 +45,8 @@ the first OSS corpus wave does not yet replace.
 | Kustomize monitoring | `tests/artifacts/fixtures/kustomize/kustomize_monitoring.yaml` | Kustomize rendered manifest handling | Curated local, partial provenance |
 | OpenShift app | `tests/artifacts/fixtures/openshift/openshift_app.yaml` | `oc` and OpenShift-specific resource handling | Curated local, partial provenance |
 
-These are still valid acceptance fixtures. They are not benchmark inputs, and
-they should stay until equivalent or better OSS-backed captures exist.
+These are still valid acceptance fixtures, and they should stay until equivalent
+or better OSS-backed captures exist.
 
 ## What Was Replaced
 
@@ -70,12 +70,12 @@ remaining curated local breadth fixtures where practical:
 - additional Terraform and Kubernetes pass/fail pairs from Kyverno, Polaris,
   and selected `terraform-provider-aws` examples
 
-This does **not** require converting every acceptance artifact into a benchmark
-case. The rule is simpler:
+This does **not** require converting every acceptance artifact into another test
+surface. The rule is simpler:
 
-- benchmark corpus is the preferred source for promotable OSS fixtures
-- acceptance may keep curated artifacts when they cover behavior the corpus does
-  not yet represent well
+- prefer exact upstream provenance for new real-world fixtures
+- keep curated artifacts when they cover behavior the OSS fixture set does not
+  yet represent well
 
 ## Related Docs
 

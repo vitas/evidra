@@ -9,16 +9,6 @@ fail() {
   exit 1
 }
 
-required_scripts=(
-  tests/benchmark/scripts/import-kubescape-fixtures.sh
-  tests/benchmark/scripts/import-checkov-fixtures.sh
-  tests/benchmark/scripts/import-k8s-doc-examples.sh
-)
-
-for script in "${required_scripts[@]}"; do
-  [[ -x "$script" ]] || fail "missing executable $script"
-done
-
 required_corpus_files=(
   tests/artifacts/fixtures/k8s/kubescape-privileged-container-fail.yaml
   tests/artifacts/fixtures/k8s/kubescape-hostpath-mount-fail.yaml

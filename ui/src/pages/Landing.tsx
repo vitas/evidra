@@ -11,8 +11,7 @@ const PIPELINE_CHART = `flowchart LR
   F["assess.Pipeline<br/>Assessor 1..N"] --> E
   E --> G["Signal Detectors<br/>8 behavioral signals"]
   G --> H["Scoring Engine"]
-  H --> I["Scorecard<br/>0-100 + Band"]
-  I --> J["External Benchmark<br/>agent evaluation"]`;
+  H --> I["Scorecard<br/>0-100 + Band"]`;
 
 const SYSTEM_CHART = `flowchart TB
   subgraph Agent ["AI Agent"]
@@ -32,7 +31,6 @@ const SYSTEM_CHART = `flowchart TB
   subgraph Intelligence ["Intelligence"]
     Signals["8 Signal Detectors"]
     Scoring["Scoring 0-100"]
-    Bench["External Benchmarking"]
   end
   subgraph Storage ["Storage"]
     DB[("PostgreSQL")]
@@ -42,7 +40,7 @@ const SYSTEM_CHART = `flowchart TB
   AE --> Pipeline
   PS --> Pipeline
   Store --> DB
-  DB --> Signals --> Scoring --> Bench`;
+  DB --> Signals --> Scoring`;
 
 export const SEQUENCE_CHART = `sequenceDiagram
   participant Agent as AI Agent
@@ -277,8 +275,6 @@ export function Landing() {
       <Divider />
       <McpSetup />
       <Divider />
-      <Benchmark />
-      <Divider />
       <ApiReference />
       <Divider />
       <GuidesSection />
@@ -330,9 +326,6 @@ function Hero() {
           <a href="/docs/api" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold glass text-fg-muted transition-all hover:border-accent hover:text-fg no-underline">
             API Docs
           </a>
-          <a href="https://lab.evidra.cc" target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold glass text-fg-muted transition-all hover:border-accent hover:text-fg no-underline">
-            Test Your Agent Skills
-          </a>
         </div>
       </Container>
     </section>
@@ -353,8 +346,8 @@ function TheGap() {
     },
     {
       icon: "\uD83C\uDFAF",
-      title: "Role skills \u2014 bench-tested",
-      body: "k8s-admin, security-ops, platform-eng \u2014 compact prompts that shift agent behavior. Tested on 62 real scenarios. Skills that hurt performance don\u2019t ship.",
+      title: "Role skills \u2014 operational defaults",
+      body: "k8s-admin, security-ops, platform-eng \u2014 compact prompts that steer diagnosis, safety boundaries, and evidence discipline without extra agent code.",
     },
   ];
 
@@ -573,67 +566,6 @@ function McpSetup() {
           Full setup guide with agent instructions, configuration options, and troubleshooting:{" "}
           <a href="https://github.com/vitas/evidra/blob/main/docs/guides/mcp-setup.md" target="_blank" rel="noopener" className="font-semibold">MCP Setup Guide &rarr;</a>
         </p>
-      </Container>
-    </section>
-  );
-}
-
-function Benchmark() {
-  const rows = [
-    { metric: "Protocol compliance", haiku: "None", sonnet: "Self-discovered, self-correcting", skill: "Clean, first-try" },
-    { metric: "Evidence chain", haiku: "Empty", sonnet: "Complete", skill: "Complete" },
-    { metric: "Turns", haiku: "2", sonnet: "30", skill: "26" },
-    { metric: "Tokens", haiku: "4,381", sonnet: "2,633", skill: "2,051" },
-  ];
-
-  return (
-    <section id="benchmark" className="py-8">
-      <Container>
-        <SectionLabel>Benchmark</SectionLabel>
-        <SectionTitle>MCP Tool Descriptions Are Enough</SectionTitle>
-        <p className="text-fg-muted mb-8 text-[1.14rem]">
-          The prescribe/report protocol works out of the box with capable models through MCP tool descriptions alone. The Evidra skill doesn&rsquo;t enable the protocol &mdash; it sharpens it: fewer turns, fewer tokens, correct behavior on first attempt.
-        </p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-[0.85rem] border-collapse">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-3 pr-4 font-semibold text-fg-muted"></th>
-                <th className="text-left py-3 px-4 font-semibold text-fg-muted">Haiku / no skill</th>
-                <th className="text-left py-3 px-4 font-semibold text-fg-muted">Sonnet / no skill</th>
-                <th className="text-left py-3 px-4 font-semibold text-accent">Sonnet / skill</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.metric} className="border-b border-border/50">
-                  <td className="py-3 pr-4 font-medium text-fg">{r.metric}</td>
-                  <td className="py-3 px-4 text-fg-muted">{r.haiku}</td>
-                  <td className="py-3 px-4 text-fg-muted">{r.sonnet}</td>
-                  <td className="py-3 px-4 text-fg font-medium">{r.skill}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="text-[0.85rem] text-fg-muted mt-6">
-          Sonnet discovers and follows the protocol without any skill &mdash; it self-corrects along the way. The skill removes the exploration overhead: correct behavior on first attempt, 23% fewer tokens.
-        </p>
-        <div className="mt-8 flex items-center justify-between flex-wrap gap-4 bg-accent-subtle border border-border rounded-[10px] p-5 px-6">
-          <div>
-            <div className="font-mono text-[0.72rem] font-medium tracking-widest uppercase text-accent mb-1">Live Demo</div>
-            <h3 className="text-[0.92rem] font-semibold text-fg mb-1">Infra Bench &mdash; Test &amp; Certify Agent Skills</h3>
-            <p className="text-[0.83rem] text-fg-muted leading-relaxed">62 real infrastructure scenarios across Kubernetes, Helm, Argo CD, Terraform, and AWS. Test role-based skills (k8s-admin, security-ops, platform-eng) against real clusters. Skills that pass ship in evidra-mcp.</p>
-          </div>
-          <a
-            href="https://lab.evidra.cc/bench/runs"
-            target="_blank"
-            rel="noopener"
-            className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold bg-accent text-white transition-all hover:bg-accent-bright hover:-translate-y-0.5 hover:shadow-lg no-underline whitespace-nowrap"
-          >
-            Open Bench &rarr;
-          </a>
-        </div>
       </Container>
     </section>
   );
