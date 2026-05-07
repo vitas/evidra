@@ -2,6 +2,7 @@ package db
 
 import (
 	"embed"
+	"strings"
 	"testing"
 )
 
@@ -14,34 +15,27 @@ func TestMigrationsEmbedded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read embedded migrations: %v", err)
 	}
-	found := make(map[string]bool, len(entries))
-	for _, entry := range entries {
-		found[entry.Name()] = true
+
+	wantMigrations := map[string]bool{
+		"001_tenants_and_keys.up.sql":      false,
+		"002_evidence_entries.up.sql":      false,
+		"003_webhook_events.up.sql":        false,
+		"004_webhook_event_results.up.sql": false,
 	}
-	for _, want := range []string{
-		"001_tenants_and_keys.up.sql",
-		"002_evidence_entries.up.sql",
-		"003_core_compatibility.up.sql",
-		"004_webhook_events.up.sql",
-		"005_webhook_event_results.up.sql",
-		"006_core_compatibility.up.sql",
-		"006_core_compatibility.down.sql",
-		"007_drop_legacy_tables.up.sql",
-		"007_drop_legacy_tables.down.sql",
-		"008_core_compatibility.up.sql",
-		"008_core_compatibility.down.sql",
-		"009_core_compatibility.up.sql",
-		"009_core_compatibility.down.sql",
-		"010_core_compatibility.up.sql",
-		"010_core_compatibility.down.sql",
-		"011_core_compatibility.up.sql",
-		"011_core_compatibility.down.sql",
-		"012_core_compatibility.up.sql",
-		"012_core_compatibility.down.sql",
-		"013_core_compatibility.up.sql",
-		"013_core_compatibility.down.sql",
-	} {
-		if !found[want] {
+	for _, entry := range entries {
+		name := entry.Name()
+		for _, forbidden := range []string{"bench", "benchmark", "core_compatibility", "drop_legacy", "legacy"} {
+			if strings.Contains(name, forbidden) {
+				t.Fatalf("core migration %s contains forbidden marker %q", name, forbidden)
+			}
+		}
+		if _, ok := wantMigrations[name]; !ok {
+			t.Fatalf("unexpected embedded migration %s", name)
+		}
+		wantMigrations[name] = true
+	}
+	for want, found := range wantMigrations {
+		if !found {
 			t.Fatalf("missing embedded migration %s", want)
 		}
 	}

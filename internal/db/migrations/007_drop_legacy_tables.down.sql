@@ -1,2 +1,0 @@
--- 007 compatibility no-op.
--- Legacy run/result tables are not restored by core migrations.

@@ -30,6 +30,11 @@ if find internal/db/migrations -maxdepth 1 -type f \( -name '*bench*' -o -name '
   fail_found "core migration filenames should not carry bench-specific names"
 fi
 
+if find internal/db/migrations -maxdepth 1 -type f \( -name '*core_compatibility*' -o -name '*drop_legacy*' -o -name '*legacy*' \) -print -quit | grep -q .; then
+  find internal/db/migrations -maxdepth 1 -type f \( -name '*core_compatibility*' -o -name '*drop_legacy*' -o -name '*legacy*' \) -print >&2
+  fail_found "core migrations should describe only the current evidra schema"
+fi
+
 if find docs/plans docs/product -type f \( -name '*bench*' -o -name '*benchmark*' \) -print -quit | grep -q .; then
   find docs/plans docs/product -type f \( -name '*bench*' -o -name '*benchmark*' \) -print >&2
   fail_found "bench planning docs belong in evidra-bench"
