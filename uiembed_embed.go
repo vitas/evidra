@@ -1,6 +1,6 @@
 //go:build embed_ui
 
-package evidrabenchmark
+package evidra
 
 import (
 	"embed"

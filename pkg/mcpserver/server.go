@@ -23,7 +23,7 @@ import (
 // ForwardFunc is an optional callback to forward evidence entries to the API.
 type ForwardFunc func(ctx context.Context, entry json.RawMessage)
 
-// Options configures the benchmark MCP server.
+// Options configures the Evidra MCP server.
 type Options struct {
 	Name               string
 	Version            string

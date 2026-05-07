@@ -97,6 +97,9 @@ jobs:
       - name: Check supported surface positioning
         run: bash tests/test_supported_core_positioning.sh
 
+      - name: Check legacy benchmark surface cleanup
+        run: bash tests/test_no_legacy_benchmark_surface.sh
+
       - name: Check MCP mode label docs
         run: bash tests/test_mode_labels_docs.sh
 

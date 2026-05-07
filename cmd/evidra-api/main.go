@@ -14,7 +14,7 @@ import (
 	"syscall"
 	"time"
 
-	evidrabenchmark "samebits.com/evidra"
+	"samebits.com/evidra"
 	"samebits.com/evidra/internal/analyticsvc"
 	"samebits.com/evidra/internal/api"
 	"samebits.com/evidra/internal/db"
@@ -338,8 +338,8 @@ func defaultUIFS() (fs.FS, error) {
 	// Prefer the built React bundle when present. The checked-in static/ tree is a
 	// compatibility fallback and should mirror the public product wording, not
 	// grow into a separate product surface.
-	if evidrabenchmark.UIDistFS != nil {
-		return evidrabenchmark.UIDistFS, nil
+	if evidra.UIDistFS != nil {
+		return evidra.UIDistFS, nil
 	}
 	return fs.Sub(staticFS, "static")
 }
