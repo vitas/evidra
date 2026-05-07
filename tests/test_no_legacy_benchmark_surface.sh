@@ -41,6 +41,20 @@ if grep -rnE 'tests/benchmark|benchmark-validate|benchmark-check-contracts|bench
   fail_found "legacy benchmark CI/release hooks still present in core"
 fi
 
+if rg -n 'infra-bench|evidra-infra-bench|lab\.evidra\.cc|/v1/bench|/v1/benchmark|BenchmarkService' \
+  README.md docs cmd internal pkg scripts tests .github ui Makefile \
+  --glob '!docs/plans/**' \
+  --glob '!docs/product/**' \
+  --glob '!tests/test_no_legacy_benchmark_surface.sh' \
+  --glob '!tests/test_unified_artifact_layout.sh' \
+  --glob '!tests/test_acceptance_corpus_promotion.sh' \
+  --glob '!tests/test_module_path_refs.sh' \
+  --glob '!cmd/evidra/command_registry_test.go' \
+  --glob '!internal/db/db_test.go' \
+  --glob '!ui/package-lock.json' 2>/dev/null; then
+  fail_found "core active tree still has bench/lab-specific references"
+fi
+
 if find internal/db/migrations -maxdepth 1 -type f \( -name '*bench*' -o -name '*benchmark*' \) -print -quit | grep -q .; then
   find internal/db/migrations -maxdepth 1 -type f \( -name '*bench*' -o -name '*benchmark*' \) -print >&2
   fail_found "core migration filenames should not carry bench-specific names"
