@@ -27,7 +27,7 @@ describe("App", () => {
     render(<App />);
     expect(
       screen.getByRole("heading", {
-        name: /Know what your agent intended\.\s*Know what actually happened\./i,
+        name: /AI infra agents need evidence, not vibes\./i,
       }),
     ).toBeInTheDocument();
   });
@@ -52,16 +52,16 @@ describe("App", () => {
 
     const hero = screen
       .getByRole("heading", {
-        name: /Know what your agent intended\.\s*Know what actually happened\./i,
+        name: /AI infra agents need evidence, not vibes\./i,
       })
       .closest("section");
 
     expect(hero).not.toBeNull();
     expect(
       within(hero as HTMLElement).getByRole("link", {
-        name: "Get API Key",
+        name: "Start with Bench",
       }),
-    ).toHaveAttribute("href", "/onboarding");
+    ).toHaveAttribute("href", "https://bench.evidra.cc/");
   });
 
   it("does not expose raw signal weights on the landing page", () => {

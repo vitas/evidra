@@ -300,25 +300,63 @@ function Container({ children, className = "" }: { children: React.ReactNode; cl
 
 function Hero() {
   return (
-    <section className="relative pt-16 pb-12 text-center bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,var(--color-accent-subtle),var(--color-bg)_70%)] overflow-hidden">
+    <section className="relative pt-16 pb-14 text-center bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,var(--color-accent-subtle),var(--color-bg)_70%)] overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(circle,var(--color-accent)_1px,transparent_1px)] bg-[length:24px_24px] opacity-[0.06] [mask-image:radial-gradient(ellipse_60%_70%_at_50%_30%,black,transparent)]" />
       <Container className="relative">
         <div className="inline-flex items-center gap-2 font-mono text-[0.75rem] font-medium text-accent bg-accent-subtle border border-border rounded-full px-4 py-1 mb-6 tracking-wide">
           <span className="w-1.5 h-1.5 rounded-full bg-accent inline-block animate-pulse" />
-          Open Source &middot; Apache 2.0 &middot; DevOps MCP Server &middot; Intelligence Layer
+          Bench-first evidence for AI infrastructure
         </div>
         <h1 className="text-[clamp(2.2rem,5vw,3.2rem)] font-extrabold text-fg leading-[1.15] tracking-tighter mb-5">
-          Know what your agent intended.<br /><span className="text-gradient">Know what actually happened.</span>
+          AI infra agents need evidence, not vibes.
         </h1>
-        <p className="text-[1.15rem] text-fg-muted max-w-[640px] mx-auto mb-3 leading-relaxed">
-          Every infrastructure mutation recorded &mdash; across MCP agents, CI pipelines, A2A agents, and scripts. Risk assessment, behavioral signals, reliability scoring.
+        <p className="text-[1.15rem] text-fg-muted max-w-[700px] mx-auto mb-10 leading-relaxed">
+          Evidra now leads with external regression testing: run realistic
+          Kubernetes, Terraform, and MCP-tool scenarios, compare behavior over
+          time, and produce readiness reports teams can trust.
         </p>
-        <p className="text-[0.95rem] text-fg-body max-w-[620px] mx-auto mb-10 leading-relaxed">
-          Use as a DevOps MCP server (kubectl, helm, terraform, aws with smart output) or as a standalone flight recorder via CLI. Two-in-one.
-        </p>
+
+        <div className="grid grid-cols-[1.15fr_0.85fr] gap-4 text-left mb-8 max-md:grid-cols-1">
+          <div className="glass-card p-6 border-l-[3px] border-l-accent">
+            <div className="font-mono text-[0.68rem] font-semibold uppercase tracking-widest text-accent mb-3">
+              Primary product
+            </div>
+            <h2 className="text-[1.35rem] font-bold text-fg tracking-tight mb-2">
+              Evidra Bench
+            </h2>
+            <p className="text-[0.92rem] text-fg-muted leading-relaxed mb-4">
+              External regression testing for infrastructure agents and MCP
+              tools. Benchmark models, prompts, skills, and tool servers against
+              the same production-shaped scenarios.
+            </p>
+            <div className="flex flex-wrap gap-2 text-[0.72rem] text-fg-body">
+              <span className="rounded-md border border-border px-2 py-1">readiness reports</span>
+              <span className="rounded-md border border-border px-2 py-1">failure autopsy</span>
+              <span className="rounded-md border border-border px-2 py-1">public leaderboard</span>
+            </div>
+          </div>
+
+          <div className="glass-card p-6">
+            <div className="font-mono text-[0.68rem] font-semibold uppercase tracking-widest text-fg-muted mb-3">
+              Open source
+            </div>
+            <h2 className="text-[1.1rem] font-bold text-fg tracking-tight mb-2">
+              Evidra OSS
+            </h2>
+            <p className="text-[0.86rem] text-fg-muted leading-relaxed mb-4">
+              Flight recorder for agent actions and outcomes. Use the CLI and
+              MCP server to capture intent, execution, and evidence when agents
+              touch infrastructure.
+            </p>
+            <a href="https://github.com/vitas/evidra" target="_blank" rel="noopener" className="font-semibold text-[0.85rem] no-underline">
+              View OSS →
+            </a>
+          </div>
+        </div>
+
         <div className="flex gap-3 justify-center flex-wrap">
-          <a href="#get-started" className="btn-primary inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold bg-accent text-white transition-all hover:bg-accent-bright hover:-translate-y-0.5 glow-accent hover:shadow-lg no-underline">
-            Quick Start
+          <a href="https://bench.evidra.cc/" className="btn-primary inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold bg-accent text-white transition-all hover:bg-accent-bright hover:-translate-y-0.5 glow-accent hover:shadow-lg no-underline">
+            Start with Bench
           </a>
           <Link to="/onboarding" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold glass text-fg-muted transition-all hover:border-accent hover:text-fg no-underline">
             Get API Key
