@@ -25,7 +25,7 @@ Without the skill, agents use `run_command` and get auto-evidence for free (prox
 ## Install
 
 ```bash
-# Install the default smart skill globally (recommended — works across all projects)
+# Install the default smart prescribe skill globally (recommended — works across all projects)
 evidra skill install
 
 # Install the full-prescribe skill variant
@@ -89,7 +89,7 @@ Observes and scores              • Decision flowchart
 
 The MCP server handles evidence recording, risk analysis, and scoring. The skill handles agent behavior — ensuring the agent calls the right tool at the right time with the right inputs.
 
-Default install (`evidra skill install`) writes the smart skill:
+Default install (`evidra skill install`) writes the smart prescribe skill:
 
 - send `tool`, `operation`, `resource`, and optional `namespace` when the target is known
 - keep `actor.type`, `actor.id`, `actor.origin`, and `actor.skill_version` present
