@@ -5,6 +5,7 @@ import (
 	"context"
 	"embed"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
@@ -15,6 +16,8 @@ import (
 
 //go:embed migrations/*.sql
 var migrations embed.FS
+
+const coreMigrationsTable = "evidra_schema_migrations"
 
 // Connect creates a connection pool and runs pending migrations.
 func Connect(databaseURL string) (*pgxpool.Pool, error) {
@@ -45,7 +48,12 @@ func runMigrations(databaseURL string) error {
 		return fmt.Errorf("open migration source: %w", err)
 	}
 
-	m, err := migrate.NewWithSourceInstance("iofs", source, "pgx5://"+stripScheme(databaseURL))
+	migrationURL, err := migrationDatabaseURL(databaseURL)
+	if err != nil {
+		return err
+	}
+
+	m, err := migrate.NewWithSourceInstance("iofs", source, migrationURL)
 	if err != nil {
 		return fmt.Errorf("create migrator: %w", err)
 	}
@@ -58,13 +66,18 @@ func runMigrations(databaseURL string) error {
 	return nil
 }
 
-// stripScheme removes the "postgres://" or "postgresql://" prefix so
-// golang-migrate can use its own "pgx5://" scheme.
-func stripScheme(url string) string {
-	for _, prefix := range []string{"postgresql://", "postgres://"} {
-		if len(url) > len(prefix) && url[:len(prefix)] == prefix {
-			return url[len(prefix):]
-		}
+func migrationDatabaseURL(databaseURL string) (string, error) {
+	parsed, err := url.Parse(databaseURL)
+	if err != nil {
+		return "", fmt.Errorf("parse database URL: %w", err)
 	}
-	return url
+	if parsed.Scheme == "" {
+		return "", fmt.Errorf("parse database URL: missing scheme")
+	}
+
+	parsed.Scheme = "pgx5"
+	query := parsed.Query()
+	query.Set("x-migrations-table", coreMigrationsTable)
+	parsed.RawQuery = query.Encode()
+	return parsed.String(), nil
 }
