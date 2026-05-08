@@ -60,6 +60,12 @@ grep -Fq "AI infra agents need evidence, not vibes." cmd/evidra-api/static/index
 grep -Fq "https://bench.evidra.cc/" cmd/evidra-api/static/index.html \
   || fail "static landing should link to the Bench product site"
 
+grep -Fq "Evidra — AI Infra Agent Evidence and Benchmarks" ui/index.html \
+  || fail "React shell should use Bench-first SEO title"
+
+grep -Fq "external regression testing for infrastructure agents and MCP tools" ui/index.html \
+  || fail "React shell should describe Bench-first positioning"
+
 ! grep -Fq "pipeline stages and deploy jobs" ui/src/pages/Landing.tsx \
   || fail "landing source should use workflow wording"
 

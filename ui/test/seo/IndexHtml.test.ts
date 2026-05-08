@@ -2,11 +2,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const TITLE = "Evidra — DevOps MCP Server and Evidence Protocol";
+const TITLE = "Evidra — AI Infra Agent Evidence and Benchmarks";
 const DESCRIPTION =
-  "Evidra is a DevOps MCP server and evidence protocol for infrastructure automation. Record intent, outcome, and refusal with the prescribe/report lifecycle, then analyze reliability across agents, pipelines, and GitOps controllers.";
+  "Evidra Bench provides external regression testing for infrastructure agents and MCP tools. Evidra OSS records agent actions and outcomes as evidence for readiness reports, failure analysis, and public benchmarks.";
 const KEYWORDS =
-  "DevOps MCP server, AI infrastructure agents, MCP, evidence protocol, prescribe report, GitOps reliability, Argo CD, CI/CD reliability";
+  "AI infrastructure agents, MCP benchmarks, infrastructure agent regression testing, MCP tools, readiness reports, failure autopsy, public leaderboard, evidence recorder";
 
 function loadDocument() {
   const html = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
@@ -18,7 +18,7 @@ function metaContent(doc: Document, selector: string) {
 }
 
 describe("index.html SEO metadata", () => {
-  it("reflects the current project goals and MCP positioning", () => {
+  it("reflects the Bench-first positioning", () => {
     const doc = loadDocument();
 
     expect(doc.title).toBe(TITLE);
