@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Evidra — Behavioral Reliability for Infrastructure Automation</title>
+<title>Evidra — AI Infra Agent Evidence and Benchmarks</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -202,6 +202,23 @@
   .feature-card h3 { font-size: 0.92rem; font-weight: 700; color: var(--fg); margin-bottom: 0.4rem; }
   .feature-card p { font-size: 0.83rem; color: var(--fg-muted); line-height: 1.55; }
 
+  .product-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 1.25rem; }
+  @media (max-width: 768px) { .product-grid { grid-template-columns: 1fr; } }
+  .product-panel {
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.75rem; box-shadow: var(--shadow);
+  }
+  .product-panel.primary { border-left: 4px solid var(--accent); }
+  .product-kicker {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent);
+    margin-bottom: 0.65rem;
+  }
+  .product-panel h3 {
+    color: var(--fg); font-size: 1.15rem; line-height: 1.3; margin-bottom: 0.55rem;
+  }
+  .product-panel p { color: var(--fg-muted); font-size: 0.92rem; line-height: 1.65; margin-bottom: 1rem; }
+
   /* ── Tabs ── */
   .tabs {
     display: inline-flex; background: var(--accent-subtle);
@@ -327,6 +344,7 @@
     <div class="header-left">
       <span class="logo">evidra<span>.</span></span>
       <nav>
+        <a href="#bench">Bench</a>
         <a href="#features">Features</a>
         <a href="#architecture">Architecture</a>
         <a href="#get-started">Get Started</a>
@@ -347,14 +365,39 @@
 <!-- Hero -->
 <section class="hero">
   <div class="container">
-    <div class="hero-eyebrow"><span class="pulse"></span> Open Source &middot; Apache 2.0 &middot; Evidence Protocol for Infrastructure Automation</div>
-    <h1>Know what your agent intended.<br>Know what actually happened.</h1>
-    <p class="tagline">The prescribe/report protocol for agents, pipelines, and controllers.</p>
-    <p class="sub">Detect retry loops, artifact drift, protocol violations, and reconcile failures across AI agents, CI jobs, and GitOps controllers.</p>
+    <div class="hero-eyebrow"><span class="pulse"></span> Bench-first evaluation &middot; Open source evidence recorder</div>
+    <h1>AI infra agents need evidence, not vibes.</h1>
+    <p class="tagline">Evidra Bench is external regression testing for infrastructure agents and MCP tools.</p>
+    <p class="sub">Use Bench to compare agent behavior on real infrastructure failure scenarios. Use Evidra OSS as the flight recorder for agent actions and outcomes.</p>
     <div class="hero-actions">
-      <a class="btn btn-primary" href="#get-started">Get Started</a>
-      <a class="btn btn-outline" href="/docs/api">API Docs</a>
+      <a class="btn btn-primary" href="https://bench.evidra.cc/">Start with Bench</a>
+      <a class="btn btn-outline" href="#features">Explore Evidra OSS</a>
       <span class="version-tag" id="hero-version"></span>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- Bench -->
+<section id="bench" style="background: var(--bg-alt);">
+  <div class="container">
+    <div class="section-label">Primary product</div>
+    <h2 class="section-title">Evidra Bench</h2>
+    <p class="section-subtitle">External benchmark reports and readiness reports for infrastructure agents, MCP servers, and operational skills.</p>
+    <div class="product-grid">
+      <div class="product-panel primary">
+        <div class="product-kicker">Commercial path</div>
+        <h3>Baseline agents against real infrastructure incidents</h3>
+        <p>Run repeatable Kubernetes, Helm, Terraform, Argo CD, and AWS-local scenarios, then publish results as product-ready external benchmark reports.</p>
+        <a class="btn btn-primary" href="https://bench.evidra.cc/">Open Bench</a>
+      </div>
+      <div class="product-panel">
+        <div class="product-kicker">Open source</div>
+        <h3>Evidra OSS</h3>
+        <p>A flight recorder for agent intent, actions, outcomes, and reliability signals. It supports Bench, but it also works as a standalone MCP tool for evidence capture.</p>
+        <a class="btn btn-outline" href="https://github.com/vitas/evidra" target="_blank" rel="noopener">View OSS</a>
+      </div>
     </div>
   </div>
 </section>

@@ -54,6 +54,12 @@ grep -Fq '"run_command", "collect_diagnostics", "write_file", "prescribe_smart",
 grep -Fq '"--full-prescribe"' docs/guides/mcp-setup.md \
   || fail "mcp-setup should explain how prescribe_full is enabled"
 
+grep -Fq "AI infra agents need evidence, not vibes." cmd/evidra-api/static/index.html \
+  || fail "static landing should use the Bench-first root hero"
+
+grep -Fq "https://bench.evidra.cc/" cmd/evidra-api/static/index.html \
+  || fail "static landing should link to the Bench product site"
+
 ! grep -Fq "pipeline stages and deploy jobs" ui/src/pages/Landing.tsx \
   || fail "landing source should use workflow wording"
 
