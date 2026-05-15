@@ -78,11 +78,11 @@ func TestE2E_PrescribeFullReportLifecycle(t *testing.T) {
 	if prescribeOut.PrescriptionID == "" {
 		t.Fatal("prescribe returned empty prescription_id")
 	}
-	if prescribeOut.EffectiveRisk == "" {
-		t.Fatal("prescribe returned empty effective_risk")
+	if prescribeOut.EffectiveRisk != "" {
+		t.Fatalf("effective_risk = %q, want empty without assessment", prescribeOut.EffectiveRisk)
 	}
-	if len(prescribeOut.RiskInputs) == 0 {
-		t.Fatal("prescribe returned empty risk_inputs")
+	if len(prescribeOut.RiskInputs) != 0 {
+		t.Fatalf("risk_inputs = %+v, want none without assessment", prescribeOut.RiskInputs)
 	}
 	if prescribeOut.ArtifactDigest == "" {
 		t.Fatal("prescribe returned empty artifact_digest")
@@ -213,8 +213,8 @@ func TestE2E_PrescribeSmartReportLifecycle(t *testing.T) {
 	if prescribeOut.PrescriptionID == "" {
 		t.Fatal("prescribe_smart returned empty prescription_id")
 	}
-	if len(prescribeOut.RiskInputs) != 1 || prescribeOut.RiskInputs[0].Source != "evidra/matrix" {
-		t.Fatalf("risk_inputs = %+v, want single evidra/matrix input", prescribeOut.RiskInputs)
+	if len(prescribeOut.RiskInputs) != 0 {
+		t.Fatalf("risk_inputs = %+v, want none without assessment", prescribeOut.RiskInputs)
 	}
 
 	reportResult, err := session.CallTool(ctx, &mcp.CallToolParams{

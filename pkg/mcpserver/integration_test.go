@@ -33,11 +33,11 @@ func TestPrescribeReport_Lifecycle(t *testing.T) {
 	if prescOutput.PrescriptionID == "" {
 		t.Error("prescription_id must not be empty")
 	}
-	if prescOutput.EffectiveRisk == "" {
-		t.Error("effective_risk must not be empty")
+	if prescOutput.EffectiveRisk != "" {
+		t.Errorf("effective_risk = %q, want empty without assessment", prescOutput.EffectiveRisk)
 	}
-	if len(prescOutput.RiskInputs) == 0 {
-		t.Error("risk_inputs must not be empty")
+	if len(prescOutput.RiskInputs) != 0 {
+		t.Errorf("risk_inputs = %+v, want none without assessment", prescOutput.RiskInputs)
 	}
 
 	// Report
@@ -94,8 +94,8 @@ func TestPrescribeReport_SmartLifecycle(t *testing.T) {
 	if prescOutput.PrescriptionID == "" {
 		t.Fatal("prescription_id must not be empty")
 	}
-	if len(prescOutput.RiskInputs) != 1 || prescOutput.RiskInputs[0].Source != "evidra/matrix" {
-		t.Fatalf("risk_inputs = %+v, want single evidra/matrix input", prescOutput.RiskInputs)
+	if len(prescOutput.RiskInputs) != 0 {
+		t.Fatalf("risk_inputs = %+v, want none without assessment", prescOutput.RiskInputs)
 	}
 
 	reportOutput := svc.Report(ReportInput{

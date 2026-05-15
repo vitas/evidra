@@ -12,15 +12,6 @@ func preparePrescribeInput(input PrescribeInput) (PrescribeInput, error) {
 	if err := execcontract.ValidatePrescribeInput(toExecContractPrescribeInput(input)); err != nil {
 		return PrescribeInput{}, err
 	}
-	if strings.TrimSpace(input.RawArtifact) != "" || input.CanonicalAction != nil {
-		return input, nil
-	}
-
-	action, err := buildSmartCanonicalAction(input)
-	if err != nil {
-		return PrescribeInput{}, err
-	}
-	input.CanonicalAction = &action
 	return input, nil
 }
 

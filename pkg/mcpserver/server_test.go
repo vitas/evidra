@@ -363,11 +363,11 @@ func TestPrescribe_SimpleK8s(t *testing.T) {
 	if output.PrescriptionID == "" {
 		t.Fatal("missing prescription_id")
 	}
-	if output.EffectiveRisk == "" {
-		t.Fatal("missing effective_risk")
+	if output.EffectiveRisk != "" {
+		t.Fatalf("effective_risk = %q, want empty without assessment", output.EffectiveRisk)
 	}
-	if len(output.RiskInputs) == 0 {
-		t.Fatal("missing risk_inputs")
+	if len(output.RiskInputs) != 0 {
+		t.Fatalf("risk_inputs = %+v, want none without assessment", output.RiskInputs)
 	}
 	if output.ArtifactDigest == "" {
 		t.Fatal("missing artifact_digest")
@@ -375,14 +375,14 @@ func TestPrescribe_SimpleK8s(t *testing.T) {
 	if output.IntentDigest == "" {
 		t.Fatal("missing intent_digest")
 	}
-	if output.CanonVersion != "k8s/v1" {
-		t.Errorf("canon_version = %q, want %q", output.CanonVersion, "k8s/v1")
+	if output.CanonVersion != "" {
+		t.Errorf("canon_version = %q, want empty", output.CanonVersion)
 	}
-	if output.ResourceCount != 1 {
-		t.Errorf("resource_count = %d, want 1", output.ResourceCount)
+	if output.ResourceCount != 0 {
+		t.Errorf("resource_count = %d, want 0", output.ResourceCount)
 	}
-	if output.OperationClass != "mutate" {
-		t.Errorf("operation_class = %q, want %q", output.OperationClass, "mutate")
+	if output.OperationClass != "" {
+		t.Errorf("operation_class = %q, want empty", output.OperationClass)
 	}
 }
 
@@ -419,10 +419,12 @@ func TestPrescribe_PrivilegedContainer(t *testing.T) {
 	if !output.OK {
 		t.Fatalf("prescribe failed: %v", output.Error)
 	}
-	if len(output.RiskInputs) == 0 {
-		t.Fatal("missing risk_inputs")
+	if len(output.RiskInputs) != 0 {
+		t.Fatalf("risk_inputs = %+v, want none without assessment", output.RiskInputs)
 	}
-	assertRiskInputTagPresent(t, output.RiskInputs, "evidra/native", "k8s.privileged_container")
+	if output.EffectiveRisk != "" {
+		t.Fatalf("effective_risk = %q, want empty without assessment", output.EffectiveRisk)
+	}
 }
 
 func TestPrescribe_SmartMode(t *testing.T) {
@@ -443,20 +445,17 @@ func TestPrescribe_SmartMode(t *testing.T) {
 	if output.PrescriptionID == "" {
 		t.Fatal("missing prescription_id")
 	}
-	if output.OperationClass != "mutate" {
-		t.Fatalf("operation_class = %q, want %q", output.OperationClass, "mutate")
+	if output.OperationClass != "" {
+		t.Fatalf("operation_class = %q, want empty", output.OperationClass)
 	}
-	if output.ScopeClass != "staging" {
-		t.Fatalf("scope_class = %q, want %q", output.ScopeClass, "staging")
+	if output.ScopeClass != "" {
+		t.Fatalf("scope_class = %q, want empty", output.ScopeClass)
 	}
-	if output.ResourceCount != 1 {
-		t.Fatalf("resource_count = %d, want 1", output.ResourceCount)
+	if output.ResourceCount != 0 {
+		t.Fatalf("resource_count = %d, want 0", output.ResourceCount)
 	}
-	if len(output.RiskInputs) != 1 {
-		t.Fatalf("risk_inputs len = %d, want 1", len(output.RiskInputs))
-	}
-	if output.RiskInputs[0].Source != "evidra/matrix" {
-		t.Fatalf("risk_inputs[0].source = %q, want %q", output.RiskInputs[0].Source, "evidra/matrix")
+	if len(output.RiskInputs) != 0 {
+		t.Fatalf("risk_inputs = %+v, want none without assessment", output.RiskInputs)
 	}
 }
 
@@ -510,7 +509,7 @@ func TestPrescribeCtx_ForwardsCallerContext(t *testing.T) {
 	}
 }
 
-func TestPrescribe_ParseError(t *testing.T) {
+func TestPrescribe_RawArtifactDoesNotParseInCore(t *testing.T) {
 	t.Parallel()
 
 	svc := &MCPService{signer: testutil.TestSigner(t)}
@@ -521,11 +520,11 @@ func TestPrescribe_ParseError(t *testing.T) {
 		RawArtifact: "not valid json {{{",
 	})
 
-	if output.OK {
-		t.Fatal("expected parse error")
+	if !output.OK {
+		t.Fatalf("prescribe failed: %v", output.Error)
 	}
-	if output.Error == nil || output.Error.Code != "parse_error" {
-		t.Errorf("expected parse_error, got %v", output.Error)
+	if output.CanonVersion != "" {
+		t.Fatalf("canon_version = %q, want empty", output.CanonVersion)
 	}
 }
 

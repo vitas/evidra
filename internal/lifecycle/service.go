@@ -228,6 +228,11 @@ func (s *Service) prescribeDeclaredIntent(input PrescribeInput, ctx prescribeCon
 		return PrescribeOutput{}, wrapError(ErrCodeInternal, "failed to marshal evidence entry", err)
 	}
 
+	retryCount := 0
+	if s.retryTracker != nil {
+		retryCount = s.retryTracker.Record(intentDigest, artifactDigest)
+	}
+
 	return PrescribeOutput{
 		PrescriptionID: entry.EntryID,
 		SessionID:      ctx.sessionID,
@@ -240,6 +245,7 @@ func (s *Service) prescribeDeclaredIntent(input PrescribeInput, ctx prescribeCon
 		RiskLevel:      assessment.EffectiveRisk,
 		ArtifactDigest: artifactDigest,
 		IntentDigest:   intentDigest,
+		RetryCount:     retryCount,
 		Entry:          entry,
 		RawEntry:       rawEntry,
 		Persisted:      persisted,

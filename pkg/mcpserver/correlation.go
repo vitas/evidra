@@ -29,8 +29,17 @@ func toEvidenceActor(actor InputActor) evidence.Actor {
 }
 
 func toLifecyclePrescribeInput(input PrescribeInput) lifecycle.PrescribeInput {
+	intent := evidence.DeclaredIntent{}
+	if input.CanonicalAction == nil {
+		intent = evidence.DeclaredIntent{
+			Tool:      input.Tool,
+			Operation: input.Operation,
+			Target:    declaredIntentTarget(input),
+		}
+	}
 	return lifecycle.PrescribeInput{
 		Actor:           toEvidenceActor(input.Actor),
+		Intent:          intent,
 		Tool:            input.Tool,
 		Operation:       input.Operation,
 		RawArtifact:     []byte(input.RawArtifact),
@@ -47,6 +56,16 @@ func toLifecyclePrescribeInput(input PrescribeInput) lifecycle.PrescribeInput {
 		EvidenceKind:    evidence.EvidenceKindDeclared,
 		SourceSystem:    "mcp",
 	}
+}
+
+func declaredIntentTarget(input PrescribeInput) string {
+	if input.Resource == "" {
+		return ""
+	}
+	if input.Namespace == "" {
+		return input.Resource
+	}
+	return input.Namespace + "/" + input.Resource
 }
 
 func toLifecycleReportInput(input ReportInput) lifecycle.ReportInput {
