@@ -86,6 +86,45 @@ func TestEvidenceToSignalEntries_Prescribe(t *testing.T) {
 	}
 }
 
+func TestEvidenceToSignalEntries_UsesDeclaredIntentFallback(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC()
+	prescPayload, _ := json.Marshal(evidence.PrescriptionPayload{
+		PrescriptionID: "01PRESC",
+		Intent: &evidence.DeclaredIntent{
+			Tool:      "kubectl",
+			Operation: "apply",
+			Target:    "deployment/web",
+		},
+		Assessment: &evidence.AssessmentPayload{Status: evidence.AssessmentNotProvided},
+		TTLMs:      300000,
+	})
+
+	result, err := EvidenceToSignalEntries([]evidence.EvidenceEntry{{
+		EntryID:        "01ENTRY",
+		Type:           evidence.EntryTypePrescribe,
+		TraceID:        "01TRACE",
+		Actor:          evidence.Actor{Type: "ai_agent", ID: "agent-1", Provenance: "mcp"},
+		Timestamp:      now,
+		IntentDigest:   "sha256:abc",
+		ArtifactDigest: "sha256:def",
+		Payload:        prescPayload,
+	}})
+	if err != nil {
+		t.Fatalf("EvidenceToSignalEntries: %v", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected 1 signal entry, got %d", len(result))
+	}
+	if result[0].Tool != "kubectl" || result[0].Operation != "apply" {
+		t.Fatalf("signal entry = %+v", result[0])
+	}
+	if result[0].ScopeClass != "" || result[0].OperationClass != "" {
+		t.Fatalf("canonical fields should be empty without canonical_action: %+v", result[0])
+	}
+}
+
 func TestEvidenceToSignalEntries_Report(t *testing.T) {
 	t.Parallel()
 

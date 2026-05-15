@@ -19,7 +19,7 @@ type trackerFingerprint struct {
 }
 
 type sessionState struct {
-	prescriptions map[string]canon.CanonicalAction
+	prescriptions map[string]signal.Entry
 	signalEntries []signal.Entry
 	totalOps      int
 	results       []signal.SignalResult
@@ -30,7 +30,7 @@ type sessionState struct {
 
 func newSessionState() *sessionState {
 	return &sessionState{
-		prescriptions: make(map[string]canon.CanonicalAction),
+		prescriptions: make(map[string]signal.Entry),
 		snapshots:     make(map[string]Snapshot),
 	}
 }
@@ -53,15 +53,9 @@ func (s *sessionState) observeEntry(entry evidence.EvidenceEntry) error {
 			IsPrescription: true,
 			RiskTags:       p.NativeRiskTags(),
 		}
-		if ca, err := extractCanonicalAction(p.CanonicalAction); err == nil {
-			s.prescriptions[entry.EntryID] = ca
-			se.Tool = ca.Tool
-			se.Operation = ca.Operation
-			se.OperationClass = ca.OperationClass
-			se.ScopeClass = ca.ScopeClass
-			se.ResourceCount = ca.ResourceCount
-			se.ShapeHash = ca.ResourceShapeHash
-		}
+		identity := signalIdentityFromPrescription(p)
+		s.prescriptions[entry.EntryID] = identity
+		applySignalIdentity(&se, identity)
 
 		s.signalEntries = append(s.signalEntries, se)
 		s.totalOps++
@@ -86,13 +80,8 @@ func (s *sessionState) observeEntry(entry evidence.EvidenceEntry) error {
 			PrescriptionID: r.PrescriptionID,
 			ExitCode:       r.ExitCode,
 		}
-		if ca, ok := s.prescriptions[r.PrescriptionID]; ok {
-			se.Tool = ca.Tool
-			se.Operation = ca.Operation
-			se.OperationClass = ca.OperationClass
-			se.ScopeClass = ca.ScopeClass
-			se.ResourceCount = ca.ResourceCount
-			se.ShapeHash = ca.ResourceShapeHash
+		if identity, ok := s.prescriptions[r.PrescriptionID]; ok {
+			applySignalIdentity(&se, identity)
 		} else {
 			s.invalid = true
 		}
@@ -104,6 +93,33 @@ func (s *sessionState) observeEntry(entry evidence.EvidenceEntry) error {
 	}
 
 	return nil
+}
+
+func signalIdentityFromPrescription(p evidence.PrescriptionPayload) signal.Entry {
+	var identity signal.Entry
+	if ca, err := extractCanonicalAction(p.CanonicalAction); err == nil {
+		identity.Tool = ca.Tool
+		identity.Operation = ca.Operation
+		identity.OperationClass = ca.OperationClass
+		identity.ScopeClass = ca.ScopeClass
+		identity.ResourceCount = ca.ResourceCount
+		identity.ShapeHash = ca.ResourceShapeHash
+		return identity
+	}
+	if p.Intent != nil {
+		identity.Tool = p.Intent.Tool
+		identity.Operation = p.Intent.Operation
+	}
+	return identity
+}
+
+func applySignalIdentity(entry *signal.Entry, identity signal.Entry) {
+	entry.Tool = identity.Tool
+	entry.Operation = identity.Operation
+	entry.OperationClass = identity.OperationClass
+	entry.ScopeClass = identity.ScopeClass
+	entry.ResourceCount = identity.ResourceCount
+	entry.ShapeHash = identity.ShapeHash
 }
 
 func (s *sessionState) snapshot(profile score.Profile) Snapshot {

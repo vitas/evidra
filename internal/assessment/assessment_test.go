@@ -110,6 +110,59 @@ func TestTrackerIncrementalSnapshotReuse(t *testing.T) {
 	}
 }
 
+func TestTrackerIncrementalSnapshotReuseWithDeclaredIntent(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	svc := lifecycle.NewService(lifecycle.Options{
+		EvidencePath: dir,
+		Signer:       testutil.TestSigner(t),
+	})
+	tracker := NewTracker(dir)
+
+	presc, err := svc.Prescribe(context.Background(), lifecycle.PrescribeInput{
+		Actor: evidence.Actor{Type: "agent", ID: "agent-1", Provenance: "cli"},
+		Intent: evidence.DeclaredIntent{
+			Tool:      "kubectl",
+			Operation: "apply",
+			Target:    "deployment/web",
+		},
+		SessionID: "session-declared-intent",
+	})
+	if err != nil {
+		t.Fatalf("Prescribe: %v", err)
+	}
+	if err := tracker.Observe(presc.Entry); err != nil {
+		t.Fatalf("Observe(prescribe): %v", err)
+	}
+
+	report, err := svc.Report(context.Background(), lifecycle.ReportInput{
+		PrescriptionID: presc.PrescriptionID,
+		Verdict:        evidence.VerdictSuccess,
+		ExitCode:       intPtr(0),
+	})
+	if err != nil {
+		t.Fatalf("Report: %v", err)
+	}
+	if err := tracker.Observe(report.Entry); err != nil {
+		t.Fatalf("Observe(report): %v", err)
+	}
+
+	profile, err := score.ResolveProfile("")
+	if err != nil {
+		t.Fatalf("ResolveProfile: %v", err)
+	}
+	if _, err := tracker.Snapshot(presc.SessionID, profile); err != nil {
+		t.Fatalf("Snapshot(first): %v", err)
+	}
+	if _, err := tracker.Snapshot(presc.SessionID, profile); err != nil {
+		t.Fatalf("Snapshot(second): %v", err)
+	}
+	if tracker.scanCount != 0 {
+		t.Fatalf("scanCount = %d, want 0 when declared intent state stays valid", tracker.scanCount)
+	}
+}
+
 func TestTrackerRebuildsAfterExternalWrite(t *testing.T) {
 	t.Parallel()
 
