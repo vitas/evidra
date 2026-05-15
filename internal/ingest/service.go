@@ -352,74 +352,22 @@ type prescribePayloadState struct {
 	effectiveRisk  string
 }
 
+type prescribePayloadSource struct {
+	payload      evidence.PrescriptionPayload
+	action       evidence.CanonicalAction
+	canonVersion string
+	entryID      string
+	intent       evidence.DeclaredIntent
+	useIntent    bool
+}
+
 func buildPrescribePayload(in PrescribeRequest) (prescribePayloadState, error) {
-	var (
-		payload      evidence.PrescriptionPayload
-		action       evidence.CanonicalAction
-		canonVersion string
-		entryID      string
-		intent       evidence.DeclaredIntent
-		useIntent    bool
-	)
-
-	switch {
-	case in.PayloadOverride != nil:
-		if err := json.Unmarshal(*in.PayloadOverride, &payload); err != nil {
-			return prescribePayloadState{}, wrapError(ErrCodeInvalidInput, "payload_override must be valid prescribe payload JSON", err)
-		}
-		switch {
-		case len(payload.CanonicalAction) > 0:
-			if err := json.Unmarshal(payload.CanonicalAction, &action); err != nil {
-				return prescribePayloadState{}, wrapError(ErrCodeInvalidInput, "payload_override canonical_action is invalid", err)
-			}
-			normalized, err := normalizeCanonicalAction(action)
-			if err != nil {
-				return prescribePayloadState{}, err
-			}
-			action = normalized
-			canonVersion = "external/v1"
-		case payload.Intent != nil:
-			var err error
-			intent, err = normalizeDeclaredIntent(*payload.Intent, strings.TrimSpace(in.ArtifactDigest))
-			if err != nil {
-				return prescribePayloadState{}, err
-			}
-			useIntent = true
-		default:
-			return prescribePayloadState{}, wrapError(ErrCodeInvalidInput, "payload_override must include intent or canonical_action", nil)
-		}
-		entryID = strings.TrimSpace(in.PrescriptionID)
-		if entryID == "" {
-			entryID = strings.TrimSpace(payload.PrescriptionID)
-		}
-	case in.Intent != nil:
-		var err error
-		intent, err = normalizeDeclaredIntent(*in.Intent, strings.TrimSpace(in.ArtifactDigest))
-		if err != nil {
-			return prescribePayloadState{}, err
-		}
-		useIntent = true
-		entryID = strings.TrimSpace(in.PrescriptionID)
-	case in.CanonicalAction != nil:
-		normalized, err := normalizeCanonicalAction(*in.CanonicalAction)
-		if err != nil {
-			return prescribePayloadState{}, err
-		}
-		action = normalized
-		canonVersion = "external/v1"
-		entryID = strings.TrimSpace(in.PrescriptionID)
-	case in.SmartTarget != nil:
-		normalized, err := normalizeDeclaredIntent(smartTargetDeclaredIntent(*in.SmartTarget), strings.TrimSpace(in.ArtifactDigest))
-		if err != nil {
-			return prescribePayloadState{}, err
-		}
-		intent = normalized
-		useIntent = true
-		entryID = strings.TrimSpace(in.PrescriptionID)
-	default:
-		return prescribePayloadState{}, wrapError(ErrCodeInvalidInput, "intent, canonical_action, or smart_target is required", nil)
+	source, err := resolvePrescribePayloadSource(in)
+	if err != nil {
+		return prescribePayloadState{}, err
 	}
-
+	payload := source.payload
+	entryID := source.entryID
 	if strings.TrimSpace(entryID) == "" {
 		entryID = ulid.Make().String()
 	}
@@ -428,37 +376,99 @@ func buildPrescribePayload(in PrescribeRequest) (prescribePayloadState, error) {
 	payload.Evidence = payloadEvidenceMetadata(in.Evidence)
 	payload.Source = payloadSourceMetadata(in.Source)
 
-	if useIntent {
-		assessment, err := normalizeIngestAssessment(firstAssessment(in.Assessment, payload.Assessment))
-		if err != nil {
-			return prescribePayloadState{}, err
-		}
-		payload.Intent = &intent
-		payload.Assessment = assessment
-		if assessment.Status == evidence.AssessmentProvided {
-			payload.RiskInputs = assessment.RiskInputs
-			payload.EffectiveRisk = assessment.EffectiveRisk
-		}
-		if payload.TTLMs == 0 {
-			payload.TTLMs = evidence.DefaultTTLMs
-		}
-		rawPayload, err := json.Marshal(payload)
-		if err != nil {
-			return prescribePayloadState{}, wrapError(ErrCodeInternal, "failed to marshal prescribe payload", err)
-		}
-		return prescribePayloadState{
-			payload:        rawPayload,
-			entryID:        entryID,
-			intentDigest:   evidence.ComputeDeclaredIntentDigest(intent),
-			artifactDigest: intent.ArtifactDigest,
-			effectiveRisk:  assessment.EffectiveRisk,
-		}, nil
-	}
-
 	assessment, err := normalizeIngestAssessment(firstAssessment(in.Assessment, payload.Assessment))
 	if err != nil {
 		return prescribePayloadState{}, err
 	}
+	if source.useIntent {
+		return buildIntentPrescribePayload(payload, entryID, source.intent, assessment)
+	}
+	return buildCanonicalPrescribePayload(payload, entryID, source.action, source.canonVersion, strings.TrimSpace(in.ArtifactDigest), assessment)
+}
+
+func resolvePrescribePayloadSource(in PrescribeRequest) (prescribePayloadSource, error) {
+	switch {
+	case in.PayloadOverride != nil:
+		return resolvePayloadOverridePrescribeSource(in)
+	case in.Intent != nil:
+		intent, err := normalizeDeclaredIntent(*in.Intent, strings.TrimSpace(in.ArtifactDigest))
+		if err != nil {
+			return prescribePayloadSource{}, err
+		}
+		return prescribePayloadSource{intent: intent, useIntent: true, entryID: strings.TrimSpace(in.PrescriptionID)}, nil
+	case in.CanonicalAction != nil:
+		normalized, err := normalizeCanonicalAction(*in.CanonicalAction)
+		if err != nil {
+			return prescribePayloadSource{}, err
+		}
+		return prescribePayloadSource{action: normalized, canonVersion: "external/v1", entryID: strings.TrimSpace(in.PrescriptionID)}, nil
+	case in.SmartTarget != nil:
+		intent, err := normalizeDeclaredIntent(smartTargetDeclaredIntent(*in.SmartTarget), strings.TrimSpace(in.ArtifactDigest))
+		if err != nil {
+			return prescribePayloadSource{}, err
+		}
+		return prescribePayloadSource{intent: intent, useIntent: true, entryID: strings.TrimSpace(in.PrescriptionID)}, nil
+	default:
+		return prescribePayloadSource{}, wrapError(ErrCodeInvalidInput, "intent, canonical_action, or smart_target is required", nil)
+	}
+}
+
+func resolvePayloadOverridePrescribeSource(in PrescribeRequest) (prescribePayloadSource, error) {
+	var payload evidence.PrescriptionPayload
+	if err := json.Unmarshal(*in.PayloadOverride, &payload); err != nil {
+		return prescribePayloadSource{}, wrapError(ErrCodeInvalidInput, "payload_override must be valid prescribe payload JSON", err)
+	}
+
+	entryID := strings.TrimSpace(in.PrescriptionID)
+	if entryID == "" {
+		entryID = strings.TrimSpace(payload.PrescriptionID)
+	}
+	switch {
+	case len(payload.CanonicalAction) > 0:
+		var action evidence.CanonicalAction
+		if err := json.Unmarshal(payload.CanonicalAction, &action); err != nil {
+			return prescribePayloadSource{}, wrapError(ErrCodeInvalidInput, "payload_override canonical_action is invalid", err)
+		}
+		normalized, err := normalizeCanonicalAction(action)
+		if err != nil {
+			return prescribePayloadSource{}, err
+		}
+		return prescribePayloadSource{payload: payload, action: normalized, canonVersion: "external/v1", entryID: entryID}, nil
+	case payload.Intent != nil:
+		intent, err := normalizeDeclaredIntent(*payload.Intent, strings.TrimSpace(in.ArtifactDigest))
+		if err != nil {
+			return prescribePayloadSource{}, err
+		}
+		return prescribePayloadSource{payload: payload, intent: intent, useIntent: true, entryID: entryID}, nil
+	default:
+		return prescribePayloadSource{}, wrapError(ErrCodeInvalidInput, "payload_override must include intent or canonical_action", nil)
+	}
+}
+
+func buildIntentPrescribePayload(payload evidence.PrescriptionPayload, entryID string, intent evidence.DeclaredIntent, assessment *evidence.AssessmentPayload) (prescribePayloadState, error) {
+	payload.Intent = &intent
+	payload.Assessment = assessment
+	if assessment.Status == evidence.AssessmentProvided {
+		payload.RiskInputs = assessment.RiskInputs
+		payload.EffectiveRisk = assessment.EffectiveRisk
+	}
+	if payload.TTLMs == 0 {
+		payload.TTLMs = evidence.DefaultTTLMs
+	}
+	rawPayload, err := json.Marshal(payload)
+	if err != nil {
+		return prescribePayloadState{}, wrapError(ErrCodeInternal, "failed to marshal prescribe payload", err)
+	}
+	return prescribePayloadState{
+		payload:        rawPayload,
+		entryID:        entryID,
+		intentDigest:   evidence.ComputeDeclaredIntentDigest(intent),
+		artifactDigest: intent.ArtifactDigest,
+		effectiveRisk:  assessment.EffectiveRisk,
+	}, nil
+}
+
+func buildCanonicalPrescribePayload(payload evidence.PrescriptionPayload, entryID string, action evidence.CanonicalAction, canonVersion, artifactDigest string, assessment *evidence.AssessmentPayload) (prescribePayloadState, error) {
 	rawAction, err := json.Marshal(action)
 	if err != nil {
 		return prescribePayloadState{}, wrapError(ErrCodeInternal, "failed to marshal canonical action", err)
@@ -487,7 +497,7 @@ func buildPrescribePayload(in PrescribeRequest) (prescribePayloadState, error) {
 		payload:        rawPayload,
 		entryID:        entryID,
 		intentDigest:   evidence.ComputeCanonicalActionDigest(action),
-		artifactDigest: strings.TrimSpace(in.ArtifactDigest),
+		artifactDigest: artifactDigest,
 		canonVersion:   canonVersion,
 		effectiveRisk:  payload.EffectiveRisk,
 	}, nil

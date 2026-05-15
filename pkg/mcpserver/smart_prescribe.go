@@ -68,23 +68,6 @@ func toExecContractCanonicalAction(action *evidence.CanonicalAction) *execcontra
 	}
 }
 
-func buildSmartCanonicalAction(input PrescribeInput) (evidence.CanonicalAction, error) {
-	resource, err := parseSmartResource(input.Resource, input.Namespace)
-	if err != nil {
-		return evidence.CanonicalAction{}, err
-	}
-
-	scopeClass := evidence.ResolveScopeClass(input.Environment, []evidence.ResourceID{resource})
-	return evidence.CanonicalAction{
-		Tool:             strings.ToLower(strings.TrimSpace(input.Tool)),
-		Operation:        strings.ToLower(strings.TrimSpace(input.Operation)),
-		OperationClass:   smartOperationClass(input.Tool, input.Operation),
-		ResourceIdentity: []evidence.ResourceID{resource},
-		ScopeClass:       scopeClass,
-		ResourceCount:    1,
-	}, nil
-}
-
 func parseSmartResource(raw, namespace string) (evidence.ResourceID, error) {
 	value := strings.TrimSpace(raw)
 	if value == "" {
@@ -103,49 +86,4 @@ func parseSmartResource(raw, namespace string) (evidence.ResourceID, error) {
 		return evidence.ResourceID{}, fmt.Errorf("resource is required when raw_artifact is omitted")
 	}
 	return id, nil
-}
-
-func smartOperationClass(tool, operation string) string {
-	switch strings.ToLower(strings.TrimSpace(tool)) {
-	case "kubectl", "oc", "helm", "kustomize":
-		return smartK8sOperationClass(operation)
-	case "terraform":
-		switch strings.ToLower(strings.TrimSpace(operation)) {
-		case "apply", "import":
-			return "mutate"
-		case "destroy":
-			return "destroy"
-		case "plan", "validate", "refresh", "show", "state":
-			return "plan"
-		default:
-			return "unknown"
-		}
-	case "docker", "podman", "nerdctl", "docker-compose", "compose":
-		switch strings.ToLower(strings.TrimSpace(operation)) {
-		case "run", "create", "build", "push", "start", "up":
-			return "mutate"
-		case "rm", "stop", "kill", "down":
-			return "destroy"
-		case "inspect", "ps", "logs", "images":
-			return "read"
-		default:
-			return "unknown"
-		}
-	default:
-		return smartK8sOperationClass(operation)
-	}
-}
-
-func smartK8sOperationClass(operation string) string {
-	switch strings.ToLower(strings.TrimSpace(operation)) {
-	case "apply", "create", "patch", "upgrade", "install", "replace", "set", "annotate", "label",
-		"rollout", "scale", "autoscale", "taint", "cordon", "uncordon", "rollback":
-		return "mutate"
-	case "delete", "uninstall", "drain", "destroy":
-		return "destroy"
-	case "get", "describe", "logs", "top", "diff", "list", "status", "show", "template", "plan":
-		return "read"
-	default:
-		return "unknown"
-	}
 }

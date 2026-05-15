@@ -626,22 +626,6 @@ func mustToolSchema(t *testing.T, load func() (execcontract.ToolDefinition, erro
 	return def.Parameters
 }
 
-func assertRiskInputTagPresent(t *testing.T, inputs []evidence.RiskInput, source, want string) {
-	t.Helper()
-	for _, input := range inputs {
-		if input.Source != source {
-			continue
-		}
-		for _, tag := range input.RiskTags {
-			if tag == want {
-				return
-			}
-		}
-		t.Fatalf("risk input %q tags %v do not contain %q", source, input.RiskTags, want)
-	}
-	t.Fatalf("missing risk input source %q", source)
-}
-
 func TestReportTool_IncludesResourceLinkOnSuccess(t *testing.T) {
 	t.Parallel()
 
