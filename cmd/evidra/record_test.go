@@ -375,6 +375,13 @@ func readPrescribedAction(t *testing.T, evidenceDir string) canon.CanonicalActio
 			t.Fatalf("decode prescription payload: %v", err)
 		}
 
+		if payload.Intent != nil {
+			return canon.CanonicalAction{
+				Tool:      payload.Intent.Tool,
+				Operation: payload.Intent.Operation,
+			}
+		}
+
 		var action canon.CanonicalAction
 		if err := json.Unmarshal(payload.CanonicalAction, &action); err != nil {
 			t.Fatalf("decode canonical action: %v", err)

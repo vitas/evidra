@@ -265,11 +265,22 @@ func prepareRecordCommand(opts recordFlags, wrapped []string) (recordCommand, er
 		})
 	}
 
+	intent := evidence.DeclaredIntent{}
+	if preCanon == nil {
+		intent = evidence.DeclaredIntent{
+			Tool:      opts.tool,
+			Operation: opts.operation,
+			Target:    opts.artifactPath,
+			Command:   strings.Join(wrapped, " "),
+		}
+	}
+
 	return recordCommand{
 		service:      svc,
 		evidencePath: evidencePath,
 		prescribeInput: lifecycle.PrescribeInput{
 			Actor:            actor,
+			Intent:           intent,
 			Tool:             opts.tool,
 			Operation:        opts.operation,
 			RawArtifact:      data,

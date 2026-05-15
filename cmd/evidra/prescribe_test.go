@@ -53,6 +53,24 @@ func TestPrescribeSupportsArtifactShortFlag(t *testing.T) {
 	if _, ok := result["risk_tags"]; ok {
 		t.Fatalf("risk_tags must not be present: %#v", result)
 	}
+
+	entries, err := evidence.ReadAllEntriesAtPath(filepath.Join(tmp, "evidence"))
+	if err != nil {
+		t.Fatalf("ReadAllEntriesAtPath: %v", err)
+	}
+	var payload evidence.PrescriptionPayload
+	if err := json.Unmarshal(entries[0].Payload, &payload); err != nil {
+		t.Fatalf("decode prescribe payload: %v", err)
+	}
+	if payload.Intent == nil || payload.Intent.Tool != "kubectl" || payload.Intent.Operation != "apply" {
+		t.Fatalf("intent = %+v", payload.Intent)
+	}
+	if payload.CanonicalAction != nil {
+		t.Fatalf("canonical_action = %s, want nil by default", payload.CanonicalAction)
+	}
+	if payload.Assessment == nil || payload.Assessment.Status != evidence.AssessmentNotProvided {
+		t.Fatalf("assessment = %+v", payload.Assessment)
+	}
 }
 
 func TestPrescribePersistsExtendedActorMetadata(t *testing.T) {
