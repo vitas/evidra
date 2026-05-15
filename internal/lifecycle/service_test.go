@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"samebits.com/evidra/internal/canon"
 	"samebits.com/evidra/internal/testutil"
 	"samebits.com/evidra/pkg/evidence"
 )
@@ -31,7 +30,7 @@ func (s *countingSigner) PublicKey() ed25519.PublicKey {
 	return s.Signer.PublicKey()
 }
 
-func TestServicePrescribe_ParseErrorWritesCanonFailure(t *testing.T) {
+func TestServicePrescribe_RawArtifactDoesNotCanonicalize(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -40,18 +39,15 @@ func TestServicePrescribe_ParseErrorWritesCanonFailure(t *testing.T) {
 		Signer:       testutil.TestSigner(t),
 	})
 
-	_, err := svc.Prescribe(context.Background(), PrescribeInput{
+	out, err := svc.Prescribe(context.Background(), PrescribeInput{
 		Actor:       evidence.Actor{Type: "agent", ID: "agent-1", Provenance: "mcp"},
 		Tool:        "terraform",
 		Operation:   "apply",
 		RawArtifact: []byte("not valid json {{{"),
 		SessionID:   "session-1",
 	})
-	if err == nil {
-		t.Fatal("expected parse error")
-	}
-	if ErrorCode(err) != ErrCodeParseError {
-		t.Fatalf("error code = %q, want %q", ErrorCode(err), ErrCodeParseError)
+	if err != nil {
+		t.Fatalf("Prescribe: %v", err)
 	}
 
 	entries, readErr := evidence.ReadAllEntriesAtPath(dir)
@@ -61,8 +57,11 @@ func TestServicePrescribe_ParseErrorWritesCanonFailure(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("entry count = %d, want 1", len(entries))
 	}
-	if entries[0].Type != evidence.EntryTypeCanonFailure {
-		t.Fatalf("entry type = %q, want %q", entries[0].Type, evidence.EntryTypeCanonFailure)
+	if entries[0].Type != evidence.EntryTypePrescribe {
+		t.Fatalf("entry type = %q, want %q", entries[0].Type, evidence.EntryTypePrescribe)
+	}
+	if out.CanonVersion != "" {
+		t.Fatalf("CanonVersion = %q, want empty", out.CanonVersion)
 	}
 }
 
@@ -75,12 +74,12 @@ func TestServicePrescribe_CanonicalActionNormalizesToolOperation(t *testing.T) {
 		Signer:       testutil.TestSigner(t),
 	})
 
-	preCanon := &canon.CanonicalAction{
+	preCanon := &evidence.CanonicalAction{
 		OperationClass:    "mutate",
 		ScopeClass:        "production",
 		ResourceCount:     1,
 		ResourceShapeHash: "sha256:test-shape",
-		ResourceIdentity: []canon.ResourceID{
+		ResourceIdentity: []evidence.ResourceID{
 			{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default", Name: "demo"},
 		},
 	}
@@ -110,7 +109,7 @@ func TestServicePrescribe_CanonicalActionNormalizesToolOperation(t *testing.T) {
 		t.Fatalf("unmarshal prescription payload: %v", err)
 	}
 
-	var action canon.CanonicalAction
+	var action evidence.CanonicalAction
 	if err := json.Unmarshal(payload.CanonicalAction, &action); err != nil {
 		t.Fatalf("unmarshal canonical action: %v", err)
 	}
@@ -170,6 +169,50 @@ func TestPrescribe_DeclaredIntentWithoutAssessment(t *testing.T) {
 	}
 }
 
+func TestPrescribe_CanonicalActionWithoutAssessment(t *testing.T) {
+	t.Parallel()
+
+	svc := NewService(Options{
+		EvidencePath: t.TempDir(),
+		Signer:       testutil.TestSigner(t),
+	})
+
+	action := &evidence.CanonicalAction{
+		Tool:              "kubectl",
+		Operation:         "delete",
+		OperationClass:    "destroy",
+		ScopeClass:        "production",
+		ResourceCount:     1,
+		ResourceShapeHash: "sha256:test-shape",
+		ResourceIdentity: []evidence.ResourceID{
+			{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "prod", Name: "web"},
+		},
+	}
+
+	out, err := svc.Prescribe(context.Background(), PrescribeInput{
+		Actor:           evidence.Actor{Type: "agent", ID: "agent-1", Provenance: "test"},
+		CanonicalAction: action,
+		SessionID:       "session-canonical-no-assessment",
+	})
+	if err != nil {
+		t.Fatalf("Prescribe: %v", err)
+	}
+
+	var payload evidence.PrescriptionPayload
+	if err := json.Unmarshal(out.Entry.Payload, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Assessment == nil || payload.Assessment.Status != evidence.AssessmentNotProvided {
+		t.Fatalf("assessment = %+v, want not_provided", payload.Assessment)
+	}
+	if out.EffectiveRisk != "" || len(out.RiskInputs) != 0 {
+		t.Fatalf("unexpected assessment output risk=%q inputs=%+v", out.EffectiveRisk, out.RiskInputs)
+	}
+	if payload.EffectiveRisk != "" || len(payload.RiskInputs) != 0 {
+		t.Fatalf("unexpected payload risk=%q inputs=%+v", payload.EffectiveRisk, payload.RiskInputs)
+	}
+}
+
 func TestPrescribe_RawArtifactOnlyComputesDigestForDeclaredIntent(t *testing.T) {
 	t.Parallel()
 
@@ -201,7 +244,7 @@ func TestPrescribe_RawArtifactOnlyComputesDigestForDeclaredIntent(t *testing.T) 
 	}
 }
 
-func TestServicePrescribe_PopulatesRiskInputsAndEffectiveRisk(t *testing.T) {
+func TestServicePrescribe_StoresProvidedAssessment(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -216,46 +259,45 @@ func TestServicePrescribe_PopulatesRiskInputsAndEffectiveRisk(t *testing.T) {
 		Operation:   "apply",
 		RawArtifact: []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: cm1\n  namespace: default\n"),
 		SessionID:   "session-risk-inputs",
+		Assessment: &evidence.AssessmentPayload{
+			Status:        evidence.AssessmentProvided,
+			Provider:      "scanner",
+			EffectiveRisk: "high",
+			RiskInputs: []evidence.RiskInput{{
+				Source:    "scanner",
+				RiskLevel: "high",
+				RiskTags:  []string{"public_endpoint"},
+			}},
+		},
 	})
 	if err != nil {
 		t.Fatalf("Prescribe: %v", err)
 	}
-	if out.EffectiveRisk == "" {
-		t.Fatal("expected effective_risk")
+	if out.EffectiveRisk != "high" {
+		t.Fatalf("effective_risk=%q, want high", out.EffectiveRisk)
 	}
-	if len(out.RiskInputs) < 1 {
-		t.Fatalf("risk_inputs len = %d, want >= 1", len(out.RiskInputs))
+	if len(out.RiskInputs) != 1 {
+		t.Fatalf("risk_inputs len = %d, want 1", len(out.RiskInputs))
 	}
-	sources := map[string]bool{}
-	for _, ri := range out.RiskInputs {
-		sources[ri.Source] = true
-	}
-	if !sources["evidra/matrix"] {
-		t.Fatal("risk_inputs missing evidra/matrix source")
-	}
-	if !sources["evidra/native"] {
-		t.Fatal("risk_inputs missing evidra/native source")
+	if out.RiskInputs[0].Source != "scanner" {
+		t.Fatalf("risk input source=%q, want scanner", out.RiskInputs[0].Source)
 	}
 
 	var payload evidence.PrescriptionPayload
 	if err := json.Unmarshal(out.Entry.Payload, &payload); err != nil {
 		t.Fatalf("unmarshal prescription payload: %v", err)
 	}
-	if payload.EffectiveRisk != out.EffectiveRisk {
-		t.Fatalf("payload effective_risk = %q, want %q", payload.EffectiveRisk, out.EffectiveRisk)
+	if payload.Assessment == nil || payload.Assessment.Provider != "scanner" {
+		t.Fatalf("payload assessment = %+v", payload.Assessment)
 	}
-	if len(payload.RiskInputs) < 1 {
-		t.Fatalf("payload risk_inputs len = %d, want >= 1", len(payload.RiskInputs))
+	if payload.EffectiveRisk != "high" {
+		t.Fatalf("payload effective_risk = %q, want high", payload.EffectiveRisk)
 	}
-	payloadSources := map[string]bool{}
-	for _, ri := range payload.RiskInputs {
-		payloadSources[ri.Source] = true
+	if len(payload.RiskInputs) != 1 {
+		t.Fatalf("payload risk_inputs len = %d, want 1", len(payload.RiskInputs))
 	}
-	if !payloadSources["evidra/matrix"] {
-		t.Fatal("payload risk_inputs missing evidra/matrix source")
-	}
-	if !payloadSources["evidra/native"] {
-		t.Fatal("payload risk_inputs missing evidra/native source")
+	if payload.RiskInputs[0].Source != "scanner" {
+		t.Fatalf("payload risk input source=%q, want scanner", payload.RiskInputs[0].Source)
 	}
 
 	var rawPayload map[string]any
@@ -388,12 +430,12 @@ func TestServicePrescribe_CanonicalActionScopeAliasNormalizes(t *testing.T) {
 		Signer:       testutil.TestSigner(t),
 	})
 
-	preCanon := &canon.CanonicalAction{
+	preCanon := &evidence.CanonicalAction{
 		OperationClass:    "mutate",
 		ScopeClass:        "prod",
 		ResourceCount:     1,
 		ResourceShapeHash: "sha256:test-shape",
-		ResourceIdentity: []canon.ResourceID{
+		ResourceIdentity: []evidence.ResourceID{
 			{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default", Name: "demo"},
 		},
 	}
@@ -423,12 +465,12 @@ func TestServicePrescribe_CanonicalActionScopeRejectsInvalid(t *testing.T) {
 		Signer:       testutil.TestSigner(t),
 	})
 
-	preCanon := &canon.CanonicalAction{
+	preCanon := &evidence.CanonicalAction{
 		OperationClass:    "mutate",
 		ScopeClass:        "prod-east",
 		ResourceCount:     1,
 		ResourceShapeHash: "sha256:test-shape",
-		ResourceIdentity: []canon.ResourceID{
+		ResourceIdentity: []evidence.ResourceID{
 			{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default", Name: "demo"},
 		},
 	}

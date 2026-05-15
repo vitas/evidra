@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"samebits.com/evidra/internal/canon"
 	"samebits.com/evidra/internal/ingest"
 	testutil "samebits.com/evidra/internal/testutil"
 	"samebits.com/evidra/pkg/evidence"
@@ -88,7 +87,7 @@ func TestBuildGenericWebhookRequestsSharePrescriptionID(t *testing.T) {
 	if startReq.ContractVersion != ingest.ContractVersionV1 {
 		t.Fatalf("start contract_version = %q, want v1", startReq.ContractVersion)
 	}
-	if startReq.ArtifactDigest != canon.SHA256Hex(startBody) {
+	if startReq.ArtifactDigest != evidence.SHA256Hex(startBody) {
 		t.Fatalf("start artifact_digest = %q, want body digest", startReq.ArtifactDigest)
 	}
 	if startReq.Flavor != evidence.FlavorImperative || completeReq.Flavor != evidence.FlavorImperative {
@@ -166,7 +165,7 @@ func TestBuildArgoCDWebhookRequestsSharePrescriptionID(t *testing.T) {
 	if startReq.ContractVersion != ingest.ContractVersionV1 {
 		t.Fatalf("start contract_version = %q, want v1", startReq.ContractVersion)
 	}
-	if startReq.ArtifactDigest != canon.SHA256Hex(startBody) {
+	if startReq.ArtifactDigest != evidence.SHA256Hex(startBody) {
 		t.Fatalf("start artifact_digest = %q, want body digest", startReq.ArtifactDigest)
 	}
 	if startReq.Flavor != evidence.FlavorReconcile || completeReq.Flavor != evidence.FlavorReconcile {
@@ -356,14 +355,14 @@ func TestHandleGenericWebhook_UsesOperationIDForLifecycleCorrelation(t *testing.
 	if err := json.Unmarshal(prescribe.Payload, &prescribePayload); err != nil {
 		t.Fatalf("decode prescribe payload: %v", err)
 	}
-	if prescribePayload.EffectiveRisk == "" {
-		t.Fatal("mapped prescribe payload missing effective_risk")
+	if prescribePayload.EffectiveRisk != "" {
+		t.Fatalf("mapped prescribe payload effective_risk = %q, want empty without assessment", prescribePayload.EffectiveRisk)
 	}
-	if len(prescribePayload.RiskInputs) != 1 {
-		t.Fatalf("mapped prescribe risk_inputs len = %d, want 1", len(prescribePayload.RiskInputs))
+	if len(prescribePayload.RiskInputs) != 0 {
+		t.Fatalf("mapped prescribe risk_inputs len = %d, want 0 without assessment", len(prescribePayload.RiskInputs))
 	}
-	if prescribePayload.RiskInputs[0].Source != "evidra/matrix" {
-		t.Fatalf("mapped prescribe risk_inputs[0].source = %q, want evidra/matrix", prescribePayload.RiskInputs[0].Source)
+	if prescribePayload.Assessment == nil || prescribePayload.Assessment.Status != evidence.AssessmentNotProvided {
+		t.Fatalf("mapped prescribe assessment = %+v, want not_provided", prescribePayload.Assessment)
 	}
 }
 

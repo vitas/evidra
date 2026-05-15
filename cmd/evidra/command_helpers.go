@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"samebits.com/evidra/internal/canon"
 	"samebits.com/evidra/internal/config"
 	ievsigner "samebits.com/evidra/internal/evidence"
 	"samebits.com/evidra/internal/lifecycle"
@@ -39,12 +38,12 @@ func newLifecycleServiceForCommand(evidenceDir, signingKey, signingKeyPath, sign
 	return svc, evidencePath, signer, nil
 }
 
-func parseCanonicalActionFlag(raw string) (*canon.CanonicalAction, error) {
+func parseCanonicalActionFlag(raw string) (*evidence.CanonicalAction, error) {
 	if raw == "" {
 		return nil, nil
 	}
 
-	preCanon := &canon.CanonicalAction{}
+	preCanon := &evidence.CanonicalAction{}
 	if err := json.Unmarshal([]byte(raw), preCanon); err != nil {
 		return nil, fmt.Errorf("parse --canonical-action: %w", err)
 	}

@@ -93,7 +93,7 @@ func TestSessionInvariant_ReportSessionMismatchReturnsValidationError(t *testing
 	}
 }
 
-func TestSessionInvariant_CanonFailureInheritsSessionAndTrace(t *testing.T) {
+func TestSessionInvariant_RawArtifactPrescribeKeepsSessionAndTrace(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -110,8 +110,8 @@ func TestSessionInvariant_CanonFailureInheritsSessionAndTrace(t *testing.T) {
 		SessionID:   "session-fail",
 		TraceID:     "trace-fail",
 	})
-	if err == nil {
-		t.Fatal("expected parse error")
+	if err != nil {
+		t.Fatalf("Prescribe: %v", err)
 	}
 
 	entries, readErr := evidence.ReadAllEntriesAtPath(dir)
@@ -121,14 +121,14 @@ func TestSessionInvariant_CanonFailureInheritsSessionAndTrace(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("entry count=%d, want 1", len(entries))
 	}
-	if entries[0].Type != evidence.EntryTypeCanonFailure {
-		t.Fatalf("entry type=%q, want %q", entries[0].Type, evidence.EntryTypeCanonFailure)
+	if entries[0].Type != evidence.EntryTypePrescribe {
+		t.Fatalf("entry type=%q, want %q", entries[0].Type, evidence.EntryTypePrescribe)
 	}
 	if entries[0].SessionID != "session-fail" {
-		t.Fatalf("canon_failure session_id=%q, want session-fail", entries[0].SessionID)
+		t.Fatalf("prescribe session_id=%q, want session-fail", entries[0].SessionID)
 	}
 	if entries[0].TraceID != "trace-fail" {
-		t.Fatalf("canon_failure trace_id=%q, want trace-fail", entries[0].TraceID)
+		t.Fatalf("prescribe trace_id=%q, want trace-fail", entries[0].TraceID)
 	}
 }
 

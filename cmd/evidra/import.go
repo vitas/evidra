@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"samebits.com/evidra/internal/automationevent"
-	"samebits.com/evidra/internal/canon"
 	"samebits.com/evidra/internal/lifecycle"
 	"samebits.com/evidra/pkg/evidence"
 )
@@ -216,12 +215,12 @@ func readImportInputData(inputPath string) ([]byte, error) {
 	return data, nil
 }
 
-func parseImportCanonicalAction(raw json.RawMessage) (*canon.CanonicalAction, error) {
+func parseImportCanonicalAction(raw json.RawMessage) (*evidence.CanonicalAction, error) {
 	if len(raw) == 0 {
 		return nil, nil
 	}
 
-	var preCanon canon.CanonicalAction
+	var preCanon evidence.CanonicalAction
 	if err := json.Unmarshal(raw, &preCanon); err != nil {
 		return nil, fmt.Errorf("parse import canonical_action: %w", err)
 	}

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"samebits.com/evidra/internal/canon"
+	"samebits.com/evidra/pkg/evidence"
 	"samebits.com/evidra/pkg/execcontract"
 )
 
@@ -42,7 +42,7 @@ func toExecContractPrescribeInput(input PrescribeInput) execcontract.PrescribeIn
 	}
 }
 
-func toExecContractCanonicalAction(action *canon.CanonicalAction) *execcontract.CanonicalAction {
+func toExecContractCanonicalAction(action *evidence.CanonicalAction) *execcontract.CanonicalAction {
 	if action == nil {
 		return nil
 	}
@@ -68,30 +68,30 @@ func toExecContractCanonicalAction(action *canon.CanonicalAction) *execcontract.
 	}
 }
 
-func buildSmartCanonicalAction(input PrescribeInput) (canon.CanonicalAction, error) {
+func buildSmartCanonicalAction(input PrescribeInput) (evidence.CanonicalAction, error) {
 	resource, err := parseSmartResource(input.Resource, input.Namespace)
 	if err != nil {
-		return canon.CanonicalAction{}, err
+		return evidence.CanonicalAction{}, err
 	}
 
-	scopeClass := canon.ResolveScopeClass(input.Environment, []canon.ResourceID{resource})
-	return canon.CanonicalAction{
+	scopeClass := evidence.ResolveScopeClass(input.Environment, []evidence.ResourceID{resource})
+	return evidence.CanonicalAction{
 		Tool:             strings.ToLower(strings.TrimSpace(input.Tool)),
 		Operation:        strings.ToLower(strings.TrimSpace(input.Operation)),
 		OperationClass:   smartOperationClass(input.Tool, input.Operation),
-		ResourceIdentity: []canon.ResourceID{resource},
+		ResourceIdentity: []evidence.ResourceID{resource},
 		ScopeClass:       scopeClass,
 		ResourceCount:    1,
 	}, nil
 }
 
-func parseSmartResource(raw, namespace string) (canon.ResourceID, error) {
+func parseSmartResource(raw, namespace string) (evidence.ResourceID, error) {
 	value := strings.TrimSpace(raw)
 	if value == "" {
-		return canon.ResourceID{}, fmt.Errorf("resource is required when raw_artifact is omitted")
+		return evidence.ResourceID{}, fmt.Errorf("resource is required when raw_artifact is omitted")
 	}
 
-	id := canon.ResourceID{Namespace: strings.TrimSpace(namespace)}
+	id := evidence.ResourceID{Namespace: strings.TrimSpace(namespace)}
 	if strings.Contains(value, "/") {
 		parts := strings.SplitN(value, "/", 2)
 		id.Kind = strings.TrimSpace(parts[0])
@@ -100,7 +100,7 @@ func parseSmartResource(raw, namespace string) (canon.ResourceID, error) {
 		id.Name = value
 	}
 	if id.Name == "" {
-		return canon.ResourceID{}, fmt.Errorf("resource is required when raw_artifact is omitted")
+		return evidence.ResourceID{}, fmt.Errorf("resource is required when raw_artifact is omitted")
 	}
 	return id, nil
 }

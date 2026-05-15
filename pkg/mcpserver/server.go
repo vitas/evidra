@@ -11,7 +11,6 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"samebits.com/evidra/internal/assessment"
-	"samebits.com/evidra/internal/canon"
 	"samebits.com/evidra/internal/lifecycle"
 	"samebits.com/evidra/internal/score"
 	"samebits.com/evidra/pkg/evidence"
@@ -51,21 +50,21 @@ type InputActor struct {
 
 // PrescribeInput is the input schema for the prescribe tool.
 type PrescribeInput struct {
-	Actor           InputActor             `json:"actor"`
-	Tool            string                 `json:"tool"`
-	Operation       string                 `json:"operation"`
-	RawArtifact     string                 `json:"raw_artifact"`
-	Resource        string                 `json:"resource,omitempty"`
-	Namespace       string                 `json:"namespace,omitempty"`
-	Environment     string                 `json:"environment,omitempty"`
-	CanonicalAction *canon.CanonicalAction `json:"canonical_action,omitempty"`
-	SessionID       string                 `json:"session_id,omitempty"`
-	OperationID     string                 `json:"operation_id,omitempty"`
-	Attempt         int                    `json:"attempt,omitempty"`
-	TraceID         string                 `json:"trace_id,omitempty"`
-	SpanID          string                 `json:"span_id,omitempty"`
-	ParentSpanID    string                 `json:"parent_span_id,omitempty"`
-	ScopeDimensions map[string]string      `json:"scope_dimensions,omitempty"`
+	Actor           InputActor                `json:"actor"`
+	Tool            string                    `json:"tool"`
+	Operation       string                    `json:"operation"`
+	RawArtifact     string                    `json:"raw_artifact"`
+	Resource        string                    `json:"resource,omitempty"`
+	Namespace       string                    `json:"namespace,omitempty"`
+	Environment     string                    `json:"environment,omitempty"`
+	CanonicalAction *evidence.CanonicalAction `json:"canonical_action,omitempty"`
+	SessionID       string                    `json:"session_id,omitempty"`
+	OperationID     string                    `json:"operation_id,omitempty"`
+	Attempt         int                       `json:"attempt,omitempty"`
+	TraceID         string                    `json:"trace_id,omitempty"`
+	SpanID          string                    `json:"span_id,omitempty"`
+	ParentSpanID    string                    `json:"parent_span_id,omitempty"`
+	ScopeDimensions map[string]string         `json:"scope_dimensions,omitempty"`
 }
 
 // PrescribeOutput is returned by the prescribe tool.

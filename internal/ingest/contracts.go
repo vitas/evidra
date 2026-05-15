@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"samebits.com/evidra/internal/canon"
 	"samebits.com/evidra/pkg/evidence"
 )
 
@@ -20,8 +19,7 @@ type Claim struct {
 	Payload json.RawMessage `json:"payload,omitempty"`
 }
 
-// SmartTarget captures a lightweight intent form that can be normalized into
-// a canonical action by the ingest layer.
+// SmartTarget captures a lightweight intent form accepted by older clients.
 type SmartTarget struct {
 	Tool      string `json:"tool"`
 	Operation string `json:"operation"`
@@ -59,7 +57,7 @@ type PrescribeRequest struct {
 	PrescriptionID  string                      `json:"prescription_id,omitempty"`
 	ArtifactDigest  string                      `json:"artifact_digest,omitempty"`
 	Intent          *evidence.DeclaredIntent    `json:"intent,omitempty"`
-	CanonicalAction *canon.CanonicalAction      `json:"canonical_action,omitempty"`
+	CanonicalAction *evidence.CanonicalAction   `json:"canonical_action,omitempty"`
 	Assessment      *evidence.AssessmentPayload `json:"assessment,omitempty"`
 	SmartTarget     *SmartTarget                `json:"smart_target,omitempty"`
 	PayloadOverride *json.RawMessage            `json:"payload_override,omitempty"`
@@ -186,7 +184,7 @@ func validateClaim(violations *ValidationError, claim *Claim) {
 	}
 }
 
-func validatePrescribeIntent(violations *ValidationError, intent *evidence.DeclaredIntent, canonicalAction *canon.CanonicalAction, assessment *evidence.AssessmentPayload, smartTarget *SmartTarget) {
+func validatePrescribeIntent(violations *ValidationError, intent *evidence.DeclaredIntent, canonicalAction *evidence.CanonicalAction, assessment *evidence.AssessmentPayload, smartTarget *SmartTarget) {
 	if intent == nil && canonicalAction == nil && smartTarget == nil {
 		violations.Add("intent, canonical_action, or smart_target is required")
 		return
@@ -255,7 +253,7 @@ func validateSmartTarget(violations *ValidationError, target *SmartTarget) {
 	}
 }
 
-func validateCanonicalAction(violations *ValidationError, action *canon.CanonicalAction) {
+func validateCanonicalAction(violations *ValidationError, action *evidence.CanonicalAction) {
 	if action == nil {
 		violations.Add("canonical_action is required")
 		return

@@ -10,7 +10,6 @@ import (
 	"strings"
 	"testing"
 
-	"samebits.com/evidra/internal/canon"
 	"samebits.com/evidra/internal/testutil"
 	"samebits.com/evidra/pkg/evidence"
 )
@@ -357,7 +356,7 @@ func TestRecordCommandRequiresWrappedCommandSeparator(t *testing.T) {
 	}
 }
 
-func readPrescribedAction(t *testing.T, evidenceDir string) canon.CanonicalAction {
+func readPrescribedAction(t *testing.T, evidenceDir string) evidence.CanonicalAction {
 	t.Helper()
 
 	entries, err := evidence.ReadAllEntriesAtPath(evidenceDir)
@@ -376,13 +375,13 @@ func readPrescribedAction(t *testing.T, evidenceDir string) canon.CanonicalActio
 		}
 
 		if payload.Intent != nil {
-			return canon.CanonicalAction{
+			return evidence.CanonicalAction{
 				Tool:      payload.Intent.Tool,
 				Operation: payload.Intent.Operation,
 			}
 		}
 
-		var action canon.CanonicalAction
+		var action evidence.CanonicalAction
 		if err := json.Unmarshal(payload.CanonicalAction, &action); err != nil {
 			t.Fatalf("decode canonical action: %v", err)
 		}
@@ -390,7 +389,7 @@ func readPrescribedAction(t *testing.T, evidenceDir string) canon.CanonicalActio
 	}
 
 	t.Fatal("no prescribe entry found")
-	return canon.CanonicalAction{}
+	return evidence.CanonicalAction{}
 }
 
 func mustInstallStubCommand(t *testing.T, dir, name string) {

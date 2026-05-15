@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"samebits.com/evidra/internal/auth"
-	"samebits.com/evidra/internal/canon"
 	"samebits.com/evidra/internal/ingest"
 	"samebits.com/evidra/internal/store"
 	testutil "samebits.com/evidra/internal/testutil"
@@ -286,7 +285,7 @@ func TestIngestPrescribeHandler_AcceptsValidInput(t *testing.T) {
 			Evidence:    &evidence.EvidenceMetadata{Kind: evidence.EvidenceKindObserved},
 			Source:      &evidence.SourceMetadata{System: " argocd "},
 		},
-		CanonicalAction: &canon.CanonicalAction{
+		CanonicalAction: &evidence.CanonicalAction{
 			Tool:           "kubectl",
 			Operation:      "apply",
 			OperationClass: "mutate",
@@ -318,8 +317,8 @@ func TestIngestPrescribeHandler_AcceptsValidInput(t *testing.T) {
 	if resp.EntryID == "" {
 		t.Fatal("expected entry_id")
 	}
-	if resp.EffectiveRisk == "" {
-		t.Fatal("expected effective_risk")
+	if resp.EffectiveRisk != "" {
+		t.Fatalf("effective_risk = %q, want empty without assessment", resp.EffectiveRisk)
 	}
 	if resp.PrescriptionID == "" {
 		t.Fatal("expected prescription_id")
@@ -574,7 +573,7 @@ func TestWriteIngestServiceErrorMappings(t *testing.T) {
 				Evidence:    &evidence.EvidenceMetadata{Kind: evidence.EvidenceKindObserved},
 				Source:      &evidence.SourceMetadata{System: "argocd"},
 			},
-			CanonicalAction: &canon.CanonicalAction{
+			CanonicalAction: &evidence.CanonicalAction{
 				Tool:           "kubectl",
 				Operation:      "apply",
 				OperationClass: "mutate",
@@ -611,7 +610,7 @@ func TestWriteIngestServiceErrorMappings(t *testing.T) {
 				Evidence:    &evidence.EvidenceMetadata{Kind: evidence.EvidenceKindObserved},
 				Source:      &evidence.SourceMetadata{System: "argocd"},
 			},
-			CanonicalAction: &canon.CanonicalAction{
+			CanonicalAction: &evidence.CanonicalAction{
 				Tool:           "kubectl",
 				Operation:      "apply",
 				OperationClass: "mutate",
@@ -703,8 +702,8 @@ func TestIngestPrescribeHandler_DuplicateClaimResponseStable(t *testing.T) {
 	if firstResp.EntryID == "" || firstResp.EntryID != secondResp.EntryID {
 		t.Fatalf("entry_id mismatch: first=%q second=%q", firstResp.EntryID, secondResp.EntryID)
 	}
-	if firstResp.EffectiveRisk == "" || firstResp.EffectiveRisk != secondResp.EffectiveRisk {
-		t.Fatalf("effective_risk mismatch: first=%q second=%q", firstResp.EffectiveRisk, secondResp.EffectiveRisk)
+	if firstResp.EffectiveRisk != "" || secondResp.EffectiveRisk != "" {
+		t.Fatalf("effective_risk mismatch: first=%q second=%q, want empty without assessment", firstResp.EffectiveRisk, secondResp.EffectiveRisk)
 	}
 	if firstResp.PrescriptionID == "" || firstResp.PrescriptionID != secondResp.PrescriptionID {
 		t.Fatalf("prescription_id mismatch: first=%q second=%q", firstResp.PrescriptionID, secondResp.PrescriptionID)

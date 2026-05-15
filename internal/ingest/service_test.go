@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"samebits.com/evidra/internal/canon"
 	"samebits.com/evidra/internal/store"
 	testutil "samebits.com/evidra/internal/testutil"
 	"samebits.com/evidra/pkg/evidence"
@@ -94,7 +93,7 @@ func TestServicePrescribe_CreatesAndStoresSignedPrescribeEntry(t *testing.T) {
 	if payload.Source == nil || payload.Source.System != "argocd" {
 		t.Fatalf("payload source = %+v, want argocd", payload.Source)
 	}
-	var actionPayload canon.CanonicalAction
+	var actionPayload evidence.CanonicalAction
 	if err := json.Unmarshal(payload.CanonicalAction, &actionPayload); err != nil {
 		t.Fatalf("unmarshal canonical action: %v", err)
 	}
@@ -162,6 +161,56 @@ func TestServicePrescribe_StoresIntentOnlyWithoutAssessment(t *testing.T) {
 	}
 }
 
+func TestServicePrescribe_StoresCanonicalActionWithoutAssessment(t *testing.T) {
+	t.Parallel()
+
+	fakeStore := newFakeIngestStore()
+	fakeStore.lastHash = "sha256:previous"
+	svc := NewService(fakeStore, testutil.TestSigner(t))
+	action := canonicalActionForTest()
+	action.Operation = "delete"
+	action.OperationClass = "destroy"
+	action.ScopeClass = "production"
+
+	req := PrescribeRequest{
+		Envelope: Envelope{
+			ContractVersion: ContractVersionV1,
+			Actor: evidence.Actor{
+				Type:       "controller",
+				ID:         "argocd",
+				Provenance: "argocd",
+			},
+			SessionID:   "session-canonical-no-assessment",
+			OperationID: "operation-canonical-no-assessment",
+			TraceID:     "trace-canonical-no-assessment",
+			Flavor:      evidence.FlavorWorkflow,
+			Evidence:    &evidence.EvidenceMetadata{Kind: evidence.EvidenceKindTranslated},
+			Source:      &evidence.SourceMetadata{System: "argocd"},
+		},
+		CanonicalAction: &action,
+	}
+
+	out, err := svc.Prescribe(context.Background(), "tenant-1", req)
+	if err != nil {
+		t.Fatalf("Prescribe: %v", err)
+	}
+	if out.EffectiveRisk != "" {
+		t.Fatalf("effective risk = %q, want empty", out.EffectiveRisk)
+	}
+
+	entry := decodeStoredEntry(t, fakeStore.savedRaw[0])
+	var payload evidence.PrescriptionPayload
+	if err := json.Unmarshal(entry.Payload, &payload); err != nil {
+		t.Fatalf("unmarshal prescribe payload: %v", err)
+	}
+	if payload.Assessment == nil || payload.Assessment.Status != evidence.AssessmentNotProvided {
+		t.Fatalf("assessment = %+v, want not_provided", payload.Assessment)
+	}
+	if payload.EffectiveRisk != "" || len(payload.RiskInputs) != 0 {
+		t.Fatalf("unexpected payload risk=%q inputs=%+v", payload.EffectiveRisk, payload.RiskInputs)
+	}
+}
+
 func TestServicePrescribe_UsesExplicitPrescriptionIDAndArtifactDigest(t *testing.T) {
 	t.Parallel()
 
@@ -188,7 +237,7 @@ func TestServicePrescribe_UsesExplicitPrescriptionIDAndArtifactDigest(t *testing
 		},
 		PrescriptionID: "presc-explicit",
 		ArtifactDigest: "sha256:" + strings.Repeat("b", 64),
-		CanonicalAction: &canon.CanonicalAction{
+		CanonicalAction: &evidence.CanonicalAction{
 			Tool:           "kubectl",
 			Operation:      "apply",
 			OperationClass: "mutate",
@@ -293,7 +342,7 @@ func TestServicePrescribe_PayloadOverrideAlignsEntryIDAndPayload(t *testing.T) {
 	if payload.PrescriptionID != "presc-override" {
 		t.Fatalf("payload prescription_id = %q, want presc-override", payload.PrescriptionID)
 	}
-	var actionPayload canon.CanonicalAction
+	var actionPayload evidence.CanonicalAction
 	if err := json.Unmarshal(payload.CanonicalAction, &actionPayload); err != nil {
 		t.Fatalf("unmarshal canonical action: %v", err)
 	}
@@ -455,7 +504,7 @@ func TestServicePrescribe_RejectsInvalidCanonicalActionScope(t *testing.T) {
 			Evidence:    &evidence.EvidenceMetadata{Kind: evidence.EvidenceKindObserved},
 			Source:      &evidence.SourceMetadata{System: "argocd"},
 		},
-		CanonicalAction: &canon.CanonicalAction{
+		CanonicalAction: &evidence.CanonicalAction{
 			Tool:           "kubectl",
 			Operation:      "apply",
 			OperationClass: "mutate",
@@ -525,11 +574,8 @@ func TestServiceDuplicateClaim_ReturnsDuplicateWithoutStoringTwice(t *testing.T)
 	if first.EntryID != second.EntryID {
 		t.Fatalf("entry ids differ: first=%q second=%q", first.EntryID, second.EntryID)
 	}
-	if first.EffectiveRisk == "" || second.EffectiveRisk == "" {
-		t.Fatal("expected effective risk on duplicate retry")
-	}
-	if first.EffectiveRisk != second.EffectiveRisk {
-		t.Fatalf("effective risk differs: first=%q second=%q", first.EffectiveRisk, second.EffectiveRisk)
+	if first.EffectiveRisk != "" || second.EffectiveRisk != "" {
+		t.Fatalf("effective risk = first:%q second:%q, want empty without assessment", first.EffectiveRisk, second.EffectiveRisk)
 	}
 	if len(first.Entry.Payload) == 0 || len(second.Entry.Payload) == 0 {
 		t.Fatal("expected duplicate retry to return stored entry payload")
@@ -1302,8 +1348,8 @@ func cloneClaimResults(src map[string]store.WebhookEventResult) map[string]store
 	return dst
 }
 
-func canonicalActionForTest() canon.CanonicalAction {
-	return canon.CanonicalAction{
+func canonicalActionForTest() evidence.CanonicalAction {
+	return evidence.CanonicalAction{
 		Tool:              "kubectl",
 		Operation:         "apply",
 		OperationClass:    "mutate",

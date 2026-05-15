@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"samebits.com/evidra/internal/canon"
 	"samebits.com/evidra/pkg/evidence"
 )
 
@@ -29,7 +28,7 @@ func TestValidatePrescribeRequestValidCanonicalAction(t *testing.T) {
 			Source:          &evidence.SourceMetadata{System: "argocd"},
 			ScopeDimensions: map[string]string{"cluster": "prod"},
 		},
-		CanonicalAction: &canon.CanonicalAction{
+		CanonicalAction: &evidence.CanonicalAction{
 			Tool:              "kubectl",
 			Operation:         "apply",
 			OperationClass:    "mutate",
@@ -63,7 +62,7 @@ func TestValidatePrescribeRequestValidExplicitPrescriptionID(t *testing.T) {
 			Source:      &evidence.SourceMetadata{System: "argocd"},
 		},
 		PrescriptionID: "presc-explicit",
-		CanonicalAction: &canon.CanonicalAction{
+		CanonicalAction: &evidence.CanonicalAction{
 			Tool:              "kubectl",
 			Operation:         "apply",
 			OperationClass:    "mutate",
@@ -155,7 +154,7 @@ func TestValidatePrescribeRequestRejectsEmptyCanonicalAction(t *testing.T) {
 			Evidence:    &evidence.EvidenceMetadata{Kind: evidence.EvidenceKindObserved},
 			Source:      &evidence.SourceMetadata{System: "argocd"},
 		},
-		CanonicalAction: &canon.CanonicalAction{},
+		CanonicalAction: &evidence.CanonicalAction{},
 	}
 
 	err := ValidatePrescribeRequest(req)
@@ -274,7 +273,7 @@ func TestValidateContractVersionRequired(t *testing.T) {
 			Evidence:    &evidence.EvidenceMetadata{Kind: evidence.EvidenceKindObserved},
 			Source:      &evidence.SourceMetadata{System: "argocd"},
 		},
-		CanonicalAction: &canon.CanonicalAction{Tool: "kubectl", Operation: "apply"},
+		CanonicalAction: &evidence.CanonicalAction{Tool: "kubectl", Operation: "apply"},
 	}
 
 	err := ValidatePrescribeRequest(req)
@@ -305,7 +304,7 @@ func TestValidatePrescribeRequestRequiresTaxonomyFields(t *testing.T) {
 			OperationID: "operation-1",
 			TraceID:     "trace-1",
 		},
-		CanonicalAction: &canon.CanonicalAction{Tool: "kubectl", Operation: "apply"},
+		CanonicalAction: &evidence.CanonicalAction{Tool: "kubectl", Operation: "apply"},
 	}
 
 	err := ValidatePrescribeRequest(req)
@@ -337,7 +336,7 @@ func TestValidatePrescribeRequestRejectsUnsupportedTaxonomyValues(t *testing.T) 
 			Evidence:    &evidence.EvidenceMetadata{Kind: evidence.EvidenceKind("mystery")},
 			Source:      &evidence.SourceMetadata{System: "argocd"},
 		},
-		CanonicalAction: &canon.CanonicalAction{Tool: "kubectl", Operation: "apply"},
+		CanonicalAction: &evidence.CanonicalAction{Tool: "kubectl", Operation: "apply"},
 	}
 
 	err := ValidatePrescribeRequest(req)

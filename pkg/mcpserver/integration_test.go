@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"samebits.com/evidra/internal/canon"
 	"samebits.com/evidra/internal/testutil"
 	"samebits.com/evidra/pkg/evidence"
 )
@@ -362,7 +361,7 @@ func TestPrescribe_InvalidCanonicalScopeClassRejected(t *testing.T) {
 		Tool:        "terraform",
 		Operation:   "apply",
 		RawArtifact: `{"noop":true}`,
-		CanonicalAction: &canon.CanonicalAction{
+		CanonicalAction: &evidence.CanonicalAction{
 			Tool:              "terraform",
 			Operation:         "apply",
 			OperationClass:    "mutate",

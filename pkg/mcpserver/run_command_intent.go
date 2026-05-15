@@ -3,7 +3,7 @@ package mcpserver
 import (
 	"strings"
 
-	"samebits.com/evidra/internal/canon"
+	"samebits.com/evidra/pkg/evidence"
 	"samebits.com/evidra/pkg/proxy"
 )
 
@@ -16,7 +16,7 @@ func deriveAutoPrescribeInput(command string, actorID string) (PrescribeInput, b
 		return PrescribeInput{}, false, nil
 	}
 
-	action := canon.CanonicalAction{
+	action := evidence.CanonicalAction{
 		Tool:           strings.ToLower(strings.TrimSpace(tool)),
 		Operation:      strings.ToLower(strings.TrimSpace(operation)),
 		OperationClass: string(class),
@@ -28,9 +28,9 @@ func deriveAutoPrescribeInput(command string, actorID string) (PrescribeInput, b
 		if err != nil {
 			return PrescribeInput{}, false, err
 		}
-		action.ResourceIdentity = []canon.ResourceID{resourceID}
+		action.ResourceIdentity = []evidence.ResourceID{resourceID}
 		action.ResourceCount = 1
-		action.ScopeClass = canon.ResolveScopeClass("", []canon.ResourceID{resourceID})
+		action.ScopeClass = evidence.ResolveScopeClass("", []evidence.ResourceID{resourceID})
 	}
 
 	return PrescribeInput{

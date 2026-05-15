@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	iauth "samebits.com/evidra/internal/auth"
-	"samebits.com/evidra/internal/canon"
 	"samebits.com/evidra/internal/ingest"
 	"samebits.com/evidra/internal/store"
 	pkevidence "samebits.com/evidra/pkg/evidence"
@@ -167,7 +166,7 @@ func buildGenericWebhookPrescribeRequest(payload genericWebhookPayload, body jso
 			Source:          &pkevidence.SourceMetadata{System: "generic"},
 		},
 		PrescriptionID:  mappedPrescriptionID("generic", payload.Tool, payload.Operation, "", operationID, payload.Environment, ""),
-		ArtifactDigest:  canon.SHA256Hex(body),
+		ArtifactDigest:  pkevidence.SHA256Hex(body),
 		CanonicalAction: &action,
 	}, nil
 }
@@ -210,7 +209,7 @@ func buildGenericWebhookReportRequest(payload genericWebhookPayload, body json.R
 			Source:          &pkevidence.SourceMetadata{System: "generic"},
 		},
 		PrescriptionID: mappedPrescriptionID("generic", payload.Tool, payload.Operation, "", operationID, payload.Environment, ""),
-		ArtifactDigest: canon.SHA256Hex(body),
+		ArtifactDigest: pkevidence.SHA256Hex(body),
 		Verdict:        payload.Verdict,
 		ExitCode:       exitCode,
 	}, nil
@@ -240,7 +239,7 @@ func buildArgoCDWebhookPrescribeRequest(payload argoCDWebhookPayload, body json.
 			Source:          &pkevidence.SourceMetadata{System: "argocd"},
 		},
 		PrescriptionID:  mappedPrescriptionID("argocd", payload.AppName, "sync", payload.InitiatedBy, operationID, payload.AppNamespace, ""),
-		ArtifactDigest:  canon.SHA256Hex(body),
+		ArtifactDigest:  pkevidence.SHA256Hex(body),
 		CanonicalAction: &action,
 	}, nil
 }
@@ -272,7 +271,7 @@ func buildArgoCDWebhookReportRequest(payload argoCDWebhookPayload, body json.Raw
 			Source:          &pkevidence.SourceMetadata{System: "argocd"},
 		},
 		PrescriptionID: mappedPrescriptionID("argocd", payload.AppName, "sync", payload.InitiatedBy, operationID, payload.AppNamespace, ""),
-		ArtifactDigest: canon.SHA256Hex(body),
+		ArtifactDigest: pkevidence.SHA256Hex(body),
 		Verdict:        verdict,
 		ExitCode:       &exitCode,
 		ExternalRefs: []pkevidence.ExternalRef{
@@ -355,15 +354,15 @@ func mappedActor(actorID, source string) pkevidence.Actor {
 	}
 }
 
-func mappedCanonicalAction(tool, operation, environment string) canon.CanonicalAction {
-	scope := canon.NormalizeScopeClass(environment)
-	return canon.CanonicalAction{
+func mappedCanonicalAction(tool, operation, environment string) pkevidence.CanonicalAction {
+	scope := pkevidence.NormalizeScopeClass(environment)
+	return pkevidence.CanonicalAction{
 		Tool:              strings.TrimSpace(tool),
 		Operation:         strings.TrimSpace(operation),
 		OperationClass:    mappedOperationClass(operation),
 		ScopeClass:        scope,
 		ResourceCount:     1,
-		ResourceShapeHash: canon.SHA256Hex([]byte(tool + "|" + operation + "|" + scope)),
+		ResourceShapeHash: pkevidence.SHA256Hex([]byte(tool + "|" + operation + "|" + scope)),
 	}
 }
 
@@ -399,7 +398,7 @@ func mappedScopeDimensions(source, environment string, extra map[string]string) 
 
 func mappedPrescriptionID(source, tool, operation, actor, sessionID, environment, suffix string) string {
 	parts := []string{source, tool, operation, actor, sessionID, environment, suffix}
-	return "map-" + canon.SHA256Hex([]byte(strings.Join(parts, "|")))
+	return "map-" + pkevidence.SHA256Hex([]byte(strings.Join(parts, "|")))
 }
 
 func argoCDVerdict(phase string) (pkevidence.Verdict, int, bool) {

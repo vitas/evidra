@@ -9,8 +9,6 @@ import (
 
 	"github.com/oklog/ulid/v2"
 
-	"samebits.com/evidra/internal/assess"
-	"samebits.com/evidra/internal/canon"
 	"samebits.com/evidra/pkg/evidence"
 	"samebits.com/evidra/pkg/version"
 )
@@ -31,7 +29,8 @@ type reportContext struct {
 	actor       evidence.Actor
 }
 
-// Prescribe canonicalizes an operation intent and writes a prescription entry.
+// Prescribe writes pre-execution intent evidence. Canonicalization and
+// assessment are optional caller-supplied enrichments.
 func (s *Service) Prescribe(_ context.Context, input PrescribeInput) (PrescribeOutput, error) {
 	if err := requiredSigner(s.signer); err != nil {
 		return PrescribeOutput{}, err
@@ -42,122 +41,11 @@ func (s *Service) Prescribe(_ context.Context, input PrescribeInput) (PrescribeO
 		return PrescribeOutput{}, err
 	}
 
-	if hasDeclaredIntent(input.Intent) {
+	if hasDeclaredIntent(input.Intent) || input.CanonicalAction == nil {
 		return s.prescribeDeclaredIntent(input, ctx)
 	}
 
-	cr, canonSource, err := s.canonicalizePrescribeInput(input, ctx)
-	if err != nil {
-		return PrescribeOutput{}, err
-	}
-
-	assessPipeline := s.pipeline
-	if assessPipeline == nil {
-		assessPipeline = assess.NewPipeline(assess.MatrixAssessor{}, assess.DetectorAssessor{})
-	}
-	if len(input.ExternalFindings) > 0 {
-		var sources []assess.FindingsSource
-		for _, ef := range input.ExternalFindings {
-			sources = append(sources, assess.FindingsSource{
-				Source:   ef.Source,
-				Findings: ef.Findings,
-			})
-		}
-		assessPipeline = assess.NewPipeline(append(assessPipeline.Assessors(), assess.SARIFAssessor{Sources: sources})...)
-	}
-	assessResult, err := assessPipeline.Run(context.Background(), cr.CanonicalAction, input.RawArtifact)
-	if err != nil {
-		return PrescribeOutput{}, wrapError(ErrCodeInternal, "assessment pipeline failed", err)
-	}
-	riskInputs := assessResult.RiskInputs
-	effectiveRisk := assessResult.EffectiveRisk
-	nativeTags := assessResult.NativeTags
-
-	retryCount := 0
-	if s.retryTracker != nil {
-		retryCount = s.retryTracker.Record(cr.IntentDigest, cr.CanonicalAction.ResourceShapeHash)
-	}
-
-	prescPayload := evidence.PrescriptionPayload{
-		PrescriptionID:  ulid.Make().String(),
-		CanonicalAction: cr.RawAction,
-		RiskInputs:      riskInputs,
-		EffectiveRisk:   effectiveRisk,
-		TTLMs:           evidence.DefaultTTLMs,
-		CanonSource:     canonSource,
-		Flavor:          input.Flavor,
-		Evidence:        payloadEvidenceMetadata(input.EvidenceKind),
-		Source:          payloadSourceMetadata(input.SourceSystem),
-	}
-	payloadJSON, err := json.Marshal(prescPayload)
-	if err != nil {
-		return PrescribeOutput{}, wrapError(ErrCodeInternal, "failed to marshal prescription payload", err)
-	}
-
-	lastHash, err := s.lastHash()
-	if err != nil {
-		return PrescribeOutput{}, err
-	}
-
-	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
-		EntryID:         prescPayload.PrescriptionID,
-		Type:            evidence.EntryTypePrescribe,
-		SessionID:       ctx.sessionID,
-		OperationID:     strings.TrimSpace(input.OperationID),
-		Attempt:         input.Attempt,
-		TraceID:         ctx.traceID,
-		SpanID:          strings.TrimSpace(input.SpanID),
-		ParentSpanID:    strings.TrimSpace(input.ParentSpanID),
-		Actor:           ctx.actor,
-		IntentDigest:    cr.IntentDigest,
-		ArtifactDigest:  cr.ArtifactDigest,
-		Payload:         payloadJSON,
-		PreviousHash:    lastHash,
-		ScopeDimensions: input.ScopeDimensions,
-		SpecVersion:     version.SpecVersion,
-		CanonVersion:    cr.CanonVersion,
-		AdapterVersion:  version.Version,
-		ScoringVersion:  version.ScoringVersion,
-		Signer:          s.signer,
-	})
-	if err != nil {
-		return PrescribeOutput{}, wrapError(ErrCodeInternal, err.Error(), err)
-	}
-
-	persisted, err := s.appendEntry(entry)
-	if err != nil {
-		return PrescribeOutput{}, err
-	}
-	if persisted {
-		s.writeFindingsEvidence(input.ExternalFindings, ctx.sessionID, ctx.traceID, strings.TrimSpace(input.OperationID), input.Attempt, ctx.actor, cr.ArtifactDigest)
-	}
-
-	rawEntry, err := json.Marshal(entry)
-	if err != nil {
-		return PrescribeOutput{}, wrapError(ErrCodeInternal, "failed to marshal evidence entry", err)
-	}
-
-	return PrescribeOutput{
-		PrescriptionID: entry.EntryID,
-		SessionID:      ctx.sessionID,
-		TraceID:        ctx.traceID,
-		Actor:          ctx.actor,
-		RiskInputs:     riskInputs,
-		EffectiveRisk:  effectiveRisk,
-		RiskLevel:      effectiveRisk,
-		RiskTags:       nativeTags,
-		ArtifactDigest: cr.ArtifactDigest,
-		IntentDigest:   cr.IntentDigest,
-		ShapeHash:      cr.CanonicalAction.ResourceShapeHash,
-		ResourceCount:  cr.CanonicalAction.ResourceCount,
-		OperationClass: cr.CanonicalAction.OperationClass,
-		ScopeClass:     cr.CanonicalAction.ScopeClass,
-		CanonVersion:   cr.CanonVersion,
-		RetryCount:     retryCount,
-		Entry:          entry,
-		RawEntry:       rawEntry,
-		Persisted:      persisted,
-	}, nil
+	return s.prescribeCanonicalAction(input, ctx)
 }
 
 func (s *Service) prescribeDeclaredIntent(input PrescribeInput, ctx prescribeContext) (PrescribeOutput, error) {
@@ -166,6 +54,10 @@ func (s *Service) prescribeDeclaredIntent(input PrescribeInput, ctx prescribeCon
 		return PrescribeOutput{}, err
 	}
 	assessment, err := normalizeAssessment(input.Assessment)
+	if err != nil {
+		return PrescribeOutput{}, err
+	}
+	action, rawAction, canonVersion, err := optionalCanonicalAction(input, ctx)
 	if err != nil {
 		return PrescribeOutput{}, err
 	}
@@ -178,6 +70,10 @@ func (s *Service) prescribeDeclaredIntent(input PrescribeInput, ctx prescribeCon
 		Flavor:         input.Flavor,
 		Evidence:       payloadEvidenceMetadata(input.EvidenceKind),
 		Source:         payloadSourceMetadata(input.SourceSystem),
+	}
+	if len(rawAction) > 0 {
+		prescPayload.CanonicalAction = rawAction
+		prescPayload.CanonSource = "external"
 	}
 	if assessment.Status == evidence.AssessmentProvided {
 		prescPayload.RiskInputs = assessment.RiskInputs
@@ -210,6 +106,7 @@ func (s *Service) prescribeDeclaredIntent(input PrescribeInput, ctx prescribeCon
 		PreviousHash:    lastHash,
 		ScopeDimensions: input.ScopeDimensions,
 		SpecVersion:     version.SpecVersion,
+		CanonVersion:    canonVersion,
 		AdapterVersion:  version.Version,
 		ScoringVersion:  version.ScoringVersion,
 		Signer:          s.signer,
@@ -222,6 +119,9 @@ func (s *Service) prescribeDeclaredIntent(input PrescribeInput, ctx prescribeCon
 	if err != nil {
 		return PrescribeOutput{}, err
 	}
+	if persisted {
+		s.writeFindingsEvidence(input.ExternalFindings, ctx.sessionID, ctx.traceID, strings.TrimSpace(input.OperationID), input.Attempt, ctx.actor, artifactDigest)
+	}
 
 	rawEntry, err := json.Marshal(entry)
 	if err != nil {
@@ -230,7 +130,11 @@ func (s *Service) prescribeDeclaredIntent(input PrescribeInput, ctx prescribeCon
 
 	retryCount := 0
 	if s.retryTracker != nil {
-		retryCount = s.retryTracker.Record(intentDigest, artifactDigest)
+		retryShape := artifactDigest
+		if action.ResourceShapeHash != "" {
+			retryShape = action.ResourceShapeHash
+		}
+		retryCount = s.retryTracker.Record(intentDigest, retryShape)
 	}
 
 	return PrescribeOutput{
@@ -245,6 +149,115 @@ func (s *Service) prescribeDeclaredIntent(input PrescribeInput, ctx prescribeCon
 		RiskLevel:      assessment.EffectiveRisk,
 		ArtifactDigest: artifactDigest,
 		IntentDigest:   intentDigest,
+		ShapeHash:      action.ResourceShapeHash,
+		ResourceCount:  action.ResourceCount,
+		OperationClass: action.OperationClass,
+		ScopeClass:     action.ScopeClass,
+		CanonVersion:   canonVersion,
+		RetryCount:     retryCount,
+		Entry:          entry,
+		RawEntry:       rawEntry,
+		Persisted:      persisted,
+	}, nil
+}
+
+func (s *Service) prescribeCanonicalAction(input PrescribeInput, ctx prescribeContext) (PrescribeOutput, error) {
+	action, rawAction, canonVersion, err := optionalCanonicalAction(input, ctx)
+	if err != nil {
+		return PrescribeOutput{}, err
+	}
+	assessment, err := normalizeAssessment(input.Assessment)
+	if err != nil {
+		return PrescribeOutput{}, err
+	}
+
+	artifactDigest := ""
+	if len(input.RawArtifact) > 0 {
+		artifactDigest = evidence.SHA256Hex(input.RawArtifact)
+	}
+	intentDigest := evidence.ComputeCanonicalActionDigest(action)
+	prescPayload := evidence.PrescriptionPayload{
+		PrescriptionID:  ulid.Make().String(),
+		CanonicalAction: rawAction,
+		Assessment:      assessment,
+		TTLMs:           evidence.DefaultTTLMs,
+		CanonSource:     "external",
+		Flavor:          input.Flavor,
+		Evidence:        payloadEvidenceMetadata(input.EvidenceKind),
+		Source:          payloadSourceMetadata(input.SourceSystem),
+	}
+	if assessment.Status == evidence.AssessmentProvided {
+		prescPayload.RiskInputs = assessment.RiskInputs
+		prescPayload.EffectiveRisk = assessment.EffectiveRisk
+	}
+	payloadJSON, err := json.Marshal(prescPayload)
+	if err != nil {
+		return PrescribeOutput{}, wrapError(ErrCodeInternal, "failed to marshal prescription payload", err)
+	}
+
+	lastHash, err := s.lastHash()
+	if err != nil {
+		return PrescribeOutput{}, err
+	}
+
+	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
+		EntryID:         prescPayload.PrescriptionID,
+		Type:            evidence.EntryTypePrescribe,
+		SessionID:       ctx.sessionID,
+		OperationID:     strings.TrimSpace(input.OperationID),
+		Attempt:         input.Attempt,
+		TraceID:         ctx.traceID,
+		SpanID:          strings.TrimSpace(input.SpanID),
+		ParentSpanID:    strings.TrimSpace(input.ParentSpanID),
+		Actor:           ctx.actor,
+		IntentDigest:    intentDigest,
+		ArtifactDigest:  artifactDigest,
+		Payload:         payloadJSON,
+		PreviousHash:    lastHash,
+		ScopeDimensions: input.ScopeDimensions,
+		SpecVersion:     version.SpecVersion,
+		CanonVersion:    canonVersion,
+		AdapterVersion:  version.Version,
+		ScoringVersion:  version.ScoringVersion,
+		Signer:          s.signer,
+	})
+	if err != nil {
+		return PrescribeOutput{}, wrapError(ErrCodeInternal, err.Error(), err)
+	}
+
+	persisted, err := s.appendEntry(entry)
+	if err != nil {
+		return PrescribeOutput{}, err
+	}
+	if persisted {
+		s.writeFindingsEvidence(input.ExternalFindings, ctx.sessionID, ctx.traceID, strings.TrimSpace(input.OperationID), input.Attempt, ctx.actor, artifactDigest)
+	}
+	rawEntry, err := json.Marshal(entry)
+	if err != nil {
+		return PrescribeOutput{}, wrapError(ErrCodeInternal, "failed to marshal evidence entry", err)
+	}
+
+	retryCount := 0
+	if s.retryTracker != nil {
+		retryCount = s.retryTracker.Record(intentDigest, action.ResourceShapeHash)
+	}
+
+	return PrescribeOutput{
+		PrescriptionID: entry.EntryID,
+		SessionID:      ctx.sessionID,
+		TraceID:        ctx.traceID,
+		Actor:          ctx.actor,
+		Assessment:     assessment,
+		RiskInputs:     assessment.RiskInputs,
+		EffectiveRisk:  assessment.EffectiveRisk,
+		RiskLevel:      assessment.EffectiveRisk,
+		ArtifactDigest: artifactDigest,
+		IntentDigest:   intentDigest,
+		ShapeHash:      action.ResourceShapeHash,
+		ResourceCount:  action.ResourceCount,
+		OperationClass: action.OperationClass,
+		ScopeClass:     action.ScopeClass,
+		CanonVersion:   canonVersion,
 		RetryCount:     retryCount,
 		Entry:          entry,
 		RawEntry:       rawEntry,
@@ -419,31 +432,19 @@ func normalizeAssessment(in *evidence.AssessmentPayload) (*evidence.AssessmentPa
 	return &out, nil
 }
 
-func (s *Service) canonicalizePrescribeInput(input PrescribeInput, ctx prescribeContext) (canon.CanonResult, string, error) {
-	if input.CanonicalAction != nil {
-		preCanon, err := normalizeCanonicalAction(*input.CanonicalAction, ctx.tool, ctx.operation)
-		if err != nil {
-			return canon.CanonResult{}, "", err
-		}
-		actionJSON, err := json.Marshal(preCanon)
-		if err != nil {
-			return canon.CanonResult{}, "", wrapError(ErrCodeInternal, "failed to marshal canonical action", err)
-		}
-		return canon.CanonResult{
-			ArtifactDigest:  canon.SHA256Hex(input.RawArtifact),
-			IntentDigest:    canon.ComputeIntentDigest(preCanon),
-			CanonicalAction: preCanon,
-			CanonVersion:    "external/v1",
-			RawAction:       actionJSON,
-		}, "external", nil
+func optionalCanonicalAction(input PrescribeInput, ctx prescribeContext) (evidence.CanonicalAction, json.RawMessage, string, error) {
+	if input.CanonicalAction == nil {
+		return evidence.CanonicalAction{}, nil, "", nil
 	}
-
-	cr := canon.Canonicalize(ctx.tool, ctx.operation, ctx.environment, input.RawArtifact)
-	if cr.ParseError != nil {
-		s.writeCanonicalizationFailure(ctx.actor, cr, ctx.sessionID, ctx.traceID, strings.TrimSpace(input.OperationID), input.Attempt)
-		return canon.CanonResult{}, "", wrapError(ErrCodeParseError, cr.ParseError.Error(), cr.ParseError)
+	action, err := normalizeCanonicalAction(*input.CanonicalAction, ctx.tool, ctx.operation)
+	if err != nil {
+		return evidence.CanonicalAction{}, nil, "", err
 	}
-	return cr, "adapter", nil
+	raw, err := json.Marshal(action)
+	if err != nil {
+		return evidence.CanonicalAction{}, nil, "", wrapError(ErrCodeInternal, "failed to marshal canonical action", err)
+	}
+	return action, raw, "external/v1", nil
 }
 
 func payloadEvidenceMetadata(kind evidence.EvidenceKind) *evidence.EvidenceMetadata {
@@ -564,43 +565,6 @@ func validateDecisionReportInput(input ReportInput) (*evidence.DecisionContext, 
 	return nil, nil
 }
 
-func (s *Service) writeCanonicalizationFailure(actor evidence.Actor, cr canon.CanonResult, sessionID, traceID, operationID string, attempt int) {
-	if s.evidencePath == "" {
-		return
-	}
-
-	if traceID == "" {
-		traceID = evidence.GenerateTraceID()
-	}
-
-	failPayload, _ := json.Marshal(evidence.CanonFailurePayload{ // best-effort: struct is always marshalable
-		ErrorCode:    "parse_error",
-		ErrorMessage: cr.ParseError.Error(),
-		Adapter:      cr.CanonVersion,
-		RawDigest:    cr.ArtifactDigest,
-	})
-
-	lastHash, _ := evidence.LastHashAtPath(s.evidencePath) // best-effort: failure recording is advisory
-	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
-		Type:           evidence.EntryTypeCanonFailure,
-		SessionID:      sessionID,
-		OperationID:    operationID,
-		Attempt:        attempt,
-		TraceID:        traceID,
-		Actor:          actor,
-		ArtifactDigest: cr.ArtifactDigest,
-		Payload:        failPayload,
-		PreviousHash:   lastHash,
-		SpecVersion:    version.SpecVersion,
-		AdapterVersion: version.Version,
-		ScoringVersion: version.ScoringVersion,
-		Signer:         s.signer,
-	})
-	if err == nil {
-		_ = evidence.AppendEntryAtPath(s.evidencePath, entry) // best-effort: failure signal is advisory
-	}
-}
-
 func (s *Service) writeUnknownPrescriptionSignal(actor evidence.Actor, prescriptionID, sessionID, operationID string) {
 	if s.evidencePath == "" {
 		return
@@ -716,7 +680,7 @@ func (s *Service) lastHash() (string, error) {
 	return lastHash, nil
 }
 
-func normalizeCanonicalAction(action canon.CanonicalAction, tool, operation string) (canon.CanonicalAction, error) {
+func normalizeCanonicalAction(action evidence.CanonicalAction, tool, operation string) (evidence.CanonicalAction, error) {
 	action.Tool = normalizeToken(action.Tool)
 	action.Operation = normalizeToken(action.Operation)
 	if action.Tool == "" {
@@ -727,7 +691,7 @@ func normalizeCanonicalAction(action canon.CanonicalAction, tool, operation stri
 	}
 	scopeClass, err := normalizeIngressScopeClass(action.ScopeClass)
 	if err != nil {
-		return canon.CanonicalAction{}, err
+		return evidence.CanonicalAction{}, err
 	}
 	action.ScopeClass = scopeClass
 	return action, nil
@@ -738,7 +702,7 @@ func normalizeIngressScopeClass(raw string) (string, error) {
 	if v == "" {
 		return "unknown", nil
 	}
-	normalized := canon.NormalizeScopeClass(v)
+	normalized := evidence.NormalizeScopeClass(v)
 	if normalized != "unknown" || strings.EqualFold(v, "unknown") {
 		return normalized, nil
 	}

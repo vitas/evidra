@@ -9,8 +9,6 @@ import (
 
 	"github.com/oklog/ulid/v2"
 
-	"samebits.com/evidra/internal/assess"
-	"samebits.com/evidra/internal/canon"
 	"samebits.com/evidra/internal/store"
 	"samebits.com/evidra/pkg/evidence"
 	"samebits.com/evidra/pkg/version"
@@ -39,15 +37,8 @@ type Result struct {
 type Service struct {
 	store                        Store
 	signer                       evidence.Signer
-	pipeline                     *assess.Pipeline
 	claimNamespacePrefix         string
 	allowLegacyDuplicateFallback bool
-}
-
-// SetPipeline configures the assessment pipeline. If not set, a default
-// matrix-only pipeline is used.
-func (s *Service) SetPipeline(p *assess.Pipeline) {
-	s.pipeline = p
 }
 
 // NewService creates an ingest service.
@@ -114,7 +105,7 @@ func (s *Service) Prescribe(ctx context.Context, tenantID string, in PrescribeRe
 	)
 	entry, err = s.saveEntry(ctx, tx, tenantID, func(lastHash string) (evidence.EvidenceEntry, error) {
 		var buildErr error
-		entry, effectiveRisk, buildErr = buildPrescribeEntry(lastHash, s.signer, in, s.pipeline)
+		entry, effectiveRisk, buildErr = buildPrescribeEntry(lastHash, s.signer, in)
 		return entry, buildErr
 	})
 	if err != nil {
@@ -239,8 +230,8 @@ func (s *Service) resolvePrescriptionForReport(ctx context.Context, tenantID, pr
 	return entry, nil
 }
 
-func buildPrescribeEntry(lastHash string, signer evidence.Signer, in PrescribeRequest, pipeline *assess.Pipeline) (evidence.EvidenceEntry, string, error) {
-	state, err := buildPrescribePayload(in, pipeline)
+func buildPrescribeEntry(lastHash string, signer evidence.Signer, in PrescribeRequest) (evidence.EvidenceEntry, string, error) {
+	state, err := buildPrescribePayload(in)
 	if err != nil {
 		return evidence.EvidenceEntry{}, "", err
 	}
@@ -361,10 +352,10 @@ type prescribePayloadState struct {
 	effectiveRisk  string
 }
 
-func buildPrescribePayload(in PrescribeRequest, pipeline *assess.Pipeline) (prescribePayloadState, error) {
+func buildPrescribePayload(in PrescribeRequest) (prescribePayloadState, error) {
 	var (
 		payload      evidence.PrescriptionPayload
-		action       canon.CanonicalAction
+		action       evidence.CanonicalAction
 		canonVersion string
 		entryID      string
 		intent       evidence.DeclaredIntent
@@ -418,12 +409,12 @@ func buildPrescribePayload(in PrescribeRequest, pipeline *assess.Pipeline) (pres
 		canonVersion = "external/v1"
 		entryID = strings.TrimSpace(in.PrescriptionID)
 	case in.SmartTarget != nil:
-		normalized, err := normalizeCanonicalAction(buildSmartTargetCanonicalAction(*in.SmartTarget))
+		normalized, err := normalizeDeclaredIntent(smartTargetDeclaredIntent(*in.SmartTarget), strings.TrimSpace(in.ArtifactDigest))
 		if err != nil {
 			return prescribePayloadState{}, err
 		}
-		action = normalized
-		canonVersion = "external/v1"
+		intent = normalized
+		useIntent = true
 		entryID = strings.TrimSpace(in.PrescriptionID)
 	default:
 		return prescribePayloadState{}, wrapError(ErrCodeInvalidInput, "intent, canonical_action, or smart_target is required", nil)
@@ -464,26 +455,22 @@ func buildPrescribePayload(in PrescribeRequest, pipeline *assess.Pipeline) (pres
 		}, nil
 	}
 
-	assessPipeline := pipeline
-	if assessPipeline == nil {
-		assessPipeline = assess.NewPipeline(assess.MatrixAssessor{})
-	}
-	assessResult, err := assessPipeline.Run(context.Background(), action, nil)
+	assessment, err := normalizeIngestAssessment(firstAssessment(in.Assessment, payload.Assessment))
 	if err != nil {
-		return prescribePayloadState{}, wrapError(ErrCodeInternal, "assessment pipeline failed", err)
+		return prescribePayloadState{}, err
 	}
-	riskInputs := assessResult.RiskInputs
-	effectiveRiskValue := assessResult.EffectiveRisk
 	rawAction, err := json.Marshal(action)
 	if err != nil {
 		return prescribePayloadState{}, wrapError(ErrCodeInternal, "failed to marshal canonical action", err)
 	}
 	payload.CanonicalAction = rawAction
-	if len(payload.RiskInputs) == 0 {
-		payload.RiskInputs = riskInputs
-	}
-	if payload.EffectiveRisk == "" {
-		payload.EffectiveRisk = effectiveRiskValue
+	payload.Assessment = assessment
+	if assessment.Status == evidence.AssessmentProvided {
+		payload.RiskInputs = assessment.RiskInputs
+		payload.EffectiveRisk = assessment.EffectiveRisk
+	} else {
+		payload.RiskInputs = nil
+		payload.EffectiveRisk = ""
 	}
 	if payload.TTLMs == 0 {
 		payload.TTLMs = evidence.DefaultTTLMs
@@ -499,7 +486,7 @@ func buildPrescribePayload(in PrescribeRequest, pipeline *assess.Pipeline) (pres
 	return prescribePayloadState{
 		payload:        rawPayload,
 		entryID:        entryID,
-		intentDigest:   canon.ComputeIntentDigest(action),
+		intentDigest:   evidence.ComputeCanonicalActionDigest(action),
 		artifactDigest: strings.TrimSpace(in.ArtifactDigest),
 		canonVersion:   canonVersion,
 		effectiveRisk:  payload.EffectiveRisk,
@@ -630,26 +617,19 @@ func validateReportPayloadBody(payload evidence.ReportPayload) error {
 	return nil
 }
 
-func buildSmartTargetCanonicalAction(target SmartTarget) canon.CanonicalAction {
+func smartTargetDeclaredIntent(target SmartTarget) evidence.DeclaredIntent {
 	resource := strings.TrimSpace(target.Resource)
-	identity := []canon.ResourceID{{
-		Name:      resource,
-		Namespace: strings.TrimSpace(target.Namespace),
-	}}
-
-	scopeClass := canon.ResolveScopeClass(strings.TrimSpace(target.Namespace), identity)
-	return canon.CanonicalAction{
-		Tool:              strings.TrimSpace(target.Tool),
-		Operation:         strings.TrimSpace(target.Operation),
-		OperationClass:    inferOperationClass(target.Operation),
-		ResourceIdentity:  identity,
-		ScopeClass:        scopeClass,
-		ResourceCount:     1,
-		ResourceShapeHash: canon.SHA256Hex([]byte(strings.Join([]string{target.Tool, target.Operation, target.Resource, target.Namespace}, "|"))),
+	if namespace := strings.TrimSpace(target.Namespace); namespace != "" && resource != "" {
+		resource = namespace + "/" + resource
+	}
+	return evidence.DeclaredIntent{
+		Tool:      strings.TrimSpace(target.Tool),
+		Operation: strings.TrimSpace(target.Operation),
+		Target:    resource,
 	}
 }
 
-func normalizeCanonicalAction(action canon.CanonicalAction) (canon.CanonicalAction, error) {
+func normalizeCanonicalAction(action evidence.CanonicalAction) (evidence.CanonicalAction, error) {
 	action.Tool = normalizeToken(action.Tool)
 	action.Operation = normalizeToken(action.Operation)
 	action.OperationClass = strings.TrimSpace(action.OperationClass)
@@ -657,7 +637,7 @@ func normalizeCanonicalAction(action canon.CanonicalAction) (canon.CanonicalActi
 
 	scopeClass, err := normalizeIngressScopeClass(action.ScopeClass)
 	if err != nil {
-		return canon.CanonicalAction{}, err
+		return evidence.CanonicalAction{}, err
 	}
 	action.ScopeClass = scopeClass
 	return action, nil
@@ -668,7 +648,7 @@ func normalizeIngressScopeClass(raw string) (string, error) {
 	if v == "" {
 		return "unknown", nil
 	}
-	normalized := canon.NormalizeScopeClass(v)
+	normalized := evidence.NormalizeScopeClass(v)
 	if normalized != "unknown" || strings.EqualFold(v, "unknown") {
 		return normalized, nil
 	}
@@ -677,17 +657,6 @@ func normalizeIngressScopeClass(raw string) (string, error) {
 		fmt.Sprintf("invalid canonical_action.scope_class %q; expected one of production, staging, development, unknown (aliases: prod, stage, dev, test, sandbox)", v),
 		nil,
 	)
-}
-
-func inferOperationClass(operation string) string {
-	switch strings.ToLower(strings.TrimSpace(operation)) {
-	case "delete", "destroy", "remove", "rm", "uninstall":
-		return "destroy"
-	case "plan", "validate", "diff", "show", "get", "describe", "logs", "top":
-		return "read"
-	default:
-		return "mutate"
-	}
 }
 
 func payloadEvidenceMetadata(meta *EvidenceMetadata) *evidence.EvidenceMetadata {

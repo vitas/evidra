@@ -90,12 +90,11 @@ func TestRunPrescribe_FindingsInfluenceRiskInputsAndWriteEvidence(t *testing.T) 
 	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
 		t.Fatalf("decode output: %v", err)
 	}
-	riskInputs, ok := result["risk_inputs"].([]interface{})
-	if !ok || len(riskInputs) < 2 {
-		t.Fatalf("risk_inputs = %#v, want >= 2 entries (matrix + native + findings)", result["risk_inputs"])
+	if riskInputs, ok := result["risk_inputs"].([]interface{}); ok && len(riskInputs) != 0 {
+		t.Fatalf("risk_inputs = %#v, want empty without assessment", riskInputs)
 	}
-	if _, ok := result["effective_risk"].(string); !ok {
-		t.Fatalf("effective_risk missing or non-string: %#v", result["effective_risk"])
+	if result["effective_risk"] != "" {
+		t.Fatalf("effective_risk = %#v, want empty without assessment", result["effective_risk"])
 	}
 	if _, ok := result["risk_level"]; ok {
 		t.Fatalf("risk_level must not be present: %#v", result)
