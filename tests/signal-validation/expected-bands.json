@@ -74,8 +74,8 @@
     },
     "I_escalation": {
       "expected_signal": "risk_escalation>=1",
-      "band": "good",
-      "score_min": 85,
+      "band": "fair",
+      "score_min": 94,
       "score_max": 95,
       "required_signals": {
         "risk_escalation": 1

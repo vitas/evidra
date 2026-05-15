@@ -260,7 +260,15 @@ done
 sed -i.bak '$ { /^---$/d; }' "$WORKSPACE/d-mass.yaml" 2>/dev/null || \
   sed -i '$ { /^---$/d; }' "$WORKSPACE/d-mass.yaml"
 
-prescribe kubectl delete "$WORKSPACE/d-mass.yaml"
+mass_delete_canon=$(jq -nc '{
+  tool: "kubectl",
+  operation: "delete",
+  operation_class: "destroy",
+  scope_class: "development",
+  resource_count: 15,
+  resource_shape_hash: "sha256:mass-delete"
+}')
+prescribe kubectl delete "$WORKSPACE/d-mass.yaml" --canonical-action "$mass_delete_canon"
 report "$LAST_PRESCRIPTION_ID" 0
 
 # 9 normal operations
@@ -359,7 +367,7 @@ echo "=== Sequence F: Repair Loop (fail → change artifact → succeed) ==="
 new_session
 SEQ_F_DIR="$EV_DIR"
 
-cat > "$WORKSPACE/f-deploy-v1.yaml" << 'EOF'
+cat > "$WORKSPACE/f-deploy.yaml" << 'EOF'
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -380,10 +388,10 @@ spec:
           image: nginx:nonexistent-v1
 EOF
 
-prescribe kubectl apply "$WORKSPACE/f-deploy-v1.yaml"
+prescribe kubectl apply "$WORKSPACE/f-deploy.yaml"
 report "$LAST_PRESCRIPTION_ID" 1
 
-cat > "$WORKSPACE/f-deploy-v2.yaml" << 'EOF'
+cat > "$WORKSPACE/f-deploy.yaml" << 'EOF'
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -404,10 +412,10 @@ spec:
           image: nginx:also-broken-v2
 EOF
 
-prescribe kubectl apply "$WORKSPACE/f-deploy-v2.yaml"
+prescribe kubectl apply "$WORKSPACE/f-deploy.yaml"
 report "$LAST_PRESCRIPTION_ID" 1
 
-cat > "$WORKSPACE/f-deploy-v3.yaml" << 'EOF'
+cat > "$WORKSPACE/f-deploy.yaml" << 'EOF'
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -428,7 +436,7 @@ spec:
           image: nginx:1.25
 EOF
 
-prescribe kubectl apply "$WORKSPACE/f-deploy-v3.yaml"
+prescribe kubectl apply "$WORKSPACE/f-deploy.yaml"
 report "$LAST_PRESCRIPTION_ID" 0
 
 for i in $(seq 1 7); do
@@ -597,13 +605,13 @@ done
 for i in $(seq 1 5); do
   escalated_canon=$(jq -nc --arg shape "sha256:critical-$i" '{
     tool: "kubectl",
-    operation: "apply",
-    operation_class: "mutate",
-    scope_class: "development",
+    operation: "delete",
+    operation_class: "destroy",
+    scope_class: "production",
     resource_count: 1,
     resource_shape_hash: $shape
   }')
-  prescribe kubectl apply "$WORKSPACE/i-privileged.yaml" --canonical-action "$escalated_canon"
+  prescribe kubectl delete "$WORKSPACE/i-privileged.yaml" --canonical-action "$escalated_canon"
   report "$LAST_PRESCRIPTION_ID" 0
 done
 

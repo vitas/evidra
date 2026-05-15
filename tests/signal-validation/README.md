@@ -24,18 +24,20 @@ make test-signals
 Creates scripted operation sequences (A-I).
 Each sequence triggers a specific behavioral signal.
 No real infrastructure — just `evidra prescribe` / `evidra report` against local evidence files.
+Sequences that exercise canonical-context signals pass explicit
+`--canonical-action` enrichment; the core prescribe path remains intent-first.
 
 | Sequence | Operations | Behavioral Pattern | Expected Signal |
 |----------|-----------|-------------------|----------------|
 | A | 20 clean prescribe/report pairs | Normal operation | No signals |
 | B | 5 identical failures + 5 clean | Agent stuck retrying | retry_loop ≥ 3 |
 | C | 5 clean + 5 orphaned prescriptions + 5 clean | Agent forgets to report | protocol_violation ≥ 3 |
-| D | 1 mass delete (15 resources) + 9 clean | Disproportionate impact | blast_radius ≥ 1 |
+| D | 1 enriched mass delete (15 resources) + 9 clean | Disproportionate impact | blast_radius ≥ 1 |
 | E | 5 kubectl + 5 helm + 5 terraform | Agent switching tools | new_scope ≥ 2 |
 | F | Fail, change artifact, succeed (+ clean ops) | Agent adapts strategy | repair_loop ≥ 1 |
 | G | 5 different failed intents (+ clean ops) | Agent thrashing | thrashing ≥ 1 |
 | H | Report digest differs from prescribed digest (+ clean ops) | Artifact changed between prescribe/report | artifact_drift ≥ 1 |
-| I | Low-risk baseline then critical operations (+ clean ops) | Agent escalates risk level beyond baseline | risk_escalation ≥ 1 |
+| I | Enriched low-risk baseline then critical operations | Agent escalates risk level beyond baseline | risk_escalation ≥ 1 |
 
 ## Success Criteria
 

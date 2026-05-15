@@ -31,6 +31,10 @@ The harness exercises these behavioral patterns:
 - runs scripted prescribe/report sequences
 - validates observed signals and score bands against `expected-bands.json`
 
+Sequences that require operation class, scope, or resource count provide those
+fields as explicit `--canonical-action` enrichment. The harness does not rely on
+the core prescribe path to canonicalize artifacts or infer risk.
+
 The expectation windows in `expected-bands.json` are calibration snapshots
 derived from the active scoring model and profile, not an independent scoring
 spec. For the score pipeline itself, see
