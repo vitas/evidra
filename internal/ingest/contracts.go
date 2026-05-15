@@ -56,11 +56,13 @@ type SourceMetadata = evidence.SourceMetadata
 // PrescribeRequest is the external contract for server-side prescribe ingest.
 type PrescribeRequest struct {
 	Envelope
-	PrescriptionID  string                 `json:"prescription_id,omitempty"`
-	ArtifactDigest  string                 `json:"artifact_digest,omitempty"`
-	CanonicalAction *canon.CanonicalAction `json:"canonical_action,omitempty"`
-	SmartTarget     *SmartTarget           `json:"smart_target,omitempty"`
-	PayloadOverride *json.RawMessage       `json:"payload_override,omitempty"`
+	PrescriptionID  string                      `json:"prescription_id,omitempty"`
+	ArtifactDigest  string                      `json:"artifact_digest,omitempty"`
+	Intent          *evidence.DeclaredIntent    `json:"intent,omitempty"`
+	CanonicalAction *canon.CanonicalAction      `json:"canonical_action,omitempty"`
+	Assessment      *evidence.AssessmentPayload `json:"assessment,omitempty"`
+	SmartTarget     *SmartTarget                `json:"smart_target,omitempty"`
+	PayloadOverride *json.RawMessage            `json:"payload_override,omitempty"`
 }
 
 // ReportRequest is the external contract for server-side report ingest.
@@ -106,11 +108,11 @@ func ValidatePrescribeRequest(in PrescribeRequest) error {
 		if strings.TrimSpace(in.PrescriptionID) != "" {
 			violations.Add("payload_override is mutually exclusive with prescription_id")
 		}
-		if in.CanonicalAction != nil || in.SmartTarget != nil {
+		if in.Intent != nil || in.CanonicalAction != nil || in.Assessment != nil || in.SmartTarget != nil {
 			violations.Add("payload_override is mutually exclusive with explicit prescribe fields")
 		}
 	} else {
-		validatePrescribeIntent(&violations, in.CanonicalAction, in.SmartTarget)
+		validatePrescribeIntent(&violations, in.Intent, in.CanonicalAction, in.Assessment, in.SmartTarget)
 	}
 
 	return violationsOrNil(&violations)
@@ -184,17 +186,57 @@ func validateClaim(violations *ValidationError, claim *Claim) {
 	}
 }
 
-func validatePrescribeIntent(violations *ValidationError, canonicalAction *canon.CanonicalAction, smartTarget *SmartTarget) {
+func validatePrescribeIntent(violations *ValidationError, intent *evidence.DeclaredIntent, canonicalAction *canon.CanonicalAction, assessment *evidence.AssessmentPayload, smartTarget *SmartTarget) {
+	if intent == nil && canonicalAction == nil && smartTarget == nil {
+		violations.Add("intent, canonical_action, or smart_target is required")
+		return
+	}
+	if intent != nil {
+		validateDeclaredIntent(violations, intent)
+	}
+	if assessment != nil {
+		validateAssessment(violations, assessment)
+	}
 	switch {
 	case canonicalAction != nil && smartTarget != nil:
 		violations.Add("canonical_action and smart_target are mutually exclusive")
 	case canonicalAction != nil:
 		validateCanonicalAction(violations, canonicalAction)
-		return
 	case smartTarget != nil:
 		validateSmartTarget(violations, smartTarget)
-	default:
-		violations.Add("canonical_action or smart_target is required")
+	}
+}
+
+func validateDeclaredIntent(violations *ValidationError, intent *evidence.DeclaredIntent) {
+	if intent == nil {
+		return
+	}
+	if strings.TrimSpace(intent.Tool) == "" &&
+		strings.TrimSpace(intent.Operation) == "" &&
+		strings.TrimSpace(intent.Target) == "" &&
+		strings.TrimSpace(intent.Command) == "" &&
+		strings.TrimSpace(intent.ArtifactDigest) == "" {
+		violations.Add("intent must not be empty")
+	}
+	if err := evidence.ValidateDigest(strings.TrimSpace(intent.ArtifactDigest)); err != nil {
+		violations.Add("intent.artifact_digest " + err.Error())
+	}
+}
+
+func validateAssessment(violations *ValidationError, assessment *evidence.AssessmentPayload) {
+	if assessment == nil {
+		return
+	}
+	if err := evidence.ValidateAssessmentStatus(assessment.Status); err != nil {
+		violations.Add("assessment.status " + err.Error())
+	}
+	if err := evidence.ValidateRiskLevel(assessment.EffectiveRisk); err != nil {
+		violations.Add("assessment.effective_risk " + err.Error())
+	}
+	for _, input := range assessment.RiskInputs {
+		if err := evidence.ValidateRiskLevel(input.RiskLevel); err != nil {
+			violations.Add("assessment.risk_inputs.risk_level " + err.Error())
+		}
 	}
 }
 

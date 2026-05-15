@@ -240,14 +240,13 @@ func (s *Service) resolvePrescriptionForReport(ctx context.Context, tenantID, pr
 }
 
 func buildPrescribeEntry(lastHash string, signer evidence.Signer, in PrescribeRequest, pipeline *assess.Pipeline) (evidence.EvidenceEntry, string, error) {
-	payload, entryID, action, canonVersion, effectiveRisk, err := buildPrescribePayload(in, pipeline)
+	state, err := buildPrescribePayload(in, pipeline)
 	if err != nil {
 		return evidence.EvidenceEntry{}, "", err
 	}
 
-	intentDigest := canon.ComputeIntentDigest(action)
 	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
-		EntryID:         entryID,
+		EntryID:         state.entryID,
 		Type:            evidence.EntryTypePrescribe,
 		SessionID:       strings.TrimSpace(in.SessionID),
 		OperationID:     strings.TrimSpace(in.OperationID),
@@ -255,13 +254,13 @@ func buildPrescribeEntry(lastHash string, signer evidence.Signer, in PrescribeRe
 		SpanID:          strings.TrimSpace(in.SpanID),
 		ParentSpanID:    strings.TrimSpace(in.ParentSpanID),
 		Actor:           in.Actor,
-		IntentDigest:    intentDigest,
-		ArtifactDigest:  strings.TrimSpace(in.ArtifactDigest),
-		Payload:         payload,
+		IntentDigest:    state.intentDigest,
+		ArtifactDigest:  state.artifactDigest,
+		Payload:         state.payload,
 		PreviousHash:    lastHash,
 		ScopeDimensions: in.ScopeDimensions,
 		SpecVersion:     version.SpecVersion,
-		CanonVersion:    canonVersion,
+		CanonVersion:    state.canonVersion,
 		AdapterVersion:  version.Version,
 		ScoringVersion:  version.ScoringVersion,
 		Signer:          signer,
@@ -269,7 +268,7 @@ func buildPrescribeEntry(lastHash string, signer evidence.Signer, in PrescribeRe
 	if err != nil {
 		return evidence.EvidenceEntry{}, "", wrapError(ErrCodeInternal, err.Error(), err)
 	}
-	return entry, effectiveRisk, nil
+	return entry, state.effectiveRisk, nil
 }
 
 type ingestPersistence interface {
@@ -353,39 +352,67 @@ func buildReportEntry(lastHash string, signer evidence.Signer, in ReportRequest,
 	return entry, nil
 }
 
-func buildPrescribePayload(in PrescribeRequest, pipeline *assess.Pipeline) (json.RawMessage, string, canon.CanonicalAction, string, string, error) {
+type prescribePayloadState struct {
+	payload        json.RawMessage
+	entryID        string
+	intentDigest   string
+	artifactDigest string
+	canonVersion   string
+	effectiveRisk  string
+}
+
+func buildPrescribePayload(in PrescribeRequest, pipeline *assess.Pipeline) (prescribePayloadState, error) {
 	var (
 		payload      evidence.PrescriptionPayload
 		action       canon.CanonicalAction
 		canonVersion string
 		entryID      string
+		intent       evidence.DeclaredIntent
+		useIntent    bool
 	)
 
 	switch {
 	case in.PayloadOverride != nil:
 		if err := json.Unmarshal(*in.PayloadOverride, &payload); err != nil {
-			return nil, "", canon.CanonicalAction{}, "", "", wrapError(ErrCodeInvalidInput, "payload_override must be valid prescribe payload JSON", err)
+			return prescribePayloadState{}, wrapError(ErrCodeInvalidInput, "payload_override must be valid prescribe payload JSON", err)
 		}
-		if len(payload.CanonicalAction) == 0 {
-			return nil, "", canon.CanonicalAction{}, "", "", wrapError(ErrCodeInvalidInput, "payload_override must include canonical_action", nil)
+		switch {
+		case len(payload.CanonicalAction) > 0:
+			if err := json.Unmarshal(payload.CanonicalAction, &action); err != nil {
+				return prescribePayloadState{}, wrapError(ErrCodeInvalidInput, "payload_override canonical_action is invalid", err)
+			}
+			normalized, err := normalizeCanonicalAction(action)
+			if err != nil {
+				return prescribePayloadState{}, err
+			}
+			action = normalized
+			canonVersion = "external/v1"
+		case payload.Intent != nil:
+			var err error
+			intent, err = normalizeDeclaredIntent(*payload.Intent, strings.TrimSpace(in.ArtifactDigest))
+			if err != nil {
+				return prescribePayloadState{}, err
+			}
+			useIntent = true
+		default:
+			return prescribePayloadState{}, wrapError(ErrCodeInvalidInput, "payload_override must include intent or canonical_action", nil)
 		}
-		if err := json.Unmarshal(payload.CanonicalAction, &action); err != nil {
-			return nil, "", canon.CanonicalAction{}, "", "", wrapError(ErrCodeInvalidInput, "payload_override canonical_action is invalid", err)
-		}
-		normalized, err := normalizeCanonicalAction(action)
-		if err != nil {
-			return nil, "", canon.CanonicalAction{}, "", "", err
-		}
-		action = normalized
-		canonVersion = "external/v1"
 		entryID = strings.TrimSpace(in.PrescriptionID)
 		if entryID == "" {
 			entryID = strings.TrimSpace(payload.PrescriptionID)
 		}
+	case in.Intent != nil:
+		var err error
+		intent, err = normalizeDeclaredIntent(*in.Intent, strings.TrimSpace(in.ArtifactDigest))
+		if err != nil {
+			return prescribePayloadState{}, err
+		}
+		useIntent = true
+		entryID = strings.TrimSpace(in.PrescriptionID)
 	case in.CanonicalAction != nil:
 		normalized, err := normalizeCanonicalAction(*in.CanonicalAction)
 		if err != nil {
-			return nil, "", canon.CanonicalAction{}, "", "", err
+			return prescribePayloadState{}, err
 		}
 		action = normalized
 		canonVersion = "external/v1"
@@ -393,32 +420,63 @@ func buildPrescribePayload(in PrescribeRequest, pipeline *assess.Pipeline) (json
 	case in.SmartTarget != nil:
 		normalized, err := normalizeCanonicalAction(buildSmartTargetCanonicalAction(*in.SmartTarget))
 		if err != nil {
-			return nil, "", canon.CanonicalAction{}, "", "", err
+			return prescribePayloadState{}, err
 		}
 		action = normalized
 		canonVersion = "external/v1"
 		entryID = strings.TrimSpace(in.PrescriptionID)
 	default:
-		return nil, "", canon.CanonicalAction{}, "", "", wrapError(ErrCodeInvalidInput, "canonical_action or smart_target is required", nil)
+		return prescribePayloadState{}, wrapError(ErrCodeInvalidInput, "intent, canonical_action, or smart_target is required", nil)
 	}
 
 	if strings.TrimSpace(entryID) == "" {
 		entryID = ulid.Make().String()
 	}
 	payload.PrescriptionID = entryID
+	payload.Flavor = in.Flavor
+	payload.Evidence = payloadEvidenceMetadata(in.Evidence)
+	payload.Source = payloadSourceMetadata(in.Source)
+
+	if useIntent {
+		assessment, err := normalizeIngestAssessment(firstAssessment(in.Assessment, payload.Assessment))
+		if err != nil {
+			return prescribePayloadState{}, err
+		}
+		payload.Intent = &intent
+		payload.Assessment = assessment
+		if assessment.Status == evidence.AssessmentProvided {
+			payload.RiskInputs = assessment.RiskInputs
+			payload.EffectiveRisk = assessment.EffectiveRisk
+		}
+		if payload.TTLMs == 0 {
+			payload.TTLMs = evidence.DefaultTTLMs
+		}
+		rawPayload, err := json.Marshal(payload)
+		if err != nil {
+			return prescribePayloadState{}, wrapError(ErrCodeInternal, "failed to marshal prescribe payload", err)
+		}
+		return prescribePayloadState{
+			payload:        rawPayload,
+			entryID:        entryID,
+			intentDigest:   evidence.ComputeDeclaredIntentDigest(intent),
+			artifactDigest: intent.ArtifactDigest,
+			effectiveRisk:  assessment.EffectiveRisk,
+		}, nil
+	}
+
 	assessPipeline := pipeline
 	if assessPipeline == nil {
 		assessPipeline = assess.NewPipeline(assess.MatrixAssessor{})
 	}
 	assessResult, err := assessPipeline.Run(context.Background(), action, nil)
 	if err != nil {
-		return nil, "", canon.CanonicalAction{}, "", "", wrapError(ErrCodeInternal, "assessment pipeline failed", err)
+		return prescribePayloadState{}, wrapError(ErrCodeInternal, "assessment pipeline failed", err)
 	}
 	riskInputs := assessResult.RiskInputs
 	effectiveRiskValue := assessResult.EffectiveRisk
 	rawAction, err := json.Marshal(action)
 	if err != nil {
-		return nil, "", canon.CanonicalAction{}, "", "", wrapError(ErrCodeInternal, "failed to marshal canonical action", err)
+		return prescribePayloadState{}, wrapError(ErrCodeInternal, "failed to marshal canonical action", err)
 	}
 	payload.CanonicalAction = rawAction
 	if len(payload.RiskInputs) == 0 {
@@ -433,15 +491,19 @@ func buildPrescribePayload(in PrescribeRequest, pipeline *assess.Pipeline) (json
 	if payload.CanonSource == "" {
 		payload.CanonSource = "external"
 	}
-	payload.Flavor = in.Flavor
-	payload.Evidence = payloadEvidenceMetadata(in.Evidence)
-	payload.Source = payloadSourceMetadata(in.Source)
 
 	rawPayload, err := json.Marshal(payload)
 	if err != nil {
-		return nil, "", canon.CanonicalAction{}, "", "", wrapError(ErrCodeInternal, "failed to marshal prescribe payload", err)
+		return prescribePayloadState{}, wrapError(ErrCodeInternal, "failed to marshal prescribe payload", err)
 	}
-	return rawPayload, entryID, action, canonVersion, payload.EffectiveRisk, nil
+	return prescribePayloadState{
+		payload:        rawPayload,
+		entryID:        entryID,
+		intentDigest:   canon.ComputeIntentDigest(action),
+		artifactDigest: strings.TrimSpace(in.ArtifactDigest),
+		canonVersion:   canonVersion,
+		effectiveRisk:  payload.EffectiveRisk,
+	}, nil
 }
 
 func buildReportPayloadState(in ReportRequest) (evidence.ReportPayload, string, error) {
@@ -460,6 +522,59 @@ func buildReportPayloadState(in ReportRequest) (evidence.ReportPayload, string, 
 		Source:          payloadSourceMetadata(in.Source),
 	}
 	return payload, payload.PrescriptionID, nil
+}
+
+func normalizeDeclaredIntent(in evidence.DeclaredIntent, fallbackArtifactDigest string) (evidence.DeclaredIntent, error) {
+	out := evidence.DeclaredIntent{
+		Tool:           normalizeToken(in.Tool),
+		Operation:      normalizeToken(in.Operation),
+		Target:         strings.TrimSpace(in.Target),
+		Command:        strings.TrimSpace(in.Command),
+		ArtifactDigest: strings.TrimSpace(in.ArtifactDigest),
+	}
+	if out.ArtifactDigest == "" {
+		out.ArtifactDigest = strings.TrimSpace(fallbackArtifactDigest)
+	}
+	if strings.TrimSpace(out.Tool) == "" &&
+		strings.TrimSpace(out.Operation) == "" &&
+		strings.TrimSpace(out.Target) == "" &&
+		strings.TrimSpace(out.Command) == "" &&
+		strings.TrimSpace(out.ArtifactDigest) == "" {
+		return evidence.DeclaredIntent{}, wrapError(ErrCodeInvalidInput, "intent must not be empty", nil)
+	}
+	if err := evidence.ValidateDigest(out.ArtifactDigest); err != nil {
+		return evidence.DeclaredIntent{}, wrapError(ErrCodeInvalidInput, err.Error(), err)
+	}
+	return out, nil
+}
+
+func firstAssessment(primary, fallback *evidence.AssessmentPayload) *evidence.AssessmentPayload {
+	if primary != nil {
+		return primary
+	}
+	return fallback
+}
+
+func normalizeIngestAssessment(in *evidence.AssessmentPayload) (*evidence.AssessmentPayload, error) {
+	if in == nil {
+		return &evidence.AssessmentPayload{Status: evidence.AssessmentNotProvided}, nil
+	}
+	out := *in
+	if out.Status == "" {
+		out.Status = evidence.AssessmentProvided
+	}
+	if err := evidence.ValidateAssessmentStatus(out.Status); err != nil {
+		return nil, wrapError(ErrCodeInvalidInput, err.Error(), err)
+	}
+	if err := evidence.ValidateRiskLevel(out.EffectiveRisk); err != nil {
+		return nil, wrapError(ErrCodeInvalidInput, err.Error(), err)
+	}
+	for _, input := range out.RiskInputs {
+		if err := evidence.ValidateRiskLevel(input.RiskLevel); err != nil {
+			return nil, wrapError(ErrCodeInvalidInput, err.Error(), err)
+		}
+	}
+	return &out, nil
 }
 
 func parseReportPayloadOverride(raw json.RawMessage, env Envelope) (evidence.ReportPayload, string, error) {

@@ -106,6 +106,62 @@ func TestServicePrescribe_CreatesAndStoresSignedPrescribeEntry(t *testing.T) {
 	}
 }
 
+func TestServicePrescribe_StoresIntentOnlyWithoutAssessment(t *testing.T) {
+	t.Parallel()
+
+	fakeStore := newFakeIngestStore()
+	fakeStore.lastHash = "sha256:previous"
+	svc := NewService(fakeStore, testutil.TestSigner(t))
+
+	req := PrescribeRequest{
+		Envelope: Envelope{
+			ContractVersion: ContractVersionV1,
+			Actor: evidence.Actor{
+				Type:       "controller",
+				ID:         "argocd",
+				Provenance: "argocd",
+			},
+			SessionID:   "session-intent",
+			OperationID: "operation-intent",
+			TraceID:     "trace-intent",
+			Flavor:      evidence.FlavorWorkflow,
+			Evidence:    &evidence.EvidenceMetadata{Kind: evidence.EvidenceKindTranslated},
+			Source:      &evidence.SourceMetadata{System: "argocd"},
+		},
+		Intent: &evidence.DeclaredIntent{
+			Tool:      "kubectl",
+			Operation: "apply",
+			Target:    "deployment/nginx",
+		},
+	}
+
+	out, err := svc.Prescribe(context.Background(), "tenant-1", req)
+	if err != nil {
+		t.Fatalf("Prescribe: %v", err)
+	}
+	if out.EffectiveRisk != "" {
+		t.Fatalf("effective risk = %q, want empty", out.EffectiveRisk)
+	}
+
+	entry := decodeStoredEntry(t, fakeStore.savedRaw[0])
+	if entry.CanonVersion != "" {
+		t.Fatalf("canonical version = %q, want empty", entry.CanonVersion)
+	}
+	var payload evidence.PrescriptionPayload
+	if err := json.Unmarshal(entry.Payload, &payload); err != nil {
+		t.Fatalf("unmarshal prescribe payload: %v", err)
+	}
+	if payload.Intent == nil || payload.Intent.Target != "deployment/nginx" {
+		t.Fatalf("intent = %+v", payload.Intent)
+	}
+	if payload.CanonicalAction != nil {
+		t.Fatalf("canonical_action = %s, want nil", payload.CanonicalAction)
+	}
+	if payload.Assessment == nil || payload.Assessment.Status != evidence.AssessmentNotProvided {
+		t.Fatalf("assessment = %+v", payload.Assessment)
+	}
+}
+
 func TestServicePrescribe_UsesExplicitPrescriptionIDAndArtifactDigest(t *testing.T) {
 	t.Parallel()
 

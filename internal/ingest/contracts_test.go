@@ -78,6 +78,65 @@ func TestValidatePrescribeRequestValidExplicitPrescriptionID(t *testing.T) {
 	}
 }
 
+func TestValidatePrescribeRequestValidIntentOnly(t *testing.T) {
+	t.Parallel()
+
+	req := PrescribeRequest{
+		Envelope: Envelope{
+			ContractVersion: ContractVersionV1,
+			Actor: evidence.Actor{
+				Type:       "controller",
+				ID:         "argocd",
+				Provenance: "argocd",
+			},
+			SessionID:   "session-intent",
+			OperationID: "operation-intent",
+			TraceID:     "trace-intent",
+			Flavor:      evidence.FlavorWorkflow,
+			Evidence:    &evidence.EvidenceMetadata{Kind: evidence.EvidenceKindObserved},
+			Source:      &evidence.SourceMetadata{System: "argocd"},
+		},
+		Intent: &evidence.DeclaredIntent{
+			Tool:      "kubectl",
+			Operation: "apply",
+			Target:    "deployment/nginx",
+		},
+	}
+
+	if err := ValidatePrescribeRequest(req); err != nil {
+		t.Fatalf("ValidatePrescribeRequest: %v", err)
+	}
+}
+
+func TestValidatePrescribeRequestRejectsMissingIntentAndEnrichment(t *testing.T) {
+	t.Parallel()
+
+	req := PrescribeRequest{
+		Envelope: Envelope{
+			ContractVersion: ContractVersionV1,
+			Actor: evidence.Actor{
+				Type:       "controller",
+				ID:         "argocd",
+				Provenance: "argocd",
+			},
+			SessionID:   "session-missing",
+			OperationID: "operation-missing",
+			TraceID:     "trace-missing",
+			Flavor:      evidence.FlavorWorkflow,
+			Evidence:    &evidence.EvidenceMetadata{Kind: evidence.EvidenceKindObserved},
+			Source:      &evidence.SourceMetadata{System: "argocd"},
+		},
+	}
+
+	err := ValidatePrescribeRequest(req)
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+	if !strings.Contains(err.Error(), "intent") {
+		t.Fatalf("error = %q, want intent violation", err.Error())
+	}
+}
+
 func TestValidatePrescribeRequestRejectsEmptyCanonicalAction(t *testing.T) {
 	t.Parallel()
 
