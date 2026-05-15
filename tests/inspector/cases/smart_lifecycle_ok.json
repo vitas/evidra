@@ -12,7 +12,7 @@
       },
       "assert": {
         "ok": true,
-        "has_fields": ["prescription_id", "effective_risk", "intent_digest"]
+        "has_fields": ["prescription_id", "intent_digest"]
       }
     },
     {

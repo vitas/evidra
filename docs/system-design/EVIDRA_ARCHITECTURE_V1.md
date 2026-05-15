@@ -42,29 +42,22 @@ AI agent, a workflow runner, or a controller such as Argo CD.
 ```
   ┌──────────────────────────── RECORDER (write path) ──────────────────────────┐
   │                                                                             │
-  │   OBSERVATION          CANONICALIZE        ASSESSMENT                       │
-  │                        (adapter)          (assess.Pipeline)                 │
-  │   MCP direct ────┐                                                         │
-  │   MCP proxy ─────┤     ┌───────────┐     ┌──────────────────────────┐      │
-  │   OTLP bridge ───┤     │ raw       │     │                          │      │
-  │   CLI ───────────┼──▸  │ artifact  │──▸  │ Assessor 1 ──▸ risk_input│      │
-  │   Webhooks ──────┤     │ → Canonical│     │ Assessor 2 ──▸ risk_input│      │
-  │   Ext-authz ─────┘     │   Action  │     │ Assessor N ──▸ risk_input│      │
-  │   (future)             │ + digests │     │                          │      │
-  │                        └─────┬─────┘     │ max-severity             │      │
-  │                              │           │  ──▸ effective_risk      │      │
-  │                              │           └──────────────────────────┘      │
-  │                              │                      │                      │
-  │                     used by both: ──────────────────┘                      │
-  │                     evidence entry + assessment                            │
-  │                                             │                               │
-  │                                             ▼                               │
-  │   ┌──────────────────┐          ┌───────────────────────┐                  │
-  │   │ report           │          │ prescribe entry       │                  │
-  │   │ verdict          │          │ risk_inputs[]         │                  │
-  │   │ exit_code        │──────▸   │ effective_risk        │                  │
-  │   │ decision_context │          │ digests               │                  │
-  │   └──────────────────┘          └───────────┬───────────┘                  │
+  │   OBSERVATION             OPTIONAL ENRICHMENT              EVIDENCE        │
+  │                                                                             │
+  │   MCP direct ────┐      ┌────────────────────────┐                         │
+  │   MCP proxy ─────┤      │ declared intent        │                         │
+  │   CLI ───────────┼──▸   │ + artifact digest      │                         │
+  │   Webhooks ──────┤      │ + canonical_action?    │                         │
+  │   CI/import ─────┘      │ + assessment?          │                         │
+  │                         └───────────┬────────────┘                         │
+  │                                     │                                      │
+  │                                     ▼                                      │
+  │   ┌──────────────────┐       ┌──────────────────────────────┐              │
+  │   │ report           │       │ prescribe entry              │              │
+  │   │ verdict          │       │ intent                       │              │
+  │   │ exit_code        │─────▸ │ assessment.status            │              │
+  │   │ decision_context │       │ optional risk_inputs[]       │              │
+  │   └──────────────────┘       └──────────────┬───────────────┘              │
   │                                             │                               │
   │                                     sign → chain → store                    │
   │                                             │                               │
@@ -97,20 +90,14 @@ AI agent, a workflow runner, or a controller such as Argo CD.
                      └──────────────┘   └──────────────┘   └──────────────────┘
 ```
 
-Canonicalization is an **adapter** — it translates raw artifacts into
-Evidra's protocol language (`CanonicalAction`). It happens before
-assessment because two things consume its output: the assessment pipeline
-and the evidence entry builder (digests, scope, operation class).
+The recorder write path is intentionally small: normalize caller-declared
+intent, attach optional caller-supplied enrichments, sign, and store. It does
+not require a built-in canonicalizer or risk assessor.
 
-The assessment pipeline is a pluggable abstraction. Each assessor receives
-the canonicalized action and returns risk inputs:
-
-- Native assessors use the canonical action for matrix lookup and
-  tag detection
-- SARIF assessors read external scanner findings
-- External assessors (gateway ext-authz, OPA) use their own logic
-
-The pipeline output is always `risk_inputs[] + effective_risk`.
+`canonical_action` is optional identity enrichment for callers that already
+have a stable normalized shape. `assessment` is optional risk enrichment from an
+external scanner, policy engine, or gateway. If neither is provided, the
+prescribe entry remains valid and analytics fall back to declared intent.
 
 ---
 
@@ -118,15 +105,14 @@ The pipeline output is always `risk_inputs[] + effective_risk`.
 
 | # | Layer | Input | Output | What It Does |
 |---|-------|-------|--------|-------------|
-| 1 | **Canonicalize** (`internal/canon/`) | Raw artifact + tool name | CanonicalAction + digests | Adapter translates raw artifact into Evidra's protocol language. Output consumed by both assessment and evidence entry construction. |
-| 2 | **Assessment Pipeline** (`internal/assess/`) | CanonicalAction + raw bytes | risk_inputs[] + effective_risk | Pluggable `Assessor` implementations evaluate risk and aggregate via max-severity. |
-| 3 | **Evidence Chain** | prescribe + report entries | Signed JSONL segments | Tamper-evident append-only log of all operations |
-| 4 | **Signals Engine** | Evidence entries (sequence) | signal counts + rates | Detects behavioral patterns across operation sequences |
-| 5 | **Scorecard** | Signal counts + rates | score (0-100) + band | Weighted penalty model → reliability metric |
+| 1 | **Evidence Chain** | prescribe + report entries | Signed JSONL segments | Tamper-evident append-only log of all operations |
+| 2 | **Optional Enrichment** | caller-supplied canonical_action / assessment | Stored payload fields | External systems can add normalized identity and risk context without becoming core dependencies |
+| 3 | **Signals Engine** | Evidence entries (sequence) | signal counts + rates | Detects behavioral patterns across operation sequences |
+| 4 | **Scorecard** | Signal counts + rates | score (0-100) + band | Weighted penalty model → reliability metric |
 
-**Layers 1-2** fire at prescribe time (per operation, instant).
-**Layer 3** accumulates over a session (append-only).
-**Layers 4-5** evaluate at scorecard time (post-hoc).
+**Layers 1-2** happen at record time. **Layers 3-4** evaluate at scorecard time
+(post-hoc). Legacy built-in canonicalizer and risk components may remain as
+optional tooling during migration, but they are not on the core write path.
 
 ---
 
@@ -161,31 +147,23 @@ Architecture principle: **graph-ready, graph-free.** Signals work on `[]Entry` s
 ```
 1. Agent calls: evidra prescribe --tool kubectl --operation apply --artifact deployment.yaml
 
-2. K8s adapter parses YAML → CanonicalAction:
-     tool=kubectl, operation=apply, op_class=mutate, scope=staging
-     resource_identity=[{kind:Deployment, name:web-app, ns:staging}]
-     resource_count=1, artifact_digest=sha256:abc...
+2. Core builds declared intent:
+     tool=kubectl, operation=apply, target=deployment.yaml,
+     artifact_digest=sha256:abc...
 
-3. Detectors scan raw YAML:
-     k8s.privileged_container → fires (privileged: true)
-     k8s.run_as_root → fires (runAsNonRoot absent)
+3. Optional external scanner/policy may supply assessment:
+     assessment.status=provided, effective_risk=critical
+     or assessment.status=not_provided when no scanner ran
 
-4. Assessment pipeline (assess.Pipeline.Run):
-     MatrixAssessor: mutate × staging → risk_input(source=evidra/matrix, risk_level=high)
-     DetectorAssessor: native tags → risk_input(source=evidra/native, risk_level=critical,
-                       risk_tags=[k8s.privileged_container, k8s.run_as_root])
-     SARIFAssessor: no scanner findings → no risk_input
-     Pipeline aggregates: effective_risk = max(high, critical) = critical
+4. Evidence entry written:
+     type=prescribe, intent={...}, assessment={status:not_provided},
+     prescription_id=01HXY...
 
-5. Evidence entry written:
-     type=prescribe, risk_inputs=[...],
-     effective_risk=critical, prescription_id=01HXY...
+5. Agent executes kubectl apply → fails (exit_code=1)
 
-6. Agent executes kubectl apply → fails (exit_code=1)
+6. Agent calls: evidra report --prescription 01HXY... --verdict failure --exit-code 1
 
-7. Agent calls: evidra report --prescription 01HXY... --verdict failure --exit-code 1
-
-8. Evidence entry written:
+7. Evidence entry written:
      type=report, prescription_id=01HXY..., verdict=failure, exit_code=1
 
 9. Agent retries same operation (same artifact, same prescribe, exit_code=1) × 2 more
@@ -213,17 +191,12 @@ Architecture principle: **graph-ready, graph-free.** Signals work on `[]Entry` s
 
 | Component | Location | Status |
 |-----------|----------|--------|
-| K8s adapter | `internal/canon/k8s.go` | Stable |
-| Terraform adapter | `internal/canon/terraform.go` | Stable |
-| Generic adapter | `internal/canon/generic.go` | Stable |
-| 20 risk detectors | `internal/detectors/` | Stable |
-| Risk matrix | `internal/risk/matrix.go` | Stable |
-| Assessment pipeline | `internal/assess/` | Stable |
 | Evidence chain | `pkg/evidence/` | Stable |
 | 8 signal detectors | `internal/signal/` | Stable |
 | Scorecard + explain | `internal/score/` | Stable |
-| TagProducer chain | `internal/detectors/{producer.go,producers.go}` | Stable |
 | MCP server | `pkg/mcpserver/` | Stable |
+| Optional canonical action schema | `pkg/evidence/` | Stable |
+| Legacy companion canonicalizers/detectors | companion packages under `internal/` | Migration |
 | Ed25519 signing | `pkg/evidence/` | Stable |
 | Hash chain | `pkg/evidence/` | Stable |
 
@@ -370,7 +343,7 @@ Score comparison between scenarios is meaningful only when the harness coverage 
 
 - Hosted LLM-generated explanation or analysis layers are not part of the
   delivered v1 surface in this repo.
-- External scanner mappings are scaffolded via `TagProducer`, SARIF producer, and `SARIFAssessor` in the `internal/assess/` pipeline, but need production mapping/config lifecycle.
+- External scanner mappings are migration-era companion code; production scanners should supply assessment as external enrichment.
 - Intent graph is not required for the currently delivered signal set.
 
 ---
@@ -484,7 +457,7 @@ Evidra separates two concerns:
 
 **Recorder** (write path, real-time):
 - Ingest evidence entries from any source
-- Run the assessment pipeline (canonicalize → assess → aggregate risk)
+- Normalize declared intent and optional external enrichment
 - Sign entries with Ed25519, chain via previous_hash
 - Store in JSONL (local) or Postgres (self-hosted)
 
@@ -503,15 +476,15 @@ produce the same evidence entries and feed the same intelligence pipeline.
 
 | Mode | How Evidra connects | Prescribe? | Assessment? |
 |------|-------------------|-----------|------------|
-| **MCP direct** | Agent calls `prescribe_full`/`prescribe_smart` + `report` via MCP tools | Yes | Full pipeline |
+| **MCP direct** | Agent calls `prescribe_full`/`prescribe_smart` + `report` via MCP tools | Yes | Optional external |
 | **MCP proxy** | `evidra-mcp --proxy` wraps upstream MCP server on stdio, intercepts `tools/call` | Implicit | Observed only |
 | **OTLP bridge** | Reads AgentGateway OTLP traces, translates to prescribe/report ingest | Implicit | Observed only |
-| **Ext-authz** (future) | Gateway calls Evidra assessment endpoint before forwarding tool call | Yes | Full pipeline |
+| **Ext-authz** (future) | Gateway supplies assessment before forwarding tool call | Yes | External |
 
-MCP direct gives the richest evidence (intent + artifact + risk assessment
-before execution). Proxy and bridge are passive taps — they record what
-happened without the agent knowing. Ext-authz combines both: the gateway
-consults Evidra, gets risk back, and the agent never changes.
+MCP direct gives the richest evidence (intent + optional artifact digest before
+execution). Proxy and bridge are passive taps — they record what happened
+without the agent knowing. Ext-authz can attach external assessment while the
+agent remains unchanged.
 
 ## Access Points
 

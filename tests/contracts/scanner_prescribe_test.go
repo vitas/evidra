@@ -44,19 +44,11 @@ func TestE2E_PrescribeWithFindings(t *testing.T) {
 		t.Fatalf("prescribe not ok: %v", result)
 	}
 
-	riskInputs, ok := result["risk_inputs"].([]interface{})
-	if !ok {
-		t.Fatalf("risk_inputs missing: %v", result)
+	if riskInputs, ok := result["risk_inputs"].([]interface{}); ok && len(riskInputs) != 0 {
+		t.Fatalf("risk_inputs len = %d, want 0 without assessment", len(riskInputs))
 	}
-	if len(riskInputs) < 2 {
-		t.Fatalf("risk_inputs len = %d, want >= 2 (matrix + native + trivy)", len(riskInputs))
-	}
-	effectiveRisk, ok := result["effective_risk"].(string)
-	if !ok || effectiveRisk == "" {
-		t.Fatalf("effective_risk missing: %v", result)
-	}
-	if effectiveRisk != "high" {
-		t.Errorf("effective_risk = %q, want high", effectiveRisk)
+	if effectiveRisk, ok := result["effective_risk"].(string); ok && effectiveRisk != "" {
+		t.Errorf("effective_risk = %q, want empty without assessment", effectiveRisk)
 	}
 
 	prescriptionID, ok := result["prescription_id"].(string)

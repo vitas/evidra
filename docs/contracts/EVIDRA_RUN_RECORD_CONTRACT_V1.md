@@ -29,8 +29,9 @@ Design rule:
 - `import` = Evidra ingests a completed automation execution from structured input.
 
 Both modes must produce equivalent prescribe/report semantics for equivalent operations.
-When the lifecycle input is the same, they should also expose the same prescribe-time
-`risk_inputs` panel and `effective_risk` roll-up.
+When an external assessment is supplied, they should also expose the same
+prescribe-time `risk_inputs` panel and `effective_risk` roll-up. Without an
+external assessment those fields are present for compatibility but empty.
 
 GitOps note:
 
@@ -64,6 +65,7 @@ Conditional requirement:
 
 - at least one of:
   - `raw_artifact` (string)
+  - `intent` (object)
   - `canonical_action` (JSON object)
 
 Optional fields:
@@ -95,6 +97,9 @@ For `record` and `import`, output must include:
 - `confidence`
 
 A separate score-band alias must not be emitted. It is not a distinct runtime concept.
+
+`risk_inputs` and `effective_risk` are optional enrichment values. Core
+record/import writes declared intent even when they are empty.
 
 `evidra report` returns an immediate assessment snapshot for the session:
 

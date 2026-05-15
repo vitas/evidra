@@ -55,8 +55,7 @@ ext-audit event (facts)
     ▼
 Evidra consumes via POST /v1/evidence/ingest/audit
     │
-    ├── Canonicalize: infer operation_class, scope_class from tool name
-    ├── Assess: run pluggable assessment pipeline
+    ├── Record: declared intent + optional external canonical/assessment fields
     ├── Chain: cryptographically linked evidence entries
     │
     ▼
@@ -110,8 +109,8 @@ fewer repos, simpler deployment.
 | **Behavioral signal detection** | ext-audit provides facts; pattern detection requires an engine |
 | **Reliability scoring** | No standard score — that's the intelligence layer |
 | **Benchmarking / comparison** | ext-audit doesn't define run comparison or leaderboards |
-| **Pluggable assessment pipeline** | Risk assessment is consumer logic, not audit format |
-| **Prescribe (pre-flight assessment)** | ext-audit is post-execution; Evidra's MCP tools offer pre-flight |
+| **Optional assessment enrichment** | Risk assessment is consumer logic, not audit format |
+| **Prescribe (pre-flight intent)** | ext-audit is post-execution; Evidra's MCP tools offer pre-flight intent recording |
 
 ## How Evidra's MCP Tools Coexist with ext-audit
 
@@ -121,9 +120,8 @@ Evidra offers two modes that serve different needs:
 Agent doesn't know Evidra exists. Post-execution only.
 
 **Evidra MCP tools (active):** Agent calls `prescribe_smart` or
-`prescribe_full` before execution, gets risk assessment back, then
-calls `report` after. Pre-flight + post-flight. Richer evidence but
-requires agent awareness.
+`prescribe_full` before execution, gets a prescription ID, then calls `report`
+after. Pre-flight + post-flight. Richer evidence but requires agent awareness.
 
 Both feed the same evidence chain and scoring pipeline. Teams choose
 based on how much agent integration they want:

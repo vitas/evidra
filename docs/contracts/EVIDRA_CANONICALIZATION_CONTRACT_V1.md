@@ -1,11 +1,17 @@
 # Evidra Canonicalization Contract
 
-- Status: Normative
+- Status: Companion / legacy
 - Version: v1.0
-- Canonical for: adapter rules, digest semantics, and canonical versions
+- Canonical for: optional external canonical_action enrichment
 - Audience: public
 
-Frozen. Changes to canonical output require version bump.
+Evidra core no longer runs built-in canonicalization on the prescribe write
+path. This document is retained for companion tools or external adapters that
+choose to produce `canonical_action`. Core prescribe/report evidence is valid
+with declared intent only.
+
+Frozen. Changes to this optional canonical output require version bump in the
+companion producer.
 
 ---
 

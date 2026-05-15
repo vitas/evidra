@@ -81,10 +81,10 @@ For architecture and protocol semantics, see:
 | `--tool` | Tool name (for example `kubectl`, `terraform`) |
 | `--operation` | Operation name (`apply` default) |
 | `--environment` | Environment label |
-| `--findings` | SARIF findings path (repeatable) |
+| `--findings` | SARIF findings path (repeatable); writes finding evidence, does not alter risk without an explicit assessment |
 | `--evidence-dir` | Evidence directory override |
 | `--actor` | Actor ID |
-| `--canonical-action` | Pre-canonicalized JSON action (bypasses adapter) |
+| `--canonical-action` | Optional external canonical identity JSON; Evidra records it but does not run adapters or assessment |
 | `--session-id` | Session boundary ID (generated if omitted) |
 | `--operation-id` | Operation identifier |
 | `--attempt` | Retry attempt counter |
@@ -179,7 +179,7 @@ evidence around the command; it does not contain or block it.
 
 ### Assessment Snapshot Output
 
-`evidra record` and `evidra import` return the same immediate assessment fields:
+`evidra record` and `evidra import` return the same immediate analytics fields:
 
 - `risk_inputs`
 - `effective_risk`
@@ -188,6 +188,10 @@ evidence around the command; it does not contain or block it.
 - `signal_summary`
 - `basis`
 - `confidence`
+
+`risk_inputs` and `effective_risk` are empty unless an external assessment is
+provided by the caller. Score and signal fields are still computed from the
+evidence chain.
 
 The legacy score-band alias is not part of the v1 output contract.
 
@@ -247,6 +251,9 @@ Global installs to `~/.claude/skills/evidra/SKILL.md`. Project installs to `.cla
 These commands are functional but not yet part of the stable public API.
 
 #### `evidra detectors list`
+
+Legacy/companion surface for the built-in detector registry. Core
+prescribe/report does not depend on these detectors.
 
 | Flag | Description |
 |---|---|

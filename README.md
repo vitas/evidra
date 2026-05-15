@@ -6,7 +6,7 @@
 
 **Flight recorder and reliability scoring for infrastructure automation**
 
-Evidra records intent, outcome, and refusal for every infrastructure mutation — across MCP agents, CI pipelines, A2A agents, and scripts. The append-only evidence chain enables risk assessment, behavioral signal detection, and reliability scoring.
+Evidra records intent, outcome, and refusal for every infrastructure mutation — across MCP agents, CI pipelines, A2A agents, and scripts. The append-only evidence chain powers behavioral signal detection and reliability scoring. Canonicalization and risk assessment are optional external enrichments, not required core dependencies.
 
 CLI and MCP are the authoritative analytics surfaces today.
 
@@ -145,9 +145,10 @@ References: [Self-hosted setup](docs/guides/self-hosted-setup.md) · [CLI refere
 
 From the evidence chain, Evidra computes:
 
-- **Risk assessment** — pluggable pipeline with multiple assessors
 - **Behavioral signals** — protocol violations, retry loops, blast radius, drift detection
 - **Reliability scorecards** — 0-100 score with band and confidence
+
+Risk assessment can be supplied by an external scanner or policy engine as an optional `assessment` block on prescribe entries. When no assessment is supplied, Evidra still records the intent and outcome and leaves risk fields empty.
 
 Eight behavioral signals documented in the [Signal specification](docs/system-design/EVIDRA_SIGNAL_SPEC_V1.md).
 
@@ -156,7 +157,7 @@ Eight behavioral signals documented in the [Signal specification](docs/system-de
 For agents that want full control over evidence recording:
 
 ```text
-prescribe_smart / prescribe_full  →  canonicalize artifact → assess risk → record intent
+prescribe_smart / prescribe_full  →  record declared intent (+ optional canonical_action/assessment)
 execute    →  run the command (or decline to act)
 report     →  record verdict, exit code, or refusal reason
 ```
@@ -170,7 +171,7 @@ Three evidence modes:
 | **Full Prescribe** | Agent calls `prescribe_full` with artifact | Full artifact (~300 tokens) |
 
 Most users should use Proxy Observed or the default DevOps surface. Smart Prescribe and Full Prescribe are for teams
-that want agents to see risk assessments before executing.
+that want explicit prescribe/report control. If an agent needs risk context before executing, run a scanner or policy engine first and include its result as optional assessment enrichment.
 
 ## Proxy Mode — Wrap Mutation-Oriented MCP Servers
 
@@ -197,6 +198,8 @@ The proxy records evidence when it sees `run_command` or other mutation-shaped M
 - [API Reference](docs/api-reference.md)
 - [Architecture](docs/system-design/EVIDRA_ARCHITECTURE_V1.md)
 - [Protocol Specification](docs/system-design/EVIDRA_PROTOCOL_V1.md)
+- [Scoring Rationale](docs/system-design/scoring/default.v1.1.0.md)
+- [MCP Registry Publication Guide](docs/guides/mcp-registry-publication.md)
 - [Supported Tools](docs/supported-tools.md)
 
 ## Development

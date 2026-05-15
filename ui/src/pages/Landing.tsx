@@ -8,7 +8,7 @@ const PIPELINE_CHART = `flowchart LR
   B --> C["Execute<br/>kubectl · helm · terraform"]
   C --> D["Auto-Evidence<br/>report outcome"]
   B & D --> E[("Evidence<br/>Chain")]
-  F["assess.Pipeline<br/>Assessor 1..N"] --> E
+  F["Optional external<br/>assessment"] --> E
   E --> G["Signal Detectors<br/>8 behavioral signals"]
   G --> H["Scoring Engine"]
   H --> I["Scorecard<br/>0-100 + Band"]`;
@@ -20,11 +20,11 @@ const SYSTEM_CHART = `flowchart TB
   subgraph MCP ["evidra-mcp (DevOps MCP Server)"]
     RC["run_command<br/>kubectl · helm · terraform"]
     CD["collect_diagnostics<br/>one-call workload diagnosis"]
-    PS["prescribe_smart · report<br/>explicit risk assessment"]
+    PS["prescribe_smart · report<br/>explicit control"]
     AE["Auto-Evidence<br/>every mutation recorded"]
   end
   subgraph Recorder ["Recorder"]
-    Pipeline["assess.Pipeline<br/>risk assessment"]
+    Pipeline["Intent + optional<br/>assessment"]
     Store[("Evidence Store<br/>sign · chain · persist")]
     Pipeline --> Store
   end
@@ -56,7 +56,7 @@ export const SEQUENCE_CHART = `sequenceDiagram
 
   Agent->>MCP: run_command("kubectl set image deploy/web nginx:1.27")
   Note over MCP: Auto-evidence: mutation detected
-  MCP->>Store: prescribe(kubectl set, deployment/web, risk=medium)
+  MCP->>Store: prescribe(kubectl set, deployment/web)
   MCP->>K8s: execute mutation
   K8s-->>MCP: result
   MCP->>Store: report(prescription_id, verdict=success)
@@ -128,7 +128,7 @@ const PRIMARY_SIGNALS = [
 ];
 
 const FEATURES = [
-  { icon: "\u25CE", title: "Prescribe", desc: "Register intent before execution or reconciliation. Record the artifact, its canonical form, the full risk_inputs panel, and the rolled-up effective_risk at the moment intent becomes real." },
+  { icon: "\u25CE", title: "Prescribe", desc: "Register intent before execution or reconciliation. Record declared intent, artifact digest, and optional external canonical_action or assessment enrichment." },
   { icon: "\u25A4", title: "Report", desc: "Record the terminal outcome \u2014 success, failure, reconcile completion, or an explicit refusal with structured context. Every prescribe gets exactly one report. No silent gaps." },
   { icon: "\u2605", title: "Evidence", desc: "Signed, timestamped, hash-chained. The evidence chain is append-only and tamper-evident. Cryptographically verifiable by anyone, editable by no one." },
   { icon: "\u21C4", title: "Detect", desc: "The protocol structure makes behavioral patterns visible: agents stuck in retry loops, broken prescribe/report pairs, high-impact deletions, and reconcile failures. Reliability scorecards across actors, sessions, and time." },
@@ -138,6 +138,7 @@ const GUIDES = [
   { tag: "AI Agents", title: "MCP Setup", desc: "Connect Claude Code, Cursor, Codex, Gemini, or any MCP agent to the prescribe/report protocol.", href: "https://github.com/vitas/evidra/blob/main/docs/guides/mcp-setup.md" },
   { tag: "AI Agents", title: "Skill Setup", desc: "Install the Evidra skill \u2014 agents with the skill achieve 100% protocol compliance for infrastructure mutations.", href: "https://github.com/vitas/evidra/blob/main/docs/guides/skill-setup.md" },
   { tag: "GitOps", title: "Argo CD Integration", desc: "Controller-first GitOps evidence for zero-touch reconciliation and explicit traceability via evidra.cc/* annotations.", href: "https://github.com/vitas/evidra/blob/main/docs/guides/argocd-gitops-integration.md" },
+  { tag: "Hosted", title: "ArgoCD / generic webhooks", desc: "Translate controller and generic webhook events into prescribe/report evidence with decision_context support for deliberate refusals.", href: "https://github.com/vitas/evidra/blob/main/docs/guides/self-hosted-setup.md" },
   { tag: "Platform", title: "Self-Hosted Setup", desc: "Centralize evidence across agents, pipelines, and controllers. Compare reliability fleet-wide.", href: "https://github.com/vitas/evidra/blob/main/docs/guides/self-hosted-setup.md" },
   { tag: "CI / CD", title: "Pipeline Setup", desc: "Add prescribe/report to your CI pipeline. Record intent before deploy, outcome after. The same protocol works for workflow jobs and deploy runs.", href: "https://github.com/vitas/evidra/blob/main/docs/guides/terraform-ci-quickstart.md" },
   { tag: "Observability", title: "Metrics Export", desc: "Export signals and scores to Grafana, Datadog, or any OTLP-compatible backend.", href: "https://github.com/vitas/evidra/blob/main/docs/guides/observability-quickstart.md" },

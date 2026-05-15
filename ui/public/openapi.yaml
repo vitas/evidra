@@ -192,8 +192,10 @@ paths:
       tags: [Evidence]
       summary: Ingest a prescribe evidence entry
       description: |
-        Accepts a typed or override prescribe request, runs risk assessment,
-        and returns a prescription with risk level and detections.
+        Accepts a typed or override prescribe request and records signed
+        intent evidence. Canonical action and assessment data are optional
+        external enrichments supplied by the caller; the API does not run
+        canonicalization or risk assessment.
       requestBody:
         required: true
         content:
@@ -202,7 +204,7 @@ paths:
               $ref: '#/components/schemas/IngestPrescribeRequest'
             examples:
               typed:
-                summary: Typed prescribe with canonical action
+                summary: Typed prescribe with declared intent
                 value:
                   contract_version: v1
                   actor:
@@ -217,16 +219,10 @@ paths:
                     kind: declared
                   source:
                     system: cli
-                  canonical_action:
+                  intent:
                     tool: kubectl
                     operation: apply
-                    operation_class: mutate
-                    scope_class: staging
-                    resource_identity:
-                      - kind: Deployment
-                        name: nginx
-                        namespace: default
-                    resource_count: 1
+                    target: deployment/nginx
               override:
                 summary: Override prescribe with raw payload
                 value:
@@ -243,23 +239,15 @@ paths:
                     kind: declared
                   source:
                     system: cli
-                  artifact_digest: sha256:abc123def456
+                  artifact_digest: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
                   payload_override:
                     prescription_id: presc-001
-                    canonical_action:
+                    intent:
                       tool: kubectl
                       operation: apply
-                      operation_class: mutate
-                      scope_class: staging
-                      resource_identity:
-                        - kind: Deployment
-                          name: nginx
-                          namespace: default
-                      resource_count: 1
-                    risk_inputs:
-                      - source: evidra/matrix
-                        risk_level: medium
-                    effective_risk: medium
+                      target: deployment/nginx
+                    assessment:
+                      status: not_provided
       responses:
         '200':
           description: Duplicate entry already exists
@@ -754,8 +742,12 @@ components:
           type: string
         artifact_digest:
           type: string
+        intent:
+          $ref: '#/components/schemas/DeclaredIntent'
         canonical_action:
           $ref: '#/components/schemas/CanonicalAction'
+        assessment:
+          $ref: '#/components/schemas/AssessmentPayload'
         smart_target:
           $ref: '#/components/schemas/SmartTarget'
 
@@ -767,8 +759,12 @@ components:
         payload_override:
           type: object
           properties:
+            intent:
+              $ref: '#/components/schemas/DeclaredIntent'
             canonical_action:
-              type: object
+              $ref: '#/components/schemas/CanonicalAction'
+            assessment:
+              $ref: '#/components/schemas/AssessmentPayload'
         artifact_digest:
           type: string
 
@@ -1037,6 +1033,53 @@ components:
         resource_count:
           type: integer
         resource_shape_hash:
+          type: string
+
+    DeclaredIntent:
+      type: object
+      properties:
+        tool:
+          type: string
+        operation:
+          type: string
+        target:
+          type: string
+        command:
+          type: string
+        artifact_digest:
+          type: string
+
+    AssessmentPayload:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [provided, not_provided, failed]
+        provider:
+          type: string
+        risk_inputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/RiskInput'
+        effective_risk:
+          type: string
+          enum: [low, medium, high, critical, unknown]
+        detail:
+          type: string
+
+    RiskInput:
+      type: object
+      properties:
+        source:
+          type: string
+        risk_level:
+          type: string
+          enum: [low, medium, high, critical, unknown]
+        risk_tags:
+          type: array
+          items:
+            type: string
+        detail:
           type: string
 
     ResourceID:

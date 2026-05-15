@@ -5,7 +5,9 @@
 - Canonical for: worked protocol and scorecard walkthrough
 - Audience: public
 
-Worked example. Updated to match the current canonicalization, protocol, and scoring line.
+Worked example. This file includes legacy canonicalization/risk walkthroughs
+for companion adapters. The current core write path records declared intent and
+optional external `canonical_action` / `assessment` enrichment.
 
 This document is illustrative. Canonical rules live in:
 

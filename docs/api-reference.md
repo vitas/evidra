@@ -115,13 +115,14 @@ Ingest multiple entries in one request.
 
 ### `POST /v1/evidence/ingest/prescribe`
 
-Typed external lifecycle ingest for prescribe entries. Use this when an external adapter wants Evidra to build and sign the final prescribe entry from normalized request fields instead of forwarding a raw entry blob.
+Typed external lifecycle ingest for prescribe entries. Use this when an external adapter wants Evidra to build and sign the final prescribe entry from normalized request fields instead of forwarding a raw entry blob. Evidra records the supplied intent and does not run canonicalization or risk assessment itself.
 
 The request carries:
 - `contract_version`
 - actor and correlation fields
 - request taxonomy: `flavor`, `evidence.kind`, `source.system`
-- either `canonical_action` or `smart_target`
+- `intent`, `canonical_action`, or legacy `smart_target`
+- optional `assessment` when an external scanner or policy engine already produced risk context
 - optional top-level `prescription_id` and `artifact_digest`
 - optional `payload_override` when the caller already has a shaped prescribe payload body
 
@@ -131,7 +132,7 @@ The request carries:
 {
   "entry_id": "01JD...",
   "prescription_id": "presc_...",
-  "effective_risk": "medium",
+  "effective_risk": "",
   "duplicate": false
 }
 ```
@@ -155,7 +156,6 @@ The request carries:
 ```json
 {
   "entry_id": "01JD...",
-  "effective_risk": "medium",
   "duplicate": false
 }
 ```

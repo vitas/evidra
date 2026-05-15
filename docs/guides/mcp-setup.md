@@ -182,9 +182,9 @@ By default Evidra exposes seven MCP tools, plus optional `prescribe_full` when t
 
 **`describe_tool`** — Return the full schema for deferred protocol tools. Most agents do not need it. Use it when you want explicit `prescribe_smart` / `report` control instead of the default `run_command` auto-evidence path.
 
-**`prescribe_full`** — Record intent BEFORE an infrastructure mutation when artifact bytes are available. It analyzes the artifact, returns a `prescription_id`, and supports native detector coverage plus artifact drift detection.
+**`prescribe_full`** — Record intent BEFORE an infrastructure mutation when artifact bytes are available. It records the artifact digest, returns a `prescription_id`, and supports artifact drift detection. Risk context is only present when supplied as external assessment enrichment.
 
-**`prescribe_smart`** — Record intent BEFORE an infrastructure mutation when you know the target operation and resource but do not have artifact bytes. It returns a `prescription_id` and computes matrix risk from tool, operation, and target context. In the default tool surface its schema is deferred; call `describe_tool` first if you want the full explicit schema.
+**`prescribe_smart`** — Record intent BEFORE an infrastructure mutation when you know the target operation and resource but do not have artifact bytes. It returns a `prescription_id` and stores the target as declared intent. In the default tool surface its schema is deferred; call `describe_tool` first if you want the full explicit schema.
 
 **`report`** — Record the terminal verdict for the prescription. Executed operations report `success`, `failure`, or `error` with an exit code. Intentional refusals report `declined` with a short operational reason. In the default tool surface its schema is deferred; call `describe_tool` first if you want the full explicit schema.
 
@@ -197,11 +197,11 @@ When using `run_command`, evidence is recorded automatically. That is the defaul
 ```
 You → Agent: "Deploy nginx to production"
        Agent → Evidra: prescribe_full(kubectl, apply, artifact=deployment.yaml, env=production)
-       Evidra → Agent: ok=true, prescription_id=rx-01JQ..., effective_risk=high, risk_inputs=[...]
+       Evidra → Agent: ok=true, prescription_id=rx-01JQ...
        Agent → executes kubectl apply -f deployment.yaml
        Agent → Evidra: report(prescription_id=rx-01JQ..., verdict=success, exit_code=0)
        Evidra → Agent: ok=true, report_id=rep-01JQ..., score_band=excellent, signal_summary={...}
-Agent → You: "Deployed successfully. Risk level: high. Current score band: excellent."
+Agent → You: "Deployed successfully. Current score band: excellent."
 ```
 
 On failure:
@@ -219,10 +219,10 @@ On deliberate refusal:
 ```
 You → Agent: "Apply this privileged manifest to production"
        Agent → Evidra: prescribe_full(kubectl, apply, artifact=privileged.yaml, env=production)
-       Evidra → Agent: ok=true, prescription_id=rx-01JS..., effective_risk=critical, risk_inputs=[...]
-       Agent → Evidra: report(prescription_id=rx-01JS..., verdict=declined, decision_context={trigger:"risk_threshold_exceeded", reason:"effective_risk=critical and blast_radius covers production namespace"})
+       Agent runs scanner/policy: risk=critical
+       Agent → Evidra: report(prescription_id=rx-01JS..., verdict=declined, decision_context={trigger:"risk_threshold_exceeded", reason:"external assessment marked risk critical"})
        Evidra → Agent: ok=true, report_id=rep-01JS..., verdict=declined
-Agent → You: "I declined to apply it because the assessed risk was critical and the blast radius reached production."
+Agent → You: "I declined to apply it because the external assessment marked the risk critical."
 ```
 
 ---
@@ -231,16 +231,16 @@ Agent → You: "I declined to apply it because the assessed risk was critical an
 
 Evidra-mcp has three evidence modes:
 
-**Full Prescribe** — the agent calls `prescribe_full` and `report` explicitly and sends `raw_artifact`. This is the richest protocol path: native detector coverage, risk inputs derived from the artifact, and artifact drift detection.
+**Full Prescribe** — the agent calls `prescribe_full` and `report` explicitly and sends `raw_artifact`. This records artifact identity and supports artifact drift detection.
 
-**Smart Prescribe** — the agent calls `prescribe_smart` and `report` explicitly, sending a lightweight target shape such as `tool`, `operation`, `resource`, and optional `namespace`. This keeps the same evidence chain with lower token cost, but smart mode uses matrix risk only and does not support artifact drift detection.
+**Smart Prescribe** — the agent calls `prescribe_smart` and `report` explicitly, sending a lightweight target shape such as `tool`, `operation`, `resource`, and optional `namespace`. This keeps the same evidence chain with lower token cost, but does not support artifact drift detection unless the caller supplies an artifact digest.
 
 **Proxy Observed** — evidra-mcp wraps another MCP server and auto-records evidence for infrastructure mutations. The agent doesn't need to know about evidra. Zero extra tokens, zero agent changes.
 
 ### When to use each mode
 
 Use Full Prescribe when:
-- You want the agent to actively participate in risk assessment
+- You want the agent to actively participate in explicit intent recording
 - You need declined verdicts (agent refuses dangerous operations)
 - You want artifact-level drift detection
 - You have the full manifest/plan content and a capable model
@@ -249,7 +249,7 @@ Use Smart Prescribe when:
 - You still want explicit prescribe/report participation from the agent
 - Your model struggles with full-artifact prescribe payloads
 - You can describe the target resource and namespace but do not want to send the full artifact
-- You can accept matrix-only risk assessment and no artifact drift detection
+- You can accept no artifact drift detection unless you provide an artifact digest
 
 Use Proxy Observed when:
 - You already have an infrastructure MCP server (kubectl, helm, terraform tools)
@@ -420,7 +420,7 @@ Declined example:
   "verdict": "declined",
   "decision_context": {
     "trigger": "risk_threshold_exceeded",
-    "reason": "effective_risk=critical and blast_radius covers production namespace"
+    "reason": "external assessment marked risk critical"
   },
   "actor": {
     "type": "agent",
@@ -432,7 +432,7 @@ Declined example:
 
 ### Handling responses
 
-**`prescribe_full` or `prescribe_smart` returns `ok=true`:** Proceed with execution. Note `effective_risk` and the `risk_inputs` panel for context.
+**`prescribe_full` or `prescribe_smart` returns `ok=true`:** Proceed with execution. If an external assessment was supplied, note `effective_risk` and the `risk_inputs` panel for context.
 
 **report returns an assessment snapshot:** Informational. Note `score_band`, `signal_summary`, `basis`, and `confidence`, then continue — Evidra observes, it does not block.
 
@@ -483,12 +483,12 @@ export EVIDRA_EVIDENCE_DIR=/var/lib/evidra/evidence
 
 ### Environment
 
-Label the environment for risk classification:
+Label the environment for evidence context:
 ```bash
 evidra-mcp --environment production
 ```
 
-Values: `production`, `staging`, `development`. Affects risk matrix scoring — production operations carry higher risk levels.
+Values: `production`, `staging`, `development`. This is recorded as context and may be used by external assessment tools.
 
 ### Signing mode
 

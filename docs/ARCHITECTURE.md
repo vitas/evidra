@@ -17,16 +17,16 @@ already exist (MCP stdio, OTLP traces, HTTP webhooks) and never asks
 agents to change behavior. Agents, like pilots, need to do their work —
 evidence exists to improve, not to prevent.
 
-Prescribe is a pre-flight check, not a gate. When available it enriches
-the evidence with intent and risk assessment, but it never blocks
-execution. Passive recording (bridge/proxy mode) works without it.
+Prescribe is intent recording, not a gate. Optional external assessment can
+enrich the evidence, but it never blocks execution. Passive recording
+(bridge/proxy mode) works without assessment.
 
 ## Two-Layer Architecture
 
 **Recorder** (write path, real-time):
 - Ingest evidence from any source
-- Canonicalize: adapter translates raw artifact into CanonicalAction
-- Assessment pipeline: pluggable assessors → risk_inputs[] → effective_risk
+- Normalize declared intent
+- Attach optional external `canonical_action` and `assessment`
 - Sign with Ed25519, chain via previous_hash, store
 
 **Intelligence** (read path, post-hoc):
@@ -43,29 +43,26 @@ At the MCP layer, Full Prescribe, Smart Prescribe, and Proxy Observed are differ
 
 | Mode | How Evidra connects | Prescribe | Assessment |
 |------|-------------------|-----------|------------|
-| **MCP direct** | Agent usually calls `run_command`; explicit `prescribe_*` + `report` remain available | Yes — direct path or explicit protocol | Full pipeline |
+| **MCP direct** | Agent usually calls `run_command`; explicit `prescribe_*` + `report` remain available | Yes — direct path or explicit protocol | Optional external |
 | **MCP proxy** | `evidra-mcp --proxy` wraps upstream MCP server, classifies `run_command` and mutation-style `tools/call` requests heuristically | Implicit | Observed only |
 | **OTLP bridge** | Reads AgentGateway OTLP traces, translates to prescribe/report | Implicit | Observed only |
-| **Webhooks** | ArgoCD/generic webhook → mapped prescribe/report | Translated | Full pipeline |
-| **Ext-authz** (future) | Gateway calls Evidra assessment endpoint before forwarding | Yes — via gateway | Full pipeline |
+| **Webhooks** | ArgoCD/generic webhook → mapped prescribe/report | Translated | Optional external |
+| **Ext-authz** (future) | Gateway or scanner supplies assessment before forwarding | Yes — via gateway | External |
 
 MCP direct gives the richest evidence. In the default direct surface, `run_command` remains the primary cheap-model path. `prescribe_smart` and `report` stay available, but their full schemas are loaded on demand via `describe_tool` so the default tool surface stays smaller. Proxy and bridge are passive taps. Proxy observation is heuristic: it records `run_command` and generic mutation-style MCP tool names it can classify, but it does not build a full upstream tool catalog.
-Ext-authz combines both: the gateway consults Evidra for risk assessment,
+Ext-authz combines both: the gateway or scanner supplies assessment context,
 the agent never changes.
 
-## Assessment Pipeline
+## Optional Assessment
 
-At prescribe time, risk assessment runs through the pluggable `internal/assess/` pipeline. Both `lifecycle` (CLI/MCP) and `ingest` (API) prescribe paths call `assess.Pipeline.Run()`:
+At prescribe time, Evidra core records intent and optional enrichment. It does
+not call a built-in risk pipeline. External scanners, gateways, or policy
+engines can supply an `assessment` block:
 
-1. Pipeline receives a `CanonicalAction` and raw artifact bytes
-2. Registered `Assessor` implementations run in order:
-   - `MatrixAssessor` — static risk matrix lookup (`operationClass x scopeClass`)
-   - `DetectorAssessor` — native tag detectors (privileged containers, wildcard RBAC, etc.)
-   - `SARIFAssessor` — external scanner findings from SARIF reports
-3. Each assessor returns `[]RiskInput` with source, risk level, and tags
-4. Pipeline aggregates via max-severity into `effective_risk`
-
-The pipeline replaces the former monolithic risk computation that was duplicated across lifecycle and ingest services.
+1. scanner/policy engine evaluates the artifact or command
+2. caller passes `assessment.status=provided`, `risk_inputs`, and
+   `effective_risk`
+3. Evidra stores those fields as evidence without owning scanner logic
 
 ## Hosted Mode
 
@@ -85,9 +82,9 @@ Hosted mode changes where evidence is collected and replayed, not what evidence 
   MCP direct ──────────┐
   MCP proxy ───────────┤
   CLI record/import ───┤                                   ┌──────────────────┐
-                       ├──▸ canonicalize ──▸ assess.Pipeline ──▸ sign ──▸ store ──▸ signals    │
-  OTLP bridge ─────────┤                     (assess risk,     chain      │     scoring     │
-  Webhooks ────────────┤                      aggregate)                  │     analytics   │
+                       ├──▸ declared intent (+ optional enrichment) ──▸ sign ──▸ store ──▸ signals │
+  OTLP bridge ─────────┤                                             chain      │     scoring     │
+  Webhooks ────────────┤                                                        │     analytics   │
   Ext-authz (future) ──┘                                                  │     analytics   │
                                                             └──────────────────┘
                                                                     │

@@ -72,7 +72,7 @@ The `EntryType` enum in code (`pkg/evidence/entry.go`) defines the canonical
 set of entry types persisted in the evidence chain:
 
 ```
-prescribe                  # pre-execution risk assessment
+prescribe                  # pre-execution intent record
 report                     # post-execution outcome report
 finding                    # inspector/scanner-generated finding
 signal                     # behavioral signal detection result
@@ -91,7 +91,7 @@ The protocol uses a higher-level conceptual taxonomy to describe automation work
 
 | Conceptual event | Internal `EntryType` | Notes |
 |------------------|----------------------|-------|
-| `operation.start` | `prescribe` | Pre-execution assessment |
+| `operation.start` | `prescribe` | Pre-execution intent |
 | `operation.end` | `report` (verdict=success) | Successful completion |
 | `operation.error` | `report` (verdict=failure) | Failed/aborted operation |
 | `validator.findings` | `finding` | External scanner results |
@@ -100,7 +100,9 @@ The protocol uses a higher-level conceptual taxonomy to describe automation work
 | `annotation` | `annotation` | Human/system annotation |
 
 The `signal`, `receipt`, and `canonicalization_failure` entry types are
-internal to the Evidra pipeline and have no conceptual event counterpart.
+auxiliary entries and have no conceptual event counterpart. Core write paths no
+longer require canonicalization; `canonicalization_failure` remains only for
+legacy/companion tooling that attempts canonicalization explicitly.
 
 External event-bus and standards mappings are intentionally outside the live
 public protocol contract.
@@ -520,7 +522,9 @@ Representative typed lifecycle ingest shape for `/v1/evidence/ingest/prescribe`:
       "type": "object",
       "required": ["system"]
     },
+    "intent": { "type": "object" },
     "canonical_action": { "type": "object" },
+    "assessment": { "type": "object" },
     "smart_target": { "type": "object" },
     "payload_override": { "type": "object" }
   }
@@ -534,7 +538,7 @@ Representative typed lifecycle ingest shape for `/v1/evidence/ingest/prescribe`:
 The protocol guarantees:
 
 - forward compatibility through optional fields
-- deterministic canonicalization
+- deterministic hashing of recorded intent and entries
 - immutable evidence chains
 - low-cardinality metric dimensions
 

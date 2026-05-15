@@ -9,7 +9,9 @@
 
 Precise schema for the objects that appear in the architecture:
 
-- CanonicalAction
+- DeclaredIntent
+- optional CanonicalAction
+- optional AssessmentPayload
 - Prescription
 - Report
 - ValidatorFinding
@@ -22,11 +24,37 @@ and stable during the full codebase refactor.
 
 ---
 
-## 1. CanonicalAction
+## 1. DeclaredIntent
 
-CanonicalAction is the normalized representation of an
-infrastructure action. Produced by canonicalization adapters
-(server-side) or by self-aware tools (pre-canonicalized path).
+DeclaredIntent is the caller-declared operation Evidra records before
+execution. It is the core prescribe identity.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| tool | string | Tool identifier (kubectl, terraform, helm, ...) |
+| operation | string | Tool operation (apply, delete, plan, ...) |
+| target | string | Lightweight target identifier such as `namespace/deployment/web` |
+| command | string | Optional command line or agent action string |
+| artifact_digest | string | Optional SHA256 of artifact bytes supplied by the caller |
+
+### Digest Rules
+
+```
+intent_digest   = SHA256(JSON of declared intent identity fields)
+artifact_digest = SHA256(raw_artifact_bytes), when raw bytes are supplied
+```
+
+`intent_digest` identifies behavioral identity. `artifact_digest` identifies
+content. They MUST NOT be treated as interchangeable.
+
+---
+
+## 2. CanonicalAction
+
+CanonicalAction is an optional normalized representation of an infrastructure
+action. Evidra core stores it when supplied by a caller, but does not require or
+produce it on the core write path.
+
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -51,21 +79,9 @@ infrastructure action. Produced by canonicalization adapters
 Fields are tool-specific. K8s uses api_version/kind/namespace/name.
 Terraform uses type/name/actions.
 
-### Digest Rules
-
-```
-intent_digest  = SHA256(canonical_json(canonical_action))
-artifact_digest = SHA256(raw_artifact_bytes)
-```
-
-- `intent_digest` identifies behavioral identity.
-- `artifact_digest` ensures artifact integrity.
-- Same artifact_digest → same intent_digest. Not the reverse.
-- They MUST NOT be treated as interchangeable.
-
 ---
 
-## 2. Prescription
+## 3. Prescription
 
 Prescription records intent before execution.
 
@@ -75,18 +91,21 @@ Prescription records intent before execution.
 | tenant_id | string | MUST (service mode) | Empty in local mode |
 | trace_id | string | MUST | Automation task/session correlation key |
 | actor | Actor | MUST | Who is performing the action |
-| canonical_action | CanonicalAction | MUST | Normalized action (contains tool) |
-| intent_digest | string | MUST | SHA256 of canonical JSON |
-| artifact_digest | string | MUST | SHA256 of raw artifact bytes |
-| risk_inputs | []RiskInput | MUST | Per-source prescribe-time panel (`evidra/native` or `evidra/matrix`, plus external findings) |
-| effective_risk | string | MUST | Highest-severity roll-up across `risk_inputs` |
+| intent | DeclaredIntent | SHOULD | Caller-declared operation identity |
+| canonical_action | CanonicalAction | MAY | Optional external normalized action |
+| assessment | AssessmentPayload | SHOULD | `not_provided`, `provided`, or `failed` |
+| intent_digest | string | MUST | SHA256 of declared intent or optional canonical identity |
+| artifact_digest | string | MAY | SHA256 of raw artifact bytes |
+| risk_inputs | []RiskInput | MAY | External prescribe-time risk panel when assessment is provided |
+| effective_risk | string | MAY | External roll-up across `risk_inputs` |
 | ttl_ms | integer | MUST | Time-to-live in milliseconds (materialized, not inferred) |
-| canon_source | string | MUST | "adapter" (Evidra parsed) or "external" (tool self-reported) |
+| canon_source | string | MAY | `external` when caller supplied `canonical_action` |
 | timestamp | datetime | MUST | RFC 3339, UTC |
 
 Legacy compatibility note:
 - older evidence MAY still contain `risk_level`, `risk_tags`, or `risk_details`
-- current producers SHOULD write `risk_inputs` + `effective_risk`
+- current core producers write `assessment.status=not_provided` unless risk
+  context is supplied by an external scanner or policy engine
 
 ### Actor
 
@@ -100,7 +119,7 @@ Legacy compatibility note:
 
 ---
 
-## 3. Report
+## 4. Report
 
 Report records the terminal result after execution or an intentional refusal to execute.
 
@@ -149,7 +168,7 @@ Evidra. This section defines the wire contract.
 |-------|----------|------|-------------|
 | tool | MUST | string | Infrastructure tool name (kubectl, terraform, helm, ...) |
 | operation | MUST | string | Tool operation (apply, delete, plan, ...) |
-| raw_artifact | MUST | string | Raw artifact content (YAML manifest, JSON plan, etc.) |
+| raw_artifact | MAY | string | Raw artifact content (YAML manifest, JSON plan, etc.) |
 | actor | MUST | object | Actor identity (see Actor schema) |
 | actor.type | MUST | string | ai_agent, ci, human, unknown |
 | actor.id | MUST | string | Stable identifier for the actor |
@@ -172,9 +191,8 @@ Wire/storage mapping:
 
 Evidra computes and adds to the stored Prescription:
 prescription_id, session_id (if not caller-provided), trace_id (defaults to session_id when not caller-provided), tenant_id,
-canonical_action (if not pre-provided), intent_digest,
-artifact_digest, risk_inputs, effective_risk, ttl_ms,
-canon_source, timestamp.
+intent, intent_digest, artifact_digest when bytes are supplied, ttl_ms,
+optional canonical_action, optional assessment, and timestamp.
 
 `prescribe_smart` is the reduced MCP contract for cases where raw artifact
 bytes are not available. It uses the same actor and tracing envelope, but
@@ -183,9 +201,9 @@ replaces `raw_artifact` and `canonical_action` with:
 - `resource` (MUST): lightweight target identifier (resource name, address, or equivalent)
 - `namespace` (MAY): optional namespace or comparable scope hint
 
-Smart prescribe computes matrix risk from target context only. Raw artifact
-digesting and artifact drift detection are unavailable for that
-prescribe/report pair.
+Smart prescribe records the target as declared intent. Raw artifact digesting
+and artifact drift detection are unavailable for that prescribe/report pair
+unless the caller supplies an artifact digest.
 
 #### report tool input
 
@@ -427,13 +445,13 @@ Minimum sample: 100 operations. Below that: band = "insufficient_data".
 Confidence is a scorecard-level property, not per-signal.
 
 ```
-confidence = f(evidence_completeness, canon_trust, actor_trust)
+confidence = f(evidence_completeness, identity_trust, actor_trust)
 ```
 
 | Confidence | Score ceiling | Condition |
 |------------|--------------|-----------|
-| High | 100 (no cap) | Full evidence, adapter-canonicalized, verified identity |
-| Medium | 95 | >50% canon_source=external, or unverified actor with no tenant_id |
+| High | 100 (no cap) | Full prescribe/report evidence and verified identity |
+| Medium | 95 | Mostly external/declared identity, or unverified actor with no tenant_id |
 | Low | 85 | >10% protocol_violation_rate, or severe evidence gaps |
 
 ---
@@ -502,10 +520,9 @@ Ingress alias normalization and validation requirements are defined in
 | `high` | Significant risk, agent should consider human approval |
 | `critical` | Catastrophic risk pattern detected |
 
-`risk_inputs` records why that roll-up was chosen. Current producers use:
-- `evidra/native` when raw artifact bytes are available, including native detector tags
-- `evidra/matrix` when only canonical context is available
-- external findings sources when SARIF findings are attached at prescribe time
+`risk_inputs` records why that roll-up was chosen when an external assessment
+is supplied. Evidra core does not generate `evidra/native` or `evidra/matrix`
+inputs on the prescribe write path.
 
 ### entry_type
 

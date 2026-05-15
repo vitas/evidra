@@ -77,7 +77,6 @@ Provides tools:                  Provides protocol knowledge:
   • get_event                      • How to handle failures
                                    • Classification tables
 Observes and scores              • Decision flowchart
-  • Risk assessment                • Retry rules
   • Signal detection
   • Reliability scoring
 
@@ -87,13 +86,13 @@ Observes and scores              • Decision flowchart
          └──────────────────────┘
 ```
 
-The MCP server handles evidence recording, risk analysis, and scoring. The skill handles agent behavior — ensuring the agent calls the right tool at the right time with the right inputs.
+The MCP server handles evidence recording and scoring. External scanners or policy engines can provide optional assessment context. The skill handles agent behavior — ensuring the agent calls the right tool at the right time with the right inputs.
 
 Default install (`evidra skill install`) writes the smart prescribe skill:
 
 - send `tool`, `operation`, `resource`, and optional `namespace` when the target is known
 - keep `actor.type`, `actor.id`, `actor.origin`, and `actor.skill_version` present
-- fall back to `prescribe_full` with `raw_artifact` when you want native detector coverage and artifact drift detection
+- fall back to `prescribe_full` with `raw_artifact` when you want artifact digesting and drift detection
 
 Full install (`evidra skill install --full-prescribe`) writes the full-prescribe skill:
 

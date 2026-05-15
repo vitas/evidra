@@ -246,5 +246,5 @@ evidra-mcp --evidence-dir ~/.evidra/evidence
 
 - Use self-hosted when you want centralized evidence collection, API keys, entry browsing, dashboard monitoring, and tenant-wide analytics over forwarded evidence.
 - Use the Argo CD controller path when you want centralized GitOps reconciliation evidence without requiring Git access.
-- Use CLI or MCP when you want local-first workflows, immediate command assessment, or agent-native tool invocation.
+- Use CLI or MCP when you want local-first workflows, agent-native tool invocation, or external assessment attached to evidence.
 - Treat hosted `scorecard` and `explain` as the supported analytics surface for stored evidence. Hosted `compare` is still future work.

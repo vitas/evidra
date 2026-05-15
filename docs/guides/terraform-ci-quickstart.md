@@ -57,13 +57,8 @@ Output includes:
 ```json
 {
   "ok": true,
-  "effective_risk": "medium",
-  "risk_inputs": [
-    {
-      "source": "evidra/native",
-      "risk_level": "medium"
-    }
-  ],
+  "effective_risk": "",
+  "risk_inputs": null,
   "score": 95,
   "score_band": "good",
   "basis": "preview",

@@ -9,10 +9,10 @@ artifacts:
     upstream_ref: e7639f6653b4a4b274bb8de5aa6a0db3a4c85926: controls/examples/c045.yaml
     license: Apache-2.0
     purpose:
-      - canonicalization acceptance
-      - hostPath detector severity
+      - companion canonicalization acceptance
+      - companion hostPath detector severity
       - resource identity extraction
-      - k8s risk escalation on real OSS fixture
+      - k8s external/companion risk escalation on real OSS fixture
 
   - id: k8s_kubescape_non_root_pass
     path: tests/artifacts/fixtures/k8s/kubescape-non-root-deployment-pass.yaml
@@ -23,9 +23,9 @@ artifacts:
     upstream_ref: e7639f6653b4a4b274bb8de5aa6a0db3a4c85926: rules/non-root-containers/test/deployment-pass/input/deployment.yaml
     license: Apache-2.0
     purpose:
-      - canonicalization acceptance
+      - companion canonicalization acceptance
       - run-as-non-root acceptance
-      - k8s risk baseline on real OSS fixture
+      - k8s external/companion risk baseline on real OSS fixture
 
   - id: tf_checkov_s3_public_access_fail
     path: tests/artifacts/fixtures/terraform/checkov-s3-public-access-fail.tfplan.json
@@ -51,7 +51,7 @@ artifacts:
     purpose:
       - terraform adapter acceptance
       - iam wildcard policy detection
-      - critical risk classification
+      - external/companion critical risk classification
 
   - id: helm_rendered_redis
     path: tests/artifacts/fixtures/helm/helm_rendered.yaml

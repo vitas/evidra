@@ -128,7 +128,7 @@ Current reality:
 | Behavior Area | Authoritative Tests |
 | --- | --- |
 | Kubernetes canonicalization and resource identity extraction | `tests/e2e/real_world_test.go` |
-| Terraform plan canonicalization and risk classification | `tests/e2e/real_world_test.go` |
+| Terraform companion canonicalization and external/companion risk classification | `tests/e2e/real_world_test.go` |
 | Helm/Kustomize/OpenShift/Argo CD rendered-manifest handling | `tests/e2e/real_world_test.go` |
 | Explain and compare output contract | `tests/contracts/explain_compare_test.go` |
 | Findings ingest and scanner bundling | `tests/contracts/findings_test.go`, `tests/contracts/scanner_prescribe_test.go` |

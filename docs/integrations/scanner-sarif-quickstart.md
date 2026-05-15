@@ -21,7 +21,10 @@ Recommended defaults:
 | `evidra import-findings` (standalone) | Scanner runs as a separate CI step, independent of apply |
 | `evidra prescribe --findings` | Scanner findings bundled with prescribe in advanced flows |
 
-Both write SARIF findings as evidence entries linked to the same session. The bundled prescribe path also folds them into the prescribe-time `risk_inputs` panel and `effective_risk`.
+Both write SARIF findings as evidence entries linked to the same session.
+Prescribe-time `risk_inputs` and `effective_risk` are only populated when an
+external assessment is supplied; SARIF findings by themselves are stored as
+evidence and consumed by analytics rather than folded into core risk fields.
 
 ## Pattern 1: Standalone ingestion (recommended)
 

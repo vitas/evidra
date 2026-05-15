@@ -21,16 +21,16 @@ These fixtures are first-class acceptance inputs with exact upstream provenance.
 
 | Fixture | Path | Upstream Source | Why It Is Promoted |
 | --- | --- | --- | --- |
-| Kubescape hostPath fail | `tests/artifacts/fixtures/k8s/kubescape-hostpath-mount-fail.yaml` | `kubescape/regolibrary` `e7639f6653b4a4b274bb8de5aa6a0db3a4c85926` | Real Kubernetes hostPath risk fixture with clear detector expectations |
+| Kubescape hostPath fail | `tests/artifacts/fixtures/k8s/kubescape-hostpath-mount-fail.yaml` | `kubescape/regolibrary` `e7639f6653b4a4b274bb8de5aa6a0db3a4c85926` | Real Kubernetes hostPath fixture for companion detector expectations |
 | Kubescape non-root pass | `tests/artifacts/fixtures/k8s/kubescape-non-root-deployment-pass.yaml` | `kubescape/regolibrary` `e7639f6653b4a4b274bb8de5aa6a0db3a4c85926` | Real Kubernetes baseline fixture for non-root acceptance |
 | Checkov S3 public access fail | `tests/artifacts/fixtures/terraform/checkov-s3-public-access-fail.tfplan.json` | `bridgecrewio/checkov` `8bd89be03d239ff1f118a79a821f989fb119c16c` | Real Terraform plan fixture for public S3 exposure detection |
 | Checkov IAM wildcard fail | `tests/artifacts/fixtures/terraform/checkov-iam-wildcard-fail.tfplan.json` | `bridgecrewio/checkov` `8bd89be03d239ff1f118a79a821f989fb119c16c` | Real Terraform plan fixture for wildcard IAM policy detection |
 
 These promoted fixtures currently cover:
 
-- Kubernetes canonicalization on exact OSS manifests
-- Terraform plan canonicalization on exact OSS-derived plan JSON
-- detector-backed risk classification on realistic inputs
+- companion Kubernetes canonicalization on exact OSS manifests
+- companion Terraform plan canonicalization on exact OSS-derived plan JSON
+- external/companion detector classification on realistic inputs
 
 ## Remaining Curated Acceptance Fixtures
 

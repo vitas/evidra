@@ -222,16 +222,16 @@ func assertPrescribeExamples(t *testing.T, spec *yaml.Node) {
 	if typed["payload_override"] != nil {
 		t.Fatal("prescribe typed example should not set payload_override")
 	}
-	if _, ok := typed["canonical_action"]; !ok {
-		t.Fatal("prescribe typed example missing canonical_action")
+	if _, ok := typed["intent"]; !ok {
+		t.Fatal("prescribe typed example missing intent")
 	}
 	if _, ok := typed["smart_target"]; ok {
-		t.Fatal("prescribe typed example should not set smart_target when canonical_action is present")
+		t.Fatal("prescribe typed example should not set smart_target when intent is present")
 	}
 
 	overrideBody := mustMap(t, override["payload_override"], "prescribe override payload_override")
-	if _, ok := overrideBody["canonical_action"]; !ok {
-		t.Fatal("prescribe override payload_override missing canonical_action")
+	if _, ok := overrideBody["intent"]; !ok {
+		t.Fatal("prescribe override payload_override missing intent")
 	}
 	if _, ok := override["canonical_action"]; ok {
 		t.Fatal("prescribe override example should not set top-level canonical_action")
