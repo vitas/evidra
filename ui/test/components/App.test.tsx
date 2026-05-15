@@ -73,11 +73,12 @@ describe("App", () => {
     expect(screen.queryByText("−0.05")).not.toBeInTheDocument();
   });
 
-  it("describes prescribe output as risk_inputs and effective_risk", () => {
+  it("describes prescribe output as declared intent with optional enrichment", () => {
     render(<App />);
 
-    expect(screen.getByText(/risk_inputs/i)).toBeInTheDocument();
-    expect(screen.getByText(/effective_risk/i)).toBeInTheDocument();
+    expect(screen.getByText(/declared intent/i)).toBeInTheDocument();
+    expect(screen.getByText(/canonical_action/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/assessment/i).length).toBeGreaterThan(0);
   });
 
   it("uses a valid mermaid sequence chart for the default protocol flow", async () => {
