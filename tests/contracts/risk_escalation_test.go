@@ -4,6 +4,7 @@ package contracts_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -25,6 +26,7 @@ func TestE2E_RiskEscalationSignal(t *testing.T) {
 			"--operation", "apply",
 			"--artifact", artifactPath,
 			"--environment", "staging",
+			"--canonical-action", riskEscalationCanonicalAction("staging"),
 			"--actor", "agent-escalation",
 			"--evidence-dir", evidenceDir,
 			"--signing-key-path", privPath,
@@ -59,6 +61,7 @@ func TestE2E_RiskEscalationSignal(t *testing.T) {
 		"--operation", "apply",
 		"--artifact", artifactPath,
 		"--environment", "production",
+		"--canonical-action", riskEscalationCanonicalAction("production"),
 		"--actor", "agent-escalation",
 		"--evidence-dir", evidenceDir,
 		"--signing-key-path", privPath,
@@ -117,5 +120,12 @@ func TestE2E_RiskEscalationSignal(t *testing.T) {
 		escalationCount,
 		scorecard["total_operations"].(float64),
 		scorecard["score"].(float64),
+	)
+}
+
+func riskEscalationCanonicalAction(scope string) string {
+	return fmt.Sprintf(
+		`{"tool":"kubectl","operation":"apply","operation_class":"mutate","scope_class":%q,"resource_count":1,"resource_shape_hash":"sha256:risk-escalation"}`,
+		scope,
 	)
 }
