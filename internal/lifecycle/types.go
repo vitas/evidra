@@ -47,6 +47,8 @@ func NewService(opts Options) *Service {
 // PrescribeInput captures pre-execution operation context.
 type PrescribeInput struct {
 	Actor            evidence.Actor
+	Intent           evidence.DeclaredIntent
+	Assessment       *evidence.AssessmentPayload
 	Tool             string
 	Operation        string
 	RawArtifact      []byte
@@ -76,6 +78,8 @@ type PrescribeOutput struct {
 	SessionID      string
 	TraceID        string
 	Actor          evidence.Actor
+	Intent         evidence.DeclaredIntent
+	Assessment     *evidence.AssessmentPayload
 	RiskInputs     []evidence.RiskInput
 	EffectiveRisk  string
 	// Deprecated compatibility fields for callers not yet migrated.

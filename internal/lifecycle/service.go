@@ -42,6 +42,10 @@ func (s *Service) Prescribe(_ context.Context, input PrescribeInput) (PrescribeO
 		return PrescribeOutput{}, err
 	}
 
+	if hasDeclaredIntent(input.Intent) {
+		return s.prescribeDeclaredIntent(input, ctx)
+	}
+
 	cr, canonSource, err := s.canonicalizePrescribeInput(input, ctx)
 	if err != nil {
 		return PrescribeOutput{}, err
@@ -150,6 +154,92 @@ func (s *Service) Prescribe(_ context.Context, input PrescribeInput) (PrescribeO
 		ScopeClass:     cr.CanonicalAction.ScopeClass,
 		CanonVersion:   cr.CanonVersion,
 		RetryCount:     retryCount,
+		Entry:          entry,
+		RawEntry:       rawEntry,
+		Persisted:      persisted,
+	}, nil
+}
+
+func (s *Service) prescribeDeclaredIntent(input PrescribeInput, ctx prescribeContext) (PrescribeOutput, error) {
+	intent, artifactDigest, err := buildDeclaredIntent(input)
+	if err != nil {
+		return PrescribeOutput{}, err
+	}
+	assessment, err := normalizeAssessment(input.Assessment)
+	if err != nil {
+		return PrescribeOutput{}, err
+	}
+
+	prescPayload := evidence.PrescriptionPayload{
+		PrescriptionID: ulid.Make().String(),
+		Intent:         &intent,
+		Assessment:     assessment,
+		TTLMs:          evidence.DefaultTTLMs,
+		Flavor:         input.Flavor,
+		Evidence:       payloadEvidenceMetadata(input.EvidenceKind),
+		Source:         payloadSourceMetadata(input.SourceSystem),
+	}
+	if assessment.Status == evidence.AssessmentProvided {
+		prescPayload.RiskInputs = assessment.RiskInputs
+		prescPayload.EffectiveRisk = assessment.EffectiveRisk
+	}
+	payloadJSON, err := json.Marshal(prescPayload)
+	if err != nil {
+		return PrescribeOutput{}, wrapError(ErrCodeInternal, "failed to marshal prescription payload", err)
+	}
+
+	lastHash, err := s.lastHash()
+	if err != nil {
+		return PrescribeOutput{}, err
+	}
+
+	intentDigest := evidence.ComputeDeclaredIntentDigest(intent)
+	entry, err := evidence.BuildEntry(evidence.EntryBuildParams{
+		EntryID:         prescPayload.PrescriptionID,
+		Type:            evidence.EntryTypePrescribe,
+		SessionID:       ctx.sessionID,
+		OperationID:     strings.TrimSpace(input.OperationID),
+		Attempt:         input.Attempt,
+		TraceID:         ctx.traceID,
+		SpanID:          strings.TrimSpace(input.SpanID),
+		ParentSpanID:    strings.TrimSpace(input.ParentSpanID),
+		Actor:           ctx.actor,
+		IntentDigest:    intentDigest,
+		ArtifactDigest:  artifactDigest,
+		Payload:         payloadJSON,
+		PreviousHash:    lastHash,
+		ScopeDimensions: input.ScopeDimensions,
+		SpecVersion:     version.SpecVersion,
+		AdapterVersion:  version.Version,
+		ScoringVersion:  version.ScoringVersion,
+		Signer:          s.signer,
+	})
+	if err != nil {
+		return PrescribeOutput{}, wrapError(ErrCodeInternal, err.Error(), err)
+	}
+
+	persisted, err := s.appendEntry(entry)
+	if err != nil {
+		return PrescribeOutput{}, err
+	}
+
+	rawEntry, err := json.Marshal(entry)
+	if err != nil {
+		return PrescribeOutput{}, wrapError(ErrCodeInternal, "failed to marshal evidence entry", err)
+	}
+
+	return PrescribeOutput{
+		PrescriptionID: entry.EntryID,
+		SessionID:      ctx.sessionID,
+		TraceID:        ctx.traceID,
+		Actor:          ctx.actor,
+		Intent:         intent,
+		Assessment:     assessment,
+		RiskInputs:     assessment.RiskInputs,
+		EffectiveRisk:  assessment.EffectiveRisk,
+		RiskLevel:      assessment.EffectiveRisk,
+		ArtifactDigest: artifactDigest,
+		IntentDigest:   intentDigest,
 		Entry:          entry,
 		RawEntry:       rawEntry,
 		Persisted:      persisted,
@@ -266,6 +356,61 @@ func buildPrescribeContext(input PrescribeInput) (prescribeContext, error) {
 		return prescribeContext{}, err
 	}
 	return ctx, nil
+}
+
+func hasDeclaredIntent(intent evidence.DeclaredIntent) bool {
+	return strings.TrimSpace(intent.Tool) != "" ||
+		strings.TrimSpace(intent.Operation) != "" ||
+		strings.TrimSpace(intent.Target) != "" ||
+		strings.TrimSpace(intent.Command) != "" ||
+		strings.TrimSpace(intent.ArtifactDigest) != ""
+}
+
+func buildDeclaredIntent(input PrescribeInput) (evidence.DeclaredIntent, string, error) {
+	intent := input.Intent
+	intent.Tool = normalizeToken(intent.Tool)
+	if intent.Tool == "" {
+		intent.Tool = normalizeToken(input.Tool)
+	}
+	intent.Operation = normalizeToken(intent.Operation)
+	if intent.Operation == "" {
+		intent.Operation = normalizeToken(input.Operation)
+	}
+	intent.Target = strings.TrimSpace(intent.Target)
+	intent.Command = strings.TrimSpace(intent.Command)
+	intent.ArtifactDigest = strings.TrimSpace(intent.ArtifactDigest)
+	if intent.ArtifactDigest == "" && len(input.RawArtifact) > 0 {
+		intent.ArtifactDigest = evidence.SHA256Hex(input.RawArtifact)
+	}
+	if !hasDeclaredIntent(intent) {
+		return evidence.DeclaredIntent{}, "", wrapError(ErrCodeInvalidInput, "prescribe intent is required", nil)
+	}
+	if err := evidence.ValidateDigest(intent.ArtifactDigest); err != nil {
+		return evidence.DeclaredIntent{}, "", wrapError(ErrCodeInvalidInput, err.Error(), err)
+	}
+	return intent, intent.ArtifactDigest, nil
+}
+
+func normalizeAssessment(in *evidence.AssessmentPayload) (*evidence.AssessmentPayload, error) {
+	if in == nil {
+		return &evidence.AssessmentPayload{Status: evidence.AssessmentNotProvided}, nil
+	}
+	out := *in
+	if out.Status == "" {
+		out.Status = evidence.AssessmentProvided
+	}
+	if err := evidence.ValidateAssessmentStatus(out.Status); err != nil {
+		return nil, wrapError(ErrCodeInvalidInput, err.Error(), err)
+	}
+	if err := evidence.ValidateRiskLevel(out.EffectiveRisk); err != nil {
+		return nil, wrapError(ErrCodeInvalidInput, err.Error(), err)
+	}
+	for _, input := range out.RiskInputs {
+		if err := evidence.ValidateRiskLevel(input.RiskLevel); err != nil {
+			return nil, wrapError(ErrCodeInvalidInput, err.Error(), err)
+		}
+	}
+	return &out, nil
 }
 
 func (s *Service) canonicalizePrescribeInput(input PrescribeInput, ctx prescribeContext) (canon.CanonResult, string, error) {

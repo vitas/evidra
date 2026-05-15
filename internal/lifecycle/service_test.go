@@ -123,6 +123,84 @@ func TestServicePrescribe_CanonicalActionNormalizesToolOperation(t *testing.T) {
 	}
 }
 
+func TestPrescribe_DeclaredIntentWithoutAssessment(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	svc := NewService(Options{
+		EvidencePath: dir,
+		Signer:       testutil.TestSigner(t),
+	})
+
+	out, err := svc.Prescribe(context.Background(), PrescribeInput{
+		Actor: evidence.Actor{Type: "agent", ID: "agent-1", Provenance: "test"},
+		Intent: evidence.DeclaredIntent{
+			Tool:      "kubectl",
+			Operation: "apply",
+			Target:    "deployment/web",
+			Command:   "kubectl apply -f deploy.yaml",
+		},
+		SessionID: "session-intent-only",
+	})
+	if err != nil {
+		t.Fatalf("Prescribe: %v", err)
+	}
+
+	var payload evidence.PrescriptionPayload
+	if err := json.Unmarshal(out.Entry.Payload, &payload); err != nil {
+		t.Fatal(err)
+	}
+	if payload.Intent == nil {
+		t.Fatal("missing intent")
+	}
+	if payload.Intent.Tool != "kubectl" || payload.Intent.Target != "deployment/web" {
+		t.Fatalf("intent = %+v", payload.Intent)
+	}
+	if payload.CanonicalAction != nil {
+		t.Fatalf("canonical_action = %s, want nil", payload.CanonicalAction)
+	}
+	if payload.Assessment == nil || payload.Assessment.Status != evidence.AssessmentNotProvided {
+		t.Fatalf("assessment = %+v", payload.Assessment)
+	}
+	if out.CanonVersion != "" {
+		t.Fatalf("CanonVersion = %q, want empty", out.CanonVersion)
+	}
+	if out.EffectiveRisk != "" {
+		t.Fatalf("EffectiveRisk = %q, want empty", out.EffectiveRisk)
+	}
+}
+
+func TestPrescribe_RawArtifactOnlyComputesDigestForDeclaredIntent(t *testing.T) {
+	t.Parallel()
+
+	svc := NewService(Options{
+		EvidencePath: t.TempDir(),
+		Signer:       testutil.TestSigner(t),
+	})
+
+	out, err := svc.Prescribe(context.Background(), PrescribeInput{
+		Actor:       evidence.Actor{Type: "agent", ID: "agent-1", Provenance: "test"},
+		Intent:      evidence.DeclaredIntent{Tool: "kubectl", Operation: "apply"},
+		RawArtifact: []byte("kind: ConfigMap\n"),
+		SessionID:   "session-intent-digest",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out.ArtifactDigest == "" {
+		t.Fatal("missing artifact digest")
+	}
+	if out.ArtifactDigest != evidence.SHA256Hex([]byte("kind: ConfigMap\n")) {
+		t.Fatalf("artifact digest = %q", out.ArtifactDigest)
+	}
+	if out.CanonVersion != "" {
+		t.Fatalf("CanonVersion = %q, want empty", out.CanonVersion)
+	}
+	if out.ShapeHash != "" {
+		t.Fatalf("ShapeHash = %q, want empty", out.ShapeHash)
+	}
+}
+
 func TestServicePrescribe_PopulatesRiskInputsAndEffectiveRisk(t *testing.T) {
 	t.Parallel()
 
