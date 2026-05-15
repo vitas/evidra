@@ -71,6 +71,33 @@ type RiskInput struct {
 	Detail    string   `json:"detail,omitempty"`
 }
 
+// AssessmentStatus describes whether a prescribe entry includes risk enrichment.
+type AssessmentStatus string
+
+const (
+	AssessmentProvided    AssessmentStatus = "provided"
+	AssessmentNotProvided AssessmentStatus = "not_provided"
+	AssessmentFailed      AssessmentStatus = "failed"
+)
+
+// DeclaredIntent records the caller-declared operation intent.
+type DeclaredIntent struct {
+	Tool           string `json:"tool,omitempty"`
+	Operation      string `json:"operation,omitempty"`
+	Target         string `json:"target,omitempty"`
+	Command        string `json:"command,omitempty"`
+	ArtifactDigest string `json:"artifact_digest,omitempty"`
+}
+
+// AssessmentPayload records optional risk enrichment supplied by an external source.
+type AssessmentPayload struct {
+	Status        AssessmentStatus `json:"status"`
+	Provider      string           `json:"provider,omitempty"`
+	RiskInputs    []RiskInput      `json:"risk_inputs,omitempty"`
+	EffectiveRisk string           `json:"effective_risk,omitempty"`
+	Detail        string           `json:"detail,omitempty"`
+}
+
 // EvidenceMetadata records how the lifecycle evidence entered Evidra.
 type EvidenceMetadata struct {
 	Kind EvidenceKind `json:"kind,omitempty"`
@@ -82,12 +109,14 @@ type SourceMetadata struct {
 }
 
 // PrescriptionPayload is the typed payload for EntryTypePrescribe entries.
-// It captures the pre-execution risk assessment for a canonical action.
+// It captures declared intent plus optional canonicalization and assessment enrichment.
 type PrescriptionPayload struct {
-	PrescriptionID  string          `json:"prescription_id"`
-	CanonicalAction json.RawMessage `json:"canonical_action"`
-	RiskInputs      []RiskInput     `json:"risk_inputs,omitempty"`
-	EffectiveRisk   string          `json:"effective_risk,omitempty"`
+	PrescriptionID  string             `json:"prescription_id"`
+	Intent          *DeclaredIntent    `json:"intent,omitempty"`
+	CanonicalAction json.RawMessage    `json:"canonical_action,omitempty"`
+	Assessment      *AssessmentPayload `json:"assessment,omitempty"`
+	RiskInputs      []RiskInput        `json:"risk_inputs,omitempty"`
+	EffectiveRisk   string             `json:"effective_risk,omitempty"`
 	// Deprecated: kept for legacy readers during the contract transition.
 	RiskLevel string `json:"risk_level,omitempty"`
 	// RiskDetails was the canonical risk field for older validators.
@@ -112,11 +141,29 @@ func (p PrescriptionPayload) EffectiveRiskDetails() []string {
 	return p.RiskTags
 }
 
+// EffectiveRiskLevel returns the risk level from the assessment envelope when
+// present, otherwise falling back to the legacy top-level field.
+func (p PrescriptionPayload) EffectiveRiskLevel() string {
+	if p.Assessment != nil && p.Assessment.EffectiveRisk != "" {
+		return p.Assessment.EffectiveRisk
+	}
+	return p.EffectiveRisk
+}
+
+// AssessmentRiskInputs returns risk inputs from the assessment envelope when
+// present, otherwise falling back to the legacy top-level field.
+func (p PrescriptionPayload) AssessmentRiskInputs() []RiskInput {
+	if p.Assessment != nil && len(p.Assessment.RiskInputs) > 0 {
+		return p.Assessment.RiskInputs
+	}
+	return p.RiskInputs
+}
+
 // NativeRiskTags returns the risk_tags from the evidra/native input.
 // If the payload predates risk_inputs, it falls back to legacy risk details.
 func (p PrescriptionPayload) NativeRiskTags() []string {
-	if len(p.RiskInputs) > 0 {
-		for _, ri := range p.RiskInputs {
+	if inputs := p.AssessmentRiskInputs(); len(inputs) > 0 {
+		for _, ri := range inputs {
 			if ri.Source == "evidra/native" {
 				return ri.RiskTags
 			}

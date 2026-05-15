@@ -2,6 +2,7 @@ package evidence
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -124,6 +125,62 @@ func TestPrescriptionPayload_OmitEmpty(t *testing.T) {
 	}
 	if _, ok := raw["source"]; ok {
 		t.Error("source should be omitted when empty")
+	}
+}
+
+func TestPrescriptionPayload_DeclaredIntentOnly(t *testing.T) {
+	t.Parallel()
+
+	payload := PrescriptionPayload{
+		PrescriptionID: "presc_1",
+		Intent: &DeclaredIntent{
+			Tool:           "kubectl",
+			Operation:      "apply",
+			Target:         "deployment/web",
+			Command:        "kubectl apply -f deploy.yaml",
+			ArtifactDigest: "sha256:" + strings.Repeat("a", 64),
+		},
+		Assessment: &AssessmentPayload{Status: AssessmentNotProvided},
+		TTLMs:      DefaultTTLMs,
+	}
+
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var decoded PrescriptionPayload
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded.CanonicalAction != nil {
+		t.Fatalf("canonical_action = %s, want nil", decoded.CanonicalAction)
+	}
+	if decoded.Assessment.Status != AssessmentNotProvided {
+		t.Fatalf("assessment.status = %q", decoded.Assessment.Status)
+	}
+	if decoded.Intent.Tool != "kubectl" || decoded.Intent.Target != "deployment/web" {
+		t.Fatalf("intent = %+v", decoded.Intent)
+	}
+}
+
+func TestPrescriptionPayload_AssessmentProvided(t *testing.T) {
+	t.Parallel()
+
+	payload := PrescriptionPayload{
+		PrescriptionID: "presc_2",
+		Intent:         &DeclaredIntent{Tool: "trivy", Operation: "scan"},
+		Assessment: &AssessmentPayload{
+			Status:        AssessmentProvided,
+			Provider:      "trivy",
+			RiskInputs:    []RiskInput{{Source: "trivy", RiskLevel: "high"}},
+			EffectiveRisk: "high",
+		},
+		TTLMs: DefaultTTLMs,
+	}
+
+	if got := payload.EffectiveRiskLevel(); got != "high" {
+		t.Fatalf("EffectiveRiskLevel() = %q, want high", got)
 	}
 }
 
