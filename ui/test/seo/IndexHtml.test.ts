@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const TITLE = "Evidra — AI Infra Agent Evidence and Benchmarks";
 const DESCRIPTION =
-  "Evidra Bench provides external regression testing for infrastructure agents and MCP tools. Evidra OSS records agent actions and outcomes as evidence for readiness reports, failure analysis, and public benchmarks.";
+  "Evidra Bench is open source external regression testing for infrastructure agents and MCP tools. Evidra OSS records agent actions and outcomes as evidence for readiness reports, failure analysis, and public benchmarks.";
 const KEYWORDS =
   "AI infrastructure agents, MCP benchmarks, infrastructure agent regression testing, MCP tools, readiness reports, failure autopsy, public leaderboard, evidence recorder";
 

@@ -202,7 +202,7 @@
   .feature-card h3 { font-size: 0.92rem; font-weight: 700; color: var(--fg); margin-bottom: 0.4rem; }
   .feature-card p { font-size: 0.83rem; color: var(--fg-muted); line-height: 1.55; }
 
-  .product-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 1.25rem; }
+  .product-grid { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 1.25rem; }
   @media (max-width: 768px) { .product-grid { grid-template-columns: 1fr; } }
   .product-panel {
     background: var(--bg-elevated); border: 1px solid var(--border);
@@ -365,13 +365,13 @@
 <!-- Hero -->
 <section class="hero">
   <div class="container">
-    <div class="hero-eyebrow"><span class="pulse"></span> Bench-first evaluation &middot; Open source evidence recorder</div>
+    <div class="hero-eyebrow"><span class="pulse"></span> Open source Bench &middot; Open source evidence recorder</div>
     <h1>AI infra agents need evidence, not vibes.</h1>
-    <p class="tagline">Evidra Bench is external regression testing for infrastructure agents and MCP tools.</p>
-    <p class="sub">Use Bench to compare agent behavior on real infrastructure failure scenarios. Use Evidra OSS as the flight recorder for agent actions and outcomes.</p>
+    <p class="tagline">Evidra Bench is open source external regression testing for infrastructure agents and MCP tools.</p>
+    <p class="sub">Use hosted Bench to compare agent behavior on real infrastructure failure scenarios, or inspect and extend the benchmark harness on GitHub. Use Evidra OSS as the flight recorder for agent actions and outcomes.</p>
     <div class="hero-actions">
       <a class="btn btn-primary" href="https://bench.evidra.cc/">Start with Bench</a>
-      <a class="btn btn-outline" href="#features">Explore Evidra OSS</a>
+      <a class="btn btn-outline" href="https://github.com/vitas/evidra-bench" target="_blank" rel="noopener">View Bench source</a>
       <span class="version-tag" id="hero-version"></span>
     </div>
   </div>
@@ -384,19 +384,25 @@
   <div class="container">
     <div class="section-label">Primary product</div>
     <h2 class="section-title">Evidra Bench</h2>
-    <p class="section-subtitle">External benchmark reports and readiness reports for infrastructure agents, MCP servers, and operational skills.</p>
+    <p class="section-subtitle">Hosted benchmark reports plus an open source benchmark harness for infrastructure agents, MCP servers, and operational skills.</p>
     <div class="product-grid">
       <div class="product-panel primary">
-        <div class="product-kicker">Commercial path</div>
+        <div class="product-kicker">Hosted reports</div>
         <h3>Baseline agents against real infrastructure incidents</h3>
         <p>Run repeatable Kubernetes, Helm, Terraform, Argo CD, and AWS-local scenarios, then publish results as product-ready external benchmark reports.</p>
         <a class="btn btn-primary" href="https://bench.evidra.cc/">Open Bench</a>
       </div>
       <div class="product-panel">
-        <div class="product-kicker">Open source</div>
+        <div class="product-kicker">Open source Bench</div>
+        <h3>Inspect and extend the benchmark harness</h3>
+        <p>The Bench source is public, so teams can review scenarios, run the harness, and contribute coverage for new MCP tools and agent workflows.</p>
+        <a class="btn btn-outline" href="https://github.com/vitas/evidra-bench" target="_blank" rel="noopener">View Bench source</a>
+      </div>
+      <div class="product-panel">
+        <div class="product-kicker">Open source recorder</div>
         <h3>Evidra OSS</h3>
         <p>A flight recorder for agent intent, actions, outcomes, and reliability signals. It supports Bench, but it also works as a standalone MCP tool for evidence capture.</p>
-        <a class="btn btn-outline" href="https://github.com/vitas/evidra" target="_blank" rel="noopener">View OSS</a>
+        <a class="btn btn-outline" href="https://github.com/vitas/evidra" target="_blank" rel="noopener">View Evidra OSS</a>
       </div>
     </div>
   </div>
@@ -691,6 +697,7 @@ curl -H "Authorization: Bearer $EVIDRA_API_KEY" \
 <footer>
   <div class="container">
     <a href="https://github.com/vitas/evidra" target="_blank" rel="noopener">github.com/vitas/evidra</a>
+    &middot; <a href="https://github.com/vitas/evidra-bench" target="_blank" rel="noopener">github.com/vitas/evidra-bench</a>
     &middot; Apache 2.0
   </div>
 </footer>

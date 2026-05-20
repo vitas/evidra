@@ -147,6 +147,10 @@ function Footer() {
         <a href="https://github.com/vitas/evidra" target="_blank" rel="noopener" className="text-fg-muted font-medium hover:text-accent">
           github.com/vitas/evidra
         </a>
+        {" \u00B7 "}
+        <a href="https://github.com/vitas/evidra-bench" target="_blank" rel="noopener" className="text-fg-muted font-medium hover:text-accent">
+          github.com/vitas/evidra-bench
+        </a>
         {" \u00B7 Apache 2.0"}
       </div>
     </footer>

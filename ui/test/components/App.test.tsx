@@ -62,6 +62,11 @@ describe("App", () => {
         name: "Start with Bench",
       }),
     ).toHaveAttribute("href", "https://bench.evidra.cc/");
+    expect(
+      within(hero as HTMLElement).getAllByRole("link", {
+        name: /View Bench source/,
+      })[0],
+    ).toHaveAttribute("href", "https://github.com/vitas/evidra-bench");
   });
 
   it("does not expose raw signal weights on the landing page", () => {

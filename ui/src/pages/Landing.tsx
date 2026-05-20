@@ -306,35 +306,50 @@ function Hero() {
       <Container className="relative">
         <div className="inline-flex items-center gap-2 font-mono text-[0.75rem] font-medium text-accent bg-accent-subtle border border-border rounded-full px-4 py-1 mb-6 tracking-wide">
           <span className="w-1.5 h-1.5 rounded-full bg-accent inline-block animate-pulse" />
-          Bench-first evidence for AI infrastructure
+          Open source Bench · Open source evidence recorder
         </div>
         <h1 className="text-[clamp(2.2rem,5vw,3.2rem)] font-extrabold text-fg leading-[1.15] tracking-tighter mb-5">
           AI infra agents need evidence, not vibes.
         </h1>
         <p className="text-[1.15rem] text-fg-muted max-w-[700px] mx-auto mb-10 leading-relaxed">
-          Evidra now leads with external regression testing: run realistic
-          Kubernetes, Terraform, and MCP-tool scenarios, compare behavior over
-          time, and produce readiness reports teams can trust.
+          Evidra Bench is open source external regression testing for
+          infrastructure agents and MCP tools. Use hosted Bench for reports, or
+          inspect and extend the benchmark harness on GitHub.
         </p>
 
-        <div className="grid grid-cols-[1.15fr_0.85fr] gap-4 text-left mb-8 max-md:grid-cols-1">
+        <div className="grid grid-cols-[1.1fr_1fr_1fr] gap-4 text-left mb-8 max-lg:grid-cols-1">
           <div className="glass-card p-6 border-l-[3px] border-l-accent">
             <div className="font-mono text-[0.68rem] font-semibold uppercase tracking-widest text-accent mb-3">
-              Primary product
+              Hosted reports
             </div>
             <h2 className="text-[1.35rem] font-bold text-fg tracking-tight mb-2">
-              Evidra Bench
+              Baseline agents against real infrastructure incidents
             </h2>
             <p className="text-[0.92rem] text-fg-muted leading-relaxed mb-4">
-              External regression testing for infrastructure agents and MCP
-              tools. Benchmark models, prompts, skills, and tool servers against
-              the same production-shaped scenarios.
+              Run repeatable Kubernetes, Helm, Terraform, Argo CD, and
+              AWS-local scenarios, then publish product-ready external
+              benchmark reports.
             </p>
-            <div className="flex flex-wrap gap-2 text-[0.72rem] text-fg-body">
-              <span className="rounded-md border border-border px-2 py-1">readiness reports</span>
-              <span className="rounded-md border border-border px-2 py-1">failure autopsy</span>
-              <span className="rounded-md border border-border px-2 py-1">public leaderboard</span>
+            <a href="https://bench.evidra.cc/" className="font-semibold text-[0.85rem] no-underline">
+              Open Bench →
+            </a>
+          </div>
+
+          <div className="glass-card p-6">
+            <div className="font-mono text-[0.68rem] font-semibold uppercase tracking-widest text-accent mb-3">
+              Open source Bench
             </div>
+            <h2 className="text-[1.1rem] font-bold text-fg tracking-tight mb-2">
+              Inspect and extend the benchmark harness
+            </h2>
+            <p className="text-[0.86rem] text-fg-muted leading-relaxed mb-4">
+              The Bench source is public, so teams can review scenarios, run the
+              harness, and contribute coverage for new MCP tools and agent
+              workflows.
+            </p>
+            <a href="https://github.com/vitas/evidra-bench" target="_blank" rel="noopener" className="font-semibold text-[0.85rem] no-underline">
+              View Bench source →
+            </a>
           </div>
 
           <div className="glass-card p-6">
@@ -345,12 +360,12 @@ function Hero() {
               Evidra OSS
             </h2>
             <p className="text-[0.86rem] text-fg-muted leading-relaxed mb-4">
-              Flight recorder for agent actions and outcomes. Use the CLI and
-              MCP server to capture intent, execution, and evidence when agents
-              touch infrastructure.
+              Flight recorder for agent intent, actions, outcomes, and
+              reliability signals. It supports Bench, and works as a standalone
+              MCP tool for evidence capture.
             </p>
             <a href="https://github.com/vitas/evidra" target="_blank" rel="noopener" className="font-semibold text-[0.85rem] no-underline">
-              View OSS →
+              View Evidra OSS →
             </a>
           </div>
         </div>
@@ -358,6 +373,9 @@ function Hero() {
         <div className="flex gap-3 justify-center flex-wrap">
           <a href="https://bench.evidra.cc/" className="btn-primary inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold bg-accent text-white transition-all hover:bg-accent-bright hover:-translate-y-0.5 glow-accent hover:shadow-lg no-underline">
             Start with Bench
+          </a>
+          <a href="https://github.com/vitas/evidra-bench" target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold glass text-fg-muted transition-all hover:border-accent hover:text-fg no-underline">
+            View Bench source
           </a>
           <Link to="/onboarding" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold glass text-fg-muted transition-all hover:border-accent hover:text-fg no-underline">
             Get API Key

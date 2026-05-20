@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Landing Page
+- Added the open source Evidra Bench repository link to the landing page.
+
 ## v0.5.26 — 2026-05-08
 
 ## v0.5.25 — 2026-05-08
