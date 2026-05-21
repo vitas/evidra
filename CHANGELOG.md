@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## v0.5.27 — 2026-05-21
+
+### Site Verification
+- Added the Google Search Console verification file to the embedded web UI.
+
 ### Landing Page
 - Added the open source Evidra Bench repository link to the landing page.
 

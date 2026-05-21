@@ -3,11 +3,11 @@
   "name": "io.github.vitas/evidra",
   "title": "Evidra",
   "description": "DevOps MCP server with smart output, built-in flight recorder, and reliability scoring. Executes kubectl, helm, terraform, aws with auto-evidence recording.",
-  "version": "0.5.26",
+  "version": "0.5.27",
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/vitas/evidra-mcp:0.5.26",
+      "identifier": "ghcr.io/vitas/evidra-mcp:0.5.27",
       "transport": { "type": "stdio" },
       "environmentVariables": [
         {
