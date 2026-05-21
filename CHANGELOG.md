@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## v0.5.28 — 2026-05-21
+
+### SEO
+- Added root sitemap and robots files for search engine crawling.
+
 ## v0.5.27 — 2026-05-21
 
 ### Site Verification
