@@ -3,6 +3,7 @@ package api
 import (
 	"io/fs"
 	"net/http"
+	"path/filepath"
 	"strings"
 )
 
@@ -24,6 +25,10 @@ func uiHandler(uiFS fs.FS) http.Handler {
 
 		f, err := uiFS.Open(cleanPath)
 		if err != nil {
+			if filepath.Ext(cleanPath) != "" {
+				http.NotFound(w, r)
+				return
+			}
 			// SPA fallback: serve index.html for unknown paths.
 			r.URL.Path = "/"
 			fileServer.ServeHTTP(w, r)

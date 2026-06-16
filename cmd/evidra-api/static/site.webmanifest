@@ -1,0 +1,16 @@
+{
+  "name": "Evidra",
+  "short_name": "Evidra",
+  "description": "AI infrastructure agent evidence and reliability reports.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fafffe",
+  "theme_color": "#064e3b",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "64x64",
+      "type": "image/svg+xml"
+    }
+  ]
+}

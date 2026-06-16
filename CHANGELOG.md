@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## v0.5.29 — 2026-06-16
+
+### SEO
+- Added canonical metadata, Open Graph image, structured data, favicon, and no-JS crawlable content for `evidra.cc`.
+- Stopped serving the SPA shell for missing asset URLs such as `/favicon.ico`.
+
 ## v0.5.28 — 2026-05-21
 
 ### SEO
@@ -28,7 +34,7 @@
 ## v0.5.21 — 2026-05-06
 
 ### Repository Scope
-- Removed the hosted bench API, runner control plane, and embedded `/bench` UI from the core Evidra API; Evidra Bench now lives in the separate `evidra-infra-bench` repository and at `https://lab.evidra.cc`.
+- Removed the hosted bench API, runner control plane, and embedded `/bench` UI from the core Evidra API; Evidra Bench now lives as a separate product surface at `https://bench.evidra.cc`.
 
 ## v0.5.20 — 2026-04-13
 
