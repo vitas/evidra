@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## v0.5.30 — 2026-06-17
+
+### SEO
+- Restored the Bench-first root SEO title and description contract for `evidra.cc`.
+
 ## v0.5.29 — 2026-06-16
 
 ### SEO
