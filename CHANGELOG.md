@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### External Evidence Bundle v1
+- Added `evidence.EphemeralSigner`: public per-run Ed25519 signer for external bundle producers (`pkg/evidence/signer_ephemeral.go`).
+- Added `evidence.BundleManifest` with `bundle.json` sidecar read/write helpers and `evidence.ValidateBundle` (`pkg/evidence/bundle.go`).
+- `evidra validate` now auto-detects `bundle.json` and verifies signatures against the embedded public key.
+- Added `docs/external-evidence-bundle-v1.md` — stable producer spec for third-party evidence stores.
+- Added conformance fixture `tests/external_bundle_v1/` (generated via public API only) with chain + tamper-detection tests.
+
 ## v0.5.30 — 2026-06-17
 
 ### SEO

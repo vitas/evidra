@@ -35,8 +35,31 @@ func cmdValidate(args []string, stdout, stderr io.Writer) int {
 			return 1
 		}
 		fmt.Fprintln(stdout, "chain valid: hashes and signatures verified")
-	} else {
-		fmt.Fprintln(stdout, "chain valid: hashes verified (no public key provided, signatures not checked)")
+		return 0
 	}
+
+	// External bundles carry their signing key in bundle.json; verify
+	// signatures against it without requiring an explicit --public-key.
+	bundle, found, err := evidence.LoadBundleManifest(evidencePath)
+	if err != nil {
+		fmt.Fprintf(stderr, "load bundle manifest: %v\n", err)
+		return 1
+	}
+	if found {
+		pubKey, err := bundle.PublicKeyBytes()
+		if err != nil {
+			fmt.Fprintf(stderr, "bundle public key: %v\n", err)
+			return 1
+		}
+		if err := evidence.ValidateChainWithSignatures(evidencePath, pubKey); err != nil {
+			fmt.Fprintf(stderr, "signature validation failed: %v\n", err)
+			return 1
+		}
+		fmt.Fprintf(stdout, "chain valid: hashes and signatures verified (%s key from %s, producer %s)\n",
+			bundle.TrustLevel, evidence.BundleFileName, bundle.Producer.Name)
+		return 0
+	}
+
+	fmt.Fprintln(stdout, "chain valid: hashes verified (no public key provided, signatures not checked)")
 	return 0
 }

@@ -1,0 +1,11 @@
+{
+  "spec": "evidra-external-bundle/v1",
+  "producer": {
+    "name": "evidra-gen_external_bundle",
+    "version": "0.5.30"
+  },
+  "trust_level": "ephemeral",
+  "public_key": "rdO1r6d/znRDoQuFZODFVHki5JoZNlF3+KElx/I/8CE=",
+  "created_at": "2026-09-08T22:11:54Z",
+  "notes": "Conformance fixture for external evidence bundles. Validate with: bin/evidra validate --evidence-dir tests/external_bundle_v1"
+}
