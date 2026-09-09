@@ -124,12 +124,18 @@ type PrescriptionPayload struct {
 	RiskDetails []string `json:"risk_details,omitempty"`
 	// RiskTags is kept for backward compatibility with older readers.
 	// Deprecated: use RiskInputs. Planned removal in a later cleanup.
-	RiskTags    []string          `json:"risk_tags,omitempty"`
-	TTLMs       int64             `json:"ttl_ms"`
-	CanonSource string            `json:"canon_source"`
-	Flavor      Flavor            `json:"flavor,omitempty"`
-	Evidence    *EvidenceMetadata `json:"evidence,omitempty"`
-	Source      *SourceMetadata   `json:"source,omitempty"`
+	RiskTags    []string `json:"risk_tags,omitempty"`
+	TTLMs       int64    `json:"ttl_ms"`
+	CanonSource string   `json:"canon_source"`
+	// AutoPrescribed marks a prescription that was derived server-side from an
+	// observed mutation (no prior model-issued claim), e.g. run_command
+	// auto-evidence. The unprescribed_mutation signal counts these entries so
+	// protocol compliance becomes measured data instead of a hard dependency
+	// on model behavior. Additive field: older readers ignore it.
+	AutoPrescribed bool              `json:"auto_prescribed,omitempty"`
+	Flavor         Flavor            `json:"flavor,omitempty"`
+	Evidence       *EvidenceMetadata `json:"evidence,omitempty"`
+	Source         *SourceMetadata   `json:"source,omitempty"`
 }
 
 // EffectiveRiskDetails returns canonical risk details when present,

@@ -9,7 +9,8 @@
     "new_scope": 0.05,
     "repair_loop": -0.05,
     "thrashing": 0.10,
-    "risk_escalation": 0.10
+    "risk_escalation": 0.10,
+    "unprescribed_mutation": 0.0
   },
   "score_caps": [
     {

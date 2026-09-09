@@ -70,16 +70,17 @@ var allowedResultClass = map[string]struct{}{
 }
 
 var allowedSignalNames = map[string]struct{}{
-	"protocol_violation": {},
-	"artifact_drift":     {},
-	"retry_loop":         {},
-	"blast_radius":       {},
-	"new_scope":          {},
-	"repair_loop":        {},
-	"thrashing":          {},
-	"risk_escalation":    {},
-	"none":               {},
-	"other":              {},
+	"protocol_violation":    {},
+	"artifact_drift":        {},
+	"retry_loop":            {},
+	"blast_radius":          {},
+	"new_scope":             {},
+	"repair_loop":           {},
+	"thrashing":             {},
+	"risk_escalation":       {},
+	"unprescribed_mutation": {},
+	"none":                  {},
+	"other":                 {},
 }
 
 var allowedScoreBands = map[string]struct{}{

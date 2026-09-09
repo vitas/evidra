@@ -55,6 +55,7 @@ func toLifecyclePrescribeInput(input PrescribeInput) lifecycle.PrescribeInput {
 		Flavor:          evidence.FlavorImperative,
 		EvidenceKind:    evidence.EvidenceKindDeclared,
 		SourceSystem:    "mcp",
+		AutoPrescribed:  input.AutoPrescribed,
 	}
 }
 

@@ -455,15 +455,15 @@ func TestAllSignals_ReturnsAll(t *testing.T) {
 	t.Parallel()
 
 	results := AllSignals(nil, DefaultTTL)
-	if len(results) != 8 {
-		t.Fatalf("AllSignals returned %d results, want 8", len(results))
+	if len(results) != 9 {
+		t.Fatalf("AllSignals returned %d results, want 9", len(results))
 	}
 	names := map[string]bool{}
 	for _, r := range results {
 		names[r.Name] = true
 	}
 	for _, want := range []string{
-		"protocol_violation", "artifact_drift", "retry_loop", "blast_radius", "new_scope", "repair_loop", "thrashing", "risk_escalation",
+		"protocol_violation", "artifact_drift", "retry_loop", "blast_radius", "new_scope", "repair_loop", "thrashing", "risk_escalation", "unprescribed_mutation",
 	} {
 		if !names[want] {
 			t.Errorf("missing signal %q", want)
@@ -489,6 +489,7 @@ func TestSignalRegistryContainsBuiltInsInStableOrder(t *testing.T) {
 		"repair_loop",
 		"thrashing",
 		"risk_escalation",
+		"unprescribed_mutation",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("registered signal count = %d, want %d (%v)", len(got), len(want), got)

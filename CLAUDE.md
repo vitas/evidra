@@ -56,7 +56,7 @@ exit code + prescription_id → Report → signal detectors → Scorecard
 - **`internal/assess/`** — Pluggable assessment pipeline. Runs `Assessor` implementations against a `CanonicalAction` and aggregates `risk_inputs[]` into `effective_risk`. Used by both `lifecycle` (CLI/MCP) and `ingest` (API) prescribe paths.
 - **`internal/risk/`** — Risk matrix and severity comparison. `riskMatrix` maps `operationClass × scopeClass → riskLevel`. Used by `MatrixAssessor`.
 - **`internal/detectors/`** — Tag detectors that pattern-match misconfigurations (privileged containers, wildcard RBAC, etc.). Used by `DetectorAssessor`.
-- **`internal/signal/`** — Eight behavioral signal detectors: protocol violation, artifact drift, retry loop, blast radius, new scope, repair loop, thrashing, risk escalation. Post-hoc intelligence on evidence sequences.
+- **`internal/signal/`** — Nine behavioral signal detectors: protocol violation, artifact drift, retry loop, blast radius, new scope, repair loop, thrashing, risk escalation, unprescribed mutation. Post-hoc intelligence on evidence sequences.
 - **`internal/score/`** — Weighted penalty scoring (`score = 100 × (1 - penalty)`), workload profile comparison.
 - **`internal/lifecycle/`** — Core service for prescribe/report operations and evidence entry lifecycle. Delegates assessment to `internal/assess/` pipeline.
 - **`internal/pipeline/`** — Converts evidence entries to signal detector input by extracting prescriptions and reports.

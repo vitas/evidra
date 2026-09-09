@@ -128,19 +128,16 @@ func (h *runCommandHandler) execute(ctx context.Context, input RunCommandInput) 
 
 	isMutation := proxy.IsMutation(command)
 
-	// Auto-prescribe for mutations.
+	// Evidence for mutations: prefer linking to a prior model-issued
+	// prescription (real claim vs action); fall back to an auto-derived,
+	// explicitly flagged prescription so the chain is never silent.
 	var prescriptionID string
 	if isMutation && h.service != nil {
-		prescribeInput, ok, err := deriveAutoPrescribeInput(command, h.actorID)
-		if err != nil {
-			return RunCommandOutput{OK: false, Error: err.Error(), Mutation: true}
+		pid, evidenceErr := h.evidenceForMutation(ctx, command)
+		if evidenceErr != nil {
+			return RunCommandOutput{OK: false, Error: evidenceErr.Error(), Mutation: true}
 		}
-		if ok {
-			prescribeOut := h.service.PrescribeCtx(ctx, prescribeInput)
-			if prescribeOut.OK {
-				prescriptionID = prescribeOut.PrescriptionID
-			}
-		}
+		prescriptionID = pid
 	}
 
 	// Execute command — use direct exec, not bash -c, to prevent shell injection.
@@ -196,6 +193,29 @@ func (h *runCommandHandler) execute(ctx context.Context, input RunCommandInput) 
 		ExitCode: exitCode,
 		Mutation: isMutation,
 	}
+}
+
+// evidenceForMutation resolves the prescription id an executed mutation
+// should report against: first an unconsumed model-issued claim covering the
+// same normalized action, otherwise a fresh server-derived prescription
+// flagged auto_prescribed (see claim_cache.go). A nil error with an empty id
+// means "no evidence plumbing possible for this command" (non-mutating per
+// classifier, or prescription write declined); execution is unaffected.
+func (h *runCommandHandler) evidenceForMutation(ctx context.Context, command string) (string, error) {
+	prescribeInput, ok, err := deriveAutoPrescribeInput(command, h.actorID)
+	if err != nil {
+		return "", err
+	}
+	if !ok {
+		return "", nil
+	}
+	if linked, found := h.service.takeClaim(prescribeInput); found {
+		return linked, nil
+	}
+	if out := h.service.PrescribeCtx(ctx, prescribeInput); out.OK {
+		return out.PrescriptionID, nil
+	}
+	return "", nil
 }
 
 // validateRunCommand checks that a command starts with an allowed prefix

@@ -34,7 +34,10 @@ func deriveAutoPrescribeInput(command string, actorID string) (PrescribeInput, b
 	}
 
 	return PrescribeInput{
-		Actor:           InputActor{Type: "agent", ID: actorID, Origin: "mcp"},
+		Actor: InputActor{Type: "agent", ID: actorID, Origin: autoPrescribeOrigin},
+		// Origin alone is not durable: the flag below lands in the payload and
+		// is what the unprescribed_mutation detector consumes.
+		AutoPrescribed:  true,
 		Tool:            tool,
 		Operation:       operation,
 		CanonicalAction: &action,

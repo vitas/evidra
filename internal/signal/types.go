@@ -25,6 +25,10 @@ type Entry struct {
 	ScopeClass     string
 	ExitCode       *int
 	RiskTags       []string
+	// AutoPrescribed mirrors PrescriptionPayload.AutoPrescribed: the
+	// prescription was derived server-side from an observed mutation with no
+	// prior model claim. Feeds the unprescribed_mutation signal.
+	AutoPrescribed bool
 }
 
 // SignalResult holds the result of a single signal detection.

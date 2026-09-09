@@ -60,6 +60,9 @@ type PrescribeInput struct {
 	Flavor           evidence.Flavor
 	EvidenceKind     evidence.EvidenceKind
 	SourceSystem     string
+	// AutoPrescribed marks server-derived prescriptions with no prior model
+	// claim; it is persisted into the payload for signal analysis.
+	AutoPrescribed bool
 }
 
 type ExternalFindingsSource struct {

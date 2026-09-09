@@ -39,9 +39,18 @@ func TestAllSignals_EndToEnd(t *testing.T) {
 		resultMap[r.Name] = r
 	}
 
-	// Should have all 8 signals.
-	if len(results) != 8 {
-		t.Errorf("expected 8 signal results, got %d", len(results))
+	// Should have all 9 signals.
+	if len(results) != 9 {
+		t.Errorf("expected 9 signal results, got %d", len(results))
+	}
+
+	// unprescribed_mutation exists but this fixture has no auto-derived
+	// prescriptions, so it must report zero rather than be absent.
+	if _, ok := resultMap["unprescribed_mutation"]; !ok {
+		t.Error("expected unprescribed_mutation in AllSignals results")
+	} else if resultMap["unprescribed_mutation"].Count != 0 {
+		t.Errorf("unprescribed_mutation = %d for clean fixture, want 0",
+			resultMap["unprescribed_mutation"].Count)
 	}
 
 	// artifact_drift should fire for p3/r3.

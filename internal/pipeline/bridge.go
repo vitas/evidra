@@ -44,6 +44,7 @@ func EvidenceToSignalEntries(entries []evidence.EvidenceEntry) ([]signal.Entry, 
 			}
 			// Signals only consume Evidra-native risk tags.
 			se.RiskTags = p.NativeRiskTags()
+			se.AutoPrescribed = p.AutoPrescribed
 			applySignalIdentity(&se, signalIdentityFromPrescription(p))
 
 		case evidence.EntryTypeReport:

@@ -285,7 +285,8 @@ Compute a reliability scorecard from stored evidence.
     "blast_radius": { "detected": false, "weight": 0.10, "count": 0 },
     "risk_escalation": { "detected": false, "weight": 0.10, "count": 0 },
     "new_scope": { "detected": true, "weight": 0.05, "count": 3 },
-    "repair_loop": { "detected": false, "weight": -0.05, "count": 0 }
+    "repair_loop": { "detected": false, "weight": -0.05, "count": 0 },
+    "unprescribed_mutation": { "detected": false, "weight": 0.0, "count": 0 }
   },
   "period": "30d",
   "scoring_version": "v1.1.0",

@@ -65,6 +65,9 @@ type PrescribeInput struct {
 	SpanID          string                    `json:"span_id,omitempty"`
 	ParentSpanID    string                    `json:"parent_span_id,omitempty"`
 	ScopeDimensions map[string]string         `json:"scope_dimensions,omitempty"`
+	// AutoPrescribed is internal plumbing for server-derived prescriptions
+	// (run_command auto-evidence); tool callers should never set it.
+	AutoPrescribed bool `json:"auto_prescribed,omitempty"`
 }
 
 // PrescribeOutput is returned by the prescribe tool.
@@ -136,6 +139,8 @@ type MCPService struct {
 	forwardFunc       ForwardFunc
 	scoringProfile    score.Profile
 	assessmentTracker *assessment.Tracker
+	claimsMu          sync.Mutex
+	recentClaims      map[claimKey]claimRecord
 	initOnce          sync.Once
 	initErr           error
 	closeOnce         sync.Once
@@ -407,6 +412,13 @@ func (s *MCPService) PrescribeCtx(ctx context.Context, input PrescribeInput) Pre
 	if out.Persisted {
 		s.observeWrittenEntry(out.Entry)
 		s.tryForwardEntry(ctx, out.RawEntry)
+	}
+
+	// Model-issued claims become linkable: a later run_command that executes
+	// the same normalized action reports against this prescription instead of
+	// writing a second, auto-derived one.
+	if out.Persisted && !input.AutoPrescribed {
+		s.recordClaim(input, out.PrescriptionID)
 	}
 
 	return PrescribeOutput{

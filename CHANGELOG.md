@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Unprescribed mutation signal + prescription claiming
+- `run_command` mutations now link to a prior model-issued prescription when one claims the same normalized action (tool + operation + resource, within prescription TTL); only unlinked mutations write an auto-derived prescription flagged `auto_prescribed: true` in the payload.
+- New behavioral signal `unprescribed_mutation` (9th detector): counts mutations executed with no prior model claim — protocol compliance becomes measured data instead of a silent gap in evidence. Weighted `0.0` in the default profile pending calibration on real agent traffic.
+- Additive `PrescriptionPayload.auto_prescribed` field; older readers and validators unaffected (hash format unchanged).
+- MCP server-derived prescriptions now record actor origin `evidra:auto`.
+
 ### External Evidence Bundle v1
 - Added `evidence.EphemeralSigner`: public per-run Ed25519 signer for external bundle producers (`pkg/evidence/signer_ephemeral.go`).
 - Added `evidence.BundleManifest` with `bundle.json` sidecar read/write helpers and `evidence.ValidateBundle` (`pkg/evidence/bundle.go`).
