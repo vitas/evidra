@@ -11,7 +11,7 @@ make build
 make test
 ```
 
-Requires Go 1.25+.
+Requires Go 1.26+.
 
 ## Running Tests
 
