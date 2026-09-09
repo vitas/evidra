@@ -30,7 +30,7 @@ enrich the evidence, but it never blocks execution. Passive recording
 - Sign with Ed25519, chain via previous_hash, store
 
 **Intelligence** (read path, post-hoc):
-- Signal detection: 8 behavioral detectors across evidence sequences
+- Signal detection: 9 behavioral detectors across evidence sequences
 - Scoring: weighted penalty model → 0-100 reliability metric
 - Analytics: scorecards, explain, trends
 

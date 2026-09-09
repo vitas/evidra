@@ -471,7 +471,7 @@ function Signals() {
         </div>
         <div className="glass-card p-5 px-6">
           <p className="text-[0.83rem] text-fg-muted leading-relaxed">
-            Additional signals &mdash; <code>artifact_drift</code>, <code>new_scope</code>, <code>repair_loop</code>, <code>thrashing</code>, <code>risk_escalation</code> &mdash; contribute to scoring and mature as evidence accumulates. All eight are documented in the{" "}
+            Additional signals &mdash; <code>artifact_drift</code>, <code>new_scope</code>, <code>repair_loop</code>, <code>thrashing</code>, <code>risk_escalation</code>, <code>unprescribed_mutation</code> (experimental) &mdash; contribute to scoring and mature as evidence accumulates. All nine are documented in the{" "}
             <a href="https://github.com/vitas/evidra/blob/main/docs/signal-spec.md" target="_blank" rel="noopener" className="font-semibold">Signal Specification &rarr;</a>
           </p>
         </div>

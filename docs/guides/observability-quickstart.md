@@ -47,7 +47,7 @@ All metrics carry six bounded-cardinality labels. Values outside the allowed set
 | `tool` | `terraform`, `kubectl`, `helm`, `ansible`, `docker`, `bash`, `argocd`, `github_actions`, `ci` | `other` |
 | `environment` | `production`, `staging`, `development` | `unknown` |
 | `result_class` | `success`, `failure` | `unknown` |
-| `signal_name` | `protocol_violation`, `artifact_drift`, `retry_loop`, `blast_radius`, `new_scope`, `repair_loop`, `thrashing`, `risk_escalation`, `none` | `other` |
+| `signal_name` | `protocol_violation`, `artifact_drift`, `retry_loop`, `blast_radius`, `new_scope`, `repair_loop`, `thrashing`, `risk_escalation`, `unprescribed_mutation`, `none` | `other` |
 | `score_band` | `excellent`, `good`, `fair`, `poor`, `insufficient_data` | `unknown` |
 | `assessment_mode` | `preview`, `sufficient` | `unknown` |
 

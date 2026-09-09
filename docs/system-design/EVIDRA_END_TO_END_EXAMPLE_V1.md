@@ -32,7 +32,7 @@ Actors:
   - Append-only evidence chain (JSONL, hash-linked)
 
 Goal:
-- Record actions, compute the eight signals, produce a comparable scorecard.
+- Record actions, compute the nine signals, produce a comparable scorecard.
 
 ---
 
@@ -224,7 +224,7 @@ Report entry:
 
 Signals are computed **batch** at `evidra scorecard` time, not at
 report() time. The scorecard reads the full evidence chain and
-evaluates all eight signal detectors across all entries:
+evaluates all nine signal detectors across all entries:
 
 - **Protocol Violation**: prescriptions without reports (TTL-based),
   reports without prescriptions, duplicate reports, cross-actor reports

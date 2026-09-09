@@ -18,7 +18,8 @@ Any tool that modifies infrastructure can emit Evidra signals.
 Any platform can consume them. The spec is the contract between
 producers and consumers.
 
-Stable. All eight signals are v1.1.0 stable (risk_escalation added in v1.1.0).
+Stable. All eight signals up to v1.1.0 are stable. Signal 9
+(unprescribed_mutation) was added in v1.2.0 with status experimental.
 
 Other documents reference this spec but do not override it:
 - scoring/default.v1.1.0.md is the active default scoring profile rationale
@@ -30,7 +31,7 @@ Other documents reference this spec but do not override it:
 ## Versioning
 
 ### Spec version
-This document is **Signal Spec v1.1.0**. Version is independent of
+This document is **Signal Spec v1.2.0**. Version is independent of
 Evidra product version.
 
 ### What is a breaking change
@@ -260,6 +261,7 @@ chain. Deterministic: same input → same output.
 | repair_loop | 1.0 | stable |
 | thrashing | 1.0 | stable |
 | risk_escalation | 1.1 | stable |
+| unprescribed_mutation | 1.2 | experimental |
 
 Active default weights are defined in
 `docs/system-design/scoring/default.v1.1.0.md` and the embedded scoring profile
@@ -826,12 +828,82 @@ internal SignalEvent only.
 
 ---
 
+## Signal 9: unprescribed_mutation
+
+### Identity
+```
+name:    unprescribed_mutation
+version: 1.2
+status:  experimental
+```
+
+### Detection Contract
+
+**Input:** Prescription entries whose payload carries
+`auto_prescribed: true` (additive boolean field; absence means `false`,
+so evidence produced before this signal existed detects zero, never noise).
+
+**Algorithm:**
+
+```
+For each prescription P in chronological order:
+  If P.payload.auto_prescribed == true → FIRE (unprescribed_mutation)
+```
+
+**Producer semantics (informational — the detector only reads the flag):**
+server-side capture (currently MCP `run_command`) attempts to link each
+executed mutation to a prior model-issued prescription covering the same
+normalized action (`tool` + `operation` + single resource identity, within
+the prescription's `ttl_ms`; a claim is consumed at most once). A mutation
+with no live claim is recorded as a fresh prescription flagged
+`auto_prescribed: true` with actor origin `evidra:auto`. The evidence chain
+is therefore complete regardless of model compliance, and non-compliance
+becomes countable data.
+
+**Key distinctions:**
+- protocol_violation: malformed prescribe/report pairing (unknown, expired,
+  or duplicate prescription references) — an integrity failure
+- unprescribed_mutation: well-formed pairing where the claim was written by
+  the recorder after the fact, not by the agent before the action — a
+  compliance measurement
+
+**Output:**
+```go
+type SignalEvent struct {
+    Signal    string    // "unprescribed_mutation"
+    SubSignal string    // "unprescribed_mutation"
+    Timestamp time.Time
+    EntryRef  string    // prescription event_id
+    Details   string    // "no prior claim; auto-derived from observed mutation"
+}
+```
+
+### Metric Contract
+
+```
+evidra_signal_total{signal="unprescribed_mutation", agent, tool, scope}
+```
+
+### Score Contribution
+
+```
+unprescribed_rate = auto_prescribed_prescriptions / total_prescriptions
+penalty_contribution = 0.00 × unprescribed_rate   // weight 0 in the default profile
+```
+
+Experimental by design: the default profile observes and calibrates the rate
+(`compliance_rate = 1 − unprescribed_rate`) on real agent traffic before any
+penalty decision. Assigning a non-zero weight is a default-weight change per
+the versioning table — a minor bump, not a semantic change.
+
+---
+
 ## Reliability Score Formula
 
 ```
 score = 100 × (1 - penalty)
 
-penalty = Σ(weight_i × rate_i) for all 8 signals
+penalty = Σ(weight_i × rate_i) for all 9 signals
 
 where:
   rate_i = signal_count_i / denominator_i
@@ -845,6 +917,7 @@ where:
     repair_loop:         total_prescriptions
     thrashing:           total_prescriptions
     risk_escalation:     total_prescriptions
+    unprescribed_mutation: total_prescriptions
 ```
 
 Score range: 0–100. Clamped (never negative).

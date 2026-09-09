@@ -229,11 +229,13 @@ Agent → You: "I declined to apply it because the external assessment marked th
 
 ## Evidence Modes
 
-Evidra-mcp has three evidence modes:
+Evidra-mcp has four evidence modes:
 
 **Full Prescribe** — the agent calls `prescribe_full` and `report` explicitly and sends `raw_artifact`. This records artifact identity and supports artifact drift detection.
 
 **Smart Prescribe** — the agent calls `prescribe_smart` and `report` explicitly, sending a lightweight target shape such as `tool`, `operation`, `resource`, and optional `namespace`. This keeps the same evidence chain with lower token cost, but does not support artifact drift detection unless the caller supplies an artifact digest.
+
+**Run-Command Evidence** — `run_command` records every mutation without agent cooperation. When a prior model-issued prescription claims the same normalized action (tool, operation, and target resource within the prescription TTL), the automatic report links to that claim instead of writing a second prescription. Mutations with no prior claim get a server-derived prescription flagged `auto_prescribed`, which the experimental `unprescribed_mutation` signal counts — the chain is always complete, and protocol compliance becomes measured data instead of a silent gap.
 
 **Proxy Observed** — evidra-mcp wraps another MCP server and auto-records evidence for infrastructure mutations. The agent doesn't need to know about evidra. Zero extra tokens, zero agent changes.
 
@@ -298,7 +300,7 @@ For the richest protocol compliance, use Full Prescribe with the evidra skill. F
 
 ## What Evidra Measures
 
-Evidra detects 8 behavioral signals from the evidence chain:
+Evidra detects 9 behavioral signals from the evidence chain:
 
 | Signal | What it detects |
 |--------|----------------|
@@ -310,6 +312,7 @@ Evidra detects 8 behavioral signals from the evidence chain:
 | **repair_loop** | Delete-then-recreate patterns indicating instability |
 | **thrashing** | Rapid apply/delete cycles on the same resources |
 | **risk_escalation** | Actor's operations exceed their baseline risk level |
+| **unprescribed_mutation** | Mutation executed with no prior model claim; the server recorded it automatically (experimental, weight 0) |
 
 These signals feed into a weighted reliability score (0–100) with score bands (`excellent`, `good`, `fair`, `poor`). Sufficiency is reported separately via the response basis.
 

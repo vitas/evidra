@@ -100,6 +100,7 @@ Prescription records intent before execution.
 | effective_risk | string | MAY | External roll-up across `risk_inputs` |
 | ttl_ms | integer | MUST | Time-to-live in milliseconds (materialized, not inferred) |
 | canon_source | string | MAY | `external` when caller supplied `canonical_action` |
+| auto_prescribed | boolean | MAY | `true` when the prescription was derived server-side from an observed mutation with no prior model claim (absent means `false`) |
 | timestamp | datetime | MUST | RFC 3339, UTC |
 
 Legacy compatibility note:

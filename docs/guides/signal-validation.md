@@ -22,6 +22,7 @@ The harness exercises these behavioral patterns:
 - thrashing
 - artifact drift
 - risk escalation
+- unprescribed mutations (server-derived prescriptions)
 
 ## How It Works
 

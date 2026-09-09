@@ -74,6 +74,12 @@ In particular:
   A small bonus because a successful repair after failure is evidence of
   recovery. The bonus is intentionally limited so repair does not erase serious
   preceding failures.
+- `unprescribed_mutation = 0.00`
+  Registered but unweighted (status: experimental). It counts mutations the
+  server had to prescribe itself because no model-issued claim covered them —
+  protocol compliance measured rather than enforced. A zero weight keeps score
+  output for this profile byte-identical while the rate is calibrated on real
+  agent traffic; turning it on is a profile change, not a format change.
 
 The default profile is normalized: the net sum of all weights, including the
 `repair_loop` bonus, is exactly `1.0`.
