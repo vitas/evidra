@@ -24,8 +24,8 @@ const (
 	SkillSmartPath                   = "skill/SKILL_SMART.md"
 	SkillFullPath                    = "skill/SKILL_FULL.md"
 
-	DefaultContractVersion      = "v1.3.0"
-	DefaultContractSkillVersion = "1.3.0"
+	DefaultContractVersion      = "v1.4.0"
+	DefaultContractSkillVersion = "1.4.0"
 )
 
 var (

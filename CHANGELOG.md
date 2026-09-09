@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Prompt contract v1.4.0
+- New published contract `v1.4.0` (source tree `prompts/source/contracts/v1.4.0`, generated bundles refreshed): agent guidance now states claim linking — a prior `prescribe_smart`/`prescribe_full` is auto-linked to the executed `run_command` mutation, unlinked mutations are recorded `auto_prescribed` and counted as `unprescribed_mutation`. Replaced the "skip explicit prescribe for run_command" guidance with a prescribe-first incentive; behavioral signal list extended to nine.
+- `scripts/prompts-generate.sh` / `prompts-verify.sh` defaults bumped to v1.4.0; embedded `DefaultContractVersion`/`DefaultContractSkillVersion` now `v1.4.0`/`1.4.0`.
+
 ### Unprescribed mutation signal + prescription claiming
 - `run_command` mutations now link to a prior model-issued prescription when one claims the same normalized action (tool + operation + resource, within prescription TTL); only unlinked mutations write an auto-derived prescription flagged `auto_prescribed: true` in the payload.
 - New behavioral signal `unprescribed_mutation` (9th detector): counts mutations executed with no prior model claim — protocol compliance becomes measured data instead of a silent gap in evidence. Weighted `0.0` in the default profile pending calibration on real agent traffic.

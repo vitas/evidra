@@ -1,0 +1,322 @@
+contract_version: v1.4.0
+invariants:
+  - "Every infrastructure mutation must be recorded as evidence, either automatically via run_command or explicitly via prescribe/report."
+  - "If you use prescribe_smart or prescribe_full, do not execute until the prescribe call returns ok=true with prescription_id."
+  - "Every explicit prescribe must have exactly one report."
+  - "Always include actor.skill_version (set to this contract version) on explicit protocol calls."
+
+devops:
+  run_command:
+    intro: "evidra-mcp is your infrastructure toolkit. Use `run_command` for kubectl, helm, terraform, and aws operations."
+    smart_output: "Responses are token-efficient summaries, not raw JSON. Trust them."
+    diagnosis_protocol:
+      - "Investigate before fixing: kubectl describe, get events, check logs"
+      - "Make one targeted fix, verify it worked, then stop"
+      - "Don't patch resources you didn't investigate"
+    safety_rules:
+      - "Never delete resources outside the problem scope"
+      - "Verify fixes with kubectl get or rollout status"
+      - "Check what exists before creating (avoid duplicates)"
+    evidence_intro: "Infrastructure mutations executed through `run_command` are always recorded. If you prescribed the same action beforehand with `prescribe_smart` or `prescribe_full`, the recorded evidence links to your claim automatically; otherwise the server records the claim for you and it counts as an `unprescribed_mutation`. For explicit control, call `describe_tool` to inspect `prescribe_smart` and `report`; use `prescribe_full` only when the server exposes it and you have artifact bytes."
+    when_to_prescribe:
+      - "You need a prescription_id before execution for tighter control or custom correlation."
+      - "You are executing a mutation outside `run_command` and need to record intent/result directly."
+      - "Use `describe_tool` first when you need the full `prescribe_smart` or `report` schema."
+      - "Use `prescribe_full` only when available and you have artifact bytes."
+      - "Prescribe before significant `run_command` mutations: your claim is linked to the executed action automatically, while mutations without a prior claim are recorded as `unprescribed_mutation`."
+
+  diagnosis_flowchart:
+    step_1_gather:
+      title: "Gather Context"
+      commands:
+        - "kubectl get events -n <namespace> --sort-by='.lastTimestamp'"
+        - "kubectl get pods -n <namespace>"
+        - "kubectl describe <resource> -n <namespace>"
+      look_for: "CrashLoopBackOff, ImagePullBackOff, OOMKilled, FailedScheduling, Unhealthy"
+    step_2_logs:
+      title: "Check Logs"
+      commands:
+        - "kubectl logs <pod> -n <namespace> --tail=50"
+        - "kubectl logs <pod> -n <namespace> --previous    # if crashed"
+    step_3_root_cause:
+      title: "Identify Root Cause"
+      patterns:
+        - "CrashLoopBackOff: Check logs for application errors, missing config, wrong command"
+        - "ImagePullBackOff: Wrong image name/tag, missing pull secret, private registry"
+        - "Pending: Insufficient resources, node selector mismatch, PVC not bound"
+        - "OOMKilled: Container memory limit too low for workload"
+        - "FailedMount: Missing ConfigMap, Secret, or PV"
+    step_4_fix:
+      title: "Fix (One Change)"
+      rule: "Make exactly one targeted fix. Use `run_command` by default; switch to explicit prescribe/report only when you need tighter control."
+      flow: "investigate -> run_command mutation (auto-evidence) -> verify"
+    step_5_verify:
+      title: "Verify"
+      commands:
+        - "kubectl rollout status deployment/<name> -n <namespace> --timeout=60s"
+        - "kubectl get pods -n <namespace>"
+    rules:
+      - "Never skip investigation — always describe/events/logs before patching"
+      - "One fix at a time — verify before making another change"
+      - "Don't delete and recreate when a patch suffices"
+      - "Don't fix things that aren't broken"
+
+  risk_tags:
+    - tag: "k8s.privileged_container"
+      severity: "critical"
+    - tag: "k8s.cluster_admin_binding"
+      severity: "critical"
+    - tag: "ops.mass_delete"
+      severity: "critical"
+    - tag: "k8s.hostpath_mount"
+      severity: "high"
+    - tag: "k8s.run_as_root"
+      severity: "high"
+    - tag: "k8s.host_namespace_escape"
+      severity: "high"
+    - tag: "k8s.docker_socket"
+      severity: "high"
+    - tag: "k8s.dangerous_capabilities"
+      severity: "high"
+    - tag: "k8s.writable_rootfs"
+      severity: "high"
+    - tag: "ops.kube_system"
+      severity: "high"
+    - tag: "ops.namespace_delete"
+      severity: "high"
+    - tag: "aws_iam.wildcard_policy"
+      severity: "critical"
+    - tag: "terraform.s3_public_access"
+      severity: "high"
+    - tag: "aws.security_group_open"
+      severity: "high"
+
+  behavioral_signals:
+    - "protocol_violation"
+    - "artifact_drift"
+    - "retry_loop"
+    - "blast_radius"
+    - "new_scope"
+    - "repair_loop"
+    - "thrashing"
+    - "risk_escalation"
+    - "unprescribed_mutation"
+
+mcp:
+  initialize:
+    product_summary:
+      - "Evidra — Flight recorder for AI infrastructure agents."
+      - "It measures operational reliability across CI pipelines, scripts, and AI agents; it does not block operations."
+      - "Evidra speaks MCP: any MCP-capable AI agent can report executions and deliberate refusals to Evidra out of the box."
+    protocol_intro: "Default workflow for infrastructure tasks:"
+    critical_invariants:
+      - "Every infrastructure mutation must be recorded as evidence, either automatically via run_command or explicitly via prescribe/report."
+      - "If you use prescribe_smart or prescribe_full, do not execute until the prescribe call returns ok=true with prescription_id."
+      - "Every explicit prescribe must have exactly one report."
+      - "Always include actor.skill_version (set to this contract version) on explicit protocol calls."
+    rules:
+      - "Default to `run_command` for investigation and most infrastructure mutations."
+      - "Mutations executed through `run_command` are recorded automatically; verify each fix before making another change."
+      - "Use `describe_tool` to inspect the full schema for `prescribe_smart` or `report` when you need explicit control."
+      - "Use `prescribe_full` only when the server exposes it and you have artifact bytes."
+      - "Report explicit-control failures with non-zero exit_code."
+      - "If execution is intentionally declined in an explicit flow, report verdict=declined with a trigger and short operational reason."
+      - "On retry in an explicit flow, call a prescribe tool again for each attempt."
+      - "Do not use explicit prescribe/report for non-infrastructure tasks (docs, coding, analysis)."
+
+  prescribe_full:
+    intro: "Record full artifact intent BEFORE an infrastructure operation that creates, modifies, or deletes resources. Use this tool when you have the actual artifact bytes and want native detector coverage plus artifact drift tracking."
+    required_inputs:
+      - "tool"
+      - "operation"
+      - "raw_artifact"
+      - "actor (type, id, origin)"
+    recommended_actor_fields:
+      - "actor.version"
+      - "actor.skill_version"
+    optional_correlation_inputs:
+      - "session_id, operation_id, attempt"
+      - "trace_id, span_id, parent_span_id"
+      - "scope_dimensions"
+    pre_call_checklist:
+      - "tool/operation must be non-empty."
+      - "raw_artifact must contain the artifact or command content being executed."
+      - "actor.type/actor.id/actor.origin must be present."
+      - "actor.skill_version should be set to this contract version."
+      - "Keep session/operation/trace identifiers stable within one task."
+    returns:
+      - "prescription_id (required for report)"
+      - "risk_inputs, effective_risk"
+      - "artifact_digest, intent_digest"
+      - "resource_shape_hash, operation_class, scope_class"
+    failure_rule: "CRITICAL: If prescribe_full returns ok=false, do not execute the infrastructure command. Investigate the error before retrying."
+
+  prescribe_smart:
+    intro: "Record lightweight intent BEFORE an infrastructure operation that creates, modifies, or deletes resources. Use this tool when you know the tool, operation, and target resource but do not have artifact bytes."
+    required_inputs:
+      - "tool"
+      - "operation"
+      - "resource"
+      - "actor (type, id, origin)"
+    recommended_actor_fields:
+      - "actor.version"
+      - "actor.skill_version"
+    optional_correlation_inputs:
+      - "namespace"
+      - "session_id, operation_id, attempt"
+      - "trace_id, span_id, parent_span_id"
+      - "scope_dimensions"
+    pre_call_checklist:
+      - "tool/operation must be non-empty."
+      - "resource must identify the target (for example deployment/web)."
+      - "actor.type/actor.id/actor.origin must be present."
+      - "actor.skill_version should be set to this contract version."
+      - "Keep session/operation/trace identifiers stable within one task."
+    returns:
+      - "prescription_id (required for report)"
+      - "risk_inputs, effective_risk"
+      - "artifact_digest, intent_digest"
+      - "resource_shape_hash, operation_class, scope_class"
+    failure_rule: "CRITICAL: If prescribe_smart returns ok=false, do not execute the infrastructure command. Investigate the error before retrying."
+
+  report:
+    intro: "Record the terminal verdict AFTER an infrastructure operation completes or is intentionally declined."
+    required_inputs:
+      - "prescription_id (from prescribe_full or prescribe_smart)"
+      - "verdict (success, failure, error, or declined)"
+    optional_inputs:
+      - "actor (type, id, origin; should match prescribe actor)"
+      - "actor.version, actor.skill_version"
+      - "exit_code (required for success/failure/error)"
+      - "decision_context.trigger and decision_context.reason (required for declined)"
+      - "artifact_digest (actual applied artifact digest for executed operations)"
+      - "session_id, operation_id, span_id, parent_span_id"
+    terminal_outcome_rule:
+      - "Every prescribe must end with exactly one report, including failed, errored, aborted, or declined attempts."
+      - "Retries require a new prescribe/report pair for each attempt."
+    rules:
+      - "Always report failures; do not hide non-zero exit codes."
+      - "Always report deliberate refusals with a concise operational reason."
+      - "Do not report twice for the same prescription_id."
+      - "Do not report another actor's prescription_id."
+      - "If prescription_id is lost, call a prescribe tool again before execution."
+      - "Actor identity should match the original prescribe actor."
+      - "Include actor.skill_version for behavior slicing."
+      - "exit_code is required for success/failure/error verdicts and forbidden for declined verdicts."
+      - "On retry, call a prescribe tool again to get a new prescription_id before re-executing. Each attempt is a separate prescribe/report pair."
+    returns:
+      - "ok"
+      - "report_id"
+      - "verdict"
+      - "score_band, signal_summary, basis, confidence"
+      - "error (if ok=false)"
+
+  get_event:
+    intro: "Look up a single evidence record by event_id."
+    input:
+      - "event_id"
+    use_cases:
+      - "protocol debugging (confirm prescribe/report pairing)"
+      - "correlation checks (session_id/trace_id/operation_id/actor fields)"
+      - "audit lookup of prior entry payloads"
+    returns:
+      - "ok"
+      - "entry (when found)"
+      - "error (when not found or invalid)"
+
+  prompts:
+    prescribe_smart:
+      title: "prescribe_smart — Lightweight Intent Recording"
+      intro: "Record intent BEFORE an infrastructure mutation when you know the target resource but don't have artifact bytes."
+      required_fields:
+        - field: "tool"
+          description: "Infrastructure tool: kubectl, helm, terraform"
+        - field: "operation"
+          description: "Action: apply, delete, patch, install, upgrade, destroy"
+        - field: "resource"
+          description: "Target: deployment/web, service/api, namespace/prod"
+        - field: "actor.type"
+          description: "Always \"agent\""
+        - field: "actor.id"
+          description: "Your agent identifier"
+        - field: "actor.origin"
+          description: "How you connect: \"mcp-stdio\""
+        - field: "actor.skill_version"
+          description: "Contract version"
+      optional_fields:
+        - field: "namespace"
+          description: "Kubernetes namespace (when applicable)"
+        - field: "session_id"
+          description: "Keep stable within one task"
+        - field: "environment"
+          description: "production, staging, development"
+        - field: "scope_dimensions"
+          description: "cluster, namespace, account, region context"
+        - field: "operation_id"
+          description: "Unique per operation for correlation"
+      response: "Returns `prescription_id` (required for report), `effective_risk`, and `risk_inputs` with detected risk tags."
+      when_to_use: "Use prescribe_smart for: kubectl apply/delete/patch, helm install/upgrade, terraform apply/destroy. Skip for read-only: kubectl get/describe/logs, helm list/status, terraform plan/show."
+
+    prescribe_full:
+      title: "prescribe_full — Full Artifact Intent Recording"
+      intro: "Record intent BEFORE an infrastructure mutation when you have the actual manifest/artifact bytes. Enables drift detection and native detector coverage."
+      required_fields:
+        - field: "tool"
+          description: "Infrastructure tool: kubectl, helm, terraform"
+        - field: "operation"
+          description: "Action: apply, delete, patch, install, upgrade, destroy"
+        - field: "raw_artifact"
+          description: "Full YAML/JSON/HCL content being applied"
+        - field: "actor.type"
+          description: "Always \"agent\""
+        - field: "actor.id"
+          description: "Your agent identifier"
+        - field: "actor.origin"
+          description: "How you connect: \"mcp-stdio\""
+        - field: "actor.skill_version"
+          description: "Contract version"
+      response: "Returns `prescription_id`, `effective_risk`, `risk_inputs` with detected tags, `artifact_digest` for drift tracking, and `resource_count`."
+      when_to_use_over_smart:
+        - "You have the full manifest (YAML, JSON, HCL)"
+        - "You want artifact drift detection (compares what you prescribed vs what you applied)"
+        - "You want full native detector coverage (security scanning of the artifact)"
+
+    diagnosis:
+      title: "Infrastructure Diagnosis Flowchart"
+      intro: "Follow this protocol when investigating infrastructure issues before making changes."
+
+agent_contract:
+  title: "Evidra Agent Contract v1"
+  version_policy: "contract versions are released together with Evidra binaries."
+  changelog:
+    - version: "v1.3.0"
+      date: "2026-03-26"
+      text: "Shifted MCP initialize guidance to a run_command-first workflow, with describe_tool exposing explicit prescribe/report schemas on demand."
+    - version: "v1.2.0"
+      date: "2026-03-24"
+      text: "Unified contract: DevOps operations, MCP prompt templates, and evidence protocol under single source of truth. Added diagnosis flowchart and risk tag reference to contract."
+    - version: "v1.1.0"
+      date: "2026-03-18"
+      text: "Split direct prescribe into prescribe_full and prescribe_smart so artifact-heavy and lightweight workflows have separate MCP prompt surfaces."
+    - version: "v1.0.1"
+      date: "2026-03-06"
+      text: "Prompt hardening update: critical invariants in initialize instructions, prescribe pre-call checklist, report terminal outcome rule, and expanded get_event usage guidance."
+    - version: "v1.0.0"
+      date: "2026-03-06"
+      text: "Initial contract for prescribe/report protocol guidance and behavior tracking via actor.skill_version."
+  purpose:
+    - "This contract standardizes MCP prompts around a run_command-first workflow, with explicit prescribe/report available on demand."
+    - "Evidra records execution behavior; it does not block operations."
+  execution_rules:
+    - "Use `run_command` for investigation and most infrastructure mutations; run_command mutations are recorded automatically."
+    - "Use `describe_tool` when you need the full schema for deferred explicit-control tools."
+    - "For explicit protocol flows, call `prescribe_smart` before execution and `report` after execution or explicit refusal."
+    - "Use `prescribe_full` only when enabled and you have artifact bytes."
+    - "Read-only commands do not need explicit prescribe/report."
+    - "Every explicit prescribe must have exactly one report."
+    - "Retries in explicit flows require a new prescribe/report pair for each attempt."
+    - "Explicit-flow failures must be reported with non-zero exit_code."
+    - "Deliberate refusals in explicit flows must be reported with verdict=declined, decision_context.trigger, and decision_context.reason."
+    - "Do not report another actor's prescription_id."
+    - "Do not report the same prescription_id twice."
+    - "Include actor.skill_version for behavior slicing on explicit protocol calls."

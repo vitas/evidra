@@ -1,0 +1,43 @@
+<!-- contract: {{ .ContractVersion }} -->
+# {{ .Contract.MCP.Prompts.PrescribeFull.Title }}
+
+{{ .Contract.MCP.Prompts.PrescribeFull.Intro }}
+
+## Template
+
+{{ "```json" }}
+{
+  "tool": "kubectl",
+  "operation": "apply",
+  "raw_artifact": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: web\n  namespace: default\nspec:\n  replicas: 3\n  ...",
+  "actor": {
+    "type": "agent",
+    "id": "your-agent-id",
+    "origin": "mcp-stdio",
+    "skill_version": "{{ .SkillVersion }}"
+  },
+  "session_id": "stable-per-task",
+  "environment": "production",
+  "scope_dimensions": {
+    "cluster": "prod-us-east-1",
+    "namespace": "default"
+  }
+}
+{{ "```" }}
+
+## Required Fields
+
+| Field | Description |
+|-------|-------------|
+{{- range .Contract.MCP.Prompts.PrescribeFull.RequiredFields }}
+| `{{ .Field }}` | {{ .Description }} |
+{{- end }}
+
+## Response
+
+{{ .Contract.MCP.Prompts.PrescribeFull.Response }}
+
+## When to Use Over prescribe_smart
+{{ range .Contract.MCP.Prompts.PrescribeFull.WhenToUseOverSmart }}
+- {{ . }}
+{{- end }}

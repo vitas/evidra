@@ -1,0 +1,18 @@
+# contract: {{ .ContractVersion }}
+
+{{ .Contract.MCP.GetEvent.Intro }}
+
+Input:
+{{ range .Contract.MCP.GetEvent.Input -}}
+- {{ . }}
+{{ end }}
+
+Use this for:
+{{ range .Contract.MCP.GetEvent.UseCases -}}
+- {{ . }}
+{{ end }}
+
+Returns:
+{{ range .Contract.MCP.GetEvent.Returns -}}
+- {{ . }}
+{{ end }}

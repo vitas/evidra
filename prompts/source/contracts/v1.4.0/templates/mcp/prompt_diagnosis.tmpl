@@ -1,0 +1,50 @@
+<!-- contract: {{ .ContractVersion }} -->
+# {{ .Contract.MCP.Prompts.Diagnosis.Title }}
+
+{{ .Contract.MCP.Prompts.Diagnosis.Intro }}
+
+## Step 1: {{ .Contract.DevOps.DiagnosisFlowchart.Step1Gather.Title }}
+
+{{ "```" }}
+{{- range .Contract.DevOps.DiagnosisFlowchart.Step1Gather.Commands }}
+{{ . }}
+{{- end }}
+{{ "```" }}
+
+Look for: {{ .Contract.DevOps.DiagnosisFlowchart.Step1Gather.LookFor }}
+
+## Step 2: {{ .Contract.DevOps.DiagnosisFlowchart.Step2Logs.Title }}
+
+{{ "```" }}
+{{- range .Contract.DevOps.DiagnosisFlowchart.Step2Logs.Commands }}
+{{ . }}
+{{- end }}
+{{ "```" }}
+
+## Step 3: {{ .Contract.DevOps.DiagnosisFlowchart.Step3RootCause.Title }}
+
+Common patterns:
+{{- range .Contract.DevOps.DiagnosisFlowchart.Step3RootCause.Patterns }}
+- **{{ . }}**
+{{- end }}
+
+## Step 4: {{ .Contract.DevOps.DiagnosisFlowchart.Step4Fix.Title }}
+
+{{ .Contract.DevOps.DiagnosisFlowchart.Step4Fix.Rule }}
+
+{{ "```" }}
+{{ .Contract.DevOps.DiagnosisFlowchart.Step4Fix.Flow }}
+{{ "```" }}
+
+## Step 5: {{ .Contract.DevOps.DiagnosisFlowchart.Step5Verify.Title }}
+
+{{ "```" }}
+{{- range .Contract.DevOps.DiagnosisFlowchart.Step5Verify.Commands }}
+{{ . }}
+{{- end }}
+{{ "```" }}
+
+## Rules
+{{ range .Contract.DevOps.DiagnosisFlowchart.Rules }}
+- {{ . }}
+{{- end }}

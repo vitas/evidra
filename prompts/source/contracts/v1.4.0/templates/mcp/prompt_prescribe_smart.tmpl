@@ -1,0 +1,51 @@
+<!-- contract: {{ .ContractVersion }} -->
+# {{ .Contract.MCP.Prompts.PrescribeSmart.Title }}
+
+{{ .Contract.MCP.Prompts.PrescribeSmart.Intro }}
+
+## Template
+
+{{ "```json" }}
+{
+  "tool": "kubectl",
+  "operation": "apply",
+  "resource": "deployment/web",
+  "namespace": "default",
+  "actor": {
+    "type": "agent",
+    "id": "your-agent-id",
+    "origin": "mcp-stdio",
+    "skill_version": "{{ .SkillVersion }}"
+  },
+  "session_id": "stable-per-task",
+  "environment": "production",
+  "scope_dimensions": {
+    "cluster": "prod-us-east-1",
+    "namespace": "default"
+  }
+}
+{{ "```" }}
+
+## Required Fields
+
+| Field | Description |
+|-------|-------------|
+{{- range .Contract.MCP.Prompts.PrescribeSmart.RequiredFields }}
+| `{{ .Field }}` | {{ .Description }} |
+{{- end }}
+
+## Optional Fields
+
+| Field | Description |
+|-------|-------------|
+{{- range .Contract.MCP.Prompts.PrescribeSmart.OptionalFields }}
+| `{{ .Field }}` | {{ .Description }} |
+{{- end }}
+
+## Response
+
+{{ .Contract.MCP.Prompts.PrescribeSmart.Response }}
+
+## When to Use
+
+{{ .Contract.MCP.Prompts.PrescribeSmart.WhenToUse }}

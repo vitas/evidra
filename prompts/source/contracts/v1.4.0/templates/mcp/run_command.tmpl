@@ -1,0 +1,30 @@
+# contract: {{ .ContractVersion }}
+
+{{ .Contract.DevOps.RunCommand.Intro }}
+
+{{ .Contract.DevOps.RunCommand.SmartOutput }}
+
+Diagnosis protocol:
+{{ range .Contract.DevOps.RunCommand.DiagnosisProtocol -}}
+- {{ . }}
+{{ end }}
+
+Safety rules:
+{{ range .Contract.DevOps.RunCommand.SafetyRules -}}
+- {{ . }}
+{{ end }}
+
+Examples:
+- Diagnose: kubectl get pods -n bench
+- Diagnose: kubectl describe pod web-abc -n bench
+- Diagnose: kubectl logs web-abc -n bench --tail=50
+- Fix: kubectl patch deployment/web -n bench --type=merge -p '{"spec":{"template":{"spec":{}}}}'
+- Verify: kubectl rollout status deployment/web -n bench --timeout=60s
+
+Evidence:
+{{ .Contract.DevOps.RunCommand.EvidenceIntro }}
+
+When to prescribe explicitly:
+{{ range .Contract.DevOps.RunCommand.WhenToPrescribe -}}
+- {{ . }}
+{{ end }}

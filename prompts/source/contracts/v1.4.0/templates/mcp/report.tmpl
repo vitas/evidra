@@ -1,0 +1,28 @@
+# contract: {{ .ContractVersion }}
+
+{{ .Contract.MCP.Report.Intro }}
+
+Required inputs:
+{{ range .Contract.MCP.Report.RequiredInputs -}}
+- {{ . }}
+{{ end }}
+
+Optional inputs:
+{{ range .Contract.MCP.Report.OptionalInputs -}}
+- {{ . }}
+{{ end }}
+
+Terminal outcome rule:
+{{ range .Contract.MCP.Report.TerminalOutcomeRule -}}
+- {{ . }}
+{{ end }}
+
+Rules:
+{{ range .Contract.MCP.Report.Rules -}}
+- {{ . }}
+{{ end }}
+
+Returns:
+{{ range .Contract.MCP.Report.Returns -}}
+- {{ . }}
+{{ end }}

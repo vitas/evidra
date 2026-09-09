@@ -1,0 +1,74 @@
+---
+name: evidra
+description: "Use this skill when the user asks you to perform DevOps operations — diagnosing, fixing, or managing infrastructure using kubectl, helm, terraform, or aws commands. This includes: running kubectl get/describe/logs/apply/delete/patch, helm install/upgrade/status/list, terraform plan/apply/destroy/import, aws CLI commands, or any infrastructure investigation and remediation workflow. Also trigger when the user mentions Evidra, evidence chains, prescribe/report protocol, reliability scorecards, or run_command. DO NOT trigger for: writing Dockerfiles, writing Ansible/Terraform code without executing it, CI/CD pipeline setup, explaining infrastructure concepts, or writing tests for infrastructure tools. The key distinction is OPERATING infrastructure (both reading and mutating) vs WRITING code."
+---
+<!-- contract: {{ .ContractVersion }} -->
+
+# Evidra — DevOps MCP Server
+
+{{ .Contract.DevOps.RunCommand.Intro }}
+
+## Smart Output
+
+{{ .Contract.DevOps.RunCommand.SmartOutput }}
+
+## Diagnosis Protocol
+{{ range .Contract.DevOps.RunCommand.DiagnosisProtocol }}
+- {{ . }}
+{{- end }}
+
+## Safety
+{{ range .Contract.DevOps.RunCommand.SafetyRules }}
+- {{ . }}
+{{- end }}
+
+## Evidence Recording
+
+{{ .Contract.DevOps.RunCommand.EvidenceIntro }}
+
+### When to prescribe explicitly
+{{ range .Contract.DevOps.RunCommand.WhenToPrescribe }}
+- {{ . }}
+{{- end }}
+
+### prescribe_smart (recommended)
+
+Call with: tool, operation, resource, namespace, actor.
+Returns: prescription_id, effective_risk.
+
+{{ "```json" }}
+{
+  "tool": "kubectl", "operation": "apply",
+  "resource": "deployment/web", "namespace": "default",
+  "actor": {"type": "agent", "id": "your-id", "origin": "mcp-stdio", "skill_version": "{{ .SkillVersion }}"}
+}
+{{ "```" }}
+
+### prescribe_full
+
+Call with: tool, operation, raw_artifact, actor.
+Use when you have the full YAML/manifest and want drift detection.
+
+### report (after every mutation)
+
+Call with: prescription_id, verdict (success/failure/declined), exit_code, actor.
+On retry: new prescribe, execute, new report (each attempt is a pair).
+
+### Critical Rules
+{{ range .Contract.Invariants }}
+- {{ . }}
+{{- end }}
+- Report failures honestly (non-zero exit_code)
+- Declined verdicts use decision_context, not exit_code
+
+## Risk Tags
+
+| Tag | Severity |
+|-----|----------|
+{{- range .Contract.DevOps.RiskTags }}
+| `{{ .Tag }}` | {{ .Severity }} |
+{{- end }}
+
+## Behavioral Signals
+
+{{ range $i, $s := .Contract.DevOps.BehavioralSignals }}{{ if $i }}, {{ end }}{{ $s }}{{ end }}

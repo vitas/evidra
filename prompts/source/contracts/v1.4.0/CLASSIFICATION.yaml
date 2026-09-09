@@ -1,0 +1,9 @@
+mutate_examples:
+  - "kubectl apply/delete/patch/create/replace/rollout restart"
+  - "helm install/upgrade/uninstall/rollback"
+  - "terraform apply/destroy/import"
+
+read_only_examples:
+  - "kubectl get/describe/logs/top/events"
+  - "helm list/status/template"
+  - "terraform plan/show/output"

@@ -2,7 +2,7 @@
 name: evidra
 description: "Use this skill when the user asks you to perform DevOps operations — diagnosing, fixing, or managing infrastructure using kubectl, helm, terraform, or aws commands. This includes: running kubectl get/describe/logs/apply/delete/patch, helm install/upgrade/status/list, terraform plan/apply/destroy/import, aws CLI commands, or any infrastructure investigation and remediation workflow. Also trigger when the user mentions Evidra, evidence chains, prescribe/report protocol, reliability scorecards, or run_command. DO NOT trigger for: writing Dockerfiles, writing Ansible/Terraform code without executing it, CI/CD pipeline setup, explaining infrastructure concepts, or writing tests for infrastructure tools. The key distinction is OPERATING infrastructure (both reading and mutating) vs WRITING code."
 ---
-<!-- contract: v1.3.0 -->
+<!-- contract: v1.4.0 -->
 
 # Evidra — DevOps MCP Server
 
@@ -26,7 +26,7 @@ Responses are token-efficient summaries, not raw JSON. Trust them.
 
 ## Evidence Recording
 
-Infrastructure mutations executed through `run_command` are automatically recorded as evidence. For explicit control, call `describe_tool` to inspect `prescribe_smart` and `report`; use `prescribe_full` only when the server exposes it and you have artifact bytes.
+Infrastructure mutations executed through `run_command` are always recorded. If you prescribed the same action beforehand with `prescribe_smart` or `prescribe_full`, the recorded evidence links to your claim automatically; otherwise the server records the claim for you and it counts as an `unprescribed_mutation`. For explicit control, call `describe_tool` to inspect `prescribe_smart` and `report`; use `prescribe_full` only when the server exposes it and you have artifact bytes.
 
 ### When to prescribe explicitly
 
@@ -34,7 +34,7 @@ Infrastructure mutations executed through `run_command` are automatically record
 - You are executing a mutation outside `run_command` and need to record intent/result directly.
 - Use `describe_tool` first when you need the full `prescribe_smart` or `report` schema.
 - Use `prescribe_full` only when available and you have artifact bytes.
-- Skip explicit prescribe/report for `run_command`-based mutations unless you need tighter control.
+- Prescribe before significant `run_command` mutations: your claim is linked to the executed action automatically, while mutations without a prior claim are recorded as `unprescribed_mutation`.
 
 ### prescribe_smart (recommended)
 
@@ -45,7 +45,7 @@ Returns: prescription_id, effective_risk.
 {
   "tool": "kubectl", "operation": "apply",
   "resource": "deployment/web", "namespace": "default",
-  "actor": {"type": "agent", "id": "your-id", "origin": "mcp-stdio", "skill_version": "1.3.0"}
+  "actor": {"type": "agent", "id": "your-id", "origin": "mcp-stdio", "skill_version": "1.4.0"}
 }
 ```
 
@@ -89,4 +89,4 @@ On retry: new prescribe, execute, new report (each attempt is a pair).
 
 ## Behavioral Signals
 
-protocol_violation, artifact_drift, retry_loop, blast_radius, new_scope, repair_loop, thrashing, risk_escalation
+protocol_violation, artifact_drift, retry_loop, blast_radius, new_scope, repair_loop, thrashing, risk_escalation, unprescribed_mutation

@@ -1,0 +1,38 @@
+# contract: {{ .ContractVersion }}
+
+{{ .Contract.MCP.PrescribeFull.Intro }}
+
+Required inputs:
+{{ range .Contract.MCP.PrescribeFull.RequiredInputs -}}
+- {{ . }}
+{{ end }}
+
+Recommended actor fields for behavior slicing:
+{{ range .Contract.MCP.PrescribeFull.RecommendedActorFields -}}
+- {{ . }}
+{{ end }}
+
+Optional correlation inputs:
+{{ range .Contract.MCP.PrescribeFull.OptionalCorrelationInputs -}}
+- {{ . }}
+{{ end }}
+
+Pre-call checklist:
+{{ range .Contract.MCP.PrescribeFull.PreCallChecklist -}}
+- {{ . }}
+{{ end }}
+
+When to call:
+- Must call `prescribe_full` for mutate operations when artifact bytes are available.
+- Skip for read-only operations (get/describe/logs/plan/show/status/template).
+
+Returns:
+{{ range .Contract.MCP.PrescribeFull.Returns -}}
+- {{ . }}
+{{ end }}
+
+Interpretation:
+- `effective_risk` is the summarized decision hint.
+- `risk_inputs` contains the per-source risk observations behind that summary.
+
+{{ .Contract.MCP.PrescribeFull.FailureRule }}

@@ -1,0 +1,38 @@
+# contract: {{ .ContractVersion }}
+
+{{ .Contract.MCP.PrescribeSmart.Intro }}
+
+Required inputs:
+{{ range .Contract.MCP.PrescribeSmart.RequiredInputs -}}
+- {{ . }}
+{{ end }}
+
+Recommended actor fields for behavior slicing:
+{{ range .Contract.MCP.PrescribeSmart.RecommendedActorFields -}}
+- {{ . }}
+{{ end }}
+
+Optional correlation inputs:
+{{ range .Contract.MCP.PrescribeSmart.OptionalCorrelationInputs -}}
+- {{ . }}
+{{ end }}
+
+Pre-call checklist:
+{{ range .Contract.MCP.PrescribeSmart.PreCallChecklist -}}
+- {{ . }}
+{{ end }}
+
+When to call:
+- Must call `prescribe_smart` for mutate operations when you know the target but do not have artifact bytes.
+- Skip for read-only operations (get/describe/logs/plan/show/status/template).
+
+Returns:
+{{ range .Contract.MCP.PrescribeSmart.Returns -}}
+- {{ . }}
+{{ end }}
+
+Interpretation:
+- `effective_risk` is the summarized decision hint.
+- `risk_inputs` contains the per-source risk observations behind that summary.
+
+{{ .Contract.MCP.PrescribeSmart.FailureRule }}

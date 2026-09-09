@@ -1,0 +1,30 @@
+# contract: {{ .ContractVersion }}
+
+{{ range .Contract.MCP.Initialize.ProductSummary -}}
+{{ . }}
+{{ end }}
+
+{{ .Contract.MCP.Initialize.ProtocolIntro }}
+1) use `run_command` for investigation and most infrastructure work
+2) use `describe_tool` if you need the full schema for deferred explicit-control tools
+3) use `prescribe_smart` + `report` explicitly only when you need tighter control; use `prescribe_full` only when enabled and you have artifact bytes
+
+Mutation examples (must use prescribe/report):
+{{ range .Classification.MutateExamples -}}
+- {{ . }}
+{{ end }}
+
+Read-only examples (no prescribe/report):
+{{ range .Classification.ReadOnlyExamples -}}
+- {{ . }}
+{{ end }}
+
+Critical invariants:
+{{ range .Contract.Invariants -}}
+- {{ . }}
+{{ end }}
+
+Rules:
+{{ range .Contract.MCP.Initialize.Rules -}}
+- {{ . }}
+{{ end }}

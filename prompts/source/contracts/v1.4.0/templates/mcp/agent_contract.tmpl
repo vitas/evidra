@@ -1,0 +1,85 @@
+<!-- contract: {{ .ContractVersion }} -->
+# {{ .Contract.AgentContract.Title }}
+
+> Contract: `{{ .ContractVersion }}`
+> Version policy: {{ .Contract.AgentContract.VersionPolicy }}
+
+## Changelog
+{{ range .Contract.AgentContract.Changelog -}}
+- `{{ .Version }}` ({{ .Date }}): {{ .Text }}
+{{ end }}
+
+## Default Workflow
+1. Use `run_command` for investigation and most mutations. Mutations executed through it are recorded automatically.
+2. Use `describe_tool` if you need the full schema for deferred explicit-control tools.
+3. For explicit control, call `prescribe_smart` before execution and `report` after execution or explicit refusal.
+4. Use `prescribe_full` only when enabled and you have artifact bytes.
+
+{{ range .Contract.AgentContract.Purpose -}}
+{{ . }}
+{{ end }}
+
+## What May Use Explicit Prescribe/Report
+Mutating commands may use explicit protocol calls when you are not relying on `run_command` auto-evidence or when you need tighter control, including:
+{{ range .Classification.MutateExamples -}}
+- `{{ . }}`
+{{ end }}
+
+Read-only commands should not use protocol calls, including:
+{{ range .Classification.ReadOnlyExamples -}}
+- `{{ . }}`
+{{ end }}
+
+If uncertain, investigate with `run_command` first. If you still need explicit control, call `describe_tool` and then `prescribe_smart`.
+
+## Required Inputs
+`prescribe_full` requires:
+{{ range .Contract.MCP.PrescribeFull.RequiredInputs -}}
+- `{{ . }}`
+{{ end }}
+
+`prescribe_smart` requires:
+{{ range .Contract.MCP.PrescribeSmart.RequiredInputs -}}
+- `{{ . }}`
+{{ end }}
+
+`report` requires:
+{{ range .Contract.MCP.Report.RequiredInputs -}}
+- `{{ . }}`
+{{ end }}
+
+Recommended actor metadata:
+{{ range .Contract.MCP.PrescribeFull.RecommendedActorFields -}}
+- `{{ . }}`{{ if eq . "actor.skill_version" }} (set from contract version, for benchmark slicing){{ end }}
+{{ end }}
+
+## Correlation Guidance
+Use these fields for stable grouping and tracing:
+{{ range .Contract.MCP.PrescribeFull.OptionalCorrelationInputs -}}
+- `{{ . }}`
+{{ end }}
+
+If you want one task grouped in one session, reuse the same `session_id`.
+
+## Retry and Failure Rules
+{{ range .Contract.MCP.Report.TerminalOutcomeRule -}}
+- {{ . }}
+{{ end }}
+{{ range .Contract.MCP.Report.Rules -}}
+- {{ . }}
+{{ end }}
+
+## Risk Output
+Either prescribe tool may return:
+{{ range .Contract.MCP.PrescribeFull.Returns -}}
+- `{{ . }}`
+{{ end }}
+
+`effective_risk` is the roll-up guidance. `risk_inputs` shows the underlying instrument panel Evidra saw at prescribe time.
+
+## Reliability Measurement
+Your reliability is measured from evidence-chain behavior.
+Core invariants:
+{{ range .Contract.Invariants -}}
+- {{ . }}
+{{ end }}
