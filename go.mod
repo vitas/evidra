@@ -6,7 +6,7 @@ require (
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/jsonschema-go v0.4.3
 	github.com/hashicorp/terraform-json v0.27.2
-	github.com/jackc/pgx/v5 v5.8.0
+	github.com/jackc/pgx/v5 v5.10.0
 	github.com/modelcontextprotocol/go-sdk v1.6.0
 	github.com/oklog/ulid/v2 v2.1.1
 	go.opentelemetry.io/otel v1.42.0
@@ -17,7 +17,6 @@ require (
 	go.opentelemetry.io/proto/otlp v1.10.0
 	go.yaml.in/yaml/v3 v3.0.4
 	google.golang.org/protobuf v1.36.11
-	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apimachinery v0.35.3
 	k8s.io/client-go v0.35.3
 )
@@ -68,6 +67,7 @@ require (
 	google.golang.org/grpc v1.79.2 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20250910181357-589584f1c912 // indirect
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4 // indirect
