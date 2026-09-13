@@ -41,11 +41,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	apiKeyFlag := fs.String("api-key", os.Getenv("EVIDRA_API_KEY"), "Evidra API key")
 	offlineFlag := fs.Bool("offline", false, "Force offline mode")
 	fallbackOfflineFlag := fs.Bool("fallback-offline", false, "Fall back to offline on API failure")
-	proxyFlag := fs.Bool("proxy", false, "Merged endpoint: wrap one upstream MCP server and expose evidra_prescribe / evidra_report over its tools")
-	legacyProxyFlag := fs.Bool("legacy-proxy", false, "Pre-vNext relay: auto-record mutations with the legacy evidence writer (deprecated, slated for removal)")
-	serverNameFlag := fs.String("server-name", "", "Label for the wrapped upstream in evidence and serverInfo")
-	advertisePassthroughFlag := fs.Bool("advertise-passthrough", false, "Advertise upstream prompts/resources/completions that are relayed but outside the supported profile")
-	maxMessageFlag := fs.String("max-message", "64MiB", "Largest single JSON-RPC message accepted in either direction")
+	proxyModes := registerProxyFlags(fs)
 	fullPrescribeFlag := fs.Bool("full-prescribe", false, "Expose prescribe_full tool (experimental, for advanced models only)")
 	transportFlag := fs.String("transport", "stdio", "Transport mode: stdio (default) or streamable-http")
 	portFlag := fs.String("port", "3001", "HTTP port when using streamable-http transport")
@@ -68,15 +64,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	environment := resolveEnvironment(*environmentFlag)
 	logger := log.New(stderr, "", log.LstdFlags)
 
-	if *proxyFlag {
-		return runEndpointMode(context.Background(), stderr, logger, fs.Args(), endpointFlags{
-			serverName:     *serverNameFlag,
-			advertiseExtra: *advertisePassthroughFlag,
-			maxMessage:     *maxMessageFlag,
-		})
-	}
-	if *legacyProxyFlag {
-		return runProxyMode(context.Background(), stderr, evidencePath, logger, fs.Args())
+	if code, handled := proxyModes.dispatch(context.Background(), stderr, evidencePath, logger, fs.Args()); handled {
+		return code
 	}
 
 	writeMode, writeModeErr := config.ResolveEvidenceWriteMode("")
@@ -174,11 +163,54 @@ func run(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
+// proxyFlags holds the wrapping-mode flags, registered in one helper so that
+// run() keeps a single dispatch statement.
+type proxyFlags struct {
+	wrap       *bool
+	legacy     *bool
+	serverName *string
+	advertise  *bool
+	enforce    *string
+	maxMessage *string
+}
+
+// Pointers are held deliberately: reading the values at registration time would
+// freeze the defaults and the dispatch would never see what the user passed.
+func registerProxyFlags(fs *flag.FlagSet) *proxyFlags {
+	return &proxyFlags{
+		wrap:       fs.Bool("proxy", false, "Merged endpoint: wrap one upstream MCP server and expose evidra_prescribe / evidra_report over its tools"),
+		legacy:     fs.Bool("legacy-proxy", false, "Pre-vNext relay: auto-record mutations with the legacy evidence writer (deprecated, slated for removal)"),
+		serverName: fs.String("server-name", "", "Label for the wrapped upstream in evidence and serverInfo"),
+		advertise:  fs.Bool("advertise-passthrough", false, "Advertise upstream prompts/resources/completions that are relayed but outside the supported profile"),
+		enforce:    fs.String("enforce", "all", "Protocol enforcement for the merged endpoint: all (default) or off (observe-only)"),
+		maxMessage: fs.String("max-message", "64MiB", "Largest single JSON-RPC message accepted in either direction"),
+	}
+}
+
+// dispatch routes to the requested wrapping mode, reporting whether one was
+// asked for at all.
+func (p *proxyFlags) dispatch(ctx context.Context, stderr io.Writer, evidencePath string, logger *log.Logger, args []string) (int, bool) {
+	switch {
+	case *p.wrap:
+		return runEndpointMode(ctx, stderr, logger, args, endpointFlags{
+			serverName:     *p.serverName,
+			advertiseExtra: *p.advertise,
+			maxMessage:     *p.maxMessage,
+			enforce:        *p.enforce,
+		}), true
+	case *p.legacy:
+		return runProxyMode(ctx, stderr, evidencePath, logger, args), true
+	default:
+		return 0, false
+	}
+}
+
 // endpointFlags carries the merged-endpoint options parsed in run().
 type endpointFlags struct {
 	serverName     string
 	advertiseExtra bool
 	maxMessage     string
+	enforce        string
 }
 
 // runEndpointMode serves the vNext merged endpoint (§59 step 2): one upstream
@@ -202,6 +234,7 @@ func runEndpointMode(ctx context.Context, stderr io.Writer, logger *log.Logger, 
 		MaxMessage:           maxMessage,
 		AdvertisePassthrough: flags.advertiseExtra,
 		ServerName:           flags.serverName,
+		EnforceMode:          flags.enforce,
 	}); err != nil {
 		fmt.Fprintf(stderr, "endpoint: %v\n", err)
 		return 1

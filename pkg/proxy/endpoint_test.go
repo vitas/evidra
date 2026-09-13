@@ -511,7 +511,7 @@ func TestLocalPrescribeReportStateMachine(t *testing.T) {
 // survive the wrapper: the fixture asks for roots, and the answer must come
 // from the real client through Evidra.
 func TestUpstreamServerRequestRelayedToClient(t *testing.T) {
-	h := startEndpoint(t, fixtureBin)
+	h := startEndpoint(t, "--enforce=off", fixtureBin)
 	defer h.kill()
 	h.initialize()
 
@@ -560,7 +560,7 @@ func TestUpstreamServerRequestRelayedToClient(t *testing.T) {
 // server-to-client ids that collide with the client's own request ids, and
 // neither side may receive the other's answer.
 func TestDirectionIDCollision(t *testing.T) {
-	h := startEndpoint(t, fixtureBin, "--numeric-request-ids")
+	h := startEndpoint(t, "--enforce=off", fixtureBin, "--numeric-request-ids")
 	defer h.kill()
 	h.initialize()
 
@@ -618,7 +618,7 @@ func TestClientOversizeFrameRejectedStreamSurvives(t *testing.T) {
 
 // TestToolsListChangedForwardedAndRemerged covers the list_changed half of §27.
 func TestToolsListChangedForwardedAndRemerged(t *testing.T) {
-	h := startEndpoint(t, fixtureBin, "--stateful")
+	h := startEndpoint(t, "--enforce=off", fixtureBin, "--stateful")
 	defer h.kill()
 	h.initialize()
 
@@ -716,7 +716,7 @@ func TestInitializeProfileAndInstructions(t *testing.T) {
 // TestUnknownToolPassesThrough checks that the endpoint does not swallow
 // upstream errors for tools it knows nothing about.
 func TestUnknownToolPassesThrough(t *testing.T) {
-	h := startEndpoint(t, fixtureBin)
+	h := startEndpoint(t, "--enforce=off", fixtureBin)
 	defer h.kill()
 	h.initialize()
 	resp, err := func() (*wire, error) {
@@ -752,6 +752,102 @@ func TestReservedIDNamespaceRejected(t *testing.T) {
 	}
 	if len(w.Error) == 0 || !strings.Contains(string(w.Error), "reserved by Evidra") {
 		t.Fatalf("reserved request id was not refused: %+v", w)
+	}
+}
+
+// TestEnforceAllBlocksUnprescribedCall is the single rule of §7: no open
+// prescription, no upstream call. The fixture's own counter proves the blocked
+// call never reached the upstream, and that a read-only declaration exempts
+// nothing.
+func TestEnforceAllBlocksUnprescribedCall(t *testing.T) {
+	h := startEndpoint(t, fixtureBin, "--stateful")
+	defer h.kill()
+	h.initialize()
+
+	blocked, isError := h.call("restart", map[string]any{"service": "payments"})
+	if !isError {
+		t.Fatalf("unprescribed restart was not blocked: %v", blocked)
+	}
+	if text, _ := blocked["text"].(string); !strings.Contains(text, "no_open_operation") || !strings.Contains(text, "evidra_prescribe") {
+		t.Fatalf("block did not instruct the agent: %s", text)
+	}
+
+	// A tool the server declares read-only is blocked by the same rule:
+	// annotations are reporting data, not an enforcement input (§7).
+	if ro, isErr := h.call("get_status", nil); !isErr || !strings.Contains(fmt.Sprint(ro["text"]), "no_open_operation") {
+		t.Fatalf("declared read-only tool bypassed enforcement: %v", ro)
+	}
+
+	opened, isError := h.call("evidra_prescribe", map[string]any{"objective": "restart payments"})
+	if isError {
+		t.Fatalf("prescribe failed: %v", opened)
+	}
+	opID, _ := opened["operation_id"].(string)
+
+	if check, _ := h.call("get_status", nil); !strings.Contains(fmt.Sprint(check["text"]), `"restarts":0`) {
+		t.Fatalf("blocked attempts reached the upstream: %v", check)
+	}
+
+	after, isError := h.call("restart", map[string]any{"service": "payments"})
+	if isError {
+		t.Fatalf("prescribed restart was blocked: %v", after)
+	}
+	if !strings.Contains(fmt.Sprint(after["text"]), `"restarted":true`) {
+		t.Fatalf("prescribed restart did not reach the upstream: %v", after)
+	}
+	if check, _ := h.call("get_status", nil); !strings.Contains(fmt.Sprint(check["text"]), `"restarts":1`) {
+		t.Fatalf("upstream state wrong after one prescribed restart: %v", check)
+	}
+
+	if rep, isErr := h.call("evidra_report", map[string]any{
+		"operation_id": opID, "status": "completed", "outcome": "achieved",
+	}); isErr {
+		t.Fatalf("terminal report rejected: %v", rep)
+	}
+	// Enforcement resumes the moment the operation closes.
+	if again, isErr := h.call("get_status", nil); !isErr || !strings.Contains(fmt.Sprint(again["text"]), "no_open_operation") {
+		t.Fatalf("upstream call succeeded after the operation closed: %v", again)
+	}
+}
+
+// TestEnforceOffForwardsUnprescribedCall is the other half of the A/B: nothing
+// is blocked, so coverage becomes a measurement of voluntary behavior.
+func TestEnforceOffForwardsUnprescribedCall(t *testing.T) {
+	h := startEndpoint(t, "--enforce=off", fixtureBin, "--stateful")
+	defer h.kill()
+	h.initialize()
+
+	out, isError := h.call("restart", map[string]any{"service": "payments"})
+	if isError {
+		t.Fatalf("observe-only mode blocked an unprescribed call: %v", out)
+	}
+	if !strings.Contains(fmt.Sprint(out["text"]), `"restarted":true`) {
+		t.Fatalf("observe-only call did not reach the upstream: %v", out)
+	}
+	// The protocol tools still work in this mode; only blocking is removed.
+	if _, isErr := h.call("evidra_prescribe", map[string]any{"objective": "check"}); isErr {
+		t.Fatal("prescribe failed in observe-only mode")
+	}
+}
+
+// TestUnknownEnforceModeFailsAtStartup keeps the mode surface at two values.
+func TestUnknownEnforceModeFailsAtStartup(t *testing.T) {
+	h := startEndpoint(t, "--enforce=mutations", fixtureBin)
+	h.closeIn()
+	done := make(chan error, 1)
+	go func() { done <- h.wait() }()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("endpoint accepted an unsupported enforcement mode")
+		}
+	case <-time.After(15 * time.Second):
+		h.kill()
+		t.Fatal("endpoint did not exit on an unsupported enforcement mode")
+	}
+	msg := h.stderr.String()
+	if !strings.Contains(msg, "unknown enforcement mode") || !strings.Contains(msg, "--enforce=all") {
+		t.Fatalf("startup failure was not explained: %s", msg)
 	}
 }
 

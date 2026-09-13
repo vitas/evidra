@@ -38,7 +38,15 @@ type epSession struct {
 	prescribes   int
 	reports      int
 	replacements int
+	blocks       int
 }
+
+// Enforcement modes (§7). Exactly two: an annotation-based exception would route
+// enforcement through untrusted server metadata.
+const (
+	epEnforceAll = "all"
+	epEnforceOff = "off"
+)
 
 // epLocalTools are the namespaced protocol tools advertised alongside the
 // upstream list. Descriptions carry the contract because §9 makes tool

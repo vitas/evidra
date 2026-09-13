@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### vNext experiment — step 3a: protocol enforcement (branch `vnext/mcp-recorder`)
+
+- `--enforce=all` (default) implements the single rule of §7: with no open operation an upstream `tools/call` is not forwarded, is noted as a `protocol_violation`, and the agent gets a tool result — not a transport error — containing `no_open_operation`, the tool it tried, and the instruction to prescribe and retry. Declared read-only tools are blocked by the same rule; annotations stay reporting data.
+- `--enforce=off` forwards everything and never blocks, so prescription coverage in that mode measures voluntary behavior. An unsupported mode (`--enforce=mutations`) fails at startup listing the two valid values.
+- Enforcement resumes the moment an operation closes: a report returns the session to blocked state, tested through the fixture's own restart counter so a blocked call is proven never to have reached the upstream.
+- `cmd/evidra-mcp` wrapping flags moved into `registerProxyFlags`/`dispatch` to keep `run()` inside the lint budget, and they hold `flag` pointers rather than copies.
+- 3 new endpoint tests (blocked-and-proven, observe-only, unknown mode); 14 endpoint tests green with `-race`.
 ### vNext experiment — step 2 (branch `vnext/mcp-recorder`)
 
 - `evidra-mcp --proxy -- <server>` is now the vNext merged endpoint: one upstream child process plus Evidra's own `evidra_prescribe` / `evidra_report`, appearing to the agent as a single MCP server. The pre-vNext relay stayed reachable as `--legacy-proxy` until the §59 step-10 prune.

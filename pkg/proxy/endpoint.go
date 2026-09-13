@@ -98,6 +98,7 @@ type epEndpoint struct {
 	maxMsg      int
 	passthrough bool
 	serverName  string
+	enforce     string
 	recorder    epRecorder
 
 	child    *exec.Cmd
@@ -135,6 +136,9 @@ type epEndpoint struct {
 type epFwd struct {
 	clientID string
 	tool     string
+	// operationID is the prescription in force when the call was forwarded, or
+	// empty in observe-only mode (§14, §34).
+	operationID string
 	// compose marks a forwarded request whose response the endpoint rewrites.
 	compose bool
 	// firstPage records that the tools/list request carried no cursor, the only
@@ -160,6 +164,10 @@ type RunEndpointOptions struct {
 	// ServerName labels the upstream in evidence and the client-facing
 	// serverInfo. Empty means derived from the command name.
 	ServerName string
+	// EnforceMode is "all" (default) or "off". There is no third mode: an
+	// annotation-based exception would route enforcement through untrusted
+	// server metadata (§7).
+	EnforceMode string
 	// Recorder receives lifecycle and observation notes; nil uses a no-op.
 	// The v2 store replaces this in §59 step 4.
 	Recorder epRecorder
@@ -183,6 +191,13 @@ func RunEndpoint(ctx context.Context, clientIn io.Reader, clientOut io.Writer, o
 	if rec == nil {
 		rec = epNopRecorder{}
 	}
+	enforce := opts.EnforceMode
+	if enforce == "" {
+		enforce = epEnforceAll
+	}
+	if enforce != epEnforceAll && enforce != epEnforceOff {
+		return fmt.Errorf("endpoint: unknown enforcement mode %q: use --enforce=%s or --enforce=%s", opts.EnforceMode, epEnforceAll, epEnforceOff)
+	}
 	e := &epEndpoint{
 		args:        opts.UpstreamArgs,
 		env:         opts.Env,
@@ -190,6 +205,7 @@ func RunEndpoint(ctx context.Context, clientIn io.Reader, clientOut io.Writer, o
 		maxMsg:      maxMsg,
 		passthrough: opts.AdvertisePassthrough,
 		serverName:  opts.ServerName,
+		enforce:     enforce,
 		recorder:    rec,
 		upWait:      map[string]chan *epMsg{},
 		fwd:         map[string]*epFwd{},
@@ -469,12 +485,57 @@ func (e *epEndpoint) dispatchToolCall(msg *epMsg, key string) error {
 	case "evidra_report":
 		out, protocolErr := e.handleReport(args)
 		return e.replyLocalTool(msg, out, protocolErr)
-	default:
-		e.stateMu.Lock()
-		e.fwd[key] = &epFwd{clientID: key, tool: params.Name}
-		e.stateMu.Unlock()
-		return e.writeUpstream(msg.raw)
 	}
+
+	open := e.openOperationID()
+	if e.enforce == epEnforceAll && open == "" {
+		return e.blockUnprescribed(msg, params.Name)
+	}
+
+	e.stateMu.Lock()
+	e.fwd[key] = &epFwd{clientID: key, tool: params.Name, operationID: open}
+	e.stateMu.Unlock()
+	return e.writeUpstream(msg.raw)
+}
+
+// openOperationID returns the id of the open operation, or "" when none is
+// open.
+func (e *epEndpoint) openOperationID() string {
+	e.stateMu.Lock()
+	defer e.stateMu.Unlock()
+	if e.state.open == nil {
+		return ""
+	}
+	return e.state.open.ID
+}
+
+// blockUnprescribed implements the single enforcement rule of §7: with no open
+// prescription an upstream call is not forwarded, is recorded as a protocol
+// violation, and the agent gets an explicit instruction instead. The refusal is
+// a tool result rather than a transport error so the instruction lands in the
+// model's transcript, where it can change the next action.
+func (e *epEndpoint) blockUnprescribed(msg *epMsg, tool string) error {
+	e.stateMu.Lock()
+	e.state.blocks++
+	e.stateMu.Unlock()
+	e.recorder.note("protocol_violation", map[string]any{
+		"kind":         "unprescribed_execution_attempt",
+		"tool":         tool,
+		"enforce":      e.enforce,
+		"provenance":   "recorder_generated",
+		"session_open": false,
+	})
+	body := map[string]any{
+		"error":           "no_open_operation",
+		"tool":            tool,
+		"required_action": "evidra_prescribe",
+		"instruction": "Call evidra_prescribe with the objective you intend to achieve, then repeat this tool call. " +
+			"Every upstream tool of this server requires an open operation, including tools the server declares read-only.",
+	}
+	return e.writeClient(epResultFrame(msg.ID, map[string]any{
+		"content": []any{map[string]any{"type": "text", "text": epJSONString(body)}},
+		"isError": true,
+	}))
 }
 
 // relayPlain forwards a client request upstream verbatim, keeping the id.
