@@ -4,8 +4,8 @@ import "testing"
 
 func TestDetectUnprescribedMutations(t *testing.T) {
 	entries := []Entry{
-		{EventID: "p1", IsPrescription: true},                    // model claim
-		{EventID: "r1", IsReport: true, PrescriptionID: "p1"},    // linked report
+		{EventID: "p1", IsPrescription: true},                 // model claim
+		{EventID: "r1", IsReport: true, PrescriptionID: "p1"}, // linked report
 		{EventID: "p2", IsPrescription: true, AutoPrescribed: true},
 		{EventID: "r2", IsReport: true, PrescriptionID: "p2"},
 		{EventID: "p3", IsPrescription: true, AutoPrescribed: true},
