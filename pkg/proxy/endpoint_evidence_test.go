@@ -67,7 +67,7 @@ func TestEvidenceStoreReproducesEnforcementDecisions(t *testing.T) {
 	}
 
 	dir := recorderDir(t, root)
-	rep, err := evidence.VerifyStore(dir)
+	rep, err := evidence.VerifyStore(dir, time.Time{})
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}

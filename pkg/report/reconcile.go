@@ -178,7 +178,7 @@ type sessionFacts struct {
 type startsIndex map[string]*Execution
 
 func Reconcile(opts Options) (Summary, error) {
-	reports, err := evidence.VerifyRoot(opts.Root)
+	reports, err := evidence.VerifyRoot(opts.Root, opts.Since)
 	if err != nil {
 		return Summary{}, err
 	}

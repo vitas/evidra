@@ -343,3 +343,41 @@ func TestRecorderDirsDoNotCollideWithinAMillisecond(t *testing.T) {
 		t.Errorf("dirs on disk = %d, distinct names = %d", len(dirs), len(seen))
 	}
 }
+
+// TestReconcileHonorsSinceWindow checks that a scope filter narrows the counts a
+// reader acts on. Verification still covers the whole chain, but a summary that
+// reported records outside the requested window would answer a question nobody
+// asked (§20).
+func TestReconcileHonorsSinceWindow(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "evidence")
+	st := openRecorder(t, root, "all")
+	appendOp(t, st, "SES-A", "work", "completed", "achieved", []testExec{
+		{tool: "get_status", argsHMAC: "sha256:a", status: "success"},
+	})
+	if err := st.Close("stopped"); err != nil {
+		t.Fatal(err)
+	}
+	full, err := Reconcile(Options{Root: root})
+	if err != nil {
+		t.Fatal(err)
+	}
+	windowed, err := Reconcile(Options{Root: root, Since: time.Now().UTC().Add(time.Hour)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(full.Cells) != 1 || len(windowed.Cells) != 1 {
+		t.Fatalf("cells = %d / %d", len(full.Cells), len(windowed.Cells))
+	}
+	if full.Cells[0].Records == 0 {
+		t.Fatal("unfiltered summary found no records")
+	}
+	if windowed.Cells[0].Records != 0 {
+		t.Errorf("window records = %d, want 0", windowed.Cells[0].Records)
+	}
+	if len(windowed.Cells[0].Operations) != 0 {
+		t.Errorf("window operations = %d, want 0", len(windowed.Cells[0].Operations))
+	}
+	if !windowed.Cells[0].ChainValid {
+		t.Error("an empty window must not invalidate the chain: integrity is not windowed")
+	}
+}

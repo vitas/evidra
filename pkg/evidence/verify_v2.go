@@ -96,7 +96,11 @@ func (r StoreReport) Complete() bool {
 }
 
 // VerifyStore recomputes every hash and signature in a recorder directory.
-func VerifyStore(dir string) (StoreReport, error) {
+// VerifyStore checks one recorder directory. `since` narrows the reported counts,
+// never the verification: a chain is only as trustworthy as its whole history, so
+// a window that excludes every record still validates the file and then says the
+// window was empty rather than claiming a clean bill of health for nothing.
+func VerifyStore(dir string, since time.Time) (StoreReport, error) {
 	events, meta, err := ReadStore(dir, time.Time{})
 	rep := StoreReport{
 		Dir: dir, RecorderInstanceID: meta.RecorderInstanceID, UpstreamID: meta.UpstreamID,
@@ -111,18 +115,24 @@ func VerifyStore(dir string) (StoreReport, error) {
 		rep.Findings = append(rep.Findings, "meta.public_key is not base64")
 		return rep, nil
 	}
-	rep.Records = len(events)
+	inWindow := 0
 	prev := ""
 	chain, sigs := true, true
 	for i, ev := range events {
+		if ev.RecordedAt.Before(since) {
+			prev = ev.Hash
+			continue
+		}
+		inWindow++
 		rep.Counts[string(ev.EventType)]++
-		if i == 0 {
+		if inWindow == 1 {
 			rep.FirstSeq = ev.Seq
 		}
+		lastKept := rep.LastSeq
 		rep.LastSeq = ev.Seq
-		if ev.Seq != uint64(i)+rep.FirstSeq {
+		if ev.Seq != rep.FirstSeq+uint64(inWindow-1) {
 			chain = false
-			rep.Findings = append(rep.Findings, fmt.Sprintf("seq gap at record %d: seq %d after %d", i+1, ev.Seq, rep.LastSeq))
+			rep.Findings = append(rep.Findings, fmt.Sprintf("seq gap at record %d: seq %d after %d", i+1, ev.Seq, lastKept))
 		}
 		if ev.PreviousHash != prev {
 			chain = false
@@ -143,9 +153,14 @@ func VerifyStore(dir string) (StoreReport, error) {
 		}
 		prev = ev.Hash
 	}
-	rep.ChainValid, rep.SignatureValid = chain, sigs
-	if rep.LastSeq == 0 {
-		rep.Findings = append(rep.Findings, "store contains no records")
+	rep.ChainValid, rep.SignatureValid, rep.Records = chain, sigs, inWindow
+	if inWindow == 0 {
+		if since.IsZero() {
+			rep.Findings = append(rep.Findings, "store contains no records")
+		} else {
+			rep.Findings = append(rep.Findings, fmt.Sprintf(
+				"store contains no records at or after %s (the chain was still verified in full)", since.UTC().Format(time.RFC3339)))
+		}
 	}
 	if _, err := os.Stat(filepath.Join(dir, eventsFile)); errors.Is(err, os.ErrNotExist) {
 		rep.Findings = append(rep.Findings, "events file missing")
@@ -156,7 +171,7 @@ func VerifyStore(dir string) (StoreReport, error) {
 // VerifyRoot verifies every recorder directory under a root, keeping each store's
 // answer separate. Summaries may add raw counts, but identity and chain state
 // never merge across recorders (§20).
-func VerifyRoot(root string) ([]StoreReport, error) {
+func VerifyRoot(root string, since time.Time) ([]StoreReport, error) {
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		return nil, err
@@ -166,7 +181,7 @@ func VerifyRoot(root string) ([]StoreReport, error) {
 		if !e.IsDir() || !strings.HasPrefix(e.Name(), "recorder-") {
 			continue
 		}
-		rep, err := VerifyStore(filepath.Join(root, e.Name()))
+		rep, err := VerifyStore(filepath.Join(root, e.Name()), since)
 		if err != nil {
 			return out, fmt.Errorf("verify %s: %w", e.Name(), err)
 		}

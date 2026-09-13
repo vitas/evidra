@@ -27,6 +27,10 @@ func lookupCommand(name string) (commandSpec, bool) {
 }
 
 var orderedCommands = []commandSpec{
+	// The vNext commands come first: they are what the current experiment
+	// measures, and the usage output is read top-down.
+	{name: "summarize", description: "Reconcile vNext MCP evidence: declared vs observed vs reported", run: cmdSummarize},
+	{name: "verify", description: "Verify vNext evidence chains, signatures and coverage per recorder", run: cmdVerifyChain},
 	{name: "scorecard", description: "Generate reliability scorecard for an actor", run: cmdScorecard},
 	{name: "explain", description: "Explain signals contributing to a score", run: cmdExplain},
 	{name: "compare", description: "Compare reliability scores between actors", run: cmdCompare},

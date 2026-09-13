@@ -17,6 +17,30 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — step 9: `evidra summarize` and `evidra verify`
+
+- Two vNext commands, deliberately thin over `pkg/evidence` and `pkg/report` so an
+  agent, a script and a human at a terminal cannot grow three definitions of the same
+  metric. `version` was already there; §59 step 9 asks for nothing more.
+- `summarize --dir <root> [--since 7d]` prints the terminal summary and writes
+  `summary.json` beside the evidence. `verify --dir <root> [--since ...]` reports
+  `chain`, `signature` and `coverage` as three statements per recorder store, with the
+  enforcement mode, upstream and `digest_key_id` on every line — a number without its
+  comparison domain is not a fact.
+- `--since` turned out to be unimplemented in the verify path: the window filter existed
+  in `ReadStore` while `VerifyStore` counted the whole file, so a query for "last 7
+  days" reported every record. Verification is now explicitly full-history (a chain is
+  only as trustworthy as all of it) and the *counts* are windowed, which is what a
+  reader is asking for.
+- An empty window is a failure, not a pass. `verify` on a store whose records all fall
+  outside the window exits non-zero with "none with records in the requested window":
+  silence from a query that examined nothing must not be readable as a clean bill of
+  health.
+- Tests: 6 CLI tests (summary JSON round trip plus anomaly visibility in the terminal
+  view, chain/coverage separation, mode label presence, byte-level tamper detection
+  through the CLI, missing-directory usage, since-window behaviour) and a report test
+  that a window narrows records and operations without invalidating the chain.
+
 ### vNext experiment — step 8: reconciliation, and two structural bugs it exposed
 
 - `pkg/report` implements §34/§38: it reads every recorder store under an evidence

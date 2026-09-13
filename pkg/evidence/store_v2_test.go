@@ -84,7 +84,7 @@ func TestStoreChainVerifiesAndDetectsTampering(t *testing.T) {
 	if err := s.Close("test_end"); err != nil {
 		t.Fatal(err)
 	}
-	rep, err := VerifyStore(s.Dir())
+	rep, err := VerifyStore(s.Dir(), time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,7 +117,7 @@ func TestStoreChainVerifiesAndDetectsTampering(t *testing.T) {
 	if err := os.WriteFile(events, []byte(strings.Join(lines, "\n")+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	rep, err = VerifyStore(s.Dir())
+	rep, err = VerifyStore(s.Dir(), time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,7 +161,7 @@ func TestDegradedWindowIsRecordedAndCoverageDegrades(t *testing.T) {
 	if err := s.Close("test_end"); err != nil {
 		t.Fatal(err)
 	}
-	rep, err := VerifyStore(dir)
+	rep, err := VerifyStore(dir, time.Time{})
 	if err != nil {
 		t.Fatal(err)
 	}
