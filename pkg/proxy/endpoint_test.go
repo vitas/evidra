@@ -326,6 +326,12 @@ func (h *harness) closeIn() { _ = h.stdin.Close() }
 
 func (h *harness) wait() error { return h.cmd.Wait() }
 
+func (h *harness) stderrText() string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.stderr.String()
+}
+
 func (h *harness) kill() {
 	if h.cmd.Process != nil {
 		_ = h.cmd.Process.Kill()

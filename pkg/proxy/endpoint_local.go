@@ -9,18 +9,6 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
-// epRecorder receives lifecycle and observation notes. Step 2 wires a no-op;
-// the v2 store of §59 step 4 replaces it. Keeping the seam narrow now means the
-// relay does not have to be reopened when durable evidence arrives.
-type epRecorder interface {
-	note(eventType string, fields map[string]any)
-}
-
-// epNopRecorder discards notes; used until the v2 store lands.
-type epNopRecorder struct{}
-
-func (epNopRecorder) note(string, map[string]any) {}
-
 // epOperation is one open prescribed operation (§31).
 type epOperation struct {
 	ID              string    `json:"operation_id"`
@@ -185,14 +173,16 @@ func (e *epEndpoint) handlePrescribe(raw json.RawMessage) (any, *epError) {
 			e.state.replacements++
 			// The old operation gets no synthetic terminal report; its derived
 			// state becomes replaced_without_report (§11).
-			e.recorder.note("operation_replaced", map[string]any{
-				"old_operation_id": current.ID,
-				"new_operation_id": next.ID,
-				"authorized_by":    "agent",
-				"provenance":       "agent_declared",
-			})
 			e.state.open = next
 			e.state.prescribes++
+			// Two events, because two facts are claimed: the agent replaced an
+			// operation, and a new one is now open (§11).
+			if err := e.evidence.replaced(e.sessionID, current.ID, "abandon_and_replace", *next); err != nil {
+				return nil, e.prescribeDurabilityError(err)
+			}
+			if err := e.evidence.prescribed(e.sessionID, *next, nil); err != nil {
+				return nil, e.prescribeDurabilityError(err)
+			}
 			return epPrescribeOpened(next), nil
 		default:
 			return nil, &epError{Code: epCodeInvalidRequest,
@@ -213,12 +203,11 @@ func (e *epEndpoint) handlePrescribe(raw json.RawMessage) (any, *epError) {
 	}
 	e.state.open = op
 	e.state.prescribes++
-	e.recorder.note("operation_prescribed", map[string]any{
-		"operation_id":     op.ID,
-		"objective":        op.Objective,
-		"expected_outcome": op.ExpectedOutcome,
-		"provenance":       "agent_declared",
-	})
+	if err := e.evidence.prescribed(e.sessionID, *op, nil); err != nil {
+		e.state.open = nil
+		e.state.prescribes--
+		return nil, e.prescribeDurabilityError(err)
+	}
 	return epPrescribeOpened(op), nil
 }
 
@@ -290,13 +279,18 @@ func (e *epEndpoint) handleReport(raw json.RawMessage) (any, *epError) {
 	e.state.lastClosed = &closed
 	e.state.closedAt = time.Now().UTC()
 	e.state.reports++
-	e.recorder.note("operation_reported", map[string]any{
-		"operation_id": closed.ID,
-		"status":       in.Status,
-		"outcome":      in.Outcome,
-		"summary":      in.Summary,
-		"provenance":   "agent_declared",
-	})
+	if err := e.evidence.reported(e.sessionID, closed, in.Status, in.Outcome, in.Summary); err != nil {
+		// No acknowledgment without durable evidence, and the operation stays open
+		// so the agent can retry (§18).
+		e.state.open = &closed
+		e.state.reports--
+		e.state.lastClosed = nil
+		e.state.closedAt = time.Time{}
+		return nil, &epError{Code: epCodeInternalError,
+			Message: "evidence store unavailable: " + err.Error(),
+			Data: map[string]any{"error": "recorder_unhealthy", "operation_id": closed.ID,
+				"instruction": "No report was persisted. Retry evidra_report; the operation is still open."}}
+	}
 	return map[string]any{
 		"ok":           true,
 		"state":        "reported",
@@ -314,4 +308,14 @@ func epInList(v string, allowed []string) bool {
 		}
 	}
 	return false
+}
+
+// prescribeDurabilityError turns a store failure into the protocol answer. It is
+// deliberately not a transport error: the agent has to learn that no operation
+// opened, or it will act under a prescription nobody recorded.
+func (e *epEndpoint) prescribeDurabilityError(err error) *epError {
+	return &epError{Code: epCodeInternalError,
+		Message: "evidence store unavailable: " + err.Error(),
+		Data: map[string]any{"error": "recorder_unhealthy",
+			"instruction": "No operation was recorded, so none is open. Retry evidra_prescribe once evidence storage recovers."}}
 }

@@ -13,10 +13,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/oklog/ulid/v2"
 	"io"
 	"log"
 	"os"
 	"os/exec"
+	"samebits.com/evidra/pkg/evidence"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -99,7 +101,8 @@ type epEndpoint struct {
 	passthrough bool
 	serverName  string
 	enforce     string
-	recorder    epRecorder
+	evidence    epEvidence
+	sessionID   string
 
 	child    *exec.Cmd
 	childIn  io.WriteCloser
@@ -139,6 +142,9 @@ type epFwd struct {
 	// operationID is the prescription in force when the call was forwarded, or
 	// empty in observe-only mode (§14, §34).
 	operationID string
+	// exec identifies the recorded execution this call belongs to, so a terminal
+	// event can pair with its start (§16-§17).
+	exec epExecution
 	// compose marks a forwarded request whose response the endpoint rewrites.
 	compose bool
 	// firstPage records that the tools/list request carried no cursor, the only
@@ -168,9 +174,15 @@ type RunEndpointOptions struct {
 	// annotation-based exception would route enforcement through untrusted
 	// server metadata (§7).
 	EnforceMode string
-	// Recorder receives lifecycle and observation notes; nil uses a no-op.
-	// The v2 store replaces this in §59 step 4.
-	Recorder epRecorder
+	// EvidenceDir is the evidence *root*: the endpoint creates its own recorder
+	// directory inside it, which is what keeps one writer per store structural
+	// (§20). Empty means no store is wanted and nothing is recorded; a root that
+	// cannot be opened fails the run, because silently falling back to no-op
+	// recording would make "evidence was kept" a claim nobody checked.
+	EvidenceDir string
+	// ActorID labels who is accountable in every event; empty leaves the actor
+	// unset rather than inventing one.
+	ActorID string
 }
 
 // RunEndpoint serves the merged endpoint over clientIn/clientOut until the
@@ -187,9 +199,21 @@ func RunEndpoint(ctx context.Context, clientIn io.Reader, clientOut io.Writer, o
 	if maxMsg <= 0 {
 		maxMsg = epDefaultMaxMessage
 	}
-	rec := opts.Recorder
-	if rec == nil {
-		rec = epNopRecorder{}
+	ev := epEvidence(epNopEvidence{})
+	if opts.EvidenceDir != "" {
+		store, err := evidence.OpenStore(evidence.Options{
+			Root:          opts.EvidenceDir,
+			UpstreamID:    "up-" + epBaseName(opts.UpstreamArgs[0]),
+			ServerName:    opts.ServerName,
+			UpstreamCmd:   strings.Join(opts.UpstreamArgs, " "),
+			EnforceMode:   opts.EnforceMode,
+			EvidraVersion: epBuildVersion,
+			Stderr:        os.Stderr,
+		})
+		if err != nil {
+			return fmt.Errorf("endpoint: open evidence store %s: %w", opts.EvidenceDir, err)
+		}
+		ev = newStoreEvidence(store, epBuildVersion, opts.EnforceMode, opts.ActorID)
 	}
 	enforce := opts.EnforceMode
 	if enforce == "" {
@@ -206,7 +230,8 @@ func RunEndpoint(ctx context.Context, clientIn io.Reader, clientOut io.Writer, o
 		passthrough: opts.AdvertisePassthrough,
 		serverName:  opts.ServerName,
 		enforce:     enforce,
-		recorder:    rec,
+		evidence:    ev,
+		sessionID:   "SES-" + ulid.Make().String(),
 		upWait:      map[string]chan *epMsg{},
 		fwd:         map[string]*epFwd{},
 		toClient:    map[string]*epFwd{},
@@ -277,7 +302,8 @@ func (e *epEndpoint) startChild(ctx context.Context) error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("endpoint: start upstream %q: %w", e.args[0], err)
 	}
-	e.recorder.note("upstream_started", map[string]any{"server_name": e.serverName})
+	// No lifecycle event here: the store wrote recorder_started when it opened,
+	// and a second one would double-count process starts.
 	return nil
 }
 
@@ -291,7 +317,12 @@ func (e *epEndpoint) stopChild() {
 }
 
 func (e *epEndpoint) shutdown() {
-	e.closeOnce.Do(func() { close(e.done) })
+	e.closeOnce.Do(func() {
+		close(e.done)
+		if err := e.evidence.close("stopped"); err != nil {
+			e.logger.Printf("endpoint: evidence store close: %v", err)
+		}
+	})
 }
 
 // handshakeUpstream sends initialize/initialized to the upstream and returns
@@ -492,8 +523,19 @@ func (e *epEndpoint) dispatchToolCall(msg *epMsg, key string) error {
 		return e.blockUnprescribed(msg, params.Name)
 	}
 
+	// §18: an operational call whose start cannot be persisted is not forwarded.
+	// Letting it through would create the one asymmetry this product cannot
+	// afford - an action that happened but was never observed.
+	if e.evidence.unhealthy() {
+		return e.recorderUnavailable(msg, params.Name, "evidence store is unhealthy")
+	}
+	ex, err := e.evidence.startExecution(e.sessionID, open, params.Name, args, e.annotationsFor(params.Name))
+	if err != nil {
+		e.logger.Printf("endpoint: refused %s, execution_started was not persisted: %v", params.Name, err)
+		return e.recorderUnavailable(msg, params.Name, "could not record execution_started")
+	}
 	e.stateMu.Lock()
-	e.fwd[key] = &epFwd{clientID: key, tool: params.Name, operationID: open}
+	e.fwd[key] = &epFwd{clientID: key, tool: params.Name, operationID: open, exec: ex}
 	e.stateMu.Unlock()
 	return e.writeUpstream(msg.raw)
 }
@@ -518,13 +560,10 @@ func (e *epEndpoint) blockUnprescribed(msg *epMsg, tool string) error {
 	e.stateMu.Lock()
 	e.state.blocks++
 	e.stateMu.Unlock()
-	e.recorder.note("protocol_violation", map[string]any{
-		"kind":         "unprescribed_execution_attempt",
-		"tool":         tool,
-		"enforce":      e.enforce,
-		"provenance":   "recorder_generated",
-		"session_open": false,
-	})
+	if err := e.evidence.blocked(e.sessionID, "", tool, "unprescribed_execution_attempt",
+		"no operation was open in this session"); err != nil {
+		e.logger.Printf("endpoint: could not record the blocked call for %s: %v", tool, err)
+	}
 	body := map[string]any{
 		"error":           "no_open_operation",
 		"tool":            tool,
@@ -701,7 +740,93 @@ func (e *epEndpoint) routeUpstreamResponse(msg *epMsg) {
 		_ = e.writeClient(out)
 		return
 	}
-	_ = e.writeClient(msg.raw)
+	if err := e.writeClient(msg.raw); err != nil {
+		e.logger.Printf("endpoint: relay to client: %v", err)
+		return
+	}
+	e.finishExecution(fwd, msg.raw)
+}
+
+// annotationsFor returns the upstream-declared annotations for a tool as they
+// stood at the last tools/list. Absence is preserved on purpose: evidence that a
+// server declared nothing must not look like evidence that it declared read-only
+// (§22, §26).
+func (e *epEndpoint) annotationsFor(tool string) json.RawMessage {
+	e.stateMu.Lock()
+	defer e.stateMu.Unlock()
+	ann, ok := e.upAnn[tool]
+	if !ok || ann == nil {
+		return nil
+	}
+	raw, err := json.Marshal(ann)
+	if err != nil {
+		return nil
+	}
+	return raw
+}
+
+// finishExecution writes the terminal event after the real response already
+// reached the client. Losing it degrades coverage; it never rewrites the agent's
+// result, because a fabricated operational failure invites an automatic retry of
+// work that succeeded (§18).
+func (e *epEndpoint) finishExecution(fwd *epFwd, raw json.RawMessage) {
+	if fwd == nil || fwd.exec.ID == "" {
+		return
+	}
+	status, code, message := epClassifyResponse(raw)
+	if err := e.evidence.finishExecution(fwd.exec, raw, status, code, message); err != nil {
+		e.logger.Printf("endpoint: execution terminal evidence lost for %s: %v", fwd.tool, err)
+	}
+}
+
+// recorderUnavailable answers a refused call the way enforcement answers a block:
+// as a tool result carrying the instruction rather than a transport error, so the
+// agent can read it and change what it does next.
+func (e *epEndpoint) recorderUnavailable(msg *epMsg, tool, detail string) error {
+	body := map[string]any{
+		"error":           "recorder_unhealthy",
+		"tool":            tool,
+		"required_action": "retry once evidence storage recovers",
+		"instruction": "Evidra could not persist the start of this execution, so the call was not " +
+			"forwarded and nothing happened. evidra_report stays available; close the current " +
+			"operation and retry the tool call later.",
+		"detail": detail,
+	}
+	return e.writeClient(epResultFrame(msg.ID, map[string]any{
+		"content": []any{map[string]any{"type": "text", "text": epJSONString(body)}},
+		"isError": true,
+	}))
+}
+
+// epClassifyResponse decides what an upstream frame proves about an execution.
+// Only three outcomes are claimable from the wire, so unknown stays reachable.
+func epClassifyResponse(raw json.RawMessage) (evidence.ExecutionStatus, string, string) {
+	var frame struct {
+		Error *struct {
+			Code    int    `json:"code"`
+			Message string `json:"message"`
+		} `json:"error"`
+		Result struct {
+			IsError bool `json:"isError"`
+		} `json:"result"`
+	}
+	if len(raw) == 0 {
+		return evidence.ExecutionUnknown, "no_response", ""
+	}
+	if err := json.Unmarshal(raw, &frame); err != nil {
+		return evidence.ExecutionUnknown, "undecodable_frame", ""
+	}
+	if frame.Error != nil {
+		code := fmt.Sprintf("jsonrpc_%d", frame.Error.Code)
+		if strings.Contains(strings.ToLower(frame.Error.Message), "cancel") {
+			return evidence.ExecutionCancelled, code, frame.Error.Message
+		}
+		return evidence.ExecutionError, code, frame.Error.Message
+	}
+	if frame.Result.IsError {
+		return evidence.ExecutionError, "tool_error", ""
+	}
+	return evidence.ExecutionSuccess, "", ""
 }
 
 // failOutstanding answers every client request still waiting on the upstream so
@@ -711,11 +836,24 @@ func (e *epEndpoint) failAllOutstanding(reason string) { e.failOutstanding(reaso
 func (e *epEndpoint) failOutstanding(reason string) {
 	e.stateMu.Lock()
 	ids := make([]string, 0, len(e.fwd))
-	for id := range e.fwd {
+	var outstanding []*epFwd
+	for id, f := range e.fwd {
+		outstanding = append(outstanding, f)
 		ids = append(ids, id)
 		delete(e.fwd, id)
 	}
 	e.stateMu.Unlock()
+	// The upstream died with these in flight. Closing the pair as unknown keeps
+	// the record honest about what was and was not observed (§17).
+	for _, f := range outstanding {
+		if f.exec.ID == "" {
+			continue
+		}
+		if err := e.evidence.finishExecution(f.exec, nil, evidence.ExecutionUnknown,
+			"upstream_unavailable", "no response arrived before the upstream exited"); err != nil {
+			e.logger.Printf("endpoint: could not close execution evidence: %v", err)
+		}
+	}
 	for _, id := range ids {
 		_ = e.writeClient(epErrorFrame(json.RawMessage(id), epCodeInternalError, "upstream unavailable: "+reason))
 	}

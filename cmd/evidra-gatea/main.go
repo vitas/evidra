@@ -99,14 +99,7 @@ func runCLI(args []string) int {
 		}
 		return 0
 	}
-	if o.outDir == "" {
-		o.outDir = filepath.Join("output", "gatea", time.Now().UTC().Format("20060102T150405Z"))
-	}
-	if err := os.MkdirAll(o.outDir, 0o755); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-	if err := os.WriteFile(filepath.Join(o.outDir, "tasks.used.json"), defaultTasksJSON, 0o644); err != nil {
+	if err := prepareOutput(&o); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
@@ -148,25 +141,26 @@ func runCLI(args []string) int {
 			case !res.Success:
 				status = "FAIL"
 			}
-			proto := "P"
-			if !res.ProtocolOnly {
-				proto = "-"
-			}
-			fmt.Printf("  %s%s %-14s %-4s %-26s run%d turns=%2d blocked=%d %s\n",
-				status, proto, p.arm.ID, p.mode, p.task.ID, p.run, res.Turns, res.Blocked,
-				truncate(strings.Join(res.Failures, "; "), 60))
+			printRun(p, res, status)
 		}(i, p)
 	}
 	wg.Wait()
 
-	valid := results[:0]
+	runs := collectRuns(results)
+	writeSummary(o.outDir, arms, tasks, runs, overheads, o)
+	return verdict(runs)
+}
+
+// collectRuns keeps only runs that produced an artifact or a stated reason for
+// having none, so a partially built queue cannot dilute a cell's denominator.
+func collectRuns(results []runResult) []runResult {
+	out := results[:0]
 	for _, r := range results {
 		if r.TranscriptPath != "" || r.InvalidRun != "" {
-			valid = append(valid, r)
+			out = append(out, r)
 		}
 	}
-	writeSummary(o.outDir, arms, tasks, valid, overheads, o)
-	return verdict(valid)
+	return out
 }
 
 func costRank(a armSpec) int {
@@ -652,7 +646,10 @@ func driveAgent(ctx context.Context, ag agent, ep *mcpClient, llmTools []llmTool
 			"calls": out.Calls, "prompt": out.Prompt, "output": out.Output, "reason": out.Reason})
 
 		if len(out.Calls) == 0 {
-			messages = append(messages, llmMessage{Role: "assistant", Content: out.Text})
+			// The run ends here: no reminder is sent, because terminal report
+			// coverage has to measure whether the agent closed the record
+			// because the protocol asked it to.
+			rec("final_text", out.Text)
 			// No reminder is sent. Terminal report coverage has to measure
 			// whether the agent closes the record because the protocol said so,
 			// not because the harness nagged it into the answer.
@@ -728,4 +725,30 @@ func buildQueue(arms []armSpec, tasks []taskSpec, o options) []planRun {
 		return queue[i].task.ID < queue[j].task.ID
 	})
 	return queue
+}
+
+// printRun gives one line per run: a verdict, whether the protocol clauses held
+// separately from the task, and the first reason if not.
+func printRun(p planRun, res runResult, status string) {
+	proto := "-"
+	if res.ProtocolOnly {
+		proto = "P"
+	}
+	fmt.Printf("  %s%s %-14s %-4s %-26s run%d turns=%2d blocked=%d %s\n",
+		status, proto, p.arm.ID, p.mode, p.task.ID, p.run, res.Turns, res.Blocked,
+		truncate(strings.Join(res.Failures, "; "), 60))
+}
+
+// prepareOutput allocates the artifact directory and records the task set that
+// actually ran. Writing tasks.used.json is not decoration: verdict rules change
+// as a result set is read, and a summary without the predicates that produced it
+// cannot be re-argued by anyone else.
+func prepareOutput(o *options) error {
+	if o.outDir == "" {
+		o.outDir = filepath.Join("output", "gatea", time.Now().UTC().Format("20060102T150405Z"))
+	}
+	if err := os.MkdirAll(o.outDir, 0o700); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(o.outDir, "tasks.used.json"), defaultTasksJSON, 0o600)
 }

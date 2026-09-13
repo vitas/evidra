@@ -64,7 +64,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	environment := resolveEnvironment(*environmentFlag)
 	logger := log.New(stderr, "", log.LstdFlags)
 
-	if code, handled := proxyModes.dispatch(context.Background(), stderr, evidencePath, logger, fs.Args()); handled {
+	if code, handled := proxyModes.dispatch(context.Background(), stderr, evidencePath, *evidenceFlag, logger, fs.Args()); handled {
 		return code
 	}
 
@@ -189,7 +189,7 @@ func registerProxyFlags(fs *flag.FlagSet) *proxyFlags {
 
 // dispatch routes to the requested wrapping mode, reporting whether one was
 // asked for at all.
-func (p *proxyFlags) dispatch(ctx context.Context, stderr io.Writer, evidencePath string, logger *log.Logger, args []string) (int, bool) {
+func (p *proxyFlags) dispatch(ctx context.Context, stderr io.Writer, evidencePath, evidenceRaw string, logger *log.Logger, args []string) (int, bool) {
 	switch {
 	case *p.wrap:
 		return runEndpointMode(ctx, stderr, logger, args, endpointFlags{
@@ -197,6 +197,7 @@ func (p *proxyFlags) dispatch(ctx context.Context, stderr io.Writer, evidencePat
 			advertiseExtra: *p.advertise,
 			maxMessage:     *p.maxMessage,
 			enforce:        *p.enforce,
+			evidenceDir:    evidenceRaw,
 		}), true
 	case *p.legacy:
 		return runProxyMode(ctx, stderr, evidencePath, logger, args), true
@@ -211,6 +212,7 @@ type endpointFlags struct {
 	advertiseExtra bool
 	maxMessage     string
 	enforce        string
+	evidenceDir    string
 }
 
 // runEndpointMode serves the vNext merged endpoint (§59 step 2): one upstream
@@ -228,6 +230,15 @@ func runEndpointMode(ctx context.Context, stderr io.Writer, logger *log.Logger, 
 		return 1
 	}
 	logger.Printf("evidra-mcp merged endpoint (upstream: %s, server-name: %s)", remaining[0], flags.serverName)
+	if flags.evidenceDir == "" {
+		// Recording is opt-in per process on purpose: the plan's default root is
+		// ~/.evidra/evidence, and silently appending evidence to a home directory
+		// from every test and dogfood run is a side effect nobody asked for. The
+		// notice keeps the asymmetry visible instead of quiet.
+		logger.Printf("evidra: --evidence-dir not set, so executions are enforced but not recorded")
+	} else {
+		logger.Printf("evidra: evidence root %s (one recorder directory per process)", flags.evidenceDir)
+	}
 	if err := proxy.RunEndpoint(ctx, os.Stdin, os.Stdout, proxy.RunEndpointOptions{
 		UpstreamArgs:         remaining,
 		Logger:               logger,
@@ -235,6 +246,7 @@ func runEndpointMode(ctx context.Context, stderr io.Writer, logger *log.Logger, 
 		AdvertisePassthrough: flags.advertiseExtra,
 		ServerName:           flags.serverName,
 		EnforceMode:          flags.enforce,
+		EvidenceDir:          flags.evidenceDir,
 	}); err != nil {
 		fmt.Fprintf(stderr, "endpoint: %v\n", err)
 		return 1

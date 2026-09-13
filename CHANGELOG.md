@@ -17,6 +17,49 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — step 4: evidence.v2 store wired into the endpoint
+
+- `pkg/evidence` gains the v2 model from plan §14-§21: a flat `evidra.evidence.v2`
+  envelope (`seq`, `event_id`, `recorder_instance_id`, `session_id`, `operation_id`,
+  `upstream_id`, `provenance`, `previous_hash`, `hash`, `signature`), the ten event
+  types of §16 including `recorder_degraded`, and start/finish execution pairing by
+  `execution_id`. `unprescribed_execution` stays a derived class, not an event type.
+- RFC 8785 JCS canonicalization is implemented in-package (UTF-16 code-unit key
+  ordering, ECMAScript `NumberToString`, JSON.stringify's escape set) so argument
+  fingerprints survive key reordering without adding a dependency.
+- Fingerprints per §23-§24: per-store HMAC-SHA256 key at 0600 with a non-secret
+  `digest_key_id` as the comparison domain; result fingerprints bounded at 4 MiB
+  with explicit `present` / `omitted_oversize` / `unavailable` states; error messages
+  keyed rather than stored.
+- Store layout per §20: one directory per recorder process
+  (`recorder-YYYYMMDD-HHMMSS-<id>/events.jsonl|meta.json|signing.key|digest.key`),
+  which makes a cross-process chain race structurally impossible instead of
+  locked-around. §19's serialized append takes a builder that receives
+  `(previous_hash, seq)`, and every record is flushed: a buffered recorder loses
+  exactly the tail that an interrupted execution needs.
+- §18 failure behavior is implemented, not deferred: a call whose
+  `execution_started` cannot be written is refused with a `recorder_unhealthy`
+  tool result; a lost `execution_finished` keeps the real upstream result intact,
+  degrades coverage, and never fabricates an operational failure; `evidra_report`
+  stays callable and is not acknowledged without durable evidence (the operation
+  stays open so the agent can retry). A recorder that saw nothing removes its own
+  directory.
+- `VerifyStore` / `VerifyRoot` answer chain validity, signature validity and
+  evidence coverage as three separate statements, with `--since` accepted as `7d`
+  or an RFC 3339 instant, and grouping by enforcement mode + upstream +
+  `digest_key_id` so a summary cannot average `enforce=all` with `enforce=off`.
+- The merged endpoint writes this store when `--evidence-dir` is given. No
+  directory, no store — but stated on stderr rather than silent, because
+  "enforcement happened" and "evidence was kept" are different claims.
+- Tests: 8 for the store (chain round trip, tamper detection after rewriting a
+  record, degraded window with valid chain but incomplete coverage,
+  lifecycle-only directory removal, key permissions, canary, fingerprint bound,
+  `--since`/group key) and 3 end-to-end through the real endpoint: a refused
+  unprescribed call appears as `protocol_violation` and leaves **no** execution
+  record — absence is the proof forwarding was gated — plus annotations recorded
+  with their absence preserved for an unannotated tool, and a refused startup when
+  the evidence path is not a directory.
+
 ### vNext experiment — step 3b: Gate A runner, and the first pilot
 
 - `cmd/evidra-gatea` drives the merged endpoint with an OpenAI-compatible
