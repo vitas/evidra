@@ -139,9 +139,13 @@ func runCLI(args []string) int {
 			case !res.Success:
 				status = "FAIL"
 			}
-			fmt.Printf("  %s %-14s %-4s %-26s run%d turns=%2d blocked=%d %s\n",
-				status, p.arm.ID, p.mode, p.task.ID, p.run, res.Turns, res.Blocked,
-				truncate(strings.Join(res.Failures, "; "), 70))
+			proto := "P"
+			if !res.ProtocolOnly {
+				proto = "-"
+			}
+			fmt.Printf("  %s%s %-14s %-4s %-26s run%d turns=%2d blocked=%d %s\n",
+				status, proto, p.arm.ID, p.mode, p.task.ID, p.run, res.Turns, res.Blocked,
+				truncate(strings.Join(res.Failures, "; "), 60))
 		}(i, p)
 	}
 	wg.Wait()
@@ -369,6 +373,8 @@ func runOne(ctx context.Context, o options, arm armSpec, mode string, task taskS
 	res.FirstUpstreamPrescribed = tr.firstUpstreamPrescribed
 	res.LatePrescribe = tr.latePrescribe
 	res.Failures = task.evaluate(tr)
+	res.ProtocolOnlyFails = task.protocolOnlyFails(tr)
+	res.ProtocolOnly = len(res.ProtocolOnlyFails) == 0 && res.InvalidRun == ""
 	res.Success = len(res.Failures) == 0 && res.InvalidRun == ""
 	rec("transcript", tr)
 	rec("verdict", res)
@@ -555,10 +561,10 @@ func writeSummary(dir string, arms []armSpec, tasks []taskSpec, runs []runResult
 	raw, _ := json.MarshalIndent(summary, "", "  ")
 	_ = os.WriteFile(filepath.Join(dir, "summary.json"), raw, 0o644)
 
-	fmt.Printf("\ncell                       mode  runs  success  report✓  blocked  recovery\n")
+	fmt.Printf("\ncell                       mode  runs  success  protoOnly  report  blocked  recovery\n")
 	for _, c := range cells {
-		fmt.Printf("%-26s %-5s %4d %7d   %6d   %7d   %s\n", c.Arm, c.Mode, c.Runs, c.TaskSuccess,
-			c.TerminalReportCover, c.BlockedAttempts, c.RecoveryRate)
+		fmt.Printf("%-26s %-5s %4d %7d %9d %7d   %7d   %s\n", c.Arm, c.Mode, c.Runs, c.TaskSuccess,
+			c.ProtocolOnlySuccess, c.TerminalReportCover, c.BlockedAttempts, c.RecoveryRate)
 	}
 	for _, g := range conds {
 		if g.Status != "pass" {

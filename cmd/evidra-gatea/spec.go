@@ -205,6 +205,25 @@ func (ts *taskSpec) evaluate(t *transcript) []string {
 	return fails
 }
 
+// protocolOnlyFails grades only the protocol clauses: was a record open before
+// anything executed, was a record closed, and does that record contradict what
+// the task says actually happened. It deliberately ignores whether the job was
+// done well — that distinction is the point. A miss here says something must
+// change in Evidra; a task-only miss says the model could not do the work, which
+// is a different product problem and must not be scored as protocol failure.
+func (ts *taskSpec) protocolOnlyFails(t *transcript) []string {
+	var fails []string
+	if t.unprescribedCalls() > 0 {
+		fails = append(fails, fmt.Sprintf("%d executions with no open record", t.unprescribedCalls()))
+	}
+	if t.upstreamCalls > 0 && !t.firstUpstreamPrescribed {
+		fails = append(fails, "first action was not covered by a record")
+	}
+	fails = append(fails, checkReport(ts.RequireReport, t)...)
+	fails = append(fails, checkAbandonPath(ts, t)...)
+	return fails
+}
+
 // executedUpstream returns calls whose action reached the upstream. A tool error
 // counts: it proves execution, and treating it as absence would make a failing
 // action indistinguishable from a skipped one.
@@ -397,6 +416,8 @@ type runResult struct {
 	ReasonTokens            int      `json:"reasoning_tokens"`
 	Unprescribed            int      `json:"unprescribed_executions"`
 	FirstUpstreamPrescribed bool     `json:"first_upstream_prescribed"`
+	ProtocolOnly            bool     `json:"protocol_only_success"`
+	ProtocolOnlyFails       []string `json:"protocol_only_failures,omitempty"`
 	LatePrescribe           bool     `json:"late_prescribe"`
 	DurationMS              int64    `json:"duration_ms"`
 	TranscriptPath          string   `json:"transcript,omitempty"`
@@ -414,6 +435,7 @@ type cellMetrics struct {
 	TaskSuccess         int     `json:"task_success"`
 	TerminalReportCover int     `json:"terminal_report_coverage"`
 	FirstAttemptComply  int     `json:"first_attempt_protocol_compliance"`
+	ProtocolOnlySuccess int     `json:"protocol_only_success"`
 	BlockedAttempts     int     `json:"blocked_attempts"`
 	MedianBlockedPerOp  float64 `json:"median_blocked_attempts_per_completed_operation"`
 	RecoveryRate        string  `json:"recovery_after_first_block"`
@@ -454,8 +476,14 @@ func rollupCell(runs []runResult) cellMetrics {
 				recovered++
 			}
 		}
+		if r.ProtocolOnly {
+			c.ProtocolOnlySuccess++
+		}
 		if r.Reports > 0 {
 			c.TerminalReportCover++
+		}
+		if r.ProtocolOnly {
+			c.ProtocolOnlySuccess++
 		}
 		if r.Prescribes == 0 {
 			c.SessionsNoPrescribe++
