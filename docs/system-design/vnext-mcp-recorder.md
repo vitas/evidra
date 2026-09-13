@@ -639,6 +639,10 @@ modes:
   - --enforce=all
 ```
 
+The eight tasks and their terminal predicates are defined in
+[`gate-a-tasks.md`](gate-a-tasks.md). A predicate may only reference what is
+visible on the wire, so a "success" stays recomputable from the transcript.
+
 Arms are pinned to what this account can actually call today, and each arm is
 identified by endpoint plus API model id, because the same product is reachable
 under different names on different gateways (`deepseek-flash` on
