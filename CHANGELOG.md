@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Gate A arms pinned from live endpoint probes (plan §10)
+
+- §10 now names its arms instead of describing them: `qwen3.8-flash` @ `api.b.ai/v1` (free at time of writing), `deepseek-flash` @ `api.deepseek.com/v1` (the deployment the harness config displays as DeepSeek-V4.1-Flash), `deepseek-v4-pro` @ `api.deepseek.com/v1` as the ceiling arm. 80 runs total, ordered cheapest-first so a protocol redesign never spends metered tokens on discarded runs. Two of three arms share an endpoint, which removed the need for a transport-control cell.
+- Added a reasoning-token budget rule: all three arms emit `reasoning_content`, and `max_tokens: 80` truncated a valid tool call into `finish_reason=length`. Budget is >= 2048 per turn and truncation is harness fault. Protocol overhead is now reported as visible (tool definitions + prescribe/report traffic) and total (including reasoning), never merged.
+- Added `invalid_run` classification (gateway balance/access errors, persisting 429, transport timeout, `finish_reason=length`, preflight model-id mismatch) plus a mandatory preflight probe per arm, so account state cannot be read as agent behavior.
+- Pinning extended to provider + base URL + verbatim API model id + display name + `cost_basis: free|metered`, because one product is reachable under three names across two gateways and no claim may silently depend on a promo price.
+- Stale "64 runs" references corrected in §45, §59 step 3, and the thresholds heading.
+
 ### vNext experiment — step 1 (branch `vnext/mcp-recorder`)
 
 - Added `docs/system-design/vnext-mcp-recorder.md`: the vNext execution-evidence plan (v8) as a tracked document — table of contents, 60 sections, plus the one-page implementation appendix (§59) that implementation agents work from.

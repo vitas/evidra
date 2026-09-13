@@ -629,31 +629,115 @@ Do not build a multi-client installer unless real use proves the instructions in
 
 The protocol-compliance question is a measured UX test, not an impression.
 
-Use exactly:
+## Design
 
 ```text
 fixture tasks: 8
 runs per task/mode: 2
-models:
-  - one pinned cheap current model
-  - one pinned stronger current model
 modes:
   - --enforce=off
   - --enforce=all
-
-total:
-  8 × 2 × 2 × 2 = 64 runs
 ```
+
+Arms are pinned to what this account can actually call today, and each arm is
+identified by endpoint plus API model id, because the same product is reachable
+under different names on different gateways (`deepseek-flash` on
+`api.deepseek.com` is the deployment the harness config displays as
+`DeepSeek-V4.1-Flash`, while `deepseek-v4.1-flash` is a separate metered
+deployment on `api.b.ai`). Passing the wrong id to the wrong endpoint must fail
+loudly in the preflight, not silently substitute a model.
+
+| role | provider | base URL | API model id | cost basis |
+|---|---|---|---|---|
+| cheap (headline) | b.ai node | `https://api.b.ai/v1` | `qwen3.8-flash` | free at time of writing |
+| cheap-capable | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-flash` | metered |
+| strong (ceiling) | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-v4-pro` | metered |
+
+```text
+qwen3.8-flash      off + all  = 8 × 2 × 2 = 32 runs
+deepseek-flash     off + all  = 8 × 2 × 2 = 32 runs
+deepseek-v4-pro    all only   = 8 × 2     = 16 runs
+
+total: 80 runs
+```
+
+`deepseek-v4-pro` is not run in `--enforce=off`: voluntary adoption is measured
+on the arms the product is actually pitched to. Add it (+16 runs) only if the
+cheaper arms show interesting non-adoption.
+
+Two of the three arms share one endpoint, so no separate transport-control cell
+is needed; earlier drafts assumed one arm per gateway and that assumption is now
+gone.
+
+Measured with real requests against these endpoints during plan review:
+1.5–2.0 s per call on `api.deepseek.com`, 1.5–5.0 s on `qwen3.8-flash`, all
+producing valid OpenAI-style `tool_calls` for an `evidra_prescribe` schema. At
+roughly 12 assistant turns per run, 80 runs is about 45–60 minutes serial and
+about 15 minutes at four-way concurrency, so Gate A fits in one sitting.
+
+Order the arms cheapest-first (`qwen3.8-flash`, then `deepseek-flash`, then
+`deepseek-v4-pro`) so that a protocol redesign that kills Gate A never spends
+metered tokens on runs that were going to be discarded.
+
+## Reasoning-token budget
+
+All three arms emit chain-of-thought in a separate `reasoning_content` field.
+
+```text
+max_tokens per assistant turn: >= 2048
+```
+
+A small budget truncates thinking models: at `max_tokens: 80` the same request
+that produced a valid `tool_calls` at 256 returned `finish_reason=length` with
+the call lost. Truncation is therefore a harness configuration fault, not agent
+behavior.
+
+Protocol token overhead is reported twice and never merged:
+
+```text
+protocol_visible_overhead   evidra tool definitions + prescribe/report traffic
+protocol_total_overhead     the same, including reasoning_content tokens
+```
+
+## Invalid run classification
+
+A run is `invalid_run` and is excluded from every denominator when the failure
+is not the agent's:
+
+```text
+HTTP 400 credit/balance error from the gateway
+HTTP 403 model access/deposit error
+HTTP 429 persisting after bounded backoff
+transport timeout or connection reset
+finish_reason = length
+preflight model-id mismatch
+```
+
+This exists because a free preview arm can lose its zero-balance allowance in
+the middle of a session. A zero-balance failure recorded as a task failure would
+turn an account-state artifact into a verdict about protocol UX.
+
+Gate A additionally requires a preflight probe per arm: one `tool_calls` request
+before the first task run, whose result and `required`/balance error (if any) is
+written into the artifact.
 
 Pin in the result:
 
 ```text
-exact model identifier
+provider
+base URL
+API model id (verbatim, as sent)
+display name from the harness config
 date
 client/runtime version
 fixture commit
 temperature/reasoning settings where configurable
+max_tokens budget
+cost basis: free | metered
 ```
+
+`cost_basis` is recorded so that no product claim silently depends on a promo
+price.
 
 ## Task success definition
 
@@ -724,7 +808,7 @@ strong model / enforce=all:
   median blocked attempts per completed operation <= 1
   operations_replaced_without_report <= 1/16
 
-cheap model / enforce=all:
+each cheap arm (`qwen3.8-flash`, `deepseek-flash`) / enforce=all:
   task success >= 13/16
   median blocked attempts per completed operation <= 1
   recovery after first block >= 80% when the denominator is non-zero
@@ -2588,7 +2672,7 @@ one open operation per session
 agent-authorized replacement
 ```
 
-Run the fixed 64-run experiment from the model-acceptance section.
+Run the fixed 80-run experiment from the model-acceptance section (§10).
 
 ### Gate A passes if
 
@@ -3708,7 +3792,7 @@ The main document remains the source of rationale and invariants.
 |---|---|---|---|
 | 1 | branch / CI / fixture | vNext branch, generic fixture, reduced supported build graph | fixture deterministic; core CI green |
 | 2 | `cmd/evidra-mcp`, `pkg/mcpserver`, `pkg/proxy` | one upstream, local tool merge, supported-profile initialize/tools list | direct vs wrapped tools list sane |
-| 3 | MCP session state | `prescribe`, `report`, enforce all/off, replacement | Gate A 64-run experiment |
+| 3 | MCP session state | `prescribe`, `report`, enforce all/off, replacement | Gate A 80-run experiment |
 | 4 | `pkg/evidence` | v2 envelope, per-process dir, atomic append, started/stopped/degraded, signing | chain/seq/signature/store-failure tests |
 | 5 | evidence privacy | JCS arguments, HMAC, bounded result fingerprints, canary | privacy + oversize tests |
 | 6 | `pkg/proxy` | execution start/finish, IDs, cancellation/errors, annotations | execution pairing tests |
