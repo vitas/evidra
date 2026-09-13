@@ -152,7 +152,7 @@ func TestRollupExcludesInvalidRuns(t *testing.T) {
 	runs := []runResult{
 		{Arm: "a", Mode: "all", Task: "t1", Run: 1, Success: true, Reports: 1, Prescribes: 1, FirstUpstreamPrescribed: true},
 		{Arm: "a", Mode: "all", Task: "t2", Run: 1, InvalidRun: "gateway credit/balance error"},
-		{Arm: "a", Mode: "all", Task: "t3", Run: 1, Success: false, Blocked: 2},
+		{Arm: "a", Mode: "all", Task: "t3", Run: 1, Success: false, Blocked: 2, ProtocolOnly: true},
 	}
 	c := rollupCell(runs)
 	if c.InvalidRuns != 1 {
@@ -160,6 +160,15 @@ func TestRollupExcludesInvalidRuns(t *testing.T) {
 	}
 	if c.Runs != 2 {
 		t.Errorf("valid runs = %d, want 2", c.Runs)
+	}
+	// A companion metric must respect the same denominator as the gated ones: a
+	// rollup that counted each protocol-only run twice passed this check only by
+	// accident, and no printed number would have looked obviously wrong.
+	if c.ProtocolOnlySuccess != 1 {
+		t.Errorf("protocol_only_success = %d over %d valid runs, want 1", c.ProtocolOnlySuccess, c.Runs)
+	}
+	if c.ProtocolOnlySuccess > c.Runs {
+		t.Errorf("companion metric exceeds the valid-run denominator: %d > %d", c.ProtocolOnlySuccess, c.Runs)
 	}
 	if c.VoluntaryCoverage != "1/2" {
 		t.Errorf("coverage denominator included an invalid run: %s", c.VoluntaryCoverage)

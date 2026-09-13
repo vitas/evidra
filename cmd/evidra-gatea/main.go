@@ -43,6 +43,7 @@ type options struct {
 	maxTokens  int
 	wallClock  time.Duration
 	dryRun     bool
+	regrade    string
 	script     string
 	calibrate  bool
 	mcpBin     string
@@ -70,6 +71,7 @@ func runCLI(args []string) int {
 	fs.BoolVar(&o.calibrate, "calibrate", false, "measure protocol definition overhead per arm with a differential probe")
 	fs.StringVar(&o.mcpBin, "evidra-mcp", "bin/evidra-mcp", "path to the merged endpoint binary")
 	fs.StringVar(&o.fixtureBin, "fixture", "bin/evidra-fixture", "path to the fixture binary")
+	fs.StringVar(&o.regrade, "regrade", "", "recompute verdicts in an existing artifact directory from its transcripts")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -89,6 +91,13 @@ func runCLI(args []string) int {
 	if len(arms) == 0 || len(tasks) == 0 {
 		fmt.Fprintln(os.Stderr, "nothing to run after filtering")
 		return 1
+	}
+	if o.regrade != "" {
+		if err := regrade(o.regrade, tasks); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		return 0
 	}
 	if o.outDir == "" {
 		o.outDir = filepath.Join("output", "gatea", time.Now().UTC().Format("20060102T150405Z"))

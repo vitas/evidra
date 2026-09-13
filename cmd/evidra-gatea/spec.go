@@ -482,9 +482,6 @@ func rollupCell(runs []runResult) cellMetrics {
 		if r.Reports > 0 {
 			c.TerminalReportCover++
 		}
-		if r.ProtocolOnly {
-			c.ProtocolOnlySuccess++
-		}
 		if r.Prescribes == 0 {
 			c.SessionsNoPrescribe++
 		}
