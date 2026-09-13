@@ -931,27 +931,27 @@ func (e *epEndpoint) failOutstanding(reason string) {
 // epReadMessage reads one newline-delimited frame, refusing anything above max
 // bytes without desynchronizing the stream.
 func epReadMessage(r *bufio.Reader, max int) ([]byte, error) {
-	var (
-		buf  []byte
-		over bool
-	)
+	var buf []byte
 	for {
 		frag, err := r.ReadSlice('\n')
+		// The bound is compared against the accumulated frame, never against one
+		// slice: a bufio.Reader reports ErrBufferFull at its own buffer size, so
+		// treating that as "too large" capped every message at the reader's 64 KiB
+		// and made --max-message decoration.
+		if len(buf)+len(frag) > max {
+			// Drain to the next newline before refusing. Returning early leaves the
+			// rest of the frame in the pipe, and the next read would then parse the
+			// middle of a large message as a new one.
+			if drainErr := epDrainToNewline(r); drainErr != nil {
+				return nil, drainErr
+			}
+			return nil, fmt.Errorf("message exceeds %d bytes", max)
+		}
 		buf = append(buf, frag...)
 		switch {
 		case err == nil:
-			if over {
-				return nil, fmt.Errorf("message exceeds %d bytes", max)
-			}
 			return buf, nil
 		case errors.Is(err, bufio.ErrBufferFull):
-			over = true
-			if len(buf) > max {
-				if drainErr := epDrainToNewline(r); drainErr != nil {
-					return nil, drainErr
-				}
-				return nil, fmt.Errorf("message exceeds %d bytes", max)
-			}
 			continue
 		default:
 			return nil, err
