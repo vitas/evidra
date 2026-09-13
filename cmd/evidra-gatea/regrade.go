@@ -52,6 +52,16 @@ func regrade(dir string, tasks []taskSpec) error {
 		res.ProtocolOnly = len(res.ProtocolOnlyFails) == 0 && res.InvalidRun == ""
 		res.Blocked = tr.BlockedCount
 		res.Unprescribed = tr.unprescribedCalls()
+		facts, ferr := readStoreFacts(runDir)
+		if ferr == nil {
+			applyStoreFacts(&res, facts, res.Mode)
+			if facts != nil {
+				res.Unprescribed = facts.Unprescribed
+			}
+		} else {
+			res.CountsFrom = "transcript"
+			res.Failures = append(res.Failures, "evidence store unreadable: "+ferr.Error())
+		}
 		res.FirstUpstreamPrescribed = tr.firstUpstreamPrescribed
 		res.LatePrescribe = tr.latePrescribe
 		out, _ := json.MarshalIndent(res, "", "  ")

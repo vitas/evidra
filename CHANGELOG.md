@@ -17,6 +17,29 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — Gate A counts are now read from the recorder, not inferred
+
+- `cmd/evidra-gatea` reconciles each finished run against its own store
+  (`<run>/evidence/recorder-*/events.jsonl`): `blocked_attempts`,
+  `unprescribed_executions`, per-operation prescribe/report counts, chain and
+  signature validity, and coverage come from signed events, and `counts_from` in
+  every `result.json` says which account produced them (`store` or `transcript`).
+  The transcript path stays as the fallback for runs that asked for no store, rather
+  than being quietly relabelled as evidence.
+- An execution recorded with no open operation under `--enforce=all` is now a
+  per-run failure (`enforcement hole: …`), not a cell statistic: a number in that
+  field means the recorder watched a call get through that it existed to refuse, and
+  a rolled-up average is the wrong place to discover it.
+- An invalid chain or signature invalidates the run's claim to be evidence at all, so
+  it is recorded as a failure of that run instead of being averaged into a cell.
+- `readStoreFacts` refuses a run directory holding two recorder stores rather than
+  picking one: two writers in one run means the runner's isolation of runs broke, and
+  choosing one arbitrarily would hide it.
+- Verified against the existing free-arm probe set with `--regrade` (no model calls
+  re-run): all 8 runs now report `counts_from: store` with the enforcement counts
+  unchanged, which is the outcome hoped for — the recorder agrees with what the
+  runner inferred from traffic.
+
 ### vNext experiment — Gate B conformance, and the two gates' first artifacts
 
 - Gate B's ">10 MB messages" line exposed the round's most consequential defect:

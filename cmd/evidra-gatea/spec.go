@@ -398,29 +398,34 @@ func inList(v string, allowed []string) bool {
 
 // runResult is one run's recorded verdict.
 type runResult struct {
-	Arm                     string   `json:"arm"`
-	ArmModelID              string   `json:"arm_model_id"`
-	Mode                    string   `json:"mode"`
-	Task                    string   `json:"task"`
-	Run                     int      `json:"run"`
-	Success                 bool     `json:"success"`
-	Failures                []string `json:"failures,omitempty"`
-	InvalidRun              string   `json:"invalid_run,omitempty"`
-	Turns                   int      `json:"turns"`
-	Blocked                 int      `json:"blocked_attempts"`
-	Prescribes              int      `json:"prescribes"`
-	Reports                 int      `json:"reports"`
-	Replacements            int      `json:"replacements"`
-	PromptTokens            int      `json:"prompt_tokens"`
-	OutputTokens            int      `json:"completion_tokens"`
-	ReasonTokens            int      `json:"reasoning_tokens"`
-	Unprescribed            int      `json:"unprescribed_executions"`
-	FirstUpstreamPrescribed bool     `json:"first_upstream_prescribed"`
-	ProtocolOnly            bool     `json:"protocol_only_success"`
-	ProtocolOnlyFails       []string `json:"protocol_only_failures,omitempty"`
-	LatePrescribe           bool     `json:"late_prescribe"`
-	DurationMS              int64    `json:"duration_ms"`
-	TranscriptPath          string   `json:"transcript,omitempty"`
+	Arm          string   `json:"arm"`
+	ArmModelID   string   `json:"arm_model_id"`
+	Mode         string   `json:"mode"`
+	Task         string   `json:"task"`
+	Run          int      `json:"run"`
+	Success      bool     `json:"success"`
+	Failures     []string `json:"failures,omitempty"`
+	InvalidRun   string   `json:"invalid_run,omitempty"`
+	Turns        int      `json:"turns"`
+	Blocked      int      `json:"blocked_attempts"`
+	Prescribes   int      `json:"prescribes"`
+	Reports      int      `json:"reports"`
+	Replacements int      `json:"replacements"`
+	PromptTokens int      `json:"prompt_tokens"`
+	OutputTokens int      `json:"completion_tokens"`
+	ReasonTokens int      `json:"reasoning_tokens"`
+	Unprescribed int      `json:"unprescribed_executions"`
+	// CountsFrom records which account of the run produced the enforcement counts:
+	// "store" means the recorder's signed events, "transcript" means the runner's
+	// own reading of traffic it generated.
+	CountsFrom              string      `json:"counts_from"`
+	Store                   *storeFacts `json:"store_facts,omitempty"`
+	FirstUpstreamPrescribed bool        `json:"first_upstream_prescribed"`
+	ProtocolOnly            bool        `json:"protocol_only_success"`
+	ProtocolOnlyFails       []string    `json:"protocol_only_failures,omitempty"`
+	LatePrescribe           bool        `json:"late_prescribe"`
+	DurationMS              int64       `json:"duration_ms"`
+	TranscriptPath          string      `json:"transcript,omitempty"`
 }
 
 // valid reports whether the run belongs in a denominator at all.

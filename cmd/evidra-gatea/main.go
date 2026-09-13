@@ -373,6 +373,14 @@ func runOne(ctx context.Context, o options, arm armSpec, mode string, task taskS
 	res.OutputTokens = tr.OutputTokens
 	res.ReasonTokens = tr.ReasonTokens
 	res.Unprescribed = tr.unprescribedCalls()
+	facts, err := readStoreFacts(dir)
+	if err != nil {
+		res.InvalidRun = "evidence store unreadable: " + err.Error()
+	}
+	applyStoreFacts(&res, facts, mode)
+	if facts != nil {
+		res.Unprescribed = facts.Unprescribed
+	}
 	res.FirstUpstreamPrescribed = tr.firstUpstreamPrescribed
 	res.LatePrescribe = tr.latePrescribe
 	res.Failures = task.evaluate(tr)

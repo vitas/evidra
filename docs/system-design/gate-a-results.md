@@ -100,3 +100,16 @@ and pairing (step 6) as planned, since reconciliation cannot be authoritative wh
 ahead of the CLI work and demo it on these transcripts. Keep `--enforce=all` as
 written - the contract still has to hold for clients that do misbehave - but stop
 proposing enforcement as the pitch.
+
+## Count provenance, and what this table is not
+
+The enforcement columns above (`blocked`, `unpres`) were produced by the runner
+reading the protocol traffic it generated itself: these 80 runs predate the evidence
+store, and their run directories contain no `evidence/recorder-*/`. They are
+therefore runner inferences, not recorder observations, and regrading them cannot
+upgrade them — `--regrade` reports `counts_from: transcript` for this set.
+
+Free-arm runs after the store landed show both accounts agreeing
+(`docs/system-design/vnext-gate-c-reconciliation-probe.md`), which is what makes the
+distinction worth stating rather than waving through: agreement is not identity, and
+only the recorder's version can be verified after the fact.
