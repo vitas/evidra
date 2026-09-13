@@ -695,6 +695,16 @@ Order the arms cheapest-first (`qwen3.8-flash`, then `deepseek-flash`, then
 `deepseek-v4-pro`) so that a protocol redesign that kills Gate A never spends
 metered tokens on runs that were going to be discarded.
 
+## What the agent may be told
+
+The runner's own prompt must not restate the protocol. Agents learn
+prescribe/report from `initialize.instructions` and the local tool descriptions,
+which is the surface a real MCP client gets; a harness that repeats the rules
+measures its own prompt and reports the result as voluntary adoption. No run gets
+reminded about an open operation, because terminal report coverage is meant to be
+a property of the agent. Agent-visible tool results are truncated above 8 KiB with
+an explicit byte count, identically in both modes.
+
 ## Reasoning-token budget
 
 All three arms emit chain-of-thought in a separate `reasoning_content` field.

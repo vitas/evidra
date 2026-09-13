@@ -17,6 +17,36 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — step 3b: Gate A runner, and the first pilot
+
+- `cmd/evidra-gatea` drives the merged endpoint with an OpenAI-compatible
+  tool-calling client: one `evidra-mcp --proxy --enforce=<mode> -- <fixture>`
+  process per run, per-run JSONL transcript (frames, completions, tool events,
+  verdict), `summary.json` with per-cell metrics, §10's gate conditions and the
+  `git` revision under test.
+- §10's failure classes became `invalid_run` and left every denominator: gateway
+  credit/balance, model access, transport, wall-clock timeout,
+  `finish_reason=length`. A preflight probe per arm is mandatory before the first
+  task, and `--calibrate` measures the prompt-token cost of the two protocol tool
+  definitions separately from per-run traffic (94 tokens on qwen3.8-flash).
+- `--dry-run` replays a scripted agent (`compliant|late|noprescribe|noreport`) so
+  predicates, metrics and artifacts are testable at zero token cost;
+  `TestEveryTaskPredicateIsSatisfiable` fails if any task cannot be passed by a
+  protocol-correct sequence.
+- Task 7 (`change-of-mind`) was redesigned after the first 32-run pilot demanded
+  `abandon_and_replace` specifically and rejected a model that closed the dropped
+  operation honestly as `abandoned`. The predicate now accepts both §11 endings
+  and rejects only the case that matters: an `achieved` record for dropped work.
+- Protocol rules are no longer paraphrased in the runner's prompt (they are
+  relayed verbatim from `initialize.instructions`), open operations are no longer
+  nagged about, and agent-visible tool results are capped at 8 KiB with an
+  explicit marker. All three were inflating or distorting a Gate A metric.
+- First free-arm pilot (qwen3.8-flash, 32 runs, 0 invalid): `enforce=all` 12/16
+  task success with 16/16 first-attempt compliance and zero blocked attempts;
+  `enforce=off` 16/16 voluntary coverage with zero unprescribed executions.
+  Recovery after first block stays `not_measurable` — nothing was ever blocked, so
+  this arm provides no evidence for it yet.
+
 ### Gate A arms pinned from live endpoint probes (plan §10)
 
 - §10 now names its arms instead of describing them: `qwen3.8-flash` @ `api.b.ai/v1` (free at time of writing), `deepseek-flash` @ `api.deepseek.com/v1` (the deployment the harness config displays as DeepSeek-V4.1-Flash), `deepseek-v4-pro` @ `api.deepseek.com/v1` as the ceiling arm. 80 runs total, ordered cheapest-first so a protocol redesign never spends metered tokens on discarded runs. Two of three arms share an endpoint, which removed the need for a transport-control cell.

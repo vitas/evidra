@@ -604,7 +604,14 @@ func verdict(runs []runResult) int {
 func driveAgent(ctx context.Context, ag agent, ep *mcpClient, llmTools []llmTool,
 	nameMap map[string]string, task taskSpec, rec func(string, any)) (*transcript, string) {
 	tr := &transcript{}
-	messages := []llmMessage{{Role: "system", Content: systemContract},
+	// The protocol contract reaches the agent the way it reaches every real MCP
+	// client: verbatim from initialize.instructions, never paraphrased here.
+	serverInstructions := ""
+	if v, ok := ep.header["instructions"].(string); ok {
+		serverInstructions = v
+	}
+	rec("instructions", serverInstructions)
+	messages := []llmMessage{{Role: "system", Content: systemContract + "\n\nServer instructions:\n" + serverInstructions},
 		{Role: "user", Content: task.Goal}}
 	maxTurns := task.MaxTurns
 
