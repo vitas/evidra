@@ -17,6 +17,29 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — step 6: execution pairing, cancellation, annotations
+
+- `notifications/cancelled` now reaches the outstanding call it names. Request ids
+  are matched by value: the forwarded frame was keyed as the client spelled it, and
+  the cancel echoes the id back, so a numeric `7` and a string `"7"` both resolve.
+  Before this the cancel landed nowhere, which only showed up as an execution that
+  started and never finished - a recorder lying by omission.
+- A session that ends with calls in flight closes those executions itself, while
+  the store is still open, instead of racing the child's EOF. Cancelled-and-never-
+  answered is recorded as `cancelled`; started-and-abandoned is `unknown`. A call
+  that answered anyway after being cancelled is recorded as answered: the terminal
+  event states what happened inside the boundary, not what the client hoped.
+- Terminal events are appended **before** the response is relayed, per §17. A test
+  that asserted the event order caught the inversion as a flake: relaying first let
+  an agent that reacts to a result immediately write its `operation_reported` ahead
+  of the `execution_finished` it describes, and no downstream reconciliation can
+  unscramble two events whose relative order is the fact being measured. The real
+  upstream result is still relayed when the append fails (§18).
+- Tests: parallel `slow` calls pair by `execution_id` without crossing their
+  durations; `arguments_hmac` is stable across key reordering through the real
+  endpoint (not just the helper) while a changed value moves it; and cancellation
+  is asserted for both request-id spellings.
+
 ### vNext experiment — step 4: evidence.v2 store wired into the endpoint
 
 - `pkg/evidence` gains the v2 model from plan §14-§21: a flat `evidra.evidence.v2`

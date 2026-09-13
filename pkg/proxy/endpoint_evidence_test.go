@@ -272,3 +272,216 @@ func TestEvidenceStoreFailureStopsForwarding(t *testing.T) {
 		t.Errorf("stderr did not explain the failure: %s", h.stderrText())
 	}
 }
+
+// TestExecutionsPairByIdUnderParallelCalls is §16's promise that `execution_id`
+// is the authoritative pairing key even when upstream calls overlap: with two
+// concurrent slow calls the store must still show each id started exactly once and
+// finished exactly once, and must not cross their durations.
+func TestExecutionsPairByIdUnderParallelCalls(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "evidence")
+	h := startEndpoint(t, "--enforce=off", "--evidence-dir", root, fixtureBin)
+	h.initialize()
+	fast, slow := h.id(), h.id()
+	if err := h.sendMsg(fast, "tools/call", map[string]any{
+		"name": "slow", "arguments": map[string]any{"delay_ms": 300, "label": "fast"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.sendMsg(slow, "tools/call", map[string]any{
+		"name": "slow", "arguments": map[string]any{"delay_ms": 2000, "label": "slow"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.response(string(fast)); err != nil {
+		t.Fatalf("fast response: %v", err)
+	}
+	if _, err := h.response(string(slow)); err != nil {
+		t.Fatalf("slow response: %v", err)
+	}
+	h.closeIn()
+	if err := h.wait(); err != nil {
+		t.Fatalf("exit: %v", err)
+	}
+
+	events, _, err := evidence.ReadStore(recorderDir(t, root), time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	type pair struct {
+		tool     string
+		finished bool
+		startAt  time.Time
+		duration int64
+	}
+	pairs := map[string]*pair{}
+	var order []string
+	for _, ev := range events {
+		switch ev.EventType {
+		case evidence.EventExecutionStarted:
+			p, err := ev.DecodePayload()
+			if err != nil {
+				t.Fatal(err)
+			}
+			s := p.(*evidence.ExecutionStartedPayload)
+			if _, dup := pairs[s.ExecutionID]; dup {
+				t.Fatalf("execution %s started twice", s.ExecutionID)
+			}
+			pairs[s.ExecutionID] = &pair{tool: s.Tool, startAt: s.StartedAt}
+			order = append(order, s.ExecutionID)
+		case evidence.EventExecutionFinished:
+			p, err := ev.DecodePayload()
+			if err != nil {
+				t.Fatal(err)
+			}
+			f := p.(*evidence.ExecutionFinishedPayload)
+			pr, ok := pairs[f.ExecutionID]
+			if !ok {
+				t.Fatalf("execution %s finished without a start", f.ExecutionID)
+			}
+			if pr.finished {
+				t.Fatalf("execution %s finished twice", f.ExecutionID)
+			}
+			pr.finished = true
+			pr.duration = f.DurationMS
+			if f.Status != evidence.ExecutionSuccess {
+				t.Errorf("execution %s status = %s", f.ExecutionID, f.Status)
+			}
+		}
+	}
+	if len(order) != 2 {
+		t.Fatalf("executions = %d, want 2", len(order))
+	}
+	for _, id := range order {
+		if !pairs[id].finished {
+			t.Errorf("execution %s never finished", id)
+		}
+	}
+	// Durations must not be swapped between the two overlapping calls.
+	first, second := pairs[order[0]], pairs[order[1]]
+	quick, slowPair := first, second
+	if slowPair.duration < quick.duration {
+		quick, slowPair = slowPair, first
+	}
+	if quick.duration > 1500 || slowPair.duration < 1500 {
+		t.Errorf("pairing crossed the two calls: durations %d and %d ms", quick.duration, slowPair.duration)
+	}
+}
+
+// TestArgumentsFingerprintSurvivesKeyOrder is §24's stated test, run through the
+// real endpoint rather than the helper: two identical argument objects that
+// differ only in serialization order must fingerprint identically, while a real
+// difference must not.
+func TestArgumentsFingerprintSurvivesKeyOrder(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "evidence")
+	h := startEndpoint(t, "--enforce=off", "--evidence-dir", root, fixtureBin)
+	h.initialize()
+	for _, args := range []map[string]any{
+		{"delay_ms": 10, "label": "same"},
+		{"label": "same", "delay_ms": 10},
+		{"delay_ms": 11, "label": "same"},
+	} {
+		if _, isErr := h.call("slow", args); isErr {
+			t.Fatalf("slow %v failed", args)
+		}
+	}
+	h.closeIn()
+	if err := h.wait(); err != nil {
+		t.Fatalf("exit: %v", err)
+	}
+	events, _, err := evidence.ReadStore(recorderDir(t, root), time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var hmacs []string
+	for _, ev := range events {
+		if ev.EventType != evidence.EventExecutionStarted {
+			continue
+		}
+		p, err := ev.DecodePayload()
+		if err != nil {
+			t.Fatal(err)
+		}
+		hmacs = append(hmacs, p.(*evidence.ExecutionStartedPayload).ArgumentsHMAC)
+	}
+	if len(hmacs) != 3 {
+		t.Fatalf("started executions = %d, want 3", len(hmacs))
+	}
+	if hmacs[0] != hmacs[1] {
+		t.Errorf("key order changed the argument fingerprint: %s vs %s", hmacs[0], hmacs[1])
+	}
+	if hmacs[0] == hmacs[2] {
+		t.Error("different arguments produced the same fingerprint")
+	}
+}
+
+// TestCancelledExecutionIsRecordedAsCancelled covers the terminal state the wire
+// can prove but a relay usually loses: the client asked to cancel, the upstream
+// never answered, and the execution must not be left started-without-finish nor
+// recorded as a success.
+func TestCancelledExecutionIsRecordedAsCancelled(t *testing.T) {
+	// Both spellings of the same request id, because the cancel notification
+	// echoes the id as the client wrote it while the outstanding call was keyed
+	// from the frame that opened it.
+	for _, id := range []string{"702", `"702"`} {
+		t.Run("requestId "+id, func(t *testing.T) {
+			assertCancelledExecutionRecorded(t, id)
+		})
+	}
+}
+
+func assertCancelledExecutionRecorded(t *testing.T, requestID string) {
+	t.Helper()
+	root := filepath.Join(t.TempDir(), "evidence")
+	h := startEndpoint(t, "--enforce=off", "--evidence-dir", root, fixtureBin)
+	h.initialize()
+	if _, isErr := h.call("evidra_prescribe", map[string]any{"objective": "wait on a slow call"}); isErr {
+		t.Fatal("prescribe failed")
+	}
+	if err := h.send(`{"jsonrpc":"2.0","id":` + requestID + `,"method":"tools/call","params":{"name":"slow","arguments":{"delay_ms":60000,"label":"never"}}}`); err != nil {
+		t.Fatal(err)
+	}
+	// Give the forward a moment to reach the child, then cancel and hang up.
+	if err := h.send(`{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":` + requestID + `,"reason":"agent gave up"}}`); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(150 * time.Millisecond)
+	h.closeIn()
+	if err := h.wait(); err != nil {
+		t.Fatalf("exit: %v", err)
+	}
+
+	events, _, err := evidence.ReadStore(recorderDir(t, root), time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var started, finished, cancelled int
+	for _, ev := range events {
+		switch ev.EventType {
+		case evidence.EventExecutionStarted:
+			started++
+		case evidence.EventExecutionFinished:
+			finished++
+			p, err := ev.DecodePayload()
+			if err != nil {
+				t.Fatal(err)
+			}
+			f := p.(*evidence.ExecutionFinishedPayload)
+			switch f.Status {
+			case evidence.ExecutionCancelled:
+				cancelled++
+				if f.ErrorCode != "cancelled_by_client" {
+					t.Errorf("error_code = %q, want cancelled_by_client", f.ErrorCode)
+				}
+			case evidence.ExecutionSuccess:
+				t.Error("a cancelled call that never answered was recorded as success")
+			}
+		}
+	}
+	if started == 0 {
+		t.Fatal("the cancelled call was never recorded as started")
+	}
+	if cancelled == 0 {
+		t.Errorf("no cancelled terminal event: started=%d finished=%d", started, finished)
+	}
+	if started != finished {
+		t.Errorf("%d executions started, %d finished: a started execution with no terminal event is a recorder lying by omission", started, finished)
+	}
+}

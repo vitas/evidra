@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"samebits.com/evidra/pkg/evidence"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -145,6 +146,11 @@ type epFwd struct {
 	// exec identifies the recorded execution this call belongs to, so a terminal
 	// event can pair with its start (§16-§17).
 	exec epExecution
+	// cancelRequested records that the client asked to cancel while the call was
+	// in flight. It changes how the terminal event is worded, not whether one is
+	// written: an execution that answered anyway after being cancelled is
+	// recorded as answered, because that is what happened.
+	cancelRequested bool
 	// compose marks a forwarded request whose response the endpoint rewrites.
 	compose bool
 	// firstPage records that the tools/list request carried no cursor, the only
@@ -319,6 +325,11 @@ func (e *epEndpoint) stopChild() {
 func (e *epEndpoint) shutdown() {
 	e.closeOnce.Do(func() {
 		close(e.done)
+		// Anything still outstanding gets its terminal event here, while there is
+		// still a recorder to write to. The endpoint is the only witness of these
+		// calls and it is going away; leaving an execution started-without-finish
+		// would report a session that never ended (§17).
+		e.failOutstanding("endpoint shutting down")
 		if err := e.evidence.close("stopped"); err != nil {
 			e.logger.Printf("endpoint: evidence store close: %v", err)
 		}
@@ -626,14 +637,16 @@ func (e *epEndpoint) replyLocalTool(msg *epMsg, out any, protocolErr *epError) e
 func (e *epEndpoint) handleClientNotification(ctx context.Context, msg *epMsg) error {
 	switch msg.Method {
 	case "notifications/cancelled":
-		key := epStringFieldRaw(msg.Params, "requestId")
-		e.stateMu.Lock()
-		fwd := e.fwd[key]
-		e.stateMu.Unlock()
+		id := epRequestIDField(msg.Params, "requestId")
+		fwd := e.lookupFwd(id)
 		if fwd == nil {
 			// Nothing outstanding: the cancel raced a response. Forwarding it
 			// anyway is harmless and keeps the upstream informed.
-			e.logger.Printf("endpoint: cancel for unknown request %s", key)
+			e.logger.Printf("endpoint: cancel for unknown request %s", id)
+		} else {
+			e.stateMu.Lock()
+			fwd.cancelRequested = true
+			e.stateMu.Unlock()
 		}
 		return e.writeUpstream(msg.raw)
 	default:
@@ -740,17 +753,65 @@ func (e *epEndpoint) routeUpstreamResponse(msg *epMsg) {
 		_ = e.writeClient(out)
 		return
 	}
+	// §17 fixes the order: the terminal event is appended, then the response goes
+	// back to the client. Relaying first lets an agent that acts on the result
+	// immediately - which is the whole point of an agent - land its
+	// operation_reported ahead of the execution it is reporting about, and no
+	// amount of downstream reconciliation can unscramble that. A failed terminal
+	// append still relays the real result (§18), which is why the error is logged
+	// here rather than acted on.
+	e.finishExecution(fwd, msg.raw)
 	if err := e.writeClient(msg.raw); err != nil {
 		e.logger.Printf("endpoint: relay to client: %v", err)
-		return
 	}
-	e.finishExecution(fwd, msg.raw)
 }
 
 // annotationsFor returns the upstream-declared annotations for a tool as they
 // stood at the last tools/list. Absence is preserved on purpose: evidence that a
 // server declared nothing must not look like evidence that it declared read-only
 // (§22, §26).
+// lookupFwd finds an outstanding forwarded request from an id written by the
+// client. Ids are matched by value, and the cancel notification carries the id as
+// the client chose to spell it, so a numeric 7 and a string "7" both have to find
+// the request whose key was recorded in whichever form arrived. Without this the
+// cancellation lands nowhere and the execution keeps its provisional start.
+func (e *epEndpoint) lookupFwd(key string) *epFwd {
+	if key == "" {
+		return nil
+	}
+	e.stateMu.Lock()
+	defer e.stateMu.Unlock()
+	if f := e.fwd[key]; f != nil {
+		return f
+	}
+	var number json.Number
+	if err := json.Unmarshal([]byte(key), &number); err == nil {
+		return e.fwd[`"`+key+`"`]
+	}
+	if bare, err := strconv.Unquote(key); err == nil {
+		return e.fwd[bare]
+	}
+	return nil
+}
+
+// epRequestIDField reads a request id out of notification params without deciding
+// whether it is a string or a number, then compacts it to the same form idKey uses.
+func epRequestIDField(params json.RawMessage, key string) string {
+	var in map[string]json.RawMessage
+	if err := json.Unmarshal(params, &in); err != nil {
+		return ""
+	}
+	raw, ok := in[key]
+	if !ok {
+		return ""
+	}
+	var buf bytes.Buffer
+	if err := json.Compact(&buf, raw); err != nil {
+		return ""
+	}
+	return buf.String()
+}
+
 func (e *epEndpoint) annotationsFor(tool string) json.RawMessage {
 	e.stateMu.Lock()
 	defer e.stateMu.Unlock()
@@ -765,10 +826,10 @@ func (e *epEndpoint) annotationsFor(tool string) json.RawMessage {
 	return raw
 }
 
-// finishExecution writes the terminal event after the real response already
-// reached the client. Losing it degrades coverage; it never rewrites the agent's
-// result, because a fabricated operational failure invites an automatic retry of
-// work that succeeded (§18).
+// finishExecution writes the terminal event for a forwarded call. Losing it
+// degrades coverage without rewriting anything the client sees: the real result is
+// relayed either way, because a fabricated operational failure invites an
+// automatic retry of work that succeeded (§18).
 func (e *epEndpoint) finishExecution(fwd *epFwd, raw json.RawMessage) {
 	if fwd == nil || fwd.exec.ID == "" {
 		return
@@ -849,8 +910,16 @@ func (e *epEndpoint) failOutstanding(reason string) {
 		if f.exec.ID == "" {
 			continue
 		}
-		if err := e.evidence.finishExecution(f.exec, nil, evidence.ExecutionUnknown,
-			"upstream_unavailable", "no response arrived before the upstream exited"); err != nil {
+		status, code, detail := evidence.ExecutionUnknown, "upstream_unavailable",
+			"no response arrived before the upstream exited"
+		if f.cancelRequested {
+			// The client stopped caring and nothing answered: cancelled is the
+			// claim the wire supports. Had a response arrived, the real status
+			// would have been recorded instead (§17).
+			status, code, detail = evidence.ExecutionCancelled, "cancelled_by_client",
+				"client cancelled and no response arrived"
+		}
+		if err := e.evidence.finishExecution(f.exec, nil, status, code, detail); err != nil {
 			e.logger.Printf("endpoint: could not close execution evidence: %v", err)
 		}
 	}
@@ -956,17 +1025,6 @@ func epStringField(result map[string]any, key string) string {
 		return ""
 	}
 	if v, ok := result[key].(string); ok {
-		return v
-	}
-	return ""
-}
-
-func epStringFieldRaw(raw json.RawMessage, key string) string {
-	var m map[string]any
-	if err := json.Unmarshal(raw, &m); err != nil {
-		return ""
-	}
-	if v, ok := m[key].(string); ok {
 		return v
 	}
 	return ""
