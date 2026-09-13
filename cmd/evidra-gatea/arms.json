@@ -1,0 +1,49 @@
+{
+  "arms": [
+    {
+      "id": "qwen38-flash",
+      "role": "cheap",
+      "provider": "b.ai inference node",
+      "base_url": "https://api.b.ai/v1",
+      "api_model_id": "qwen3.8-flash",
+      "display_name": "qwen3.8-flash",
+      "key_ref": "OPENROUTER_API_KEY",
+      "cost_basis": "free",
+      "modes": ["off", "all"]
+    },
+    {
+      "id": "mimo-v25",
+      "role": "cheap",
+      "provider": "b.ai inference node",
+      "base_url": "https://api.b.ai/v1",
+      "api_model_id": "mimo-v2.5",
+      "display_name": "mimo-v2.5",
+      "key_ref": "OPENROUTER_API_KEY",
+      "cost_basis": "free",
+      "modes": ["off", "all"]
+    },
+    {
+      "id": "ds-v4-pro",
+      "role": "strong",
+      "provider": "DeepSeek",
+      "base_url": "https://api.deepseek.com/v1",
+      "api_model_id": "deepseek-v4-pro",
+      "display_name": "DeepSeek-V4-Pro",
+      "key_ref": "DEEPSEEK_API_KEY",
+      "cost_basis": "metered",
+      "modes": ["all"]
+    },
+    {
+      "id": "ds-v41-flash",
+      "role": "cheap-capable",
+      "provider": "DeepSeek",
+      "base_url": "https://api.deepseek.com/v1",
+      "api_model_id": "deepseek-flash",
+      "display_name": "DeepSeek-V4.1-Flash (the same product the local harness config labels deepseek-flash)",
+      "key_ref": "DEEPSEEK_API_KEY",
+      "cost_basis": "metered",
+      "modes": ["off", "all"],
+      "optional": true
+    }
+  ]
+}
