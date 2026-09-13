@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -40,7 +41,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 	apiKeyFlag := fs.String("api-key", os.Getenv("EVIDRA_API_KEY"), "Evidra API key")
 	offlineFlag := fs.Bool("offline", false, "Force offline mode")
 	fallbackOfflineFlag := fs.Bool("fallback-offline", false, "Fall back to offline on API failure")
-	proxyFlag := fs.Bool("proxy", false, "Proxy mode: wrap an upstream MCP server and auto-record mutations")
+	proxyFlag := fs.Bool("proxy", false, "Merged endpoint: wrap one upstream MCP server and expose evidra_prescribe / evidra_report over its tools")
+	legacyProxyFlag := fs.Bool("legacy-proxy", false, "Pre-vNext relay: auto-record mutations with the legacy evidence writer (deprecated, slated for removal)")
+	serverNameFlag := fs.String("server-name", "", "Label for the wrapped upstream in evidence and serverInfo")
+	advertisePassthroughFlag := fs.Bool("advertise-passthrough", false, "Advertise upstream prompts/resources/completions that are relayed but outside the supported profile")
+	maxMessageFlag := fs.String("max-message", "64MiB", "Largest single JSON-RPC message accepted in either direction")
 	fullPrescribeFlag := fs.Bool("full-prescribe", false, "Expose prescribe_full tool (experimental, for advanced models only)")
 	transportFlag := fs.String("transport", "stdio", "Transport mode: stdio (default) or streamable-http")
 	portFlag := fs.String("port", "3001", "HTTP port when using streamable-http transport")
@@ -64,6 +69,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 	logger := log.New(stderr, "", log.LstdFlags)
 
 	if *proxyFlag {
+		return runEndpointMode(context.Background(), stderr, logger, fs.Args(), endpointFlags{
+			serverName:     *serverNameFlag,
+			advertiseExtra: *advertisePassthroughFlag,
+			maxMessage:     *maxMessageFlag,
+		})
+	}
+	if *legacyProxyFlag {
 		return runProxyMode(context.Background(), stderr, evidencePath, logger, fs.Args())
 	}
 
@@ -160,6 +172,80 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+// endpointFlags carries the merged-endpoint options parsed in run().
+type endpointFlags struct {
+	serverName     string
+	advertiseExtra bool
+	maxMessage     string
+}
+
+// runEndpointMode serves the vNext merged endpoint (§59 step 2): one upstream
+// child process, Evidra's local protocol tools merged into its tool list, and a
+// client-facing capability set limited to what the supported profile covers.
+func runEndpointMode(ctx context.Context, stderr io.Writer, logger *log.Logger, args []string, flags endpointFlags) int {
+	remaining, err := normalizeProxyArgs(args)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	maxMessage, err := parseByteSize(flags.maxMessage)
+	if err != nil {
+		fmt.Fprintf(stderr, "invalid --max-message: %v\n", err)
+		return 1
+	}
+	logger.Printf("evidra-mcp merged endpoint (upstream: %s, server-name: %s)", remaining[0], flags.serverName)
+	if err := proxy.RunEndpoint(ctx, os.Stdin, os.Stdout, proxy.RunEndpointOptions{
+		UpstreamArgs:         remaining,
+		Logger:               logger,
+		MaxMessage:           maxMessage,
+		AdvertisePassthrough: flags.advertiseExtra,
+		ServerName:           flags.serverName,
+	}); err != nil {
+		fmt.Fprintf(stderr, "endpoint: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+// parseByteSize accepts plain bytes plus KiB/MiB/GiB and the kb/mb/gb spellings.
+func parseByteSize(v string) (int, error) {
+	s := strings.TrimSpace(v)
+	if s == "" {
+		return 0, fmt.Errorf("empty size")
+	}
+	i := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		i++
+	}
+	digits, unit := s[:i], strings.ToLower(strings.ReplaceAll(s[i:], " ", ""))
+	if digits == "" {
+		return 0, fmt.Errorf("invalid size %q", v)
+	}
+	n, err := strconv.Atoi(digits)
+	if err != nil {
+		return 0, fmt.Errorf("invalid size %q", v)
+	}
+	mult := 1
+	switch unit {
+	case "":
+	case "k", "kb":
+		mult = 1 << 10
+	case "kib":
+		mult = 1 << 10
+	case "m", "mb":
+		mult = 1 << 20
+	case "mib":
+		mult = 1 << 20
+	case "g", "gb":
+		mult = 1 << 30
+	case "gib":
+		mult = 1 << 30
+	default:
+		return 0, fmt.Errorf("unknown unit %q", s[i:])
+	}
+	return n * mult, nil
 }
 
 func normalizeProxyArgs(args []string) ([]string, error) {

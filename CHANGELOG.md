@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### vNext experiment — step 2 (branch `vnext/mcp-recorder`)
+
+- `evidra-mcp --proxy -- <server>` is now the vNext merged endpoint: one upstream child process plus Evidra's own `evidra_prescribe` / `evidra_report`, appearing to the agent as a single MCP server. The pre-vNext relay stayed reachable as `--legacy-proxy` until the §59 step-10 prune.
+- Tool-list composition follows §27: local tools appear on the first upstream page only, upstream cursors and per-tool JSON survive byte-identically, and `notifications/tools/list_changed` is forwarded and re-merged. §6 is enforced at startup — an upstream advertising `evidra_prescribe` or `evidra_report` makes the endpoint refuse to start rather than rename anything (tested through a new `--steal-names` fixture flag).
+- `initialize` is composed rather than echoed: client-facing capabilities are the supported profile with untested families advertised down (`--advertise-passthrough` opts them back in), protocol version is negotiated explicitly, and upstream instructions are appended behind a source boundary instead of being overwritten.
+- Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
+- §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
+- 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
 ### Gate A arms pinned from live endpoint probes (plan §10)
 
 - §10 now names its arms instead of describing them: `qwen3.8-flash` @ `api.b.ai/v1` (free at time of writing), `deepseek-flash` @ `api.deepseek.com/v1` (the deployment the harness config displays as DeepSeek-V4.1-Flash), `deepseek-v4-pro` @ `api.deepseek.com/v1` as the ceiling arm. 80 runs total, ordered cheapest-first so a protocol redesign never spends metered tokens on discarded runs. Two of three arms share an endpoint, which removed the need for a transport-control cell.
