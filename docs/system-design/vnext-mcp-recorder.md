@@ -733,6 +733,16 @@ a protocol-only miss redesigns Evidra, a task-only miss redesigns the task or th
 model choice. On this pilot the split is 15/16 protocol-only versus 12/16 task
 success in `enforce=all` — the same runs, read two ways.
 
+A task whose only path to "pass" is overclaiming is a defect in the experiment,
+not in the agent: the large-result task originally required
+`completed/achieved` while the client truncates that payload to 8 KiB for the
+agent. Read honestly, that cell asked the model to lie about content it could not
+see, and the pilot showed both reactions to the bind — one arm reported `failed`
+and was scored as failing, the other re-issued the twelve-megabyte call sixteen
+times hunting for something it could honestly claim. Both endings are now
+accepted; closure and a bounded retry count are the measurement, and honesty is
+`honest-failure`'s job.
+
 ## What the agent may be told
 
 The runner's own prompt must not restate the protocol. Agents learn

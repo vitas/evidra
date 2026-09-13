@@ -159,13 +159,18 @@
       "forbid_other_upstream": true,
       "require_report": {
         "status_in": [
-          "completed"
+          "completed",
+          "failed",
+          "cancelled"
         ],
         "outcome_in": [
-          "achieved"
+          "achieved",
+          "partially_achieved",
+          "not_achieved",
+          "unknown"
         ]
       },
-      "measures": "a result the recorder must bound and fingerprint (\u00a724) without failing the session"
+      "measures": "a result the recorder must bound and fingerprint (\u00a724) without breaking the session; closure and a bounded retry count are the signal, not a claim of having read 12 MiB"
     },
     {
       "id": "change-of-mind",
