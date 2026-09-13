@@ -653,25 +653,37 @@ loudly in the preflight, not silently substitute a model.
 
 | role | provider | base URL | API model id | cost basis |
 |---|---|---|---|---|
-| cheap (headline) | b.ai node | `https://api.b.ai/v1` | `qwen3.8-flash` | free at time of writing |
-| cheap-capable | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-flash` | metered |
+| cheap arm A | b.ai node | `https://api.b.ai/v1` | `qwen3.8-flash` | free at time of writing |
+| cheap arm B | b.ai node | `https://api.b.ai/v1` | `mimo-v2.5` | free at time of writing |
 | strong (ceiling) | DeepSeek | `https://api.deepseek.com/v1` | `deepseek-v4-pro` | metered |
 
 ```text
-qwen3.8-flash      off + all  = 8 × 2 × 2 = 32 runs
-deepseek-flash     off + all  = 8 × 2 × 2 = 32 runs
-deepseek-v4-pro    all only   = 8 × 2     = 16 runs
+qwen3.8-flash      off + all  = 8 × 2 × 2 = 32 runs   free
+mimo-v2.5          off + all  = 8 × 2 × 2 = 32 runs   free
+deepseek-v4-pro    all only   = 8 × 2     = 16 runs   metered
 
-total: 80 runs
+total: 80 runs, of which 16 are metered
+```
+
+Two cheap arms on one endpoint, not one. The product claim is "an inexpensive
+agent can be held to this protocol", and a single model cannot support that
+sentence: agreement between two independent commodity models can, and one
+model's quirk becomes visible instead of becoming the result.
+
+Optional fourth arm, run only if the two cheap arms disagree materially or if a
+"capable but still cheap" data point is needed for the pitch:
+
+```text
+deepseek-flash (DeepSeek-V4.1-Flash)  off + all  = 32 runs   metered
 ```
 
 `deepseek-v4-pro` is not run in `--enforce=off`: voluntary adoption is measured
 on the arms the product is actually pitched to. Add it (+16 runs) only if the
 cheaper arms show interesting non-adoption.
 
-Two of the three arms share one endpoint, so no separate transport-control cell
-is needed; earlier drafts assumed one arm per gateway and that assumption is now
-gone.
+Both cheap arms and the ceiling arm are each single-transport now (the two free
+arms share a gateway), so no transport-control cell is needed; earlier drafts
+assumed one arm per gateway and carried an extra cell for exactly that.
 
 Measured with real requests against these endpoints during plan review:
 1.5–2.0 s per call on `api.deepseek.com`, 1.5–5.0 s on `qwen3.8-flash`, all
@@ -724,6 +736,12 @@ turn an account-state artifact into a verdict about protocol UX.
 Gate A additionally requires a preflight probe per arm: one `tool_calls` request
 before the first task run, whose result and `required`/balance error (if any) is
 written into the artifact.
+
+The preflight is not a formality. Zero-cost routing on the b.ai node is
+per-model and has changed between reviews of this plan: a model advertised as
+free there now rejects every request with `credit insufficient balance`, while
+another that once timed out answers in 2.6 s. A free arm that silently becomes
+metered mid-session must produce `invalid_run`, not a Gate A failure.
 
 Pin in the result:
 

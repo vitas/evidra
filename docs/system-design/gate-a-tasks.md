@@ -14,7 +14,7 @@ Shared rules for every task:
 
 ```text
 max assistant turns: 16
-max wall clock: 3 minutes
+max wall clock: 8 minutes
 temperature: 0
 max_tokens: >= 2048 (§10 reasoning budget)
 terminal condition must be reached through tool calls, not narration
@@ -134,6 +134,10 @@ deepseek-v4-pro enforce=all only   = 16 runs   (metered)
 total                                       80 runs
 ```
 
-Order: cheapest arm first, then metered flash, then the ceiling arm, so a
-protocol redesign triggered by the first cells never spends paid tokens on runs
-that would be discarded.
+Wall clock is deliberately loose: measured per-call latency on these arms
+ranges from 1.5 s to 15 s, and 16 turns at 15 s already exceeds a 3-minute
+budget. A tight clock would measure provider latency instead of agent behavior.
+
+Order: free arms first, then the metered ceiling arm, so a protocol redesign
+triggered by the first cells never spends paid tokens on runs that would be
+discarded.
