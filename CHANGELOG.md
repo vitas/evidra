@@ -17,6 +17,23 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — §43 prune: written as a plan, deliberately not executed
+
+- `docs/system-design/vnext-prune-plan.md` is the deletion-ready inventory for §43:
+  every removal item mapped to the packages and files that implement it, the vNext
+  surface that must survive, and a five-step order that keeps CI green at each commit
+  (leaves first, then the analysis chain, then `pkg/mcpserver`, then the legacy relay
+  together with its tests, then v1 evidence shapes), each step gated on build/test/race
+  plus a Gate A re-grade.
+- It is not executed, because §43 conditions deletion on Gates A–C being green and
+  none of them is: Gate A's strong arm is 11/15 against a 15/16 bar with zero blocks
+  in 80 runs, Gate C is explicitly not passed. Deleting the measured legacy path while
+  the replacement's central question is still open is the failure §43 warns about,
+  so the artifact states the precondition rather than satisfying the checklist item.
+- The doc also records the two ways forward: clear the bars as written, or revise them
+  to what the cheap arms demonstrably do — with the revision landing in the same commit
+  as the first deletion.
+
 ### vNext experiment — Gate A counts are now read from the recorder, not inferred
 
 - `cmd/evidra-gatea` reconciles each finished run against its own store
