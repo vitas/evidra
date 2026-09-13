@@ -17,6 +17,43 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — step 8: reconciliation, and two structural bugs it exposed
+
+- `pkg/report` implements §34/§38: it reads every recorder store under an evidence
+  root, joins prescriptions with the executions carrying their `operation_id` and
+  with the agent's terminal report, and emits a `summary.json` that keeps each
+  comparison domain separate (`enforce mode | upstream | digest_key_id`). Derived
+  states are exactly the four the plan names — `reported`, `replaced_without_report`,
+  `interrupted_session`, `lifecycle_unknown` — and no report is ever synthesized for
+  an operation that has none.
+- §38.A's anomaly (`CLAIMED_ACHIEVED_WITHOUT_OBSERVED_EXECUTION_IN_SCOPE`) is emitted
+  as an evidence anomaly with its observation scope, never as fraud. §38.B's
+  same-fingerprint recovery reports `insufficient_fingerprint_data` instead of
+  "no later success" whenever the comparison could not actually be made, which is the
+  difference between a measurement and an accusation. §38.C's read-only fact carries
+  the disclosure that server annotations are unverified.
+- `blocked_attempts_for_operation` turned out to be unimplementable as named: a block
+  only happens when no operation is open, so an operation-scoped block count is
+  structurally always zero, and printing that would hide the exact distinction §38
+  wants (nothing attempted versus five refusals). The field is
+  `blocked_attempts_in_session`, the narrowest scope that can exist.
+- `first_attempt_protocol_compliance` is filled only in `enforce=all` and
+  `voluntary_prescription_coverage` only in `enforce=off`, so no number can be read
+  as spanning both.
+- Two bugs found while building it, both structural:
+  - `NewRecorderDirName` sliced the **front** of a ULID, which is its timestamp
+    component: every recorder started in the same millisecond got the same directory
+    name, and the second process appended into the first one's file. Single-writer
+    per store was not holding. Now the random tail plus `os.Mkdir` with redraw, so a
+    name collision cannot be silently resumed into.
+  - The execution index deleted entries as they paired, so a fully reconciled session
+    assembled to zero executions. Starts now live in two indexes: one open-set that
+    shrinks, one complete record that operations are built from.
+- Tests: 5 reconciliation tests (anomaly plus block attribution, mode separation,
+  interrupted versus lifecycle-unknown, fingerprint metrics including the
+  insufficient-data branch, recorder-name uniqueness) and they assert the negative
+  too — a cell where prescription was required must not report voluntary coverage.
+
 ### vNext experiment — step 6: execution pairing, cancellation, annotations
 
 - `notifications/cancelled` now reaches the outstanding call it names. Request ids

@@ -97,10 +97,30 @@ func OpenStore(o Options) (*Store, error) {
 	}
 	dir := o.Dir
 	if dir == "" {
-		dir = filepath.Join(o.Root, NewRecorderDirName(time.Now()))
-	}
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return nil, fmt.Errorf("store %s: %w", dir, err)
+		// Mkdir rather than MkdirAll: an existing directory means another recorder
+		// already claimed this name, so redraw instead of appending into it. A
+		// caller that names a directory explicitly means to resume it, and takes
+		// the resume path below.
+		now := time.Now()
+		for attempt := 0; ; attempt++ {
+			candidate := filepath.Join(o.Root, NewRecorderDirName(now))
+			err := os.MkdirAll(filepath.Dir(candidate), 0o700)
+			if err == nil {
+				err = os.Mkdir(candidate, 0o700)
+			}
+			if err == nil {
+				dir = candidate
+				break
+			}
+			if !os.IsExist(err) {
+				return nil, fmt.Errorf("store: create recorder dir: %w", err)
+			}
+			if attempt >= 4 {
+				return nil, fmt.Errorf("store: recorder name collision under %s after %d tries", o.Root, attempt+1)
+			}
+		}
+	} else if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("store: create evidence dir: %w", err)
 	}
 	sign, err := loadOrCreateSigningKey(filepath.Join(dir, signingKeyFn))
 	if err != nil {
@@ -152,9 +172,16 @@ func OpenStore(o Options) (*Store, error) {
 }
 
 // NewRecorderDirName builds the stable directory name from §20.
+// NewRecorderDirName names a recorder directory: a second-resolution timestamp for
+// readers, plus the random tail of a ULID for uniqueness. The tail is deliberate -
+// a ULID's first characters encode its timestamp, so slicing the front produced
+// names that collided for every recorder started in the same millisecond, and two
+// recorders sharing one directory is precisely the multi-writer layout §20 exists
+// to prevent.
 func NewRecorderDirName(t time.Time) string {
+	id := ulid.Make().String()
 	return fmt.Sprintf("recorder-%s-%s", t.UTC().Format("20060102-150405"),
-		strings.ToLower(ulid.Make().String()[:8]))
+		strings.ToLower(id[len(id)-8:]))
 }
 
 // resumeTail reads the last existing record so a resumed store continues the
