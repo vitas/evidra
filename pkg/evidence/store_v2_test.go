@@ -345,3 +345,50 @@ func strPtr(s string) *string {
 	}
 	return &s
 }
+
+// TestVerifyRootFindsStoresByNameOfTheirFiles guards an aggregation folder: stores
+// copied or renamed must still verify. Reporting none found would read as "nothing
+// was recorded" instead of "the name filter missed them".
+func TestVerifyRootFindsStoresByNameOfTheirFiles(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "recorder-original")
+	s, err := OpenStore(Options{Dir: dir, UpstreamID: "up-fixture", EnforceMode: "all", EvidraVersion: "vnext-0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ev := s.NewEvent(EventOperationPrescribed, ProvenanceAgentDeclared, "SES-A", "EV-1")
+	if err := ev.SetPayload(PrescribedPayload{Objective: "verify me"}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.AppendEvent(ev); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Close("stopped"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(dir, filepath.Join(root, "exported-session-one")); err != nil {
+		t.Fatal(err)
+	}
+	reports, err := VerifyRoot(root, time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reports) != 1 {
+		t.Fatalf("reports = %d, want the renamed store to be found", len(reports))
+	}
+	if !reports[0].ChainValid || reports[0].Records == 0 {
+		t.Errorf("renamed store report = %+v", reports[0])
+	}
+	// A directory that holds no evidence file is not a store, and must not be
+	// reported as a broken one.
+	if err := os.Mkdir(filepath.Join(root, "notes"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	again, err := VerifyRoot(root, time.Time{})
+	if err != nil {
+		t.Fatalf("an unrelated subdirectory broke the sweep: %v", err)
+	}
+	if len(again) != 1 {
+		t.Errorf("reports = %d, want 1", len(again))
+	}
+}

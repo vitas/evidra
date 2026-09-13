@@ -17,6 +17,38 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — Gate B conformance, and the two gates' first artifacts
+
+- Gate B's ">10 MB messages" line exposed the round's most consequential defect:
+  `--max-message` was never enforced, because `epReadMessage` treated
+  `bufio.ErrBufferFull` (raised on every frame past the reader's 64 KiB buffer) as
+  proof of an over-long message. Any upstream response above 64 KiB became
+  `upstream unavailable` plus a lost execution. Fixed by bounding the accumulated
+  frame and draining an over-limit frame before refusing it. Gate A did not see this
+  because its oversize task accepts an honest failure, and a 64 KiB ceiling is
+  invisible to a metric about agent behaviour.
+- Two conformance tests added with it: progress notifications must survive the
+  wrapper (id-less notifications are dropped by a relay that tracks only
+  request/response pairs), and a 20 MiB result must cross intact while its evidence
+  record stays bounded to `omitted_oversize` with no key material in the chain.
+- `VerifyRoot` identified stores by directory-name prefix, so a renamed or aggregated
+  folder of valid stores was reported as "no recorder directories" — an answer that
+  reads as "nothing was recorded". Stores are now identified by their files.
+- `docs/system-design/vnext-gate-b-results.md`: §46's checklist mapped to named tests,
+  measured pass/fail, the four findings above, the fidelity claim as measured, and
+  the boundary that no third-party server has been wrapped.
+- `docs/system-design/vnext-gate-c-reconciliation-probe.md`: 8 free-arm sessions run
+  through the new store and reconciled, with the reproduction commands and an
+  explicit **not-passed** verdict — no real operational server, no human judgement on
+  record, and no session yet where declarations and observations genuinely diverge.
+  It records what reconciliation did add (per-operation observation counts from
+  signed evidence, chain validity separate from coverage, empty windows reported as
+  empty) and the cheapest path to a real verdict, led by §47's still-unimplemented
+  in-band `evidra_report` feedback.
+- `/output/` is gitignored on purpose: every recorder directory holds an ephemeral
+  signing key and a digest key that must not enter history. Verified for the probe
+  set that no substring of either key appears in `summary.json`.
+
 ### vNext experiment — step 9: `evidra summarize` and `evidra verify`
 
 - Two vNext commands, deliberately thin over `pkg/evidence` and `pkg/report` so an

@@ -178,10 +178,19 @@ func VerifyRoot(root string, since time.Time) ([]StoreReport, error) {
 	}
 	var out []StoreReport
 	for _, e := range entries {
-		if !e.IsDir() || !strings.HasPrefix(e.Name(), "recorder-") {
+		if !e.IsDir() && e.Type()&os.ModeSymlink == 0 {
 			continue
 		}
-		rep, err := VerifyStore(filepath.Join(root, e.Name()), since)
+		path := filepath.Join(root, e.Name())
+		// A store is identified by its files, not by its directory name: evidence
+		// copied or renamed for an export, or linked into an aggregation folder, is
+		// still the evidence. Name-only filtering reported "no recorder directories"
+		// for a folder full of valid stores, which is the kind of answer that makes
+		// a reader think nothing was recorded.
+		if _, err := os.Stat(filepath.Join(path, eventsFile)); err != nil {
+			continue
+		}
+		rep, err := VerifyStore(path, since)
 		if err != nil {
 			return out, fmt.Errorf("verify %s: %w", e.Name(), err)
 		}
