@@ -1,0 +1,79 @@
+name: CI (vNext)
+
+# Reduced supported build graph for the vNext experiment (§4 of
+# docs/system-design/vnext-mcp-recorder.md).
+#
+# The hosted platform is not part of the product being tested on this branch, so
+# it is neither built nor tested here. This workflow deliberately does not touch
+# ci.yml: `main` and the public release channel keep their full gate set, and a
+# pull request targeting main still runs the complete CI.
+#
+# The exclusion list is the supported-graph boundary. Nothing may be removed
+# from the *supported* side to make this workflow green; if a core package
+# breaks, that is a real failure.
+
+on:
+  push:
+    branches: [vnext/mcp-recorder]
+  pull_request:
+    branches: [vnext/mcp-recorder]
+
+env:
+  # Packages owned by the hosted platform / legacy product path, plus the
+  # tag-gated legacy e2e suite (every real file there is behind `-tags e2e`, so a
+  # plain `go build` of the graph cannot include it). They stay in the tree until
+  # the prune step but are not part of what vNext certifies.
+  VNEXT_UNSUPPORTED: '/cmd/evidra-api$|/(internal|pkg)/(api|apicrypto|apiutil|analytics|analyticsdb|analyticsvc|assessment|auth|automationevent|client|config|db|gitops|ingest|mode|sarif|store)(/|$)|/tests/(e2e|testutil)$'
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Resolve supported package graph
+        id: pkgs
+        run: |
+          pkgs=$(go list ./... | grep -Ev "$VNEXT_UNSUPPORTED")
+          echo "count=$(printf '%s\n' "$pkgs" | wc -l | tr -d ' ')"
+          printf '%s\n' "$pkgs" > "$GITHUB_WORKSPACE/.vnext-packages.txt"
+
+      - name: Check formatting
+        run: |
+          files=$(gofmt -l .)
+          if [ -n "$files" ]; then
+            echo "The following files are not gofmt-formatted:" >&2
+            echo "$files" >&2
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet $(cat .vnext-packages.txt)
+
+      - name: Build
+        run: go build $(cat .vnext-packages.txt)
+
+      - name: Test
+        run: go test -count=1 $(cat .vnext-packages.txt)
+
+      - name: Race detector on concurrency-sensitive packages
+        run: |
+          go test -race -count=1 \
+            ./cmd/evidra-fixture/... \
+            ./pkg/evidence/... \
+            ./pkg/proxy/... \
+            ./internal/lifecycle/...
+
+      - name: Fixture determinism gate
+        run: |
+          # §30/§59 step 1 exit criterion: the fixture is deterministic and its
+          # own conformance suite is green under the race detector.
+          go test -count=1 -run 'TestResultsAreByteStable|TestSerial|TestConcurrent' ./cmd/evidra-fixture/

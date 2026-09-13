@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### vNext experiment — step 1 (branch `vnext/mcp-recorder`)
+
+- Added `docs/system-design/vnext-mcp-recorder.md`: the vNext execution-evidence plan (v8) as a tracked document — table of contents, 60 sections, plus the one-page implementation appendix (§59) that implementation agents work from.
+- Added `cmd/evidra-fixture`: the deterministic MCP fixture server required by plan §30. Implemented directly against JSON-RPC over stdio rather than on the go-sdk, because SDK v1.5.0 cannot express the annotation states the plan has to distinguish (`readOnlyHint: false` vs no `annotations` key at all vs a contradictory set — `ToolAnnotations.ReadOnlyHint` is a plain `bool` with `omitempty`). The fixture exercises cursor pagination, >10 MiB results, server→client requests, `notifications/cancelled` with no response, `notifications/progress` via `_meta.progressToken`, `notifications/tools/list_changed` with a tool that really appears, request IDs that collide across directions, and oversized-message rejection that keeps the stream alive. `--serial` yields byte-stable response order for golden summaries; the default handles requests concurrently so parallel-call pairing can be tested at all.
+- Added `.github/workflows/ci-vnext.yml`: the reduced supported build graph of plan §4 — 31 core packages certified, hosted platform (`cmd/evidra-api`, `internal/{api,apiutil,analytics,analyticsdb,analyticsvc,assessment,auth,automationevent,config,db,gitops,ingest,sarif,store}`, `pkg/{client,mode}`) and the tag-gated legacy e2e suite excluded. `ci.yml` is untouched: `main` and the public release channel keep the full gate set.
+- `internal/signal/unprescribed_mutation_test.go` is gofmt-clean again; it was the one file failing the formatter gate that this branch inherits from `main`.
+
 ### Prompt contract v1.4.0
 - New published contract `v1.4.0` (source tree `prompts/source/contracts/v1.4.0`, generated bundles refreshed): agent guidance now states claim linking — a prior `prescribe_smart`/`prescribe_full` is auto-linked to the executed `run_command` mutation, unlinked mutations are recorded `auto_prescribed` and counted as `unprescribed_mutation`. Replaced the "skip explicit prescribe for run_command" guidance with a prescribe-first incentive; behavioral signal list extended to nine.
 - `scripts/prompts-generate.sh` / `prompts-verify.sh` defaults bumped to v1.4.0; embedded `DefaultContractVersion`/`DefaultContractSkillVersion` now `v1.4.0`/`1.4.0`.
