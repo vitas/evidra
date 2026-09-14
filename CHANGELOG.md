@@ -17,6 +17,27 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext — stale "current" reference docs and the guards that measure the working tree
+
+- Deleted `docs/api-reference.md` (REST endpoints of the removed hosted service) and
+  `docs/benchmarks/tool-surface-size.md` (measured the `run_command` tool surface that no
+  longer exists). Both declared `Status: Reference` / `Version: current`, which is the same
+  defect as `Status: Normative` at lower volume. `docs/product/backlog.md` was **left
+  alone**: it is untracked, so it is not part of what this branch publishes.
+- Every pre-vNext banner-marked document now says so in its own header: `Status: Historical
+  (pre-vNext surface)` and `Version: frozen at removal`, replacing headers that claimed
+  currency two lines below a banner denying it. `guides/signal-validation.md` and
+  `guides/argocd-gitops-integration.md` gained the missing banners.
+- `docs/guides/mcp-registry-publication.md` keeps `Version: current` deliberately: the
+  server it describes still exists as `evidra-mcp`, and `test_mcp_registry_publication_guide`
+  still passes against real content.
+- `test_repo_cleanup_hygiene` checked the **working tree** for `.DS_Store`, so it failed on
+  Finder noise inside ignored directories — including `output/`, which the recorder writes
+  during every experiment. It now checks tracked and staged files, which is what a push
+  carries. A repository guard that fails on local noise teaches people to disregard
+  repository guards.
+- Dead links rewritten in README and `guides/self-hosted-setup.md`.
+
 ### vNext — repository consistency pass before push
 
 - **Pre-vNext normative specs deleted** rather than archived in place: seven

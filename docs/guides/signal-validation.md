@@ -1,7 +1,8 @@
 # Signal Validation
+> **Pre-vNext surface.** This guide documents the signal engine and the scoring profile, both removed by the §43 prune. It is kept for reference until the documentation pass after Gate C; nothing here describes the MCP evidence recorder.
 
 - Status: Guide
-- Version: current
+- Version: frozen at removal (see the banner above)
 - Canonical for: signal-validation harness usage
 - Audience: public
 

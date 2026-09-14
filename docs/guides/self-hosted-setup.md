@@ -9,7 +9,7 @@
 > `summarize`, `verify` and `version` only. See
 > [`vnext-prune-record.md`](../system-design/vnext-prune-record.md).
 - Status: Guide
-- Version: current
+- Version: frozen at removal (see the banner above)
 - Canonical for: self-hosted deployment and operator setup
 - Audience: public
 

@@ -8,8 +8,8 @@
 > prune rewrites them; they do not describe the current `evidra` binary, which is
 > `summarize`, `verify` and `version` only. See
 > [`vnext-prune-record.md`](../system-design/vnext-prune-record.md).
-- Status: Reference
-- Version: current
+- Status: Historical (pre-vNext surface)
+- Version: frozen at removal (see the banner above)
 - Canonical for: CLI commands and flags
 - Audience: public
 

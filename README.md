@@ -153,7 +153,7 @@ evidra import --input record.json
 evidra scorecard --period 30d
 ```
 
-References: [Self-hosted setup](docs/guides/self-hosted-setup.md) · [CLI reference](docs/integrations/cli-reference.md) · [API reference](docs/api-reference.md)
+References: [Self-hosted setup](docs/guides/self-hosted-setup.md) · [CLI reference](docs/integrations/cli-reference.md)
 
 ## Intelligence Layer
 
@@ -209,7 +209,7 @@ The proxy records evidence when it sees `run_command` or other mutation-shaped M
 - [MCP Setup Guide](docs/guides/mcp-setup.md)
 - [Skill Setup Guide](docs/guides/skill-setup.md)
 - [CLI Reference](docs/integrations/cli-reference.md)
-- [API Reference](docs/api-reference.md)
+- REST API reference — described the hosted service removed in the vNext prune; see Git history
 - [Architecture](docs/ARCHITECTURE.md) — the vNext shape, current
 - Protocol, data-model, scoring and signal specs described the pre-vNext product and were
   removed in the vNext prune (`docs/system-design/vnext-prune-record.md`); Git history keeps them.
