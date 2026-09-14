@@ -152,10 +152,57 @@ Run it with: `./bin/evidra-gatea --arms-only qwen38-flash,mimo-v25,ds-v4-pro --m
 --runs 2 --out output/gatea/no-evidra-baseline` (48 runs; `off` numbers come from the existing
 official set, same source revision required for any comparison — see invariant 4).
 
+## Two coverages, because one number hides the distinction that matters
+
+`prescribe before the first operational call` is reported twice, and the gap between the two
+is a measurement rather than an inconsistency:
+
+| Metric | Question | Denominator |
+|---|---|---|
+| `voluntary_prescription_coverage` | was a record open at the **first upstream call**, whatever it was | valid runs |
+| `actionable_prescription_coverage` | was a record open at the **first call the server did not declare read-only** | runs that had such a call |
+
+The first stays the conformance measure and the one §10 grades, because the endpoint's own
+instruction says every upstream tool requires an open operation, read-only ones included. The
+second is whether the declaration preceded work that could change the world.
+
+They diverge on a shape that occurs in real runs: an agent calls `get_status`, then
+`evidra_prescribe`, then `restart` under the operation. That fails the letter and passes the
+spirit. Scoring it only by the letter reports a protocol breach for a discovery step, and a
+gate that fails on discovery will be "fixed" by telling agents not to look — which is the
+opposite of what an evidence recorder wants. A scripted `--dry-run --script late` set shows
+the divergence directly: `letter=2/16`, `spirit=4/10`, six runs apart, all of them
+`restart-after-status`.
+
+Three rules keep the second metric honest:
+
+- **"Actionable" is the server's own `readOnlyHint: true` and nothing else.** Inferring it
+  from a tool's name or arguments is the content-based classification §7 forbids the endpoint
+  from performing, and a metric built on a guess is a verdict wearing a measurement's clothes.
+  An explicit `false` and an absent `annotations` object are both *not* read-only, the same
+  distinction §22/§26 keeps. When a server declares nothing, the two metrics agree by
+  construction — so any gap is attributable to a declaration, never to an inference here.
+- **The denominator is the runs that had an actionable call**, not the runs in the cell. A run
+  made entirely of reads has no referent and must not count as a miss; dividing by the cell
+  would make an all-reads workload look like non-compliance.
+- **Three non-numbers, each named**: `not_measurable_annotations_not_recorded` (the artifact
+  predates declaration capture — re-run it), `not_applicable_no_actionable_call` (no number is
+  possible for this workload), `n/a` (a baseline cell had no protocol to declare through). One
+  collapsed "n/a" would hide which of the three a reader is looking at. Every archived set
+  regraded today reports the first, correctly: their transcripts do not carry the
+  declarations, and an empty list must not read as "the server declared nothing read-only".
+
+The declarations are persisted on the transcript (`read_only_tools`, `annotations_recorded`)
+rather than read back from the separate `tools` record, because `readTranscript` parses only
+the transcript record — and a derived metric whose inputs do not survive serialization is the
+bug class that made `--regrade` report zero voluntary coverage across every archived set.
+
 ## What this rules out
 
 No treating a baseline cell as protocol evidence, and no protocol number in it to treat.
 No "quick" one-off analysis scripts that write numbers into docs. No comparing two run sets
 without first checking their recorded builds match. No reporting a metric whose denominator
 was not written in the same artifact. No treating an executed-zero mechanism's null result
-as evidence about that mechanism.
+as evidence about that mechanism. No reading one of the two coverages without saying which,
+and no scoring a read-only discovery step as a protocol breach on the strength of the letter
+alone.

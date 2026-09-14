@@ -55,6 +55,27 @@ type toolResult struct {
 	IsError bool
 }
 
+// declaredReadOnlyTools returns the names of the tools the server itself annotated
+// `readOnlyHint: true`. It reads that declaration and nothing else.
+//
+// Only a literal `true` counts. An explicit `readOnlyHint: false` and an absent
+// `annotations` object both land outside the list, which is the distinction the endpoint
+// keeps when it says that evidence a server declared nothing must not be rendered as
+// evidence that it declared read-only (§22, §26).
+//
+// Inferring read-only-ness from a tool's name or its arguments is deliberately not done
+// here: that is the content-based classification §7 forbids the product from performing,
+// and a metric built on a guess would be a verdict wearing a measurement's clothes.
+func declaredReadOnlyTools(tools []mcpTool) []string {
+	var out []string
+	for _, t := range tools {
+		if v, ok := t.Annotations["readOnlyHint"].(bool); ok && v {
+			out = append(out, t.Name)
+		}
+	}
+	return out
+}
+
 // startMCP launches a command as an MCP server over stdio.
 func startMCP(ctx context.Context, bin string, args ...string) (*mcpClient, error) {
 	cmd := exec.CommandContext(ctx, bin, args...)

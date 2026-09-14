@@ -220,6 +220,7 @@ func protocolMetricKeys() []string {
 		"median_blocked_attempts_per_completed_operation",
 		"recovery_after_first_block",
 		"voluntary_prescription_coverage",
+		"actionable_prescription_coverage",
 		"late_prescription_rate",
 		"unprescribed_executions",
 		"sessions_with_no_prescribe",

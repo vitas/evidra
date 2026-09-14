@@ -429,6 +429,10 @@ func runOne(ctx context.Context, o options, arm armSpec, mode string, task taskS
 		res.InvalidRun = invalid
 	}
 
+	// Carry the server's own tool declarations onto the transcript, so a metric derived
+	// from them is recomputable by --regrade from the frames alone.
+	tr.recordToolDeclarations(tools)
+
 	res.Turns = tr.Turns
 	res.Blocked = tr.BlockedCount
 	res.Prescribes = tr.Prescribes
@@ -501,6 +505,10 @@ func finalizeRun(res *runResult, tr *transcript, ts *taskSpec, facts *storeFacts
 
 	baseline := isBaseline(mode)
 	res.ProtocolNotApplicable = baseline
+	// Whether the run captured the server's own tool declarations is a fact about the
+	// recording, not a protocol metric, so it is carried on baseline rows too: it is what
+	// lets a later reader tell "nothing was declared read-only" from "nobody looked".
+	res.AnnotationsRecorded = tr.AnnotationsRecorded
 	if baseline {
 		// These are not computed for a baseline run, because none of them is observable:
 		// an execution with no open record is not a violation when no record can be open.
@@ -508,6 +516,8 @@ func finalizeRun(res *runResult, tr *transcript, ts *taskSpec, facts *storeFacts
 		// no reader can average them into a rate.
 		res.Unprescribed = 0
 		res.FirstUpstreamPrescribed = false
+		res.FirstActionablePrescribed = false
+		res.HasActionableCall = false
 		res.LatePrescribe = false
 		if facts != nil {
 			res.InvalidRun = fmt.Sprintf("baseline run produced an evidence store at %s: an endpoint participated", facts.Dir)
@@ -519,6 +529,8 @@ func finalizeRun(res *runResult, tr *transcript, ts *taskSpec, facts *storeFacts
 	} else {
 		res.Unprescribed = tr.unprescribedCalls()
 		res.FirstUpstreamPrescribed = tr.firstUpstreamPrescribed
+		res.FirstActionablePrescribed = tr.firstActionablePrescribed
+		res.HasActionableCall = tr.actionableCalls > 0
 		res.LatePrescribe = tr.latePrescribe
 	}
 
