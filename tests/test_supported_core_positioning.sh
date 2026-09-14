@@ -9,11 +9,16 @@ fail() {
   exit 1
 }
 
+# Scan one whitespace-normalized line so Markdown wrapping cannot hide or break a
+# positioning statement.
+readme_text="$(tr '\n\r\t' '   ' <README.md | tr -s ' ')"
+
 required_text=(
   "MCP execution evidence"
   "Declared"
   "Observed"
   "Reported"
+  "Evidra does not sandbox the wrapped command"
   "evidra-mcp --proxy"
   "evidra summarize --dir"
   "evidra verify --dir"
@@ -24,7 +29,7 @@ required_text=(
 )
 
 for text in "${required_text[@]}"; do
-  grep -Fq "$text" README.md \
+  grep -Fq -- "$text" <<<"$readme_text" \
     || fail "README should contain: $text"
 done
 
@@ -35,14 +40,14 @@ forbidden_patterns=(
   "hosted API"
   "scorecard"
   "webhooks"
-  "built-in.*\\b(kubectl|helm|terraform|aws)\\b"
+  "built-in[^.]*[^[:alnum:]_](kubectl|helm|terraform|aws)([^[:alnum:]_]|$)"
   "pre-vNext product"
   "waits on Gate C"
   "vnext/mcp-recorder"
 )
 
 for pattern in "${forbidden_patterns[@]}"; do
-  if grep -Eiq "$pattern" README.md; then
+  if grep -Eiq -- "$pattern" <<<"$readme_text"; then
     fail "README should not contain obsolete product language matching: $pattern"
   fi
 done

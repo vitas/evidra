@@ -22,8 +22,10 @@ and the agent's account of the result. Evidra keeps those sources separate:
 
 - **Declared** — the objective the agent records before it calls an upstream
   operational tool.
-- **Observed** — the request and response that pass through the Evidra MCP
-  boundary.
+- **Observed** — execution start/finish boundaries, status and timing metadata,
+  upstream tool metadata, and keyed fingerprints recorded by the proxy. The
+  fingerprints have bounded storage; raw upstream request and response bodies
+  are not stored as observed payloads.
 - **Reported** — the terminal status and explanation the agent records when it
   closes the operation.
 
@@ -51,6 +53,10 @@ normal use, an MCP client owns this process and supplies the configuration. See
 [Getting started](docs/getting-started.md) for a complete client configuration
 and an end-to-end operation.
 
+Evidra does not sandbox the wrapped command. It starts the supplied upstream
+process with the caller's operating-system authority, so review the command and
+its configuration as you would when running it directly.
+
 ## Read the evidence
 
 Each endpoint process creates a recorder directory beneath the evidence root.
@@ -74,9 +80,13 @@ Evidra distinguishes several different statements:
 - **Signature validity** checks records against the public key stored with that
   recorder. A local recorder key does not independently establish an
   organizational identity.
-- **Evidence coverage** checks whether expected recorder events exist, including
-  paired execution boundaries.
-- **Proxy observations** attest to requests and responses visible at the Evidra
+- **Evidence coverage** reports known degraded windows recorded after evidence
+  persistence failures. A `complete` value does not prove that no unknown loss
+  occurred.
+- **Reconciliation** produced by `evidra summarize` surfaces execution starts
+  that have no matching finish event; this is separate from verification
+  coverage.
+- **Proxy observations** attest to execution boundaries visible at the Evidra
   MCP boundary, not to side effects beyond it.
 - **Agent declarations and reports** are preserved as attributed claims; their
   presence does not make them independently true.
