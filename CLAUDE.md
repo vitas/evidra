@@ -101,7 +101,12 @@ pointing at a function that no longer compiles is not evidence of anything.
 ## Measurement discipline
 
 - Report `not_measurable` instead of a number when the data cannot support one (recovery after
-  a first block, with zero blocks, is the standing example).
+  a first block, with zero blocks, is the standing example). Report `n/a` when the metric has no
+  referent in that cell at all: the harness's `none` baseline arm renders every protocol metric
+  that way, and a zero there would read as compliance failure.
+- The harness-only mode `none` (agent → `evidra-fixture`, no endpoint) is not a product mode: no
+  `evidra-mcp --enforce=none` exists and none may be added. Its grading is operational-only, its
+  provenance names no endpoint binary, and it certifies no gate.
 - A gate is not passed because the code exists. Gate C is recorded as **not passed** until a
   real operational upstream and a reader who did not build the summary agree it changed their
   understanding.

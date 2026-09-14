@@ -64,6 +64,42 @@ heredoc that never installed itself and reported PASS over the reference it was 
 catch. All four rules were mutation-tested by re-inserting the broken shapes and watching each
 fail with a file, line, job and target named.
 
+### vNext — the harness grew a no-Evidra baseline arm (`mode none`)
+
+`off` and `all` both wrap the upstream, so together they measure what enforcement costs and
+nothing about what *introducing Evidra* costs. `cmd/evidra-gatea` now plans a third, harness-only
+mode: agent → `evidra-fixture`, no endpoint process, no evidence directory, no protocol tools,
+and the task's own `baseline_goal` prompt instead of the wrapped one. There is no
+`evidra-mcp --enforce=none` and none was added; `--modes-only` rejects anything outside
+`none,off,all` rather than silently planning nothing.
+
+- Grading split into operational clauses (upstream tools, arguments, order, no strays) and
+  protocol clauses (`require_report`, prescription-before-action, replacement/abandonment).
+  `none` is graded on the operational set only, so a baseline run cannot fail for want of a
+  report it was never able to make; wrapped grading is unchanged and asserted to be unchanged.
+- Protocol metrics in a `none` cell render `"n/a"`, never `0`, and a `none` cell enters no Gate A
+  condition; `summary.json` carries `gate_applicability` saying which cells certify what.
+- Provenance gained `execution_path` (`direct_fixture` | `evidra_proxy`); a baseline run records
+  `endpoint_binary_sha256: ""` because no endpoint binary participated — hashing one would
+  attribute the measurement to a program that produced nothing.
+- Freshness now asks what participated: a baseline-only run set does not require
+  `bin/evidra-mcp` to be current, and still requires the fixture *and the runner* (the runner's
+  own freshness was never checked before).
+- `--regrade` works across both topologies and shares one grading function with the live path.
+
+Two latent defects surfaced by that sharing, both recorded rather than quietly fixed:
+
+- **An enforcement hole could not fail a run.** `applyStoreFacts` appended
+  `"enforcement hole: N executions reached upstream with no open operation"` (and an invalid
+  chain/signature) to `res.Failures`, and the next statement assigned
+  `res.Failures = task.evaluate(tr)`, overwriting it. No recorded verdict changes: no row in any
+  archived run set (166 rows across `output/gatea/*`) has an unprescribed execution or an
+  invalid chain, so the clause never had anything to report. Verified by regrading a copy of the
+  official set — 80 rows, 0 verdict diffs.
+- **`duration_ms` was declared, marshalled and never assigned**, reading `0` through the whole
+  official experiment. It is now measured, totalled per cell, and the mean is invariant-checked
+  against its own numerator and denominator.
+
 ### vNext — the CI fix itself broke CI once, and now that is checked
 
 The first version of the fix below deleted `VNEXT_MIN_PACKAGES` by replacing it with comment
