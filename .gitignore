@@ -18,6 +18,13 @@ docs/system-design/backlog/
 docs/system-design/internal/
 docs/product/
 
+# Personal notes addressed to the project owner. Everything this repository ships is
+# English; a report, review or plan written for one reader in another language belongs
+# here and never in the tree. Keeping the folder ignored is what makes the rule
+# enforceable by accident rather than by memory - a draft written here cannot be swept
+# into a commit by a blanket `git add`.
+/local-notes/
+
 # Test binary, coverage
 *.test
 *.out
