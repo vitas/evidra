@@ -7,7 +7,7 @@
 > branch. They are kept for reference until the documentation pass at the end of the
 > prune rewrites them; they do not describe the current `evidra` binary, which is
 > `summarize`, `verify` and `version` only. See
-> [`vnext-prune-plan.md`](../system-design/vnext-prune-plan.md).
+> [`vnext-prune-record.md`](../system-design/vnext-prune-record.md).
 - Status: Guide
 - Version: current
 - Canonical for: metrics export setup

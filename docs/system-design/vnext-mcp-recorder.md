@@ -2672,7 +2672,7 @@ code stays in a branch that nobody runs. Tying deletion to a criterion that need
 human reader and a third-party server meant the legacy graph could only be removed
 after the research question was answered, which inverted the point of removing it: the
 question is cheaper to answer once the old path cannot be confused with the new one.
-The inventory and the safe commit order are in `vnext-prune-plan.md`.
+The inventory and the safe commit order are in `vnext-prune-record.md`.
 
 ```text
 run_command

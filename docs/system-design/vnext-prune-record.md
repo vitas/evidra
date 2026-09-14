@@ -1,33 +1,27 @@
-# vNext prune plan — deletion-ready inventory, and the gate that blocks it
+# vNext prune record — what left the branch, in which commit, and what each removal made
+# impossible to confuse
 
 Plan reference: §43 and §59 step 10 of [vnext-mcp-recorder.md](vnext-mcp-recorder.md).
 
-## Why this is a plan and not a diff
+## Ordering, and how it actually went
 
-§43 is explicit about ordering:
+§43 originally read "After Gates A–C are green, remove from the branch." That precondition
+was revised during execution, and the revision is the honest part of this record:
 
-> After Gates A–C are green, remove from the branch. … Deletion happens after the new
-> vertical path works. Do not use deletion as the first milestone.
+- **Gate A was never green and still is not.** The official 80-run set failed the bars as
+  written (`gate-a-results.md`). §45's bars were later revised from those same measurements,
+  and §45 now states plainly that revised bars cannot certify the run set that produced them.
+  Mechanically the old set meets every new bar; the verdict stays `gate_passed=false`.
+- **§43 was unblocked by an explicit human decision**, not by a gate turning green: enough of
+  the protocol surface had been measured to know the vertical path is the path being
+  measured, and Gate B was green. `703de15` records that as "decision not drift".
+- **Gate B passed** (`vnext-gate-b-results.md`), and its rows were later amended when §43
+  steps invalidated the tests they cited.
+- **Gate C governs the merge/product decision, not the deletion** (`vnext-gate-c-reconciliation-probe.md`,
+  not passed). Deletion was never the milestone §43 warned about; it is bookkeeping.
 
-Those gates are not green, and the measurements are on record in this repository:
-
-- **Gate A** (`gate-a-results.md`): 80 runs, and the strong-model bar failed — the
-  paid ceiling arm reached 11/15 task success against a bar of `>= 15/16`, terminal
-  report coverage 13/15 against `>= 15/16`. Enforcement never fired in 80 runs
-  (0 blocks), so `recovery_after_first_block` is `not_measurable` in every cell.
-- **Gate B** (`vnext-gate-b-results.md`): passing on the supported profile through
-  the fixture, with the fidelity claim bounded to that profile. No third-party server
-  has been wrapped.
-- **Gate C** (`vnext-gate-c-reconciliation-probe.md`): explicitly **not passed** —
-  no real operational server, no reader who did not build it, and no session in the
-  sample where declaration and observation diverge.
-
-Deleting the legacy graph now would remove the only code whose behaviour is measured
-by the hosted-path tests, while the replacement path still has an open question at
-its centre (does reconciliation tell a human anything an ordinary log does not?).
-That is the exact failure mode §43 warns against. So the work here is to make the
-deletion one command list, executable the moment the gates are green, and to keep
-this branch honest about the fact that it has not been executed.
+This document is therefore a **record**. The inventory below is what left the branch, in
+which commit, and what each removal made impossible to confuse. Nothing here is a to-do.
 
 ## Execution status
 
@@ -37,9 +31,14 @@ this branch honest about the fact that it has not been executed.
 | 2 | hosted chain: `cmd/evidra-api`, `internal/{api,apiutil,auth,db,store,analytics*,analyticsdb,analyticsvc,ingest,gitops,automationevent}`, `Dockerfile.api` | `cf7e2cb` |
 | 3 | `evidra-mcp` endpoint-only; 11 legacy flags gone | `318bcd5` |
 | 4 | `pkg/mcpserver`, `internal/{lifecycle,assessment,evidence,config,telemetry}`, `pkg/{mode,client}`, `tests/{inspector,e2e,contracts,testutil}` | `6c28a28` |
-| 5 | legacy relay: `pkg/proxy/{proxy,evidence,detect}.go` + tests, `--legacy-proxy`, `runProxyMode` | this commit |
-| 6 | v1 evidence shapes in `pkg/evidence`, `pkg/evlock`, `pkg/export`, `internal/{canon,assess,risk,score,detectors,signal,pipeline,sarif,promptfactory}` and their fixtures | pending |
-| 7 | documentation pass: `docs/ARCHITECTURE.md`, `CLAUDE.md`, README, `examples/kagent`, `tests/test_*.sh` doc guards | pending |
+| 5 | legacy relay: `pkg/proxy/{proxy,evidence,detect}.go` + tests, `--legacy-proxy`, `runProxyMode` | `3292230` |
+| 6 | the analysis engine, prompt contracts and export layer: `pkg/{evlock,export,execcontract}`, `internal/{canon,assess,risk,score,detectors,signal,pipeline,sarif,promptfactory}`, `prompts/`, `internal/testutil` | `b508052` |
+| 6b | v1 evidence shapes: `pkg/evidence` keeps only the v2 model | `3fadc59` |
+| 7 | documentation pass: `docs/ARCHITECTURE.md` and `CLAUDE.md` rewritten to the shipped system; `--actor-id` restored; README carries a scope banner instead of a false claim | `bce335f`, `4e72f7c` |
+| 8 | pre-vNext **normative** specs deleted rather than archived in place: seven `EVIDRA_*V1` system-design docs, the default scoring profile, both `docs/contracts` V1 contracts, 13 `tests/*.sh` doc guards whose subject was the deleted surface, `tests-index.md`, `E2E_TESTING.md` and three orphaned SARIF fixtures | `76bdee5`, `3476147` |
+
+Still open from step 7 and deliberately not counted as done: `examples/kagent` rewrite-or-drop
+and the full README rewrite, both waiting on Gate C rather than on effort.
 
 `ui/` is retained by decision, not oversight: §43 removes its runtime coupling (done in
 step 2), and the sources are the asset earmarked for a later repo move that this branch

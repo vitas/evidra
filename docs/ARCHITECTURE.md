@@ -4,7 +4,7 @@ Status: **vNext**, branch `vnext/mcp-recorder`. The design authority is
 [`system-design/vnext-mcp-recorder.md`](system-design/vnext-mcp-recorder.md) (the plan,
 §§ numbered below); this file is the map, not the spec. What the pre-vNext product was —
 risk scoring, the assessment pipeline, hosted API, scorecards, direct MCP tools — is
-deleted per §43, and [`system-design/vnext-prune-plan.md`](system-design/vnext-prune-plan.md)
+deleted per §43, and [`system-design/vnext-prune-record.md`](system-design/vnext-prune-record.md)
 records what went and in which order.
 
 ## A stance change worth stating out loud

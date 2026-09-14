@@ -11,7 +11,7 @@ writes a signed evidence chain that a human reconciles afterwards.
 [`docs/system-design/vnext-mcp-recorder.md`](docs/system-design/vnext-mcp-recorder.md) is the
 plan, cited by section number (§7, §13–§24, §34, §38, §41–§47, §59).
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) is the map;
-[`docs/system-design/vnext-prune-plan.md`](docs/system-design/vnext-prune-plan.md) records
+[`docs/system-design/vnext-prune-record.md`](docs/system-design/vnext-prune-record.md) records
 what was deleted and why.
 [`docs/system-design/vnext-experiment-harness.md`](docs/system-design/vnext-experiment-harness.md)
 states the invariants the measurement harness is built around.
