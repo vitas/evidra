@@ -38,6 +38,29 @@
   repository guards.
 - Dead links rewritten in README and `guides/self-hosted-setup.md`.
 
+### vNext — history scrub before the first push
+
+- Correction to an earlier entry in this file: `test_bump_version_script` is **not** red by
+  nature, it passes (`2/2` after `go build ./...`). The recorded red was an exec stall on a
+  freshly built binary, and the supporting check I ran looked at the wrong file — the guard
+  asserts on a temporary copy of `CHANGELOG.md` that `scripts/bump-version.sh` rewrites, not on
+  the repository copy. Only `test_fixture_snapshot_names` is red, and it points at legacy
+  naming in files this branch never touched.
+
+- 54 scratch files under `tmp/` (53 of them JPG pages of a sales-review deck) and 5 under
+  `examples/` were removed from the branch's **history**, not just its tip: a blanket
+  `git add -A` had committed them in the §43 step-2 commit, and the follow-up that untracked
+  them left them in that commit's tree forever. `main` never carried these paths
+  (`git log --full-history main -- tmp examples` → no commits), and the branch had never been
+  pushed, so this was the last point where removal cost nothing.
+- Narrow rewrite: one commit amended, its 27 descendants replayed. 28 hashes changed, 0
+  contents did — the tip tree is identical (`b70935a4`), `main..HEAD` is still 51 commits, the
+  merge-base with `main` is still `fe213d12`, and every commit keeps its DCO trailer.
+  `git filter-repo` was tried and rejected: it re-encoded back to the root, changing 857 hashes
+  and moving the merge-base 800 commits backwards.
+- `docs/system-design/vnext-history-scrub.md` records the method, the checks and the old → new
+  hash table, so citations written before the scrub stay resolvable.
+
 ### vNext — repository consistency pass before push
 
 - **Pre-vNext normative specs deleted** rather than archived in place: seven
@@ -136,7 +159,7 @@
   is why "regrade, do not hand-read" is now stated as the mitigation instead of pretending
   invariant checks would have caught it.
 
-### vNext experiment — invariant checker split for complexity (follow-up to f03b39e)
+### vNext experiment — invariant checker split for complexity (follow-up to 95da55a)
 
 - `checkRunInvariants` exceeded the cyclomatic-complexity ceiling, so the three property
   families are now `checkCellBounds`, `checkAgreementWithRows` and `checkTranscriptsPersist`

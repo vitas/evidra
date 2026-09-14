@@ -30,14 +30,14 @@ which commit, and what each removal made impossible to confuse. Nothing here is 
 | Step | Scope | Commit |
 |---|---|---|
 | 1 | `cmd/evidra` trimmed to `summarize`, `verify`, `version` | `8351312` |
-| 2 | hosted chain: `cmd/evidra-api`, `internal/{api,apiutil,auth,db,store,analytics*,analyticsdb,analyticsvc,ingest,gitops,automationevent}`, `Dockerfile.api` | `cf7e2cb` |
-| 3 | `evidra-mcp` endpoint-only; 11 legacy flags gone | `318bcd5` |
-| 4 | `pkg/mcpserver`, `internal/{lifecycle,assessment,evidence,config,telemetry}`, `pkg/{mode,client}`, `tests/{inspector,e2e,contracts,testutil}` | `6c28a28` |
-| 5 | legacy relay: `pkg/proxy/{proxy,evidence,detect}.go` + tests, `--legacy-proxy`, `runProxyMode` | `3292230` |
-| 6 | the analysis engine, prompt contracts and export layer: `pkg/{evlock,export,execcontract}`, `internal/{canon,assess,risk,score,detectors,signal,pipeline,sarif,promptfactory}`, `prompts/`, `internal/testutil` | `b508052` |
-| 6b | v1 evidence shapes: `pkg/evidence` keeps only the v2 model | `3fadc59` |
-| 7 | documentation pass: `docs/ARCHITECTURE.md` and `CLAUDE.md` rewritten to the shipped system; `--actor-id` restored; README carries a scope banner instead of a false claim | `bce335f`, `4e72f7c` |
-| 8 | pre-vNext **normative** specs deleted rather than archived in place: seven `EVIDRA_*V1` system-design docs, the default scoring profile, both `docs/contracts` V1 contracts, 13 `tests/*.sh` doc guards whose subject was the deleted surface, `tests-index.md`, `E2E_TESTING.md` and three orphaned SARIF fixtures | `76bdee5`, `3476147` |
+| 2 | hosted chain: `cmd/evidra-api`, `internal/{api,apiutil,auth,db,store,analytics*,analyticsdb,analyticsvc,ingest,gitops,automationevent}`, `Dockerfile.api` | `d99717a` |
+| 3 | `evidra-mcp` endpoint-only; 11 legacy flags gone | `b19ea59` |
+| 4 | `pkg/mcpserver`, `internal/{lifecycle,assessment,evidence,config,telemetry}`, `pkg/{mode,client}`, `tests/{inspector,e2e,contracts,testutil}` | `446fed4` |
+| 5 | legacy relay: `pkg/proxy/{proxy,evidence,detect}.go` + tests, `--legacy-proxy`, `runProxyMode` | `57a79a2` |
+| 6 | the analysis engine, prompt contracts and export layer: `pkg/{evlock,export,execcontract}`, `internal/{canon,assess,risk,score,detectors,signal,pipeline,sarif,promptfactory}`, `prompts/`, `internal/testutil` | `935de3d` |
+| 6b | v1 evidence shapes: `pkg/evidence` keeps only the v2 model | `8d45418` |
+| 7 | documentation pass: `docs/ARCHITECTURE.md` and `CLAUDE.md` rewritten to the shipped system; `--actor-id` restored; README carries a scope banner instead of a false claim | `c7b02e6`, `a043fac` |
+| 8 | pre-vNext **normative** specs deleted rather than archived in place: seven `EVIDRA_*V1` system-design docs, the default scoring profile, both `docs/contracts` V1 contracts, 13 `tests/*.sh` doc guards whose subject was the deleted surface, `tests-index.md`, `E2E_TESTING.md` and three orphaned SARIF fixtures | `655470b`, `a794916` |
 
 Still open from step 7 and deliberately not counted as done: `examples/kagent` rewrite-or-drop
 and the full README rewrite, both waiting on Gate C rather than on effort.
@@ -145,7 +145,7 @@ of `cmd/evidra` **before** the hosted chain can be deleted, not after:
    material today, so the choice is "re-adding" rather than "deleting".
 7. Delete the v1 evidence shapes (`pkg/evidence/entry.go`, `internal/evidence`,
    `pkg/evlock`, `internal/lifecycle`) once nothing imports them, then rewrite
-   `docs/ARCHITECTURE.md`. Done in `3fadc59` and `bce335f`: `pkg/evidence` is v2-only and
+   `docs/ARCHITECTURE.md`. Done in `8d45418` and `c7b02e6`: `pkg/evidence` is v2-only and
    the architecture and agent-guidance documents describe the shipped system.
 
 Each step ends with `go build ./...`, `go test -count=1 ./...`,

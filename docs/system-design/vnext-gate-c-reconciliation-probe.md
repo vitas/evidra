@@ -196,7 +196,7 @@ back.
 Worth keeping in the artifact rather than editing silently, for two reasons. First, the
 error is the same class as the stale binary two sections below: an analysis path outside the
 harness, reading artifacts by hand. Second, it is the empirical case for the invariant
-checks added in `f03b39e` — but note honestly what those checks do and do not cover: they
+checks added in `95da55a` — but note honestly what those checks do and do not cover: they
 bound metrics the *runner* computes and refuse a rollup whose aggregates disagree with its
 rows. They cannot see a script that reads the wrong key. The mitigation for that is the
 rule the repo already states — regrade instead of hand-reading artifacts — and this

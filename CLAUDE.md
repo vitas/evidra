@@ -15,6 +15,8 @@ plan, cited by section number (§7, §13–§24, §34, §38, §41–§47, §59).
 what was deleted and why.
 [`docs/system-design/vnext-experiment-harness.md`](docs/system-design/vnext-experiment-harness.md)
 states the invariants the measurement harness is built around.
+[`docs/system-design/vnext-history-scrub.md`](docs/system-design/vnext-history-scrub.md) records
+the pre-push history rewrite, so an old hash cited in an older document can be resolved.
 
 ## Build & Test
 
@@ -36,7 +38,10 @@ pointing at a function that no longer compiles is not evidence of anything.
 
 - **Always ask before pushing.** Nothing leaves this branch without the user.
 - Sign every commit: `git commit -s` (DCO `Signed-off-by`).
-- No history rewrites, no force-pushes, do not touch `main`.
+- No history rewrites, no force-pushes, do not touch `main`. One exception was granted and
+  executed: the pre-push `tmp/`/`examples/` scrub of this never-pushed branch, documented with
+  its checks in `docs/system-design/vnext-history-scrub.md`. The rule stands; that was a single
+  instruction, not a precedent for rewriting shared history.
 - Stage by path. A blanket `git add -A` once swept untracked scratch into history here;
   `/output/` and `/tmp/` are gitignored because recorder directories hold ephemeral signing
   and digest keys that must not reach history.
