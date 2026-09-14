@@ -406,24 +406,36 @@ func (c cellMetrics) tableRow() string {
 // reads as a gate that passed, which is the exact misuse this mode invites: a no-Evidra
 // comparison cannot certify a protocol it excluded by construction.
 func gateApplicability(cells []cellMetrics) string {
-	wrapped, baseline := 0, 0
+	// The count that matters is of the mode the conditions are actually defined over.
+	// Counting "any wrapped cell" would let an enforce=off-only set claim to carry Gate A
+	// conditions, which §10 does not do: none of its thresholds are evaluated off-band.
+	var enforced, observeOnly, baseline int
 	for _, c := range cells {
-		if isBaseline(c.Mode) {
+		switch c.Mode {
+		case modeNone:
 			baseline++
-		} else {
-			wrapped++
+		case modeAll:
+			enforced++
+		default:
+			observeOnly++
 		}
 	}
 	switch {
-	case baseline > 0 && wrapped == 0:
+	case enforced > 0 && baseline > 0:
+		return fmt.Sprintf("partial: %d enforce=all cell(s) carry the Gate A conditions; %d baseline cell(s) (mode %s) are "+
+			"comparison-only and contribute no protocol metric to them", enforced, baseline, modeNone)
+	case enforced > 0:
+		return fmt.Sprintf("Gate A conditions apply to the %d enforce=all cell(s) above; this set contains no baseline cell", enforced)
+	case baseline > 0 && observeOnly > 0:
+		return fmt.Sprintf("not applicable: no enforce=all cell in this set (%d observe-only, %d baseline), and Gate A's thresholds are "+
+			"defined over enforced cells only; the %d baseline cell(s) measure the presence of Evidra, not its protocol",
+			observeOnly, baseline, baseline)
+	case baseline > 0:
 		return "not applicable: every cell here is a no-Evidra baseline (direct fixture, no endpoint process). " +
 			"Gate A is defined over wrapped enforce=all cells, so this run set can compare task success and cost, " +
 			"and certifies nothing."
-	case baseline > 0:
-		return fmt.Sprintf("partial: %d wrapped cell(s) carry the Gate A conditions; %d baseline cell(s) are comparison-only "+
-			"and contribute no protocol metric to them", wrapped, baseline)
 	default:
-		return "Gate A conditions apply to the enforce=all cells above; this set contains no baseline cell"
+		return fmt.Sprintf("not certified: %d observe-only cell(s) and no enforce=all cell, so no Gate A threshold applies to this set", observeOnly)
 	}
 }
 

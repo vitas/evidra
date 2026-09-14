@@ -444,8 +444,24 @@ func TestBaselineCellsCertifyNothing(t *testing.T) {
 	if len(judgeGate(mixed, map[string]string{"a": "strong"})) == 0 {
 		t.Error("adding a wrapped cell did not restore any gate condition")
 	}
-	if msg := gateApplicability(mixed); !strings.Contains(msg, "partial") {
-		t.Errorf("mixed set applicability = %q", msg)
+	if msg := gateApplicability(mixed); !strings.Contains(msg, "partial") || !strings.Contains(msg, "1 enforce=all") {
+		t.Errorf("mixed set applicability = %q, want it to count the enforce=all cells", msg)
+	}
+	// Observe-only cells are wrapped but carry no condition either: §10's thresholds are
+	// defined over enforced cells. A message that called this "partial" would credit the set
+	// with a certification it does not have - which is the mistake this function exists to
+	// prevent, one level up.
+	offAndNone := []cellMetrics{
+		rollupCell([]runResult{{Arm: "a", Mode: modeOff, Task: "t1", Run: 1,
+			Provenance: &binaryProvenance{SourceRevision: "r", ExecutionPath: pathProxy}}}),
+		rollupCell([]runResult{{Arm: "a", Mode: modeNone, Task: "t1", Run: 1, ProtocolNotApplicable: true,
+			Provenance: &binaryProvenance{SourceRevision: "r", ExecutionPath: pathDirectFixture}}}),
+	}
+	if msg := gateApplicability(offAndNone); !strings.Contains(msg, "not applicable") || strings.Contains(msg, "partial") {
+		t.Errorf("off+none applicability = %q, want no certification claimed", msg)
+	}
+	if len(judgeGate(offAndNone, map[string]string{"a": "strong"})) != 0 {
+		t.Error("an observe-only cell produced a gate condition")
 	}
 }
 
