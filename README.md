@@ -1,5 +1,19 @@
 # Evidra
 
+> **The README describes the pre-vNext product.** Reliability scoring, risk assessment,
+> the hosted API, and the direct MCP tool surface were removed from this branch per §43
+> of [`docs/system-design/vnext-mcp-recorder.md`](docs/system-design/vnext-mcp-recorder.md).
+> What ships on `vnext/mcp-recorder` today is narrower and is documented in
+> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): one MCP endpoint that wraps an upstream
+> server, enforces protocol order, and records a signed evidence chain read back with
+> `evidra summarize` and `evidra verify`.
+>
+> A full README rewrite waits on the product decision the gates feed (Gate C is not
+> passed yet); until then the gap is stated here rather than left for a newcomer to fall
+> into. The instructions agents read first, [`CLAUDE.md`](CLAUDE.md), do describe the
+> current code.
+
+
 [![CI](https://github.com/vitas/evidra/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vitas/evidra/actions/workflows/ci.yml)
 [![Release Pipeline](https://github.com/vitas/evidra/actions/workflows/release.yml/badge.svg?event=push)](https://github.com/vitas/evidra/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)

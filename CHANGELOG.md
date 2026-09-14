@@ -25,6 +25,11 @@
   else. Replaced the hosted-mode/assessment/two-layer sections with the shipped shape
   (endpoint, v2 store, reconciler, two CLIs), the nine invariants the code is built around,
   and a gate table that still says Gate C is not passed.
+- `README.md` got a stated gap rather than a rewrite: its tagline advertised "reliability
+  scoring", which no longer exists on this branch. The banner says what ships and where it
+  is documented, and defers the full rewrite until the gates feed a product decision —
+  advertising a vNext story in the README before Gate C is answered would be the same
+  mistake in the opposite direction.
 - `CLAUDE.md` rewritten to match: build/test commands that exist (no `e2e`, no
   `canon-fixtures-update`, no `docker-api`), the package list after the prune, the §7/§17/§18
   rules that a new agent must not "helpfully" violate, and the git discipline (ask before
