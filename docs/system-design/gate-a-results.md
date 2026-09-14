@@ -18,17 +18,64 @@ go build -o bin/evidra-gatea ./cmd/evidra-gatea && ./bin/evidra-gatea --regrade 
 
 | arm | model | cost | mode | valid | task success | protocol-only | report coverage | voluntary coverage | unprescribed | blocked | recovery |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| ds-v4-pro | deepseek-v4-pro | metered | all | 15 | 11/15 | 11/15 | 13/15 | 0/15 | 0 | 0 | not_measurable_no_blocks |
-| mimo-v25 | mimo-v2.5 | free | all | 16 | 14/16 | 14/16 | 16/16 | 0/16 | 0 | 0 | not_measurable_no_blocks |
-| mimo-v25 | mimo-v2.5 | free | off | 15 | 14/15 | 14/15 | 15/15 | 0/15 | 0 | 0 | not_measurable_no_blocks |
-| qwen38-flash | qwen3.8-flash | free | all | 16 | 10/16 | 12/16 | 16/16 | 0/16 | 0 | 0 | not_measurable_no_blocks |
-| qwen38-flash | qwen3.8-flash | free | off | 16 | 10/16 | 12/16 | 16/16 | 0/16 | 0 | 0 | not_measurable_no_blocks |
+| ds-v4-pro | deepseek-v4-pro | metered | all | 15 | 11/15 | 11/15 | 13/15 | 15/15 | 0 | 0 | not_measurable_no_blocks |
+| mimo-v25 | mimo-v2.5 | free | all | 16 | 14/16 | 14/16 | 16/16 | 16/16 | 0 | 0 | not_measurable_no_blocks |
+| mimo-v25 | mimo-v2.5 | free | off | 15 | 14/15 | 14/15 | 15/15 | 15/15 | 0 | 0 | not_measurable_no_blocks |
+| qwen38-flash | qwen3.8-flash | free | all | 16 | 10/16 | 12/16 | 16/16 | 16/16 | 0 | 0 | not_measurable_no_blocks |
+| qwen38-flash | qwen3.8-flash | free | off | 16 | 10/16 | 12/16 | 16/16 | 16/16 | 0 | 0 | not_measurable_no_blocks |
 
 Gate verdict: `gate_passed=false`. Conditions met on
 mimo-v2.5 (cheap, `enforce=all`): task success 14/16 ≥ 13/16, report coverage
 16/16, median blocked attempts 0. Conditions failed: `qwen38-flash` task success
 10/16 < 13/16, and `ds-v4-pro` task success 11/15 < 15/16 with report coverage
 13/15 < 15/16.
+
+## Correction: the voluntary coverage column read `0/N` in every cell
+
+The table above originally reported voluntary coverage as `0/15`, `0/16`, `0/15`,
+`0/16`, `0/16`, while the prose in "What the numbers say" below stated that every arm
+prescribed before acting and voluntary coverage was 100% in both modes. The document
+contradicted itself, and **the prose was right**.
+
+The cause was in the harness, not in the runs. The per-run compliance fields on
+`transcript` (`upstreamCalls`, `firstUpstreamPrescribed`, `latePrescribe`) were
+unexported and carried no JSON tags, so the transcript record never contained them and
+`readTranscript`'s `json.Unmarshal` could not restore them. `--regrade` therefore
+deserialized all three as their zero values, and `finalizeRun` copied the zero into
+every `result.json` and every cell rollup. Measured across this set before the fix:
+**79 of 80 transcripts' own `verdict` records say `first_upstream_prescribed: true`;
+0 of 80 `result.json` files did.**
+
+The fix is one derivation, `recomputeProtocolCompliance`, which reads the fields back
+out of the recorded frames (`toolEvent.OpOpen`, `.Local`, `.Name`, `.Text` — all of
+which the transcript already persists) and is called from `finalizeRun`, the function
+both the live path and `--regrade` share. The live path no longer maintains its own
+copy of the rule, and the test helper `replay` no longer keeps a third one. Two
+implementations of one verdict rule eventually disagree; three did.
+`TestRegradeReproducesLiveCompliance` asserts the invariant that actually failed —
+live and a JSON round-trip of the same frames must agree — and was mutation-checked:
+removing the call makes it report the divergence.
+
+**What regrading every archived set changed, and what it did not.** Only
+`voluntary_prescription_coverage` moved: `0/N → N/N` in all five cells of this set,
+`0/4 → 4/4` in both Gate C probes, and `0/4 → 3/4` in the `off` cell of
+`none-vs-off-smoke`. `gate_passed` is unchanged at `false`. Task success,
+protocol-only, report coverage, unprescribed executions, blocked attempts and recovery
+are unchanged in every cell of this set.
+
+One leniency the same bug caused is worth stating even though it changed no verdict
+here: `protocolOnlyFails` gates its "first action was not covered by a record" clause
+on `upstreamCalls > 0`, which was also always zero after a regrade, so that clause
+could not fire. It would have fired on a run whose first operational call preceded any
+prescription. No row of this set is in that shape (every cell has `unprescribed = 0`
+and coverage is now `N/N`), which is why nothing above moved — but a regraded artifact
+was quietly more forgiving than a live one.
+
+The pilot sets (`mimo-pilot`, `ds-pro-pilot`, `recheck`) also move on
+`task_success` and `protocol_only_success` when regraded. That is **not** this fix:
+regrading the same sets with the pre-fix binary produces the same values. It is the
+expected drift of re-reading artifacts graded by older predicate code, which is why
+`--regrade` prints them as unattributed rather than as matching the current build.
 
 ## What the revised §45 bars imply for this artifact — and why the verdict is unchanged
 

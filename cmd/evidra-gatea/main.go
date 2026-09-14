@@ -492,6 +492,13 @@ func gradeRun(res *runResult, ts *taskSpec, tr *transcript, mode string) {
 // check is only real now. Sharing this function between both paths is what keeps the two
 // accounts from drifting apart again.
 func finalizeRun(res *runResult, tr *transcript, ts *taskSpec, facts *storeFacts, factsErr error, mode string, regrade bool) {
+	// Derive the protocol-compliance fields from the recorded frames before anything
+	// reads them, on both paths. Doing it here rather than only in --regrade is the
+	// point: a value the live path carried in memory and a value regrade reconstructed
+	// from the same frames are then the same value by construction, not by agreement
+	// between two implementations.
+	tr.recomputeProtocolCompliance()
+
 	baseline := isBaseline(mode)
 	res.ProtocolNotApplicable = baseline
 	if baseline {
@@ -547,16 +554,11 @@ func finalizeRun(res *runResult, tr *transcript, ts *taskSpec, facts *storeFacts
 // execute runs one tool call against the endpoint and updates the transcript.
 func execute(ctx context.Context, ep *mcpClient, tr *transcript, name string, args map[string]any) toolEvent {
 	ev := toolEvent{Name: name, Args: args, OpOpen: tr.openOp}
-	switch name {
-	case "evidra_prescribe", "evidra_report":
+	// Only the local/upstream split is maintained here. The compliance fields that
+	// used to be derived alongside it are recomputed from the recorded frames in
+	// finalizeRun, so this path and --regrade share one derivation.
+	if name == "evidra_prescribe" || name == "evidra_report" {
 		ev.Local = true
-	default:
-		tr.upstreamCalls++
-		if tr.upstreamCalls == 1 {
-			// Voluntary coverage asks only one question: was a record open
-			// before the first real action (§10).
-			tr.firstUpstreamPrescribed = tr.openOp != ""
-		}
 	}
 	res, err := ep.callTool(ctx, name, args)
 	if err != nil {
@@ -586,9 +588,6 @@ func execute(ctx context.Context, ep *mcpClient, tr *transcript, name string, ar
 			}
 			if p.OperationID != "" {
 				tr.Operations = append(tr.Operations, opRecord{ID: p.OperationID, Objective: strArg(args, "objective")})
-				if tr.upstreamCalls > 0 && tr.openOp == "" {
-					tr.latePrescribe = true
-				}
 				tr.openOp = p.OperationID
 			}
 		}

@@ -21,10 +21,6 @@ func replay(plan []plannedCall, enforceAll bool) *transcript {
 		case "evidra_prescribe", "evidra_report":
 			ev.Local = true
 		default:
-			tr.upstreamCalls++
-			if tr.upstreamCalls == 1 {
-				tr.firstUpstreamPrescribed = tr.openOp != ""
-			}
 			if enforceAll && tr.openOp == "" {
 				ev.Blocked = true
 				ev.IsError = true
@@ -36,9 +32,6 @@ func replay(plan []plannedCall, enforceAll bool) *transcript {
 		}
 		switch step.Tool {
 		case "evidra_prescribe":
-			if tr.upstreamCalls > 0 && tr.openOp == "" {
-				tr.latePrescribe = true
-			}
 			id := fmt.Sprintf("EV-%d", tr.Prescribes+1)
 			if boolArg(step.Args, "abandon_and_replace") {
 				tr.Replacements++
@@ -62,6 +55,9 @@ func replay(plan []plannedCall, enforceAll bool) *transcript {
 		}
 		tr.add(ev)
 	}
+	// The same derivation the product paths use, so this helper cannot encode a
+	// third opinion about what voluntary coverage means.
+	tr.recomputeProtocolCompliance()
 	return tr
 }
 
@@ -375,5 +371,140 @@ func TestToolTextCapIsExplicit(t *testing.T) {
 	}
 	if len(big) > 8192+128 {
 		t.Errorf("cap not applied: %d bytes", len(big))
+	}
+}
+
+// complianceFrames builds the two transcript shapes Gate H-0 names, as recorded
+// frames only - no in-memory scalars, because frames are all --regrade ever has.
+func complianceFrames() map[string][]toolEvent {
+	return map[string][]toolEvent{
+		// prescribed before the first operational call
+		"prescribed_first": {
+			{Name: "evidra_prescribe", Local: true, Text: `{"operation_id":"EV-1","state":"open"}`},
+			{Name: "get_status", OpOpen: "EV-1", Text: `{"ok":true}`},
+			{Name: "evidra_report", Local: true, OpOpen: "EV-1", Text: `{"ok":true,"state":"reported"}`},
+		},
+		// operational call before any prescription
+		"action_first": {
+			{Name: "get_status", Text: `{"ok":true}`},
+			{Name: "evidra_prescribe", Local: true, Text: `{"operation_id":"EV-1","state":"open"}`},
+			{Name: "restart_service", OpOpen: "EV-1", Text: `{"ok":true}`},
+		},
+		// a first attempt Evidra refused is still an attempt, and still uncovered
+		"blocked_first": {
+			{Name: "get_status", Blocked: true, IsError: true, Text: `{"error":"no_open_operation"}`},
+			{Name: "evidra_prescribe", Local: true, Text: `{"operation_id":"EV-1","state":"open"}`},
+			{Name: "get_status", OpOpen: "EV-1", Text: `{"ok":true}`},
+		},
+		// a refused prescription opened nothing, so it is not a late prescription
+		"refused_late_prescribe": {
+			{Name: "get_status", Text: `{"ok":true}`},
+			{Name: "evidra_prescribe", Local: true, IsError: true, Text: `{"error":"operation_already_open"}`},
+		},
+	}
+}
+
+func wantCompliance(name string) (firstPrescribed, late bool) {
+	switch name {
+	case "prescribed_first":
+		return true, false
+	case "action_first":
+		return false, true
+	case "blocked_first":
+		return false, true
+	case "refused_late_prescribe":
+		return false, false
+	}
+	return false, false
+}
+
+// TestRecomputeProtocolComplianceFromFrames is Gate H-0 requirement 4: both shapes,
+// derived from frames. It also pins the two judgement calls the derivation makes -
+// a refused first attempt counts as uncovered, and a refused prescription does not
+// count as a late one.
+func TestRecomputeProtocolComplianceFromFrames(t *testing.T) {
+	for name, events := range complianceFrames() {
+		tr := &transcript{Events: events}
+		tr.recomputeProtocolCompliance()
+		wantFirst, wantLate := wantCompliance(name)
+		if tr.firstUpstreamPrescribed != wantFirst {
+			t.Errorf("%s: firstUpstreamPrescribed = %v, want %v", name, tr.firstUpstreamPrescribed, wantFirst)
+		}
+		if tr.latePrescribe != wantLate {
+			t.Errorf("%s: latePrescribe = %v, want %v", name, tr.latePrescribe, wantLate)
+		}
+	}
+}
+
+// TestRegradeReproducesLiveCompliance is the regression test for the bug H-0 fixes,
+// and requirement 3 of that gate. The compliance fields are unexported, so marshalling
+// a transcript drops them; --regrade then deserialized them as false and every archived
+// set reported zero voluntary coverage while the verdict record inside the same
+// transcript said true. The invariant asserted here is narrower and stronger than "the
+// value is correct": the live path and a JSON round-trip of the same frames must produce
+// the same value, because they now share one derivation.
+func TestRegradeReproducesLiveCompliance(t *testing.T) {
+	task := taskSpec{
+		ID:          "sample",
+		ExpectTools: []toolExpectation{{Tool: "get_status", Min: 1, Max: 2}},
+	}
+	for name, events := range complianceFrames() {
+		live := &transcript{Events: events}
+		for i := range live.Events {
+			if live.Events[i].Name == "evidra_prescribe" && prescribeOperationID(live.Events[i].Text) != "" {
+				live.Prescribes++
+			}
+		}
+		live.recomputeProtocolCompliance()
+
+		var liveRes runResult
+		finalizeRun(&liveRes, live, &task, nil, nil, modeOff, false)
+
+		// Exactly what rec("transcript", tr) writes, and exactly what readTranscript
+		// reads back. The round-trip is where the fields used to disappear.
+		raw, err := json.Marshal(live)
+		if err != nil {
+			t.Fatalf("%s: marshal transcript: %v", name, err)
+		}
+		var back transcript
+		if err := json.Unmarshal(raw, &back); err != nil {
+			t.Fatalf("%s: unmarshal transcript: %v", name, err)
+		}
+		var regradedRes runResult
+		finalizeRun(&regradedRes, &back, &task, nil, nil, modeOff, true)
+
+		if liveRes.FirstUpstreamPrescribed != regradedRes.FirstUpstreamPrescribed {
+			t.Errorf("%s: FirstUpstreamPrescribed diverged: live=%v regrade=%v",
+				name, liveRes.FirstUpstreamPrescribed, regradedRes.FirstUpstreamPrescribed)
+		}
+		if liveRes.LatePrescribe != regradedRes.LatePrescribe {
+			t.Errorf("%s: LatePrescribe diverged: live=%v regrade=%v",
+				name, liveRes.LatePrescribe, regradedRes.LatePrescribe)
+		}
+		if liveRes.ProtocolOnly != regradedRes.ProtocolOnly {
+			t.Errorf("%s: ProtocolOnly diverged: live=%v regrade=%v",
+				name, liveRes.ProtocolOnly, regradedRes.ProtocolOnly)
+		}
+	}
+}
+
+// TestPrescribeOperationIDRejectsUnparsableResponses pins the shared parse: a response
+// that does not decode must not read as a successful prescription. The live path ignores
+// the unmarshal error, so without this the zero value would look like "no error" and a
+// malformed response would be counted as a prescription that opened nothing.
+func TestPrescribeOperationIDRejectsUnparsableResponses(t *testing.T) {
+	for _, tc := range []struct {
+		text string
+		want string
+	}{
+		{`{"operation_id":"EV-1","state":"open"}`, "EV-1"},
+		{`{"error":"operation_already_open"}`, ""},
+		{`not json at all`, ""},
+		{``, ""},
+		{`{"state":"open"}`, ""},
+	} {
+		if got := prescribeOperationID(tc.text); got != tc.want {
+			t.Errorf("prescribeOperationID(%q) = %q, want %q", tc.text, got, tc.want)
+		}
 	}
 }
