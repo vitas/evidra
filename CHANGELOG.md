@@ -38,6 +38,49 @@
   repository guards.
 - Dead links rewritten in README and `guides/self-hosted-setup.md`.
 
+### vNext — CI was pointing at deleted things
+
+- `ci-vnext.yml` ran `go test -race ./internal/lifecycle/...` after the §43 prune deleted that
+  package, and failed the first pushed run of this branch. `ci.yml` called four Make targets
+  (`e2e`, `test-contracts`, `test-signals`, `prompts-verify`), five shell guards, a `prompts/`
+  directory and a signal-validation artifact path that likewise no longer exist; `release.yml`
+  did the same plus uploaded `tests/inspector/out/latest.log`, and `.goreleaser.yaml` still
+  built `./cmd/evidra-api`. Both workflows had been edited for pages at a time while their
+  contents drifted.
+- `tests/test_ci_workflows_resolve.sh` now fails if a live workflow names a Make target,
+  script, package path, config file or `-run` test pattern that does not exist — including the
+  vacuous case where `-run` matches no tests and the step reports success while testing
+  nothing. Every workflow must be declared in `tests/vnext-workflows.txt` as `enabled` or
+  `disabled`; a `disabled` one must contain its refusal marker, so disabled cannot rot into
+  "silently broken but still runnable". `release.yml` is disabled until Gate C by a first step
+  that refuses loudly and says why, because shipping vNext is a human decision, not a cleanup.
+- `tests/run_guards.sh` runs every `tests/test_*.sh` with no exclusion list; `ci.yml` calls it.
+- `VNEXT_MIN_PACKAGES: 8` is gone, replaced by `tests/vnext-packages.txt` compared against
+  `go list ./...` in both directions by `tests/test_supported_package_graph.sh`. The floor was
+  passing at 9 packages while one of them — the root package `samebits.com/evidra`
+  (`uiembed.go`, `uiembed_embed.go`) — existed only for the deleted `evidra-api`'s
+  `embed_ui` build tag and imported nothing. Deleting it leaves 8, which is the point where a
+  count floor stops meaning anything.
+- `docs/integrations/cli-reference.md` was rewritten to the shipped surface: it had been
+  banner-marked pre-vNext while still being the README's "CLI reference", and every command it
+  documented was deleted. It now describes `evidra-mcp --proxy` and `evidra
+  summarize|verify|version`, keeps the "Evidra does not sandbox the wrapped command" boundary
+  that `test_doc_trust_alignment` requires — true of the upstream process the endpoint execs —
+  and is verified by `scripts/check-doc-commands.sh`, which now runs those flags and help
+  texts instead of driving `evidra prescribe` (deleted) and asserting a README mention of
+  `EVIDRA_SIGNING_MODE` (which never existed in the Go sources of this branch).
+- README's environment table listed `EVIDRA_SIGNING_MODE`, `EVIDRA_SIGNING_KEY` and
+  `EVIDRA_ENVIRONMENT`; none appears in the code. The table is now the two variables the
+  binary reads, and the checker fails if documented and read sets ever differ in either
+  direction.
+- `test_fixture_snapshot_names` was red on one word: the plan's §59 verification column still
+  said "summary golden fixtures". It says "summary snapshot fixtures" now — the guard's own
+  rule, not an exception for the plan.
+- `pkg/proxy`: `annotationsFor`'s §22/§26 comment sat directly above `lookupFwd` with no blank
+  line, so gofmt-clean Go read the whole block as `lookupFwd`'s documentation and the invariant
+  about preserving absent annotations was attached to the wrong function. The dead
+  `failAllOutstanding` indirection is gone.
+
 ### vNext — history scrub before the first push
 
 - Correction to an earlier entry in this file: `test_bump_version_script` is **not** red by

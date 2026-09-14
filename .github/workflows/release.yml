@@ -24,6 +24,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: vnext-release-refusal
+        # The vNext line has no release path: Gate C has not passed, and the release
+        # pipeline belonged to the pre-vNext product whose API server, e2e suite and prompt
+        # factory were deleted by the §43 prune. Failing here is loud and explains itself;
+        # failing at "make e2e" on a half-deleted pipeline, or after publishing a broken
+        # artifact, is not. Removing this step is a deliberate decision to ship vNext, not a
+        # cleanup - see tests/vnext-workflows.txt, which requires this marker to be present.
+        run: |
+          set -euo pipefail
+          if [ -f docs/system-design/vnext-prune-record.md ] && [ ! -d cmd/evidra-api ]; then
+            echo "::error::No release path for the vNext line until Gate C passes and a human decides to ship. See docs/system-design/vnext-implementation-report.md and tests/vnext-workflows.txt."
+            exit 1
+          fi
+          echo "Not the vNext shape; continuing to the version alignment checks."
+
       - name: Validate tag and version alignment
         run: |
           set -euo pipefail
@@ -96,38 +111,6 @@ jobs:
           version: v2.10.1
           args: --timeout=5m
           verify: false
-
-      - name: Verify generated prompts
-        run: make prompts-verify
-
-  e2e:
-    needs: [test]
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Run E2E tests
-        run: make e2e
-
-      # TODO: re-enable after fixing deferred tool schema tests
-      # - name: Run MCP Inspector tests
-      #   run: make test-mcp-inspector-ci
-
-      - name: Upload inspector log
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: inspector-log
-          path: tests/inspector/out/latest.log
-          if-no-files-found: ignore
 
   snapshot:
     needs: [test, e2e]

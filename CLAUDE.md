@@ -28,7 +28,14 @@ go build -o bin/evidra-fixture ./cmd/evidra-fixture/    # conformance upstream
 go build -o bin/evidra-gatea ./cmd/evidra-gatea/        # experiment runner
 go test -race ./pkg/evidence/... ./pkg/proxy/... ./cmd/evidra-fixture
 golangci-lint run ./...        # must report zero issues
+bash tests/run_guards.sh       # every shell guard, no exclusion list
 ```
+
+CI references are themselves checked: `tests/test_ci_workflows_resolve.sh` fails if a live
+workflow names a make target, script, package path, config or `-run` pattern that does not
+exist, and `tests/vnext-workflows.txt` declares every workflow as `enabled` or `disabled`
+(a `disabled` workflow must carry its refusal marker). The package graph is an exact declared
+set in `tests/vnext-packages.txt`, not a count floor.
 
 Single case: `go test -run 'TestName' -v ./pkg/proxy/`. Gate artifacts cite tests by name, so
 renaming or deleting one means updating the artifact in the same commit — a checklist row
@@ -100,6 +107,9 @@ pointing at a function that no longer compiles is not evidence of anything.
   understanding.
 - Do not re-run paid model arms beyond what is already spent; free-tier arms reproduce the
   probe artifacts.
+- A deleted package must be removed from `tests/vnext-packages.txt` in the same commit that
+  deletes it; a workflow step may not outlive its target. Green that checks nothing is worse
+  than red that checks something.
 - **Regrade; do not hand-read artifacts.** `--regrade` recomputes verdicts from persisted
   transcripts and re-checks the analytics invariants. A script reading `result.json` by hand
   sits outside every guard the harness has — one did report `0/8` because it read a key that

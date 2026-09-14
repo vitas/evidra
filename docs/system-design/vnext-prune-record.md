@@ -74,6 +74,12 @@ Also removed with the above: `--legacy-proxy`, `--url`/`--environment`/`--retry-
 (API HTTP client); `pkg/mode`; `pkg/export`; `internal/telemetry` if nothing in the
 vNext path emits metrics.
 
+One removal came after the table above, in the CI-honesty pass rather than the prune itself:
+the root package `samebits.com/evidra` (`uiembed.go`, `uiembed_embed.go`). It was dead weight
+from step 2 onward — its only consumer was the `embed_ui` build tag on `cmd/evidra-api`, which
+no longer exists — and it stayed because nothing counted packages precisely enough to notice.
+`.goreleaser.yaml` still had a build for the deleted `cmd/evidra-api`; that entry went too.
+
 ## What must survive the prune
 
 - `cmd/evidra-mcp` merged endpoint (`--proxy`, `--enforce=all|off`) and everything it

@@ -305,7 +305,10 @@ disable uiembed/hosted packaging from the vNext supported build graph
 keep source files in Git until the final prune
 ```
 
-This is not a repository split and does not change public `main`.
+Executed by §43: every source this list excluded left the branch, and the root package
+(`uiembed.go`, `uiembed_embed.go`) went last — it existed only for an `embed_ui` build tag on
+`cmd/evidra-api`, so it survived the deletion of that command unnoticed until CI's package
+count floor was replaced by a declared package set, which is the check that found it.
 
 It only makes the experimental branch's supported graph match the actual product being tested.
 
@@ -3933,7 +3936,7 @@ The main document remains the source of rationale and invariants.
 | 5 | evidence privacy | JCS arguments, HMAC, bounded result fingerprints, canary | privacy + oversize tests |
 | 6 | `pkg/proxy` | execution start/finish, IDs, cancellation/errors, annotations | execution pairing tests |
 | 7 | proxy transport | direction-safe JSON-RPC, pagination, list-changed, large messages, unsupported capabilities | Gate B conformance |
-| 8 | `pkg/report` | reconstruction, mode-aware metrics, scope, reconciliation facts | summary golden fixtures |
+| 8 | `pkg/report` | reconstruction, mode-aware metrics, scope, reconciliation facts | summary snapshot fixtures |
 | 9 | `cmd/evidra` | summarize, `--since`, verify, version | Gate C with real MCP server |
 | 10 | active graph / presentation | prune legacy active graph; optional HTML during dogfood | Week-5 dogfood + Gate D |
 

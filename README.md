@@ -222,17 +222,23 @@ The proxy records evidence when it sees `run_command` or other mutation-shaped M
 make build
 make test
 make lint
-make test-mcp-inspector    # MCP protocol compliance tests
 ```
 
 ### Environment Variables
 
+The current build reads two environment variables (`grep -rn "EVIDRA_" --include=*.go cmd pkg`
+is the check for this table):
+
 | Variable | Description |
 |---|---|
-| `EVIDRA_EVIDENCE_DIR` | Evidence storage path (default: `~/.evidra/evidence`) |
-| `EVIDRA_SIGNING_MODE` | `strict` (default) or `optional` (dev mode) |
-| `EVIDRA_SIGNING_KEY` | Base64 Ed25519 signing key |
-| `EVIDRA_ENVIRONMENT` | Environment label (production, staging) |
+| `EVIDRA_EVIDENCE_DIR` | Default evidence root for the **read side** (`evidra summarize`, `evidra verify`). The endpoint has no default location — recording is chosen per process with `--evidence-dir`. |
+| `EVIDRA_ACTOR_ID` | Default for `evidra-mcp --actor-id`: the actor recorded as accountable. |
+
+The pre-vNext table listed here also named `EVIDRA_SIGNING_MODE`, `EVIDRA_SIGNING_KEY` and
+`EVIDRA_ENVIRONMENT`. None of the three appears anywhere in the Go sources of this branch:
+signing keys come from the recorder directory, and the environment label went with the hosted
+service. They are left out rather than marked "legacy", because a variable that never existed
+in this build cannot be deprecated by it.
 
 ## License
 
