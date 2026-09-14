@@ -25,6 +25,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sync"
 	"time"
 )
 
@@ -86,9 +87,10 @@ func fileName(sum string) string {
 // provenances inside one cell rather than as a silent average over both.
 func captureProvenance(endpointBin, fixtureBin, modelID string) *binaryProvenance {
 	runner := os.Args[0]
+	rev, dirty := sourceState()
 	return &binaryProvenance{
-		SourceRevision: gitRevision(),
-		SourceDirty:    gitDirty(),
+		SourceRevision: rev,
+		SourceDirty:    dirty,
 		EndpointSHA256: fileSHA256(endpointBin),
 		FixtureSHA256:  fileSHA256(fixtureBin),
 		RunnerSHA256:   fileSHA256(runner),
@@ -110,7 +112,23 @@ func fileSHA256(path string) string {
 	return hex.EncodeToString(h.Sum(nil))
 }
 
-func gitDirty() bool {
+// sourceState resolves git identity once per process. captureProvenance runs per graded
+// run, and each call would otherwise spawn two git subprocesses - on a machine already
+// doing real work, that is the difference between a 2s test package and a 90s one.
+var (
+	sourceOnce     sync.Once
+	cachedRevision string
+	cachedDirty    bool
+)
+
+func sourceState() (string, bool) {
+	sourceOnce.Do(func() {
+		cachedRevision, cachedDirty = gitRevision(), gitStatusDirty()
+	})
+	return cachedRevision, cachedDirty
+}
+
+func gitStatusDirty() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	out, err := exec.CommandContext(ctx, "git", "status", "--porcelain").Output()

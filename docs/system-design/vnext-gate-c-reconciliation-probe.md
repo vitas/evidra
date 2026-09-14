@@ -180,9 +180,32 @@ go build -o bin/evidra-mcp ./cmd/evidra-mcp/    # and the other three binaries
 | reports `abandoned/not_achieved` | 2 | 2 |
 | operations achieving with **zero** observed executions | 0 | 0 |
 | `ACHIEVED_WITH_ONLY_DECLARED_READ_ONLY_EXECUTIONS_IN_SCOPE` | 3 | 8 |
-| task success (runner predicates) | 0/8 | 0/8 |
+| task success (runner predicates, regraded) | 4/8 (all 2/4, off 2/4) | 6/8 (all 2/4, off 4/4) |
 | `observations` blocks delivered in tool results | 0 (feature absent) | 22 across 8 sessions (3/2/4/2/3/2/4/2) |
 | of those, the empty-window sentence | — | **0** |
+| reports with zero observed executions in scope | 2 (both `abandoned/not_achieved`) | 0 |
+
+## Correction: the first version of this table reported 0/8 task success
+
+The table originally said task success `0/8` in both columns. It was computed by a
+throwaway script that read `result.json`'s `task_success` key; the field is named
+`success`, so the script read `nil` for every run and reported zero. The numbers above come
+from `--regrade`, which recomputes verdicts from the persisted transcripts and writes them
+back.
+
+Worth keeping in the artifact rather than editing silently, for two reasons. First, the
+error is the same class as the stale binary two sections below: an analysis path outside the
+harness, reading artifacts by hand. Second, it is the empirical case for the invariant
+checks added in `f03b39e` — but note honestly what those checks do and do not cover: they
+bound metrics the *runner* computes and refuse a rollup whose aggregates disagree with its
+rows. They cannot see a script that reads the wrong key. The mitigation for that is the
+rule the repo already states — regrade instead of hand-reading artifacts — and this
+correction is the evidence for why.
+
+Both probes also show something the wrong-key version hid: the after set did better on task
+success (6/8 vs 4/8), entirely in `off` mode (2/4 → 4/4) where nothing is enforced and no
+protocol refusal can occur. Two variables moved at once and n=4 per cell, so this is not
+evidence that feedback helps; it is a reason not to claim the opposite either.
 
 ## What this sample can and cannot say
 

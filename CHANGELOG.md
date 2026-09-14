@@ -17,6 +17,20 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — correction: the second probe's task-success row was wrong
+
+- `docs/system-design/vnext-gate-c-reconciliation-probe.md` reported task success `0/8` for
+  both probes. The numbers came from a hand-written script reading `result.json`'s
+  `task_success` key, which does not exist (the field is `success`), so every run read as a
+  failure. Re-graded from the persisted transcripts: before **4/8** (`all` 2/4, `off` 2/4),
+  after **6/8** (`all` 2/4, `off` 4/4).
+- The correction is kept in the artifact rather than silently overwritten, along with what
+  it does *not* support: the improvement sits entirely in `off` mode, two variables moved at
+  once, and n=4 per cell. It is also the second instance of the same failure mode as the
+  stale binary — analysis performed outside the harness by reading artifacts ad hoc — which
+  is why "regrade, do not hand-read" is now stated as the mitigation instead of pretending
+  invariant checks would have caught it.
+
 ### vNext experiment — invariant checker split for complexity (follow-up to f03b39e)
 
 - `checkRunInvariants` exceeded the cyclomatic-complexity ceiling, so the three property
