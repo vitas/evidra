@@ -18,9 +18,9 @@ This document is the user-facing command and flag reference for all binaries in 
 - `evidra-mcp` (MCP server)
 
 For architecture and protocol semantics, see:
-- [Integration Protocol](../system-design/EVIDRA_PROTOCOL_V1.md)
-- [Record/Import Contract](../contracts/EVIDRA_RUN_RECORD_CONTRACT_V1.md)
-- [Core Data Model](../system-design/EVIDRA_CORE_DATA_MODEL_V1.md)
+- The integration protocol, record/import contract and core data model listed here described
+  the pre-vNext surface and were removed in the vNext prune; see
+  [ARCHITECTURE.md](../ARCHITECTURE.md) for what exists now, or Git history for these specs.
 
 ## 1) `evidra` (core CLI)
 

@@ -39,7 +39,7 @@ the core prescribe path to canonicalize artifacts or infer risk.
 The expectation windows in `expected-bands.json` are calibration snapshots
 derived from the active scoring model and profile, not an independent scoring
 spec. For the score pipeline itself, see
-[`EVIDRA_SCORING_MODEL_V1.md`](../system-design/EVIDRA_SCORING_MODEL_V1.md).
+`EVIDRA_SCORING_MODEL_V1.md`, removed in the vNext prune and readable in Git history.
 
 The harness is intentionally deterministic:
 

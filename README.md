@@ -164,7 +164,7 @@ From the evidence chain, Evidra computes:
 
 Risk assessment can be supplied by an external scanner or policy engine as an optional `assessment` block on prescribe entries. When no assessment is supplied, Evidra still records the intent and outcome and leaves risk fields empty.
 
-Eight behavioral signals documented in the [Signal specification](docs/system-design/EVIDRA_SIGNAL_SPEC_V1.md).
+Eight behavioral signals. Their specification (`EVIDRA_SIGNAL_SPEC_V1.md`) described the pre-vNext signal engine and was removed in the vNext prune; it remains readable in Git history.
 
 ## Explicit Protocol (Advanced)
 
@@ -210,9 +210,9 @@ The proxy records evidence when it sees `run_command` or other mutation-shaped M
 - [Skill Setup Guide](docs/guides/skill-setup.md)
 - [CLI Reference](docs/integrations/cli-reference.md)
 - [API Reference](docs/api-reference.md)
-- [Architecture](docs/system-design/EVIDRA_ARCHITECTURE_V1.md)
-- [Protocol Specification](docs/system-design/EVIDRA_PROTOCOL_V1.md)
-- [Scoring Rationale](docs/system-design/scoring/default.v1.1.0.md)
+- [Architecture](docs/ARCHITECTURE.md) — the vNext shape, current
+- Protocol, data-model, scoring and signal specs described the pre-vNext product and were
+  removed in the vNext prune (`docs/system-design/vnext-prune-record.md`); Git history keeps them.
 - [MCP Registry Publication Guide](docs/guides/mcp-registry-publication.md)
 - [Supported Tools](docs/supported-tools.md)
 
