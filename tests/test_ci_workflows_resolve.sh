@@ -57,6 +57,16 @@ PYEOF
   done <<<"$empties"
 done
 
+# --- structural sanity: workflow schema rules that YAML cannot express -------------------------
+# Implemented in tests/ci_workflow_structure.py rather than inline, because an inline version
+# of this check failed to install itself and reported PASS over a dangling `needs:` - which is
+# the same class of mistake the guard exists to catch. A check nobody can run by hand is a
+# check nobody can show failing.
+structure_problems="$(python3 tests/ci_workflow_structure.py .github/workflows/*.yml)"
+if [[ -n "$structure_problems" ]]; then
+  while IFS= read -r hit; do note "$hit"; done <<<"$structure_problems"
+fi
+
 # --- every workflow on disk is declared ----------------------------------------------------
 while IFS= read -r file; do
   base="$(basename "$file")"
