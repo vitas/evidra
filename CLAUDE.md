@@ -13,6 +13,8 @@ plan, cited by section number (§7, §13–§24, §34, §38, §41–§47, §59).
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) is the map;
 [`docs/system-design/vnext-prune-plan.md`](docs/system-design/vnext-prune-plan.md) records
 what was deleted and why.
+[`docs/system-design/vnext-experiment-harness.md`](docs/system-design/vnext-experiment-harness.md)
+states the invariants the measurement harness is built around.
 
 ## Build & Test
 
@@ -49,8 +51,11 @@ pointing at a function that no longer compiles is not evidence of anything.
 - `pkg/evidence/` — evidence model **v2 only**: `store_v2.go`, `event_v2.go`, `digest_v2.go`,
   `verify_v2.go`, `canon_jcs.go`. One schema, one writer per directory.
 - `pkg/report/` — reconciliation into `summary.json`.
-- `cmd/evidra-fixture/`, `cmd/evidra-gatea/` — measure surface, not product. Arm definitions
-  live in `cmd/evidra-gatea/arms.json`.
+- `cmd/evidra-gatea/`, `cmd/evidra-fixture/` — the measurement harness. Not shipped product,
+  but **not disposable test code either**: it produces the evidence the product claim rests
+  on, so it obeys `docs/system-design/vnext-experiment-harness.md` (build provenance,
+  analytics invariants, regrade-don't-hand-read). Arm definitions live in
+  `cmd/evidra-gatea/arms.json`.
 - `ui/` — retained for a future relocation; nothing in the vNext path imports or serves it.
 
 ## Rules the implementation exists to keep
@@ -90,6 +95,12 @@ pointing at a function that no longer compiles is not evidence of anything.
   understanding.
 - Do not re-run paid model arms beyond what is already spent; free-tier arms reproduce the
   probe artifacts.
+- **Regrade; do not hand-read artifacts.** `--regrade` recomputes verdicts from persisted
+  transcripts and re-checks the analytics invariants. A script reading `result.json` by hand
+  sits outside every guard the harness has — one did report `0/8` because it read a key that
+  does not exist.
+- Every run records source revision and binary hashes, and the runner refuses a `bin/`
+  artifact older than its sources. An invalid experiment does not error; it produces data.
 - Deletion is not a milestone (§43): land a removal only when the new vertical path is the
   path being measured, and say in the commit what the removal made impossible to confuse.
 

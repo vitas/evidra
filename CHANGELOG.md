@@ -17,6 +17,32 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext — the reconciliation view, and the harness as a first-class product surface
+
+- `pkg/report` now emits `reconciliation_view` per operation: `declared` (the agent's own
+  objective, verbatim), `observed` (execution count, succeeded, failed/cancelled, unpaired,
+  unknown-status, server-declared read-only vs not-declared, always
+  `annotations_verified: false`), `reported` (the claim, or an explicit
+  `present: false`), and a `stance` line saying Evidra does not judge the claim. The terminal
+  summary renders the same four blocks per operation. No new information: the arrangement
+  exists so a reader does not reconstruct the disagreement from arrays.
+- The status buckets partition `count` exactly once each, including an `unknown_status`
+  bucket, with a test asserting the sum equals the total — a view whose parts stop adding up
+  to the whole is the 28/16 bug wearing a nicer format.
+- `not_declared_read_only` is deliberately not named "state-changing": an unannotated call
+  may have been read-only, and the absence of a claim is not a counter-claim (§27).
+- New `docs/system-design/vnext-experiment-harness.md`: the harness invariants (provenance
+  must match the source revision evaluated, the five analytics invariants, regrade-don't
+  hand-read, regrade-is-a-re-reading, `not_measurable` is a result, checks must not cry wolf),
+  justified by the three measurement errors on this branch rather than by taste.
+- `docs/ARCHITECTURE.md` adopts the sharper thesis after the probes — *Evidra does not decide
+  whether an agent's claim is true; it preserves the claim beside independently observed
+  execution evidence so unsupported or surprising claims become inspectable* — and records the
+  boundary of the in-band feedback: post-operation protocol feedback, not a verifier, not a
+  precondition for the claim being accepted. It arrives after `achieved` is written, so it can
+  inform the next operation and cannot correct this one.
+- `CLAUDE.md` gains the regrade rule and the provenance rule.
+
 ### vNext experiment — correction: the second probe's task-success row was wrong
 
 - `docs/system-design/vnext-gate-c-reconciliation-probe.md` reported task success `0/8` for

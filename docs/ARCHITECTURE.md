@@ -19,6 +19,25 @@ So the accurate sentence is: **Evidra is an execution-evidence recorder that gat
 order of MCP protocol steps, not the semantics of what they do.** It does not classify
 commands, score risk, or decide whether an action was wise. §7 allows exactly two modes.
 
+After two probe sets, the sentence that explains *why* the three layers exist is this one:
+
+> **Evidra does not decide whether an agent's claim is true. It preserves the claim beside
+> independently observed execution evidence, so that unsupported or surprising claims become
+> inspectable.**
+
+That is the reason `declared / observed / reported` stays three separate layers instead of
+collapsing into a score: the moment the recorder asserts "the service was not restored", it
+has to know the service's state, and it does not. What it does know is that the only things
+it watched inside that window were three calls the upstream annotated read-only. Kept side by
+side, that disagreement is inspectable by a human; averaged into a number, it is not.
+
+The same boundary applies to §47's in-band report feedback, and it is worth stating precisely
+because the mechanism invites the wrong reading: **in-band feedback is post-operation
+protocol feedback — not a verifier, and not a precondition for the claim being accepted.** It
+arrives after the agent has already written `completed/achieved`, so it cannot correct that
+claim; it can only inform the next operation. Evidra's position is unchanged: preserve the
+claim, show it beside what was observed, let a reader decide.
+
 ## What ships
 
 One idea: an agent working through MCP leaves behind a signed account of what it actually
@@ -96,6 +115,11 @@ one writer" is a bug waiting for a coincidence.
 9. **The endpoint does not advertise what it cannot cover** (§44): relayed prompts,
    resources and completions are not advertised; `--advertise-passthrough` exists for
    people who have read the boundary statement.
+10. **Experiment binary provenance must match the product source revision being evaluated**
+    ([§harness](system-design/vnext-experiment-harness.md)): every graded run records the
+    source revision and the hashes of the endpoint, fixture and runner it was measured
+    against; a cell that mixes builds is an error, not a nuance. The harness produces the
+    evidence the product claim rests on, so it is part of the product, not scaffolding.
 
 ## Where things are measured
 

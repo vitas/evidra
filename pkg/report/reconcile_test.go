@@ -381,3 +381,100 @@ func TestReconcileHonorsSinceWindow(t *testing.T) {
 		t.Error("an empty window must not invalidate the chain: integrity is not windowed")
 	}
 }
+
+// The reconciliation view is the reader's arrangement of the same facts §38 already
+// computes. These tests aim at the two ways such a view goes wrong: it starts agreeing
+// with the agent (or disagreeing), and it loses the partition between what the server
+// claimed and what the recorder watched.
+
+func TestReconciliationViewPutsTheThreeLayersInOrder(t *testing.T) {
+	op := &Operation{
+		Objective: "restore the ingest service",
+		Report:    &Report{Status: "completed", Outcome: "achieved", Summary: "service is healthy again"},
+		Executions: []Execution{
+			{Tool: "get_status", Status: "success", DeclaredReadOnly: true},
+			{Tool: "read_logs", Status: "success", DeclaredReadOnly: true},
+			{Tool: "get_status", Status: "success", DeclaredReadOnly: true},
+		},
+	}
+	annotate(op, nil)
+
+	view := op.View
+	if view.Declared != "restore the ingest service" {
+		t.Errorf("declared = %q, want the agent's own objective verbatim", view.Declared)
+	}
+	if view.Executions.Count != 3 || view.Executions.Succeeded != 3 {
+		t.Errorf("observed counts = %+v", view.Executions)
+	}
+	if view.Executions.ServerDeclaredRO != 3 || view.Executions.NotDeclaredRO != 0 {
+		t.Errorf("read-only split = %d/%d, want 3/0",
+			view.Executions.ServerDeclaredRO, view.Executions.NotDeclaredRO)
+	}
+	if view.Executions.AnnotationsVerified {
+		t.Error("the view reports the upstream's annotations as verified")
+	}
+	if !view.Reported.Present || view.Reported.Outcome != "achieved" {
+		t.Errorf("reported = %+v, want the agent's claim kept verbatim", view.Reported)
+	}
+	// The claim and the observation must both survive without being merged into a
+	// conclusion: this is the exact case where a verdict field is most tempting.
+	if !strings.Contains(view.Stance, "does not decide") {
+		t.Errorf("stance = %q", view.Stance)
+	}
+	if !contains(op.Facts, FactAchievedWithDeclaredReadOnlyOnly) {
+		t.Error("the §38.C fact disappeared when the view was added alongside it")
+	}
+}
+
+func TestReconciliationViewPartitionsEveryExecutionOnce(t *testing.T) {
+	op := &Operation{
+		Report: &Report{Status: "completed", Outcome: "achieved"},
+		Executions: []Execution{
+			{Status: "success"},
+			{Status: "error"},
+			{Status: "cancelled"},
+			{Status: "started"},
+			{Status: "something-a-future-writer-invented"},
+		},
+	}
+	annotate(op, nil)
+	e := op.View.Executions
+	if e.Count != 5 {
+		t.Fatalf("count = %d", e.Count)
+	}
+	if sum := e.Succeeded + e.FailedOrCancelled + e.UnpairedStarts + e.Unknown; sum != e.Count {
+		t.Errorf("buckets sum to %d but %d executions were observed: the partition leaks", sum, e.Count)
+	}
+	// An unannotated call is not a state-changing call. Collapsing those two is how a
+	// read-only tool without annotations gets silently accused of writing (§27).
+	if e.ServerDeclaredRO != 0 || e.NotDeclaredRO != 5 {
+		t.Errorf("read-only split = %d/%d, want 0/5 unverified-no-claim", e.ServerDeclaredRO, e.NotDeclaredRO)
+	}
+}
+
+func TestReconciliationViewNamesAnAbsentReport(t *testing.T) {
+	op := &Operation{Objective: "restart the worker", Executions: []Execution{{Status: "success"}}}
+	annotate(op, nil)
+	if op.View.Reported.Present {
+		t.Fatal("an unreported operation rendered as reported")
+	}
+	lines := op.View.lines("  ")
+	joined := strings.Join(lines, "\n")
+	if !strings.Contains(joined, "no terminal report was received") {
+		t.Errorf("the human view hides that no report exists:\n%s", joined)
+	}
+	for _, forbidden := range []string{"verdict", "score", "risk", "incorrect", "did not"} {
+		if strings.Contains(strings.ToLower(joined), forbidden) {
+			t.Errorf("the rendered view contains verdict-like language %q:\n%s", forbidden, joined)
+		}
+	}
+}
+
+func contains(hay []string, needle string) bool {
+	for _, h := range hay {
+		if h == needle {
+			return true
+		}
+	}
+	return false
+}

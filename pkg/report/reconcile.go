@@ -81,6 +81,9 @@ type Operation struct {
 	SameFingerprintRecovery      string `json:"same_fingerprint_recovery,omitempty"`
 	RepeatedArgumentFingerprints int    `json:"repeated_canonical_argument_fingerprints"`
 
+	// View is the same content as the fields above, arranged so a reader meets the
+	// three layers in order instead of reconstructing them from a struct dump.
+	View ReconciliationView `json:"reconciliation_view"`
 	// group is the cell this operation belongs to, kept so reconciliation never
 	// has to guess which comparison domain a number came from.
 	group string
@@ -481,6 +484,7 @@ func finalize(cells map[string]*Cell, ops map[opKey]*Operation, order []opKey,
 // annotate adds §38's findings to one operation.
 func annotate(op *Operation, sessionBlocks []blockFact) {
 	op.RepeatedArgumentFingerprints = repeatedFingerprints(op.Executions)
+	op.View = newReconciliationView(op)
 	if op.Report == nil || !strings.EqualFold(op.Report.Outcome, "achieved") {
 		return
 	}
@@ -629,6 +633,7 @@ func (s Summary) Findings() []string {
 		for _, op := range c.Operations {
 			out = append(out, fmt.Sprintf("  %s %s executions=%d report=%s %s",
 				op.OperationID, op.State, len(op.Executions), reportWord(op), strings.Join(append(op.Anomalies, op.Facts...), " ")))
+			out = append(out, op.View.lines("    ")...)
 		}
 	}
 	return out
@@ -646,4 +651,124 @@ func reportWord(op Operation) string {
 		return "none"
 	}
 	return op.Report.Status + "/" + op.Report.Outcome
+}
+
+// ReconciliationView is the reader-facing arrangement of one operation: what was
+// declared, what was observed, what was reported - in that order, side by side.
+//
+// It exists because §38's facts and §34's states are diagnostics vocabulary, and a person
+// deciding whether to trust an "achieved" should not have to assemble the sentence from
+// arrays. Nothing here is new information: every field is a restatement of `Executions`
+// and `Report`, and the point of restating it is the shape - the claim is never rewritten,
+// averaged, or graded.
+//
+// Stance is not decoration. The temptation in a view like this is to add "looks wrong"
+// once the counts get interesting, and that single field would turn Evidra into the judge
+// it has been built not to be.
+type ReconciliationView struct {
+	// Declared is the agent's own objective text, verbatim.
+	Declared string `json:"declared,omitempty"`
+	// ExpectedOutcome is the agent's own success criterion, verbatim, when given.
+	ExpectedOutcome string         `json:"expected_declared_outcome,omitempty"`
+	Executions      ViewExecutions `json:"observed"`
+	Reported        ViewReport     `json:"reported"`
+	Stance          string         `json:"stance"`
+}
+
+// ViewExecutions counts what the recorder watched inside the operation's window.
+// `NotDeclaredReadOnly` is deliberately not named "state-changing": an unannotated call
+// may have been read-only, and the absence of a claim is not a counter-claim (§27).
+type ViewExecutions struct {
+	Count             int `json:"count"`
+	Succeeded         int `json:"succeeded"`
+	FailedOrCancelled int `json:"failed_or_cancelled"`
+	// UnpairedStarts are executions whose terminal event is missing: the call was
+	// started and the chain never says how it ended.
+	UnpairedStarts int `json:"unpaired_starts"`
+	// Unknown keeps the partition honest. A status outside the four the model
+	// defines must still be counted somewhere, or the sum of the parts stops
+	// equalling the whole and the view starts disagreeing with `count`.
+	Unknown             int  `json:"unknown_status"`
+	ServerDeclaredRO    int  `json:"server_declared_read_only"`
+	NotDeclaredRO       int  `json:"not_declared_read_only"`
+	AnnotationsVerified bool `json:"annotations_verified"`
+}
+
+// ViewReport is the agent's terminal claim. Absent is stated as such rather than left
+// blank: an operation with no report is the product's most common interesting case (§34).
+type ViewReport struct {
+	Present bool   `json:"present"`
+	Status  string `json:"status,omitempty"`
+	Outcome string `json:"outcome,omitempty"`
+	Summary string `json:"summary,omitempty"`
+}
+
+// ViewStance is the sentence that keeps this view honest about its own authority.
+const ViewStance = "Evidra does not decide whether this claim is true. The claim is kept " +
+	"beside independently observed executions so that a reader can see where they disagree."
+
+func newReconciliationView(op *Operation) ReconciliationView {
+	view := ReconciliationView{
+		Declared:        op.Objective,
+		ExpectedOutcome: op.ExpectedOutcome,
+		Stance:          ViewStance,
+	}
+	view.Executions.AnnotationsVerified = false
+	for _, ex := range op.Executions {
+		view.Executions.Count++
+		switch ex.Status {
+		case "success":
+			view.Executions.Succeeded++
+		case "error", "cancelled":
+			view.Executions.FailedOrCancelled++
+		case "started":
+			view.Executions.UnpairedStarts++
+		default:
+			view.Executions.Unknown++
+		}
+		if ex.DeclaredReadOnly {
+			view.Executions.ServerDeclaredRO++
+		} else {
+			view.Executions.NotDeclaredRO++
+		}
+	}
+	if op.Report != nil {
+		view.Reported = ViewReport{
+			Present: true, Status: op.Report.Status, Outcome: op.Report.Outcome, Summary: op.Report.Summary,
+		}
+	}
+	return view
+}
+
+// lines renders the view as four indented blocks. Kept to four lines because a reader
+// scanning 14 operations will not read fifty: the detail is in summary.json, and this is
+// the arrangement that makes the disagreement visible at a glance.
+func (v ReconciliationView) lines(indent string) []string {
+	observed := fmt.Sprintf("%s%d executions, %d succeeded, %d failed/cancelled, "+
+		"%d unpaired, %d server-declared read-only, %d not-declared (annotations unverified)",
+		indent+"observed:  ", v.Executions.Count, v.Executions.Succeeded, v.Executions.FailedOrCancelled,
+		v.Executions.UnpairedStarts+v.Executions.Unknown, v.Executions.ServerDeclaredRO, v.Executions.NotDeclaredRO)
+	reported := "reported:  no terminal report was received"
+	if v.Reported.Present {
+		reported = fmt.Sprintf("%sreported:  %s", indent, v.Reported.Status)
+		if v.Reported.Outcome != "" {
+			reported += "/" + v.Reported.Outcome
+		}
+		if v.Reported.Summary != "" {
+			reported += " — " + truncateOneLine(v.Reported.Summary, 90)
+		}
+	}
+	declared := indent + "declared:  (no objective text recorded)"
+	if v.Declared != "" {
+		declared = indent + "declared:  " + truncateOneLine(v.Declared, 90)
+	}
+	return []string{declared, observed, reported, indent + "stance:    Evidra does not judge the claim; it is kept beside what was observed"}
+}
+
+func truncateOneLine(text string, max int) string {
+	one := strings.Join(strings.Fields(text), " ")
+	if len(one) <= max {
+		return one
+	}
+	return one[:max] + "…"
 }
