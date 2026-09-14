@@ -17,6 +17,29 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — §43 step 2: the hosted chain leaves the module
+
+- Deleted `cmd/evidra-api` and its whole support graph: `internal/api`, `internal/apiutil`,
+  `internal/auth`, `internal/db`, `internal/store`, `internal/analytics`,
+  `internal/analyticsdb`, `internal/analyticsvc`, `internal/ingest`, `internal/gitops`,
+  `internal/automationevent`, and `Dockerfile.api`. `go mod tidy` dropped the PostgreSQL
+  driver, the JWT library and gonum with them: the module no longer carries hosted
+  storage dependencies, which is a smaller claim to defend than a flag that disables them.
+- `ui/` is deliberately **kept** while its runtime coupling goes: the embedded-static
+  build target, `docker-api`, the compose `postgres` + `evidra-api` services, and the
+  release image matrix entry. §43 removes "old UI/landing runtime coupling", and the
+  UI sources are the asset that later moves to the separate product repo — deleting them
+  here would turn "no repo split yet" into losing the thing to be moved.
+- `.github/workflows/ci-vnext.yml`: the unsupported-package regex no longer enumerates
+  deleted packages, so the supported set is now "everything that is left" minus the four
+  pre-vNext packages still in the tree (`apicrypto`, `assessment`, `client`, `config`,
+  `mode`, `sarif`).
+- Fixed a latent flake found by the sweep, not caused by the deletion:
+  `internal/score`'s `TestLoadDefaultProfile` compared a float sum of a **map** of
+  weights with `!= 1.0`, so it failed whenever Go's randomized iteration order produced
+  0.9999999999999999. Now compared with a tolerance, with a comment saying why exact
+  equality was never valid there.
+
 ### vNext experiment — §43 step 1: the CLI is `summarize`, `verify`, `version`
 
 - `cmd/evidra` lost its pre-vNext command surface (16 files plus tests):

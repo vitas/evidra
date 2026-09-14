@@ -9,36 +9,5 @@ services:
       - EVIDRA_EVIDENCE_DIR=/evidence
       - EVIDRA_ENVIRONMENT=development
 
-  postgres:
-    image: postgres:17-alpine
-    environment:
-      POSTGRES_USER: evidra
-      POSTGRES_PASSWORD: evidra
-      POSTGRES_DB: evidra
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U evidra"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
-  evidra-api:
-    build:
-      context: .
-      dockerfile: Dockerfile.api
-    ports:
-      - "8080:8080"
-    environment:
-      - DATABASE_URL=postgres://evidra:evidra@postgres:5432/evidra?sslmode=disable
-      - EVIDRA_API_KEY=${EVIDRA_API_KEY:-dev-api-key}
-      - EVIDRA_INVITE_SECRET=${EVIDRA_INVITE_SECRET:-}
-      - EVIDRA_SIGNING_MODE=optional
-    depends_on:
-      postgres:
-        condition: service_healthy
-
-volumes:
-  pgdata:
+# No database and no API service: the hosted storage path left the branch with §43.
+# The recorder writes files under ./evidence and needs nothing else.

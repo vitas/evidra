@@ -1,7 +1,7 @@
-.PHONY: build test e2e clean canon-fixtures-update docker-mcp docker-cli docker-api docker-up docker-down fmt lint tidy \
+.PHONY: build test e2e clean canon-fixtures-update docker-mcp docker-cli docker-up docker-down fmt lint tidy \
 	test-contracts test-mcp-inspector test-mcp-inspector-ci test-mcp-inspector-hosted \
 	prompts-generate prompts-verify test-signals \
-	ui-build build-api
+	ui-build docker-hosted
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.0.0-dev)
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -11,7 +11,6 @@ LDFLAGS := -X samebits.com/evidra/pkg/version.Version=$(VERSION) -X samebits.com
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/evidra ./cmd/evidra
 	go build -ldflags "$(LDFLAGS)" -o bin/evidra-mcp ./cmd/evidra-mcp
-	go build -ldflags "$(LDFLAGS)" -o bin/evidra-api ./cmd/evidra-api
 
 test:
 	go test ./... -v -count=1
@@ -50,9 +49,6 @@ docker-mcp:
 docker-cli:
 	docker build -t evidra:dev -f Dockerfile.cli .
 
-docker-api:
-	docker build -t evidra-api:dev -f Dockerfile.api .
-
 docker-hosted:
 	docker build -t evidra-mcp-hosted:dev -f Dockerfile.hosted .
 
@@ -77,5 +73,3 @@ clean:
 ui-build:
 	cd ui && npm install && npm run build
 
-build-api: ui-build
-	go build -tags embed_ui -ldflags "$(LDFLAGS)" -o bin/evidra-api ./cmd/evidra-api

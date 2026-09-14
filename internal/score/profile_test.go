@@ -1,6 +1,7 @@
 package score
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -28,11 +29,14 @@ func TestLoadDefaultProfile(t *testing.T) {
 	if got := profile.Weights["retry_loop"]; got != 0.15 {
 		t.Fatalf("retry_loop weight = %v, want 0.15", got)
 	}
+	// The weights live in a map, so the summation order changes between runs and the
+	// float total is not bit-exact. An exact comparison here fails intermittently
+	// depending on iteration order, which reads as a broken profile.
 	var total float64
 	for _, weight := range profile.Weights {
 		total += weight
 	}
-	if total != 1.0 {
+	if math.Abs(total-1.0) > 1e-9 {
 		t.Fatalf("weights total = %v, want 1.0", total)
 	}
 	for _, cap := range profile.ScoreCaps {
