@@ -23,6 +23,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"os/exec"
 	"sync"
@@ -37,7 +38,11 @@ type binaryProvenance struct {
 	FixtureSHA256  string `json:"fixture_binary_sha256"`
 	RunnerSHA256   string `json:"runner_binary_sha256"`
 	ModelID        string `json:"model_id,omitempty"`
-	CapturedAt     string `json:"captured_at"`
+	// ExecutionPath says how the run reached the upstream, so a baseline run cannot borrow
+	// the endpoint's identity: no endpoint binary participated, and hashing one anyway would
+	// let an artifact imply provenance from a program it never started.
+	ExecutionPath string `json:"execution_path"`
+	CapturedAt    string `json:"captured_at"`
 }
 
 // buildKey is the identity that must be constant inside one comparison cell. Model id is
@@ -50,6 +55,13 @@ func (p *binaryProvenance) buildKey() string {
 	return p.SourceRevision + "|" + p.EndpointSHA256 + "|" + p.FixtureSHA256 + "|" + p.RunnerSHA256
 }
 
+// usedEndpoint reports whether this run's topology included the merged endpoint. A method
+// rather than a comparison at each call site, because "did an endpoint participate" is the
+// question every reader of provenance is actually asking.
+func (p *binaryProvenance) usedEndpoint() bool {
+	return p != nil && p.ExecutionPath != pathDirectFixture
+}
+
 func (p *binaryProvenance) String() string {
 	if p == nil {
 		return "provenance unrecorded for this run"
@@ -58,8 +70,12 @@ func (p *binaryProvenance) String() string {
 	if p.SourceDirty {
 		dirty = "dirty"
 	}
+	endpoint := fileName(p.EndpointSHA256)
+	if !p.usedEndpoint() {
+		endpoint = "absent, no endpoint in this topology (" + p.ExecutionPath + ")"
+	}
 	return fmt.Sprintf("rev %s (%s), endpoint %s, fixture %s", shortRev(p.SourceRevision), dirty,
-		fileName(p.EndpointSHA256), fileName(p.FixtureSHA256))
+		endpoint, fileName(p.FixtureSHA256))
 }
 
 func shortRev(rev string) string {
@@ -85,16 +101,26 @@ func fileName(sum string) string {
 // captureProvenance records the artifacts this process is about to measure with. It is
 // called once per run on purpose: a build replaced mid-experiment must show up as two
 // provenances inside one cell rather than as a silent average over both.
-func captureProvenance(endpointBin, fixtureBin, modelID string) *binaryProvenance {
+//
+// For a direct-fixture topology the endpoint binary is deliberately not opened. Recording
+// bin/evidra-mcp's hash on a run that never started it would attribute the measurement to a
+// program that produced nothing, which is the provenance equivalent of a green check that
+// tests nothing.
+func captureProvenance(endpointBin, fixtureBin, modelID, path string) *binaryProvenance {
 	runner := os.Args[0]
 	rev, dirty := sourceState()
+	endpoint := ""
+	if path != pathDirectFixture {
+		endpoint = fileSHA256(endpointBin)
+	}
 	return &binaryProvenance{
 		SourceRevision: rev,
 		SourceDirty:    dirty,
-		EndpointSHA256: fileSHA256(endpointBin),
+		EndpointSHA256: endpoint,
 		FixtureSHA256:  fileSHA256(fixtureBin),
 		RunnerSHA256:   fileSHA256(runner),
 		ModelID:        modelID,
+		ExecutionPath:  path,
 		CapturedAt:     time.Now().UTC().Format(time.RFC3339),
 	}
 }
@@ -146,6 +172,11 @@ func checkRunInvariants(runs []runResult, cells []cellMetrics, byCell map[string
 	violations = append(violations, checkCellBounds(cells, byCell)...)
 	violations = append(violations, checkAgreementWithRows(runs, cells)...)
 	violations = append(violations, checkTranscriptsPersist(runs)...)
+	// The baseline's own claims - no protocol traffic, no endpoint in the provenance - are
+	// part of the analytics contract, not a presentation preference.
+	violations = append(violations, checkBaselineInvariants(cells, byCell)...)
+	violations = append(violations, checkOperationalAgreement(runs, cells)...)
+	violations = append(violations, checkComparisonAgreement(cells)...)
 	return violations
 }
 
@@ -176,6 +207,11 @@ func checkCellBounds(cells []cellMetrics, byCell map[string][]runResult) []strin
 		}
 		// The companion metric gates nothing, but it cannot exceed the runs that were
 		// valid enough to be scored.
+		// A baseline cell has no protocol surface, so its protocol numerators must be
+		// exactly zero; anything else means a wrapped run was counted under `none`.
+		if !protocolMetricsApplicable(c.Mode) && c.ProtocolOnlySuccess != 0 {
+			add("%s: baseline cell reports protocol_only_success = %d", label, c.ProtocolOnlySuccess)
+		}
 		if c.ProtocolOnlySuccess > c.Runs {
 			add("%s: companion protocol_only_success (%d) exceeds valid runs (%d)",
 				label, c.ProtocolOnlySuccess, c.Runs)
@@ -212,6 +248,140 @@ func checkCellBounds(cells []cellMetrics, byCell map[string][]runResult) []strin
 // checkAgreementWithRows makes the aggregate prove itself against the per-run rows. A
 // rollup that recomputes something slightly differently from the row loop is exactly how
 // a metric of 28 appeared over a denominator of 16.
+// checkOperationalAgreement does for the operational columns what
+// checkAgreementWithRows does for the protocol ones: totals must equal the sum of the rows
+// they claim to aggregate, and a mean must equal its total over its own denominator. The mean
+// check is the one that would have caught 28-over-16 in the first place: a ratio is only
+// evidence if it is the ratio of the two numbers printed next to it.
+func checkOperationalAgreement(runs []runResult, cells []cellMetrics) []string {
+	var violations []string
+	add := func(format string, args ...any) {
+		violations = append(violations, fmt.Sprintf(format, args...))
+	}
+	type acc struct {
+		runs                            int
+		duration                        int64
+		turns, calls, errs, prompt, out int
+	}
+	per := map[string]*acc{}
+	for _, r := range runs {
+		if !r.valid() {
+			continue
+		}
+		key := r.Arm + "/" + r.Mode
+		if per[key] == nil {
+			per[key] = &acc{}
+		}
+		a := per[key]
+		a.runs++
+		a.duration += r.DurationMS
+		a.turns += r.Turns
+		a.calls += r.UpstreamCalls
+		a.errs += r.UpstreamErrors
+		a.prompt += r.PromptTokens
+		a.out += r.OutputTokens
+	}
+	for _, c := range cells {
+		a := per[c.Arm+"/"+c.Mode]
+		if a == nil {
+			a = &acc{}
+		}
+		label := c.Arm + "/" + c.Mode
+		if c.DurationMS != a.duration {
+			add("%s: duration_ms_total = %d but the valid rows sum to %d", label, c.DurationMS, a.duration)
+		}
+		if c.UpstreamCalls != a.calls {
+			add("%s: upstream_calls = %d but the valid rows sum to %d", label, c.UpstreamCalls, a.calls)
+		}
+		if c.UpstreamErrors != a.errs {
+			add("%s: upstream_errors = %d but the valid rows sum to %d", label, c.UpstreamErrors, a.errs)
+		}
+		if c.TurnsTotal != a.turns {
+			add("%s: turns_total = %d but the valid rows sum to %d", label, c.TurnsTotal, a.turns)
+		}
+		if c.PromptTokens != a.prompt {
+			add("%s: prompt_tokens_total = %d but the valid rows sum to %d", label, c.PromptTokens, a.prompt)
+		}
+		if c.OutputTokens != a.out {
+			add("%s: completion_tokens_total = %d but the valid rows sum to %d", label, c.OutputTokens, a.out)
+		}
+		if c.Runs == 0 {
+			if c.MeanTurns != 0 || c.MeanDurationMS != 0 {
+				add("%s: a cell with no valid runs reports means (%.2f turns, %.0fms); an empty denominator has no average",
+					label, c.MeanTurns, c.MeanDurationMS)
+			}
+			continue
+		}
+		if d := math.Abs(c.MeanTurns*float64(c.Runs) - float64(c.TurnsTotal)); d > 0.5 {
+			add("%s: mean_turns ×runs (%.2f×%d) is %.1f off turns_total (%d)",
+				label, c.MeanTurns, c.Runs, d, c.TurnsTotal)
+		}
+		if d := math.Abs(c.MeanDurationMS*float64(c.Runs) - float64(c.DurationMS)); d > 1.0 {
+			add("%s: mean_duration_ms ×runs (%.1f×%d) is %.1f off duration_ms_total (%d)",
+				label, c.MeanDurationMS, c.Runs, d, c.DurationMS)
+		}
+	}
+	return violations
+}
+
+// checkComparisonAgreement makes the comparison block prove itself against the cells it
+// copies. A hand-built pair of columns is where a comparison starts drifting from the
+// measurement it claims to summarise.
+func checkComparisonAgreement(cells []cellMetrics) []string {
+	var violations []string
+	byCell := map[string]cellMetrics{}
+	for _, c := range cells {
+		byCell[c.Arm+"/"+c.Mode] = c
+	}
+	for _, pair := range baselineComparisons(cells) {
+		arm, _ := pair["arm"].(string)
+		b, _ := pair["baseline"].(map[string]any)
+		o, _ := pair["observe_only"].(map[string]any)
+		d, _ := pair["delta"].(map[string]any)
+		if b == nil || o == nil || d == nil {
+			continue
+		}
+		for _, side := range []struct {
+			col  map[string]any
+			cell cellMetrics
+		}{{b, byCell[arm+"/"+modeNone]}, {o, byCell[arm+"/"+modeOff]}} {
+			if int(colAsFloat(side.col["task_success"])) != side.cell.TaskSuccess {
+				violations = append(violations, fmt.Sprintf("%s: comparison reports task_success %v, cell says %d",
+					arm, side.col["task_success"], side.cell.TaskSuccess))
+			}
+			if math.Abs(colAsFloat(side.col["mean_turns"])-side.cell.MeanTurns) > 1e-9 ||
+				int(colAsFloat(side.col["duration_ms"])) != int(side.cell.DurationMS) {
+				violations = append(violations, fmt.Sprintf("%s: comparison columns do not match the %s cell they name",
+					arm, side.cell.Mode))
+			}
+		}
+		if int(colAsFloat(d["task_success"])) != byCell[arm+"/"+modeOff].TaskSuccess-byCell[arm+"/"+modeNone].TaskSuccess {
+			violations = append(violations, fmt.Sprintf("%s: reported success delta is not off minus none", arm))
+		}
+	}
+	return violations
+}
+
+// colAsFloat reads a number out of an untyped comparison column. int64 must be listed: the
+// duration column is an int64 in the struct, and a type the helper forgets returns NaN, which
+// compares unequal to everything and turns a correct comparison into an invariant violation.
+func colAsFloat(v any) float64 {
+	switch n := v.(type) {
+	case int:
+		return float64(n)
+	case int64:
+		return float64(n)
+	case int32:
+		return float64(n)
+	case float64:
+		return n
+	case float32:
+		return float64(n)
+	default:
+		return math.NaN()
+	}
+}
+
 func checkAgreementWithRows(runs []runResult, cells []cellMetrics) []string {
 	var violations []string
 	add := func(format string, args ...any) {
@@ -289,7 +459,13 @@ func provenanceDrift(runs []runResult, endpointBin, fixtureBin string) []string 
 			unrecorded++
 			continue
 		}
-		if r.Provenance.EndpointSHA256 == currentEndpoint && r.Provenance.FixtureSHA256 == currentFixture {
+		endpoint := currentEndpoint
+		if !r.Provenance.usedEndpoint() {
+			// A baseline run has no endpoint to have drifted from; comparing the empty
+			// field against this build would report drift that cannot exist.
+			endpoint = ""
+		}
+		if r.Provenance.EndpointSHA256 == endpoint && r.Provenance.FixtureSHA256 == currentFixture {
 			continue
 		}
 		key := shortRev(r.Provenance.SourceRevision) + "|" + fileName(r.Provenance.EndpointSHA256)

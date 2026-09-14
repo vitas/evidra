@@ -22,6 +22,29 @@ import (
 	"time"
 )
 
+// freshnessChecks decides which artifacts a run set may not measure while stale.
+//
+// The rule is "freshness of what participates": the fixture and the endpoint's own source
+// trees are required for wrapped modes, while a baseline run - which starts no endpoint -
+// must not be blocked by an endpoint binary it never execs. Refusing a baseline measurement
+// because bin/evidra-mcp is old would be the staleness check asserting the thing it is
+// supposed to be agnostic about.
+func freshnessChecks(modes []string, endpointBin, fixtureBin, runnerBin string) []binaryFreshness {
+	checks := []binaryFreshness{
+		{binary: fixtureBin, sources: []string{"cmd/evidra-fixture"}},
+		// The runner grades the experiment, so a runner older than its own grading code is
+		// the same failure as an endpoint older than the feature: the artifact describes a
+		// program that is not the one under review.
+		{binary: runnerBin, sources: []string{"cmd/evidra-gatea"}},
+	}
+	if needsEndpointBinary(modes) {
+		checks = append([]binaryFreshness{
+			{binary: endpointBin, sources: []string{"cmd/evidra-mcp", "pkg/proxy", "pkg/evidence", "pkg/report"}},
+		}, checks...)
+	}
+	return checks
+}
+
 // binaryFreshness pairs a built binary with the source trees that must not be newer
 // than it.
 type binaryFreshness struct {

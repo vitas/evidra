@@ -16,8 +16,26 @@ const (
 	scriptNoPrescribe = "noprescribe"
 )
 
-func scriptedPlan(task taskSpec, variant string) []plannedCall {
+// scriptedPlan in baseline mode omits every protocol call: prescribe and report are not
+// steps an agent can take against a server that does not offer them, and the variants whose
+// whole subject is a protocol shape (late, noreport, noprescribe) have no meaning without it.
+// So the baseline plan is the operational work, which is also what proves a task's operational
+// predicates are satisfiable with no Evidra involved.
+func scriptedPlan(task taskSpec, variant string, baseline bool) []plannedCall {
 	var plan []plannedCall
+	if baseline {
+		var work []plannedCall
+		for _, want := range task.ExpectTools {
+			n := want.Min
+			if n < 1 {
+				n = 1
+			}
+			for i := 0; i < n; i++ {
+				work = append(work, plannedCall{Tool: want.Tool, Args: argsFor(want)})
+			}
+		}
+		return work
+	}
 	report := func(status, outcome string) {
 		if status == "" {
 			status = "completed"

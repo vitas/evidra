@@ -34,6 +34,18 @@ if [[ -n "$tracked_ignored" ]]; then
   fail "tracked files that .gitignore says to ignore (git rm --cached them, or drop the pattern)"
 fi
 
+# An untracked executable at the repository root is how a tracked binary starts. Both
+# committed binaries below were produced by a bare `go build ./cmd/X`, which writes the
+# executable next to go.mod; nothing in the tree needs an executable there, bin/ is ignored and
+# is where builds belong, and every guard here is about what reaches history - but a root binary
+# is one `git add` away from it, and the two that got in were added exactly that way.
+while IFS= read -r -d '' entry; do
+  path="${entry:3}"
+  [[ "$path" == */* ]] && continue
+  [[ -f "$path" && -x "$path" ]] || continue
+  fail "untracked executable '$path' in the repository root: build into bin/ instead (go build -o bin/${path} ./cmd/${path}/)"
+done < <(git status --porcelain --untracked-files=all -z)
+
 # No large binaries in the index: 1 MiB per file is the report threshold, and both history
 # offenders found so far were 9.x MB compiled Go binaries.
 while read -r size path; do

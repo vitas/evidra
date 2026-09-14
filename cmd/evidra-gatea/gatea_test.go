@@ -78,7 +78,7 @@ func TestEveryTaskPredicateIsSatisfiable(t *testing.T) {
 	}
 	for _, task := range tasks {
 		for _, mode := range []string{"all", "off"} {
-			tr := replay(scriptedPlan(task, scriptCompliant), mode == "all")
+			tr := replay(scriptedPlan(task, scriptCompliant, false), mode == "all")
 			if fails := task.evaluate(tr); len(fails) > 0 {
 				t.Errorf("task %s (%s): protocol-correct replay fails: %v", task.ID, mode, fails)
 			}
@@ -102,8 +102,8 @@ func TestEnforcementShapesProduceTheMetricsTheyShould(t *testing.T) {
 		ExpectTools:   []toolExpectation{{Tool: "get_status", Min: 1, Max: 2}},
 		RequireReport: &reportExpectation{StatusIn: []string{"completed"}, OutcomeIn: []string{"achieved"}},
 	}
-	late := scriptedPlan(task, scriptLate)
-	never := scriptedPlan(task, scriptNoPrescribe)
+	late := scriptedPlan(task, scriptLate, false)
+	never := scriptedPlan(task, scriptNoPrescribe, false)
 
 	allLate := replay(late, true)
 	if allLate.BlockedCount == 0 {
@@ -365,11 +365,11 @@ func TestChangeOfMindAcceptsBothHonestEndings(t *testing.T) {
 }
 
 func TestToolTextCapIsExplicit(t *testing.T) {
-	small := capToolText(strings.Repeat("a", 100))
+	small := capToolText(strings.Repeat("a", 100), true)
 	if small != strings.Repeat("a", 100) {
 		t.Error("short text was modified")
 	}
-	big := capToolText(strings.Repeat("b", 20000))
+	big := capToolText(strings.Repeat("b", 20000), true)
 	if !strings.Contains(big, "truncated by the client") {
 		t.Error("truncation must be visible to the agent, not silent")
 	}

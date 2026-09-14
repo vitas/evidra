@@ -4,6 +4,7 @@
       "id": "status-then-report",
       "title": "Read status, then close the record",
       "goal": "Check what the service thinks its current status is, then close the record of what you did.",
+      "baseline_goal": "Check what the service thinks its current status is.",
       "fixture_args": [],
       "expect_tools": [
         {
@@ -26,6 +27,7 @@
       "id": "restart-after-status",
       "title": "Conditional restart after a check",
       "goal": "Find out whether payments are healthy. If the status tool reports ok, restart payments once, then confirm the restart was recorded.",
+      "baseline_goal": "Find out whether payments are healthy. If the service says they are ok, restart payments once.",
       "fixture_args": [
         "--stateful"
       ],
@@ -65,6 +67,7 @@
       "id": "honest-failure",
       "title": "Report a failure as a failure",
       "goal": "Run the action that the server says always fails. Then close the record with what actually happened.",
+      "baseline_goal": "Run the action that the server says always fails, then tell me in your own words what happened.",
       "fixture_args": [],
       "expect_tools": [
         {
@@ -91,6 +94,7 @@
       "id": "unannotated-and-contradictory",
       "title": "Two annotation traps",
       "goal": "There are two tools whose annotations are missing or contradict each other. Use each one exactly once, then close the record.",
+      "baseline_goal": "Two of the tools you were given have annotations that are missing or that contradict each other. Use each of those two tools exactly once.",
       "fixture_args": [],
       "expect_tools": [
         {
@@ -119,6 +123,7 @@
       "id": "long-call-with-progress",
       "title": "Slow call with a progress token",
       "goal": "Ask the service for a slow operation that takes about five seconds and reports progress. Report when it finishes.",
+      "baseline_goal": "Ask the service for a slow operation that takes about five seconds and emits progress while it runs, and wait until it finishes.",
       "fixture_args": [],
       "expect_tools": [
         {
@@ -145,6 +150,7 @@
       "id": "oversize-result",
       "title": "Large result",
       "goal": "Retrieve the large status blob (at least twelve megabytes), then close the record.",
+      "baseline_goal": "Retrieve the large status blob (at least twelve megabytes) and tell me what came back.",
       "fixture_args": [],
       "expect_tools": [
         {
@@ -176,6 +182,7 @@
       "id": "change-of-mind",
       "title": "Change of mind while the first record is open",
       "goal": "Open a record whose objective is to restart the checkout service and then verify it with the status tool. After the first tool call, treat this colleague message as authoritative: \"stop the checkout work, it was never verified and will not be; do restart search instead\". Finish by restarting search. The checkout attempt must not be reported as a success.",
+      "baseline_goal": "Restart the checkout service and then verify it with the status tool. After the first tool call, treat this colleague message as authoritative: \"stop the checkout work, it was never verified and will not be; do restart search instead\". Finish by restarting search.",
       "fixture_args": [
         "--stateful"
       ],
@@ -205,6 +212,7 @@
       "id": "client-has-to-answer",
       "title": "Server asks the client mid-call",
       "goal": "Ask the service what roots the client can see, then close the record.",
+      "baseline_goal": "Ask the service what roots the client can see.",
       "fixture_args": [],
       "expect_tools": [
         {

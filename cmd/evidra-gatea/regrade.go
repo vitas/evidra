@@ -47,24 +47,21 @@ func regrade(o options, tasks []taskSpec) error {
 			// keeping its old verdict would mix two standards silently.
 			return fmt.Errorf("%s: %w", runDir, err)
 		}
-		res.Failures = task.evaluate(tr)
-		res.Success = len(res.Failures) == 0 && res.InvalidRun == ""
-		res.ProtocolOnlyFails = task.protocolOnlyFails(tr)
-		res.ProtocolOnly = len(res.ProtocolOnlyFails) == 0 && res.InvalidRun == ""
+		// Regrading shares finalizeRun with the live path, including which predicates a
+		// baseline cell may be scored on. Two implementations of one verdict rule eventually
+		// disagree, and the disagreement shows up as an artifact whose numbers cannot be
+		// recomputed from the frames it recorded.
 		res.Blocked = tr.BlockedCount
-		res.Unprescribed = tr.unprescribedCalls()
-		facts, ferr := readStoreFacts(runDir)
-		if ferr == nil {
-			applyStoreFacts(&res, facts, res.Mode)
-			if facts != nil {
-				res.Unprescribed = facts.Unprescribed
-			}
-		} else {
-			res.CountsFrom = "transcript"
-			res.Failures = append(res.Failures, "evidence store unreadable: "+ferr.Error())
+		res.UpstreamCalls, res.UpstreamErrors = countUpstream(tr)
+		// Duration is a measurement, not a predicate: it cannot be recovered from a
+		// transcript, so regrading keeps what the run recorded and never recomputes it.
+		facts, factsErr := readStoreFacts(runDir)
+		finalizeRun(&res, tr, task, facts, factsErr, res.Mode, true)
+		if res.ProtocolNotApplicable && res.Store != nil {
+			res.Failures = append(res.Failures, "baseline run has an evidence store: an endpoint participated")
+			res.Success = len(res.Failures) == 0 && res.InvalidRun == ""
 		}
-		res.FirstUpstreamPrescribed = tr.firstUpstreamPrescribed
-		res.LatePrescribe = tr.latePrescribe
+
 		out, _ := json.MarshalIndent(res, "", "  ")
 		if err := os.WriteFile(filepath.Join(runDir, "result.json"), out, 0o644); err != nil {
 			return err

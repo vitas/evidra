@@ -28,7 +28,7 @@ func TestProvenanceRecordsTheExactBinaries(t *testing.T) {
 	writeFile(t, endpoint, "endpoint-bytes")
 	writeFile(t, fixture, "fixture-bytes")
 
-	p := captureProvenance(endpoint, fixture, "some-model")
+	p := captureProvenance(endpoint, fixture, "some-model", pathProxy)
 	if p.EndpointSHA256 != sha("endpoint-bytes") {
 		t.Errorf("endpoint hash = %s, want the sha256 of the file it measured", p.EndpointSHA256)
 	}
@@ -43,8 +43,13 @@ func TestProvenanceRecordsTheExactBinaries(t *testing.T) {
 		t.Error("source revision is empty; a reader cannot tell unknown from unreleased")
 	}
 	// A binary that is not there is recorded as absent, not as the hash of nothing.
-	if got := captureProvenance(filepath.Join(dir, "gone"), fixture, "m").EndpointSHA256; got != "" {
+	if got := captureProvenance(filepath.Join(dir, "gone"), fixture, "m", pathProxy).EndpointSHA256; got != "" {
 		t.Errorf("missing binary hashed to %q, want empty", got)
+	}
+	// The empty value is also produced on purpose for a run whose topology has no endpoint,
+	// and those two empties must stay distinguishable: the path says which one happened.
+	if p.ExecutionPath != pathProxy {
+		t.Errorf("execution path = %q, want %q for a wrapped run", p.ExecutionPath, pathProxy)
 	}
 }
 
@@ -54,9 +59,9 @@ func TestBuildKeySeparatesARebuiltEndpoint(t *testing.T) {
 	fixture := filepath.Join(dir, "evidra-fixture")
 	writeFile(t, endpoint, "v1")
 	writeFile(t, fixture, "same")
-	before := captureProvenance(endpoint, fixture, "m")
+	before := captureProvenance(endpoint, fixture, "m", pathProxy)
 	writeFile(t, endpoint, "v2")
-	after := captureProvenance(endpoint, fixture, "m")
+	after := captureProvenance(endpoint, fixture, "m", pathProxy)
 
 	if before.buildKey() == after.buildKey() {
 		t.Fatal("swapping the endpoint binary did not change the build key")
@@ -166,9 +171,9 @@ func TestInvariantsCatchAComparisonCellBuiltFromTwoBuilds(t *testing.T) {
 	fixture := filepath.Join(dir, "evidra-fixture")
 	writeFile(t, endpoint, "first")
 	writeFile(t, fixture, "f")
-	one.Provenance = captureProvenance(endpoint, fixture, "m")
+	one.Provenance = captureProvenance(endpoint, fixture, "m", pathProxy)
 	writeFile(t, endpoint, "second")
-	two.Provenance = captureProvenance(endpoint, fixture, "m")
+	two.Provenance = captureProvenance(endpoint, fixture, "m", pathProxy)
 
 	runs := []runResult{one, two}
 	cells := []cellMetrics{cellFor(runs)}
@@ -214,12 +219,12 @@ func TestProvenanceDriftNamesUnattributedAndForeignRuns(t *testing.T) {
 	writeFile(t, fixture, "fx")
 
 	same := gradingRun(t, dir, "a", true, true)
-	same.Provenance = captureProvenance(endpoint, fixture, "m")
+	same.Provenance = captureProvenance(endpoint, fixture, "m", pathProxy)
 
 	oldEndpoint := filepath.Join(dir, "older")
 	writeFile(t, oldEndpoint, "older")
 	foreign := gradingRun(t, dir, "b", true, true)
-	foreign.Provenance = captureProvenance(oldEndpoint, fixture, "m")
+	foreign.Provenance = captureProvenance(oldEndpoint, fixture, "m", pathProxy)
 
 	unattributed := gradingRun(t, dir, "c", true, true)
 

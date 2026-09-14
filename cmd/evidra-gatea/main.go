@@ -63,7 +63,7 @@ func runCLI(args []string) int {
 	fs.StringVar(&o.armsPath, "arms", "", "arm spec JSON (default: embedded arms.json)")
 	fs.StringVar(&o.onlyArms, "arms-only", "", "comma-separated arm ids to run")
 	fs.StringVar(&o.onlyTasks, "tasks-only", "", "comma-separated task ids to run")
-	fs.StringVar(&o.onlyModes, "modes-only", "", "comma-separated modes: all,off")
+	fs.StringVar(&o.onlyModes, "modes-only", "", "comma-separated modes: none,off,all (none is a harness-only no-Evidra baseline, never a product mode)")
 	fs.IntVar(&o.runs, "runs", 2, "runs per task/mode/arm cell")
 	fs.IntVar(&o.limit, "limit", 0, "stop after N runs (pilots)")
 	fs.IntVar(&o.parallel, "parallel", 2, "concurrent runs")
@@ -96,6 +96,12 @@ func runCLI(args []string) int {
 		fmt.Fprintln(os.Stderr, "nothing to run after filtering")
 		return 1
 	}
+	// Validated here rather than by intersecting with arm.Modes: a mode that silently
+	// matched nothing would plan zero runs and exit as if the experiment had been run.
+	if err := validateModes(splitList(o.onlyModes)); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 2
+	}
 	if o.regrade != "" {
 		if err := regrade(o, tasks); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -111,7 +117,7 @@ func runCLI(args []string) int {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if err := preflight(ctx, &o, arms); err != nil {
+	if err := preflight(ctx, &o, arms, plannedModes(arms, o)); err != nil {
 		fmt.Fprintf(os.Stderr, "preflight: %v\n", err)
 		return 1
 	}
@@ -125,7 +131,15 @@ func runCLI(args []string) int {
 	}
 
 	queue := buildQueue(arms, tasks, o)
+	runs := runQueue(ctx, o, queue)
+	violations := writeSummary(o.outDir, arms, tasks, runs, overheads, o)
+	return verdict(runs, violations)
+}
 
+// runQueue executes the plan and returns the runs worth aggregating. Extracted from runCLI so
+// that the flag handling, the plan and the execution each stay readable; a runner whose entry
+// function has outgrown its budget tends to hide the one branch that decides a verdict.
+func runQueue(ctx context.Context, o options, queue []planRun) []runResult {
 	fmt.Printf("gatea: %d runs planned → %s\n", len(queue), o.outDir)
 	results := make([]runResult, len(queue))
 	sem := make(chan struct{}, max(1, o.parallel))
@@ -149,10 +163,7 @@ func runCLI(args []string) int {
 		}(i, p)
 	}
 	wg.Wait()
-
-	runs := collectRuns(results)
-	violations := writeSummary(o.outDir, arms, tasks, runs, overheads, o)
-	return verdict(runs, violations)
+	return collectRuns(results)
 }
 
 // collectRuns keeps only runs that produced an artifact or a stated reason for
@@ -210,16 +221,11 @@ func filterTasks(tasks []taskSpec, only string) []taskSpec {
 	return out
 }
 
+// modesFor is the arm-level mode filter. `none` is added only when explicitly requested:
+// it is a property of the comparison, not of the model, and an unconditional entry would
+// double every experiment that did not ask for a baseline.
 func modesFor(a armSpec, only string) []string {
-	want := splitList(only)
-	var out []string
-	for _, m := range a.Modes {
-		if len(want) > 0 && !inList(m, want) {
-			continue
-		}
-		out = append(out, m)
-	}
-	return out
+	return modesForArm(a, splitList(only))
 }
 
 func splitList(v string) []string {
@@ -237,9 +243,16 @@ func splitList(v string) []string {
 }
 
 // preflight resolves keys and probes every arm once before any task runs.
-func preflight(ctx context.Context, o *options, arms []armSpec) error {
-	if _, err := os.Stat(o.mcpBin); err != nil {
-		return fmt.Errorf("endpoint binary %s: %w", o.mcpBin, err)
+//
+// The endpoint binary is required only if some mode in this run set starts it. Checking it
+// unconditionally would make the no-Evidra baseline depend on the binary it exists to exclude
+// - and, worse, a stale bin/evidra-mcp would quietly gate whether a baseline could be
+// measured.
+func preflight(ctx context.Context, o *options, arms []armSpec, modes []string) error {
+	if needsEndpointBinary(modes) {
+		if _, err := os.Stat(o.mcpBin); err != nil {
+			return fmt.Errorf("endpoint binary %s: %w", o.mcpBin, err)
+		}
 	}
 	if _, err := os.Stat(o.fixtureBin); err != nil {
 		return fmt.Errorf("fixture binary %s: %w", o.fixtureBin, err)
@@ -249,10 +262,7 @@ func preflight(ctx context.Context, o *options, arms []armSpec) error {
 	// build their own endpoint binary, so they can pass while this runner measures an
 	// older one; see cmd/evidra-gatea/freshness.go.
 	if !o.allowStaleBuild {
-		if err := checkBinaryFreshness([]binaryFreshness{
-			{binary: o.mcpBin, sources: []string{"cmd/evidra-mcp", "pkg/proxy", "pkg/evidence", "pkg/report"}},
-			{binary: o.fixtureBin, sources: []string{"cmd/evidra-fixture"}},
-		}); err != nil {
+		if err := checkBinaryFreshness(freshnessChecks(modes, o.mcpBin, o.fixtureBin, os.Args[0])); err != nil {
 			return fmt.Errorf("preflight: %w (or pass --allow-stale-build to measure this build deliberately)", err)
 		}
 	}
@@ -313,8 +323,13 @@ func calibrateOverhead(ctx context.Context, arms []armSpec) (map[string]int, err
 
 // runOne executes a single Gate A run and writes its artifacts.
 func runOne(ctx context.Context, o options, arm armSpec, mode string, task taskSpec, runNo int, outDir string) runResult {
+	runStart := time.Now()
+	baseline := isBaseline(mode)
 	res := runResult{Arm: arm.ID, ArmModelID: arm.APIModelID, Mode: mode, Task: task.ID, Run: runNo}
-	res.Provenance = captureProvenance(o.mcpBin, o.fixtureBin, arm.APIModelID)
+	// A baseline run has no protocol surface, so its protocol-shaped fields are undefined
+	// rather than zero. Recorded per row because result.json is read on its own.
+	res.ProtocolNotApplicable = baseline
+	res.Provenance = captureProvenance(o.mcpBin, o.fixtureBin, arm.APIModelID, executionPath(mode))
 	dirName := fmt.Sprintf("%s__%s__%s__run%d", arm.ID, mode, task.ID, runNo)
 	dir := filepath.Join(outDir, "runs", dirName)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -336,9 +351,21 @@ func runOne(ctx context.Context, o options, arm armSpec, mode string, task taskS
 	runCtx, cancel := context.WithTimeout(ctx, o.wallClock)
 	defer cancel()
 
-	epArgs := []string{"--proxy", "--enforce=" + mode, "--evidence-dir", filepath.Join(dir, "evidence"), "--", o.fixtureBin}
-	epArgs = append(epArgs, task.FixtureArgs...)
-	ep, err := startMCP(runCtx, o.mcpBin, epArgs...)
+	// The two topologies this harness can build. Wrapped: agent → evidra-mcp --proxy →
+	// fixture, with an evidence directory under the run dir. Baseline: agent → fixture, no
+	// endpoint process, no evidence directory, and nothing Evidra-shaped in the tool list.
+	var (
+		childBin string
+		epArgs   []string
+	)
+	if baseline {
+		childBin, epArgs = o.fixtureBin, append([]string{}, task.FixtureArgs...)
+	} else {
+		epArgs = []string{"--proxy", "--enforce=" + mode, "--evidence-dir", filepath.Join(dir, "evidence"), "--", o.fixtureBin}
+		epArgs = append(epArgs, task.FixtureArgs...)
+		childBin = o.mcpBin
+	}
+	ep, err := startMCP(runCtx, childBin, epArgs...)
 	if err != nil {
 		res.InvalidRun = "endpoint start: " + err.Error()
 		return res
@@ -355,6 +382,17 @@ func runOne(ctx context.Context, o options, arm armSpec, mode string, task taskS
 		return res
 	}
 	rec("tools", tools)
+	if baseline {
+		// Structural guarantee, not a hope: if an endpoint were somehow in this path, the
+		// protocol tools would appear in the list, and the "baseline" would be measuring a
+		// wrapped run under a name that promises it is not one.
+		for _, t := range tools {
+			if strings.HasPrefix(t.Name, "evidra_") {
+				res.InvalidRun = fmt.Sprintf("baseline run was served the protocol tool %q: no endpoint may participate in mode %q", t.Name, modeNone)
+				return res
+			}
+		}
+	}
 
 	llmTools := make([]llmTool, 0, len(tools))
 	nameMap := map[string]string{}
@@ -364,9 +402,19 @@ func runOne(ctx context.Context, o options, arm armSpec, mode string, task taskS
 		llmTools = append(llmTools, toolFor(safe, t.Description, t.InputSchema))
 	}
 
+	// The prompt is the task's own words for the mode. A baseline run is given the
+	// operational goal, never the protocol one: "then close the record" cannot be satisfied
+	// without a record, and asking for it anyway would score the absence of a tool as the
+	// agent's failure.
+	promptTask := task
+	if baseline {
+		promptTask.Goal = task.baselinePrompt()
+	}
+	rec("goal", map[string]any{"mode": mode, "execution_path": executionPath(mode), "text": promptTask.Goal})
+
 	var ag agent
 	if o.dryRun {
-		ag = &scriptedAgent{plan: scriptedPlan(task, o.script)}
+		ag = &scriptedAgent{plan: scriptedPlan(promptTask, o.script, baseline)}
 	} else {
 		key, err := loadKey(arm.KeyRef, "")
 		if err != nil {
@@ -376,7 +424,7 @@ func runOne(ctx context.Context, o options, arm armSpec, mode string, task taskS
 		ag = newModelAgent(arm, key, o.maxTokens)
 	}
 
-	tr, invalid := driveAgent(runCtx, ag, ep, llmTools, nameMap, task, rec)
+	tr, invalid := driveAgent(runCtx, ag, ep, llmTools, nameMap, promptTask, !baseline, rec)
 	if invalid != "" {
 		res.InvalidRun = invalid
 	}
@@ -389,27 +437,111 @@ func runOne(ctx context.Context, o options, arm armSpec, mode string, task taskS
 	res.PromptTokens = tr.PromptTokens
 	res.OutputTokens = tr.OutputTokens
 	res.ReasonTokens = tr.ReasonTokens
-	res.Unprescribed = tr.unprescribedCalls()
-	facts, err := readStoreFacts(dir)
-	if err != nil {
-		res.InvalidRun = "evidence store unreadable: " + err.Error()
+	res.UpstreamCalls, res.UpstreamErrors = countUpstream(tr)
+	if tr.Prescribes != 0 || len(tr.Reports) != 0 || tr.BlockedCount != 0 {
+		if baseline {
+			// Structurally impossible: no protocol tool was offered, so protocol traffic means
+			// something reached the run that the mode promises is not there.
+			res.InvalidRun = "baseline run recorded protocol traffic; the cell cannot be a no-Evidra measurement"
+		}
 	}
-	applyStoreFacts(&res, facts, mode)
-	if facts != nil {
-		res.Unprescribed = facts.Unprescribed
-	}
-	res.FirstUpstreamPrescribed = tr.firstUpstreamPrescribed
-	res.LatePrescribe = tr.latePrescribe
-	res.Failures = task.evaluate(tr)
-	res.ProtocolOnlyFails = task.protocolOnlyFails(tr)
-	res.ProtocolOnly = len(res.ProtocolOnlyFails) == 0 && res.InvalidRun == ""
-	res.Success = len(res.Failures) == 0 && res.InvalidRun == ""
+	facts, factsErr := readStoreFacts(dir)
+	finalizeRun(&res, tr, &task, facts, factsErr, mode, false)
+	res.DurationMS = time.Since(runStart).Milliseconds()
 	rec("transcript", tr)
 	rec("verdict", res)
 
 	raw, _ := json.MarshalIndent(res, "", "  ")
 	_ = os.WriteFile(filepath.Join(dir, "result.json"), raw, 0o644)
 	return res
+}
+
+// gradeRun turns a transcript into the verdicts for one run. It is shared with --regrade on
+// purpose: a verdict that can only be produced inside a live run cannot be challenged later,
+// and the two paths drifting apart is how an artifact set ends up with numbers that cannot be
+// recomputed from its own frames.
+//
+// For wrapped modes the predicate set is exactly what it was before the baseline existed:
+// operational clauses plus the report and replacement clauses. For `none` only the operational
+// clauses apply, because the rest have no observable referent.
+func gradeRun(res *runResult, ts *taskSpec, tr *transcript, mode string) {
+	if isBaseline(mode) {
+		res.Failures = ts.operationalFails(tr)
+		res.ProtocolOnlyFails = nil
+		res.ProtocolOnly = false
+		res.Success = len(res.Failures) == 0 && res.InvalidRun == ""
+		return
+	}
+	res.ProtocolNotApplicable = false
+	res.Failures = append(ts.operationalFails(tr), ts.protocolFails(tr)...)
+	res.ProtocolOnlyFails = ts.protocolOnlyFails(tr)
+	res.ProtocolOnly = len(res.ProtocolOnlyFails) == 0 && res.InvalidRun == ""
+	res.Success = len(res.Failures) == 0 && res.InvalidRun == ""
+}
+
+// finalizeRun turns one transcript plus the recorder's own account of the run into verdicts.
+// Both the live path and --regrade call it.
+//
+// The ordering here is a correctness rule, not style. Until the baseline mode was added, the
+// live path graded the transcript *after* applying the store facts, and grading assigned
+// res.Failures rather than appending to it: every enforcement hole and every invalid chain the
+// recorder reported was therefore written into a field and immediately overwritten, so the
+// "product defect, not agent failure" clause the store exists to assert could not fail a run.
+// It never fired on the official Gate A set (no row has an unprescribed execution or an
+// invalid chain, checked across all archived run sets), so no recorded verdict changes; the
+// check is only real now. Sharing this function between both paths is what keeps the two
+// accounts from drifting apart again.
+func finalizeRun(res *runResult, tr *transcript, ts *taskSpec, facts *storeFacts, factsErr error, mode string, regrade bool) {
+	baseline := isBaseline(mode)
+	res.ProtocolNotApplicable = baseline
+	if baseline {
+		// These are not computed for a baseline run, because none of them is observable:
+		// an execution with no open record is not a violation when no record can be open.
+		// The zero values stand with the flag above them, and the rollup renders "n/a" so
+		// no reader can average them into a rate.
+		res.Unprescribed = 0
+		res.FirstUpstreamPrescribed = false
+		res.LatePrescribe = false
+		if facts != nil {
+			res.InvalidRun = fmt.Sprintf("baseline run produced an evidence store at %s: an endpoint participated", facts.Dir)
+		}
+		// Named for what it is. "transcript" would imply the transcript-derived counts are
+		// the runner's best available account of protocol behaviour; in a baseline run they
+		// are not a weak account of anything, because there was no protocol to account for.
+		res.CountsFrom = "no_store"
+	} else {
+		res.Unprescribed = tr.unprescribedCalls()
+		res.FirstUpstreamPrescribed = tr.firstUpstreamPrescribed
+		res.LatePrescribe = tr.latePrescribe
+	}
+
+	gradeRun(res, ts, tr, mode)
+
+	if factsErr != nil {
+		if regrade {
+			// A regrade that cannot read the store is not an invalid run - the run already
+			// happened - but its verdict can no longer be trusted, which is a failure.
+			res.Failures = append(res.Failures, "evidence store unreadable: "+factsErr.Error())
+			res.Success = len(res.Failures) == 0 && res.InvalidRun == ""
+			return
+		}
+		res.InvalidRun = "evidence store unreadable: " + factsErr.Error()
+		res.Success = false
+		return
+	}
+	if baseline {
+		return
+	}
+	// The signed record outranks the runner's inference, and may add clauses (an enforcement
+	// hole, a broken chain) that no transcript predicate contains.
+	before := len(res.Failures)
+	applyStoreFacts(res, facts, mode)
+	if facts != nil {
+		res.Unprescribed = facts.Unprescribed
+	}
+	if len(res.Failures) != before {
+		res.Success = len(res.Failures) == 0 && res.InvalidRun == ""
+	}
 }
 
 // execute runs one tool call against the endpoint and updates the transcript.
@@ -542,12 +674,21 @@ When the task is finished, answer with one short plain-text sentence and no tool
 // capToolText keeps an agent's context bounded the way a real client does, while
 // saying so explicitly: silently dropping the tail would make a large-result task
 // measure the runner's truncation instead of the agent's handling of a big record.
-func capToolText(text string) string {
+func capToolText(text string, recorderPresent bool) string {
 	const cap = 8192
 	if len(text) <= cap {
 		return text
 	}
-	return text[:cap] + fmt.Sprintf("\n[… %d bytes truncated by the client; the full result was delivered to the recorder]", len(text)-cap)
+	// The cap is byte-for-byte identical in every mode - that is the point of the rule, so
+	// the large-result task measures the agent's handling of a big payload rather than the
+	// runner's truncation. Only the sentence after it differs, because it states where the
+	// remainder went, and in a baseline run nothing retained it. Telling a baseline agent
+	// about a recorder would put Evidra's vocabulary in the arm built to exclude it.
+	where := "not retained by the client"
+	if recorderPresent {
+		where = "delivered to the recorder"
+	}
+	return text[:cap] + fmt.Sprintf("\n[… %d bytes truncated by the client; the full result was %s]", len(text)-cap, where)
 }
 
 // writeSummary rolls the runs up into per-cell metrics, applies §10's
@@ -588,19 +729,23 @@ func writeSummary(dir string, arms []armSpec, tasks []taskSpec, runs []runResult
 		"protocol_definition_overhead": overheads,
 		"cells":                        cells,
 		"gate_conditions":              conds,
-		"gate_passed":                  gatePassed(conds),
-		"git_commit":                   gitRevision(),
-		"invalid_run_reasons":          invalidReasons(runs),
-		"invariant_violations":         violations,
-		"build_provenance":             provenanceOf(runs),
+		// The baseline is descriptive and must not be able to certify anything, so the
+		// summary states in one line which gate the numbers above do and do not speak to.
+		"gate_applicability":      gateApplicability(cells),
+		"none_vs_off_comparison":  baselineComparisons(cells),
+		"comparison_metrics_note": "none vs off is read from the operational columns only; protocol metrics are n/a in a baseline cell and no harm threshold was predeclared",
+		"gate_passed":             gatePassed(conds),
+		"git_commit":              gitRevision(),
+		"invalid_run_reasons":     invalidReasons(runs),
+		"invariant_violations":    violations,
+		"build_provenance":        provenanceOf(runs),
 	}
 	raw, _ := json.MarshalIndent(summary, "", "  ")
 	_ = os.WriteFile(filepath.Join(dir, "summary.json"), raw, 0o644)
 
-	fmt.Printf("\ncell                       mode  runs  success  protoOnly  report  blocked  recovery\n")
+	fmt.Printf("\ncell                       mode  runs  success protoOnly  report  blocked recovery                             mean-turns  upstream(err)  mean dur\n")
 	for _, c := range cells {
-		fmt.Printf("%-26s %-5s %4d %7d %9d %7d   %7d   %s\n", c.Arm, c.Mode, c.Runs, c.TaskSuccess,
-			c.ProtocolOnlySuccess, c.TerminalReportCover, c.BlockedAttempts, c.RecoveryRate)
+		fmt.Printf("%s\n", c.tableRow())
 	}
 	for _, v := range violations {
 		fmt.Printf("  [INVARIANT  ] %s\n", v)
@@ -612,6 +757,12 @@ func writeSummary(dir string, arms []armSpec, tasks []taskSpec, runs []runResult
 		if g.Status != "pass" {
 			fmt.Printf("  [%-13s] %s / %s: %s (want %s)\n", g.Status, g.Arm, g.Mode, g.Name, g.Required)
 		}
+	}
+	for _, line := range comparisonLines(cells) {
+		fmt.Println(line)
+	}
+	for _, line := range gateApplicabilityLines(cells, conds) {
+		fmt.Println(line)
 	}
 	fmt.Printf("\ngate_passed=%v  artifacts: %s\n", gatePassed(conds), dir)
 	return violations
@@ -680,6 +831,7 @@ func provenanceOf(runs []runResult) []map[string]any {
 			"source_revision":        p.SourceRevision,
 			"source_dirty":           p.SourceDirty,
 			"endpoint_binary_sha256": p.EndpointSHA256,
+			"execution_path":         p.ExecutionPath,
 			"fixture_binary_sha256":  p.FixtureSHA256,
 			"runner_binary_sha256":   p.RunnerSHA256,
 			"models":                 modelsIn(runs, key),
@@ -709,7 +861,7 @@ func modelsIn(runs []runResult, key string) []string {
 // happened. It reports an invalid_run reason rather than touching the result, so
 // a gateway failure cannot be mistaken for a model's decision.
 func driveAgent(ctx context.Context, ag agent, ep *mcpClient, llmTools []llmTool,
-	nameMap map[string]string, task taskSpec, rec func(string, any)) (*transcript, string) {
+	nameMap map[string]string, task taskSpec, recorderPresent bool, rec func(string, any)) (*transcript, string) {
 	tr := &transcript{}
 	// The protocol contract reaches the agent the way it reaches every real MCP
 	// client: verbatim from initialize.instructions, never paraphrased here.
@@ -772,7 +924,7 @@ func driveAgent(ctx context.Context, ag agent, ep *mcpClient, llmTools []llmTool
 			}
 			ev := execute(ctx, ep, tr, orig, args)
 			rec("tool", ev)
-			content := capToolText(ev.Text)
+			content := capToolText(ev.Text, recorderPresent)
 			if ev.IsError {
 				content = "ERROR: " + ev.Text
 			}
@@ -828,12 +980,19 @@ func buildQueue(arms []armSpec, tasks []taskSpec, o options) []planRun {
 // printRun gives one line per run: a verdict, whether the protocol clauses held
 // separately from the task, and the first reason if not.
 func printRun(p planRun, res runResult, status string) {
-	proto := "-"
-	if res.ProtocolOnly {
-		proto = "P"
+	// A baseline row prints "n/a" where a wrapped row prints a protocol count, for the same
+	// reason the rollup does: "blocked=0" in a run with no enforcer is not an observation.
+	var proto, blocked string
+	if isBaseline(p.mode) {
+		proto, blocked = "-", metricNotApplicable
+	} else {
+		proto, blocked = "-", fmt.Sprintf("%d", res.Blocked)
+		if res.ProtocolOnly {
+			proto = "P"
+		}
 	}
-	fmt.Printf("  %s%s %-14s %-4s %-26s run%d turns=%2d blocked=%d %s\n",
-		status, proto, p.arm.ID, p.mode, p.task.ID, p.run, res.Turns, res.Blocked,
+	fmt.Printf("  %s%s %-14s %-4s %-26s run%d turns=%2d blocked=%s dur=%5dms %s\n",
+		status, proto, p.arm.ID, p.mode, p.task.ID, p.run, res.Turns, blocked, res.DurationMS,
 		truncate(strings.Join(res.Failures, "; "), 60))
 }
 
