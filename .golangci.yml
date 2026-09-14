@@ -20,6 +20,12 @@ linters:
     nestif:
       min-complexity: 8
   exclusions:
+    # Third-party JavaScript dependencies may ship Go source of their own inside
+    # node_modules (flatted has golang/pkg/flatted). That code is not this
+    # module's to lint; the package-graph guard excludes it from the declared
+    # set for the same reason.
+    paths:
+      - node_modules
     rules:
       - path: _test\.go
         linters:
