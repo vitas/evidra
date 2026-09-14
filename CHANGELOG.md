@@ -100,6 +100,23 @@ Two latent defects surfaced by that sharing, both recorded rather than quietly f
   official experiment. It is now measured, totalled per cell, and the mean is invariant-checked
   against its own numerator and denominator.
 
+### vNext — the module graph still required everything the prune deleted
+
+After §43, `go.mod` required `modelcontextprotocol/go-sdk`, `jsonschema-go`, `terraform-json`,
+`go-yaml`, `protobuf` and five `otel` modules that no surviving file imports: `go mod tidy` had
+never been run against the pruned tree, and nothing checked it. Tidying drops 41 `go.mod` lines
+and 92 `go.sum` lines, and leaves one external dependency - `oklog/ulid/v2`.
+
+The cost was not disk space. Dependabot was opening bumps against packages the shipped binary
+never linked, those bumps merged green, and each one read as a change to the artifact users run.
+`docs/ARCHITECTURE.md` also named the SDK as a dependency in prose describing the current
+surface, which is how a false claim survives: it sits in the file that is supposed to be the map.
+
+- `tests/test_module_graph_tidy.sh` (in the guard suite) fails when `go.mod`/`go.sum` are not the
+  tidy form of the tree, and restores them afterwards so running the check is not an edit.
+  Mutation-tested: with the pre-tidy `go.mod` it fails and prints the diff; with the tidied one,
+  13/13 guards pass.
+
 ### vNext — the CI fix itself broke CI once, and now that is checked
 
 The first version of the fix below deleted `VNEXT_MIN_PACKAGES` by replacing it with comment

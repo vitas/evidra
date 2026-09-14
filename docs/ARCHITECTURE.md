@@ -138,8 +138,12 @@ gitignored rather than curated.
 
 ## Conventions
 
-Stdlib-first Go; IDs from `github.com/oklog/ulid/v2`; MCP SDK
-`github.com/modelcontextprotocol/go-sdk`. `make build test fmt lint tidy` is the loop. The
+Stdlib-first Go; IDs from `github.com/oklog/ulid/v2`, which is also the module's only external
+dependency. The endpoint frames MCP JSON-RPC itself (`bufio` + `encoding/json` over stdio); it does
+not link `github.com/modelcontextprotocol/go-sdk`, and that requirement - which this paragraph
+named as a dependency until the §43 prune had already made the sentence false - is gone from
+`go.mod`. `make build test fmt lint tidy` is the loop, and `tests/test_module_graph_tidy.sh` is
+what stops `tidy` from being decorative. The
 vNext CI job enumerates every package in the module — no exclusion list survived the
 prune — and fails if the package graph drops below eight, so a future mass deletion shows
 up as a red build instead of a vacuous green.
