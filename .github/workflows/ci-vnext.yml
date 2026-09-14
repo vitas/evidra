@@ -11,6 +11,14 @@ name: CI (vNext)
 # are live; tests/test_ci_workflows_resolve.sh fails if a live one references a deleted
 # target, and refuses to let a disabled one rot into "silently broken but runnable".
 #
+# Nothing is excluded any more: the hosted platform and legacy product packages were deleted
+# per §43, so every package in the module is vNext-supported. An empty exclusion regex would
+# have been a trap - `grep -Ev ''` matches every line, which turns "test everything left'
+# into "test nothing" while still reporting success. The package set is therefore declared in
+# tests/vnext-packages.txt and compared against `go list ./...` in both directions rather than
+# guarded by a count floor: the floor passed at 9 packages while one of them was a dead root
+# package nothing imported, and it would have gone on passing as more left.
+#
 # The exclusion list is the supported-graph boundary. Nothing may be removed
 # from the *supported* side to make this workflow green; if a core package
 # breaks, that is a real failure.
@@ -20,15 +28,6 @@ on:
     branches: [vnext/mcp-recorder]
   pull_request:
     branches: [vnext/mcp-recorder]
-
-env:
-  # Nothing is excluded any more: the hosted platform and legacy product packages were
-  # deleted per §43, so every package in the module is vNext-supported. An empty
-  # exclusion regex would have been a trap - `grep -Ev ''` matches every line, which
-  # turns "test everything left" into "test nothing" while still reporting success.
-  # The package set is therefore declared explicitly in tests/vnext-packages.txt instead of
-  # guarded by a count floor: the floor passed with 9 packages while one of them was a dead
-  # root package nothing imported, and it would have kept passing as more packages left.
 
 jobs:
   core:

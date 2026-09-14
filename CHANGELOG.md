@@ -53,6 +53,17 @@
   tracked file may exceed 1 MiB. The first found one real hit immediately: `.gitignore` listed
   `CLAUDE.md`, which is tracked and is the guidance file every agent in this repository reads.
 
+### vNext — the CI fix itself broke CI once, and now that is checked
+
+The first version of the fix below deleted `VNEXT_MIN_PACKAGES` by replacing it with comment
+lines, leaving `env:` with nothing under it. That is valid YAML and an invalid workflow: GitHub
+created a run with no jobs, no log, and a failure — the least diagnosable shape available.
+`tests/test_ci_workflows_resolve.sh` now rejects a mapping that must have entries (`env`,
+`with`, `jobs`, `steps`, `permissions`, `outputs`) when only comments follow it, and the rule
+was mutation-tested by re-adding the empty block and watching the guard fail. `pull_request:`
+and `workflow_dispatch:` are exempt because an empty trigger is legal, which the first draft of
+the check got wrong by flagging three valid files.
+
 ### vNext — CI was pointing at deleted things
 
 - `ci-vnext.yml` ran `go test -race ./internal/lifecycle/...` after the §43 prune deleted that

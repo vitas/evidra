@@ -27,6 +27,36 @@ note() {
   problems=$((problems + 1))
 }
 
+# --- structural sanity: mappings that must not be empty --------------------------------------
+# GitHub accepts these files as YAML and rejects them as workflows, so loading them proves
+# nothing: a key with only comments under it parses to null, and a null `env:` or `jobs:` fails
+# the run with no jobs and no useful log. This was caught by a red check on a pushed branch
+# rather than by a local one, which is the whole reason this guard exists.
+for wf in .github/workflows/*.yml; do
+  empties="$(python3 - "$wf" <<'PYEOF'
+import re, sys
+must = re.compile(r'^([ ]*)(env|with|jobs|steps|permissions|outputs):[ ]*$')
+lines = open(sys.argv[1], encoding='utf-8').read().split('\n')
+out = []
+for i, line in enumerate(lines):
+    m = must.match(line)
+    if not m:
+        continue
+    ind = len(m.group(1))
+    for nxt in lines[i + 1:]:
+        if not nxt.strip() or nxt.lstrip().startswith('#'):
+            continue
+        if len(nxt) - len(nxt.lstrip()) <= ind:
+            out.append('%d:%s' % (i + 1, line.strip()))
+        break
+print('\n'.join(out))
+PYEOF
+)"
+  while IFS= read -r hit; do
+    [[ -n "$hit" ]] && note "$wf: line ${hit%%:*} is a mapping that must have entries but has none: ${hit#*:}"
+  done <<<"$empties"
+done
+
 # --- every workflow on disk is declared ----------------------------------------------------
 while IFS= read -r file; do
   base="$(basename "$file")"
