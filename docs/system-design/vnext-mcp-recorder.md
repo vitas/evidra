@@ -2664,7 +2664,21 @@ Do not promise truncation detection beyond the available local chain.
 <a id="section-43"></a>
 # 43. What to remove from the vNext product path
 
-After Gate A (revised bars, §45) and Gate B are green, remove from the branch:
+Remove from the branch once the new vertical path is the path being measured and Gate B
+is green. This is the criterion §43 was actually executed under, and it is deliberately not
+"Gate A is green":
+
+- Gate A's formal verdict on the official 80-run set is and stays `gate_passed=false`
+  (§45's revised bars were chosen from that data and cannot certify it).
+- The prune was an **explicit human decision** on two grounds — the protocol surface had been
+  measured enough to know the new path is the one under test, and Gate B was green — recorded
+  in `703de15` as "decision, not drift". A gate that will not turn green is not a reason to
+  keep dead code forever, and pretending otherwise converts a research verdict into
+  bureaucracy.
+- What Gate A *does* still govern: the claim that agents can work under this protocol at an
+  acceptable rate. That claim stays unproven until a fresh run set graded against §45's bars
+  passes them.
+- Gate C governs **merge and product**, not deletion.
 
 Gate C is deliberately not a precondition for this section. Gate C decides whether the
 new path is good enough to **merge and keep** (§50); it does not decide whether dead

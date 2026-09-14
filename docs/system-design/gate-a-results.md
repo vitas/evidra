@@ -54,7 +54,9 @@ without this paragraph and conclude the gate was quietly passed. §45 states the
 row is the case that motivated it.
 
 What would flip the verdict: one new 16-task set per arm, run against these bars before
-their results are known. The `not_measurable_no_blocks` row would not change — enforcement
+their results are known. §43 is written so that this verdict does not gate the code prune:
+the prune was an explicit decision on protocol evidence plus green Gate B, and remains
+recorded that way in `vnext-prune-record.md`. The `not_measurable_no_blocks` row would not change — enforcement
 still needs to fire somewhere before recovery can be claimed, which is why it is a printed
 metric and not a pass condition.
 
