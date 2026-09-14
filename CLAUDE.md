@@ -3,16 +3,17 @@
 Guidance for agents working in this repository. More specific instructions (the user, the
 plan) take precedence.
 
-Evidra is currently in **vNext**: an MCP execution-evidence recorder. One endpoint wraps one
-upstream MCP server, merges two local tools into its tool list, enforces protocol order, and
-writes a signed evidence chain that a human reconciles afterwards.
+Evidra Core is an MCP execution-evidence recorder, not a scoring platform. One endpoint
+wraps one upstream MCP server, merges two local tools into its tool list, enforces protocol
+order, and writes a signed evidence chain that a human reconciles afterwards.
 
 **Read before changing behaviour:**
 [`docs/architecture.md`](docs/architecture.md) defines the runtime boundaries;
-[`docs/evidence-format.md`](docs/evidence-format.md) defines the event and trust model; and
-[`docs/validation.md`](docs/validation.md) records what has and has not been measured. The
-approved public-cleanup design and implementation plan remain under `docs/plans/` while this
-work is active.
+[`docs/evidence-format.md`](docs/evidence-format.md) defines the event and trust model;
+[`docs/validation.md`](docs/validation.md) records what has and has not been measured;
+[`docs/getting-started.md`](docs/getting-started.md) and
+[`docs/cli-reference.md`](docs/cli-reference.md) are what a user reads. The approved
+design and implementation plan for active work live under `docs/plans/`.
 
 ## Build & Test
 
@@ -22,7 +23,7 @@ make test             # go test ./... -v -count=1
 make fmt lint tidy
 go build -o bin/evidra-fixture ./cmd/evidra-fixture/    # conformance upstream
 go build -o bin/evidra-gatea ./cmd/evidra-gatea/        # experiment runner
-go test -race ./pkg/evidence/... ./pkg/proxy/... ./cmd/evidra-fixture
+go test -race ./pkg/evidence/... ./pkg/proxy/... ./pkg/report/... ./cmd/evidra-fixture/... ./cmd/evidra-gatea/...
 golangci-lint run ./...        # must report zero issues
 bash tests/run_guards.sh       # every shell guard, no exclusion list
 ```
@@ -46,6 +47,12 @@ read is not a record of having found something, only a claim about it. If a clai
 document goes stale, correct it in place and say what changed; do not carry the stale
 sentence forward as though it had been reviewed.
 
+Public documentation is a tested surface: five canonical documents own one topic each
+(`docs/getting-started.md`, `docs/cli-reference.md`, `docs/architecture.md`,
+`docs/evidence-format.md`, `docs/validation.md`), the guards
+`tests/test_public_docs_structure.sh` and `tests/test_public_claims.sh` hold the line, and
+history is preserved by Git, not by an archive directory.
+
 Notes written for one reader in another language go in `/local-notes/`, which is gitignored.
 The folder is ignored rather than merely unused so the rule holds without anyone
 remembering it: a draft written there cannot be swept into a commit by a blanket `git add`,
@@ -53,10 +60,9 @@ which is the mechanism that once put 53 JPGs into this repository's history.
 
 ## Git
 
-- **Always ask before pushing.** Nothing leaves this branch without the user.
+- **Always ask before pushing.** Nothing leaves this repository without the user.
 - Sign every commit: `git commit -s` (DCO `Signed-off-by`).
-- No history rewrites, no force-pushes, do not touch `main`. A past, explicitly authorized
-  cleanup is not a precedent for rewriting shared history.
+- No history rewrites, no force-pushes, do not touch `main`.
 - Stage by path. A blanket `git add -A` once swept untracked scratch into history here;
   `/output/` and `/tmp/` are gitignored because recorder directories hold ephemeral signing
   and digest keys that must not reach history.
@@ -75,33 +81,33 @@ which is the mechanism that once put 53 JPGs into this repository's history.
   but **not disposable test code either**: it produces the evidence the product claim rests
   on, so it follows the provenance, analytics-invariant and regrade discipline summarized in
   `docs/validation.md`. Arm definitions live in `cmd/evidra-gatea/arms.json`.
-- `ui/` — retained for a future relocation; nothing in the vNext path imports or serves it.
+- `ui/` — the static landing surface. Nothing in the evidence path imports or serves it.
 
 ## Rules the implementation exists to keep
 
-1. Enforcement is protocol-only (§7): `--enforce=all` refuses `tools/call` while no operation
+1. **Enforcement is protocol-only.** `--enforce=all` refuses `tools/call` while no operation
    is open; `--enforce=off` observes. Never gate on argument content, tool names, or
    annotations.
-2. §17 ordering is load-bearing: append `execution_started` before forwarding, and
+2. **Write ordering is load-bearing:** append `execution_started` before forwarding, and
    `execution_finished` **before** relaying the response.
-3. §18's store-failure contract has three branches — refuse the call, relay-but-degrade, and
+3. **The store-failure contract has three branches** — refuse the call, relay-but-degrade, and
    never acknowledge a report without durable evidence. Do not collapse them into one "log the
    error" path, and never fabricate an upstream failure.
-4. Provenance is one of exactly three values (§15). Derived classes such as
+4. **Provenance is one of exactly three values.** Derived classes such as
    `unprescribed_execution` are read-time computations, never stored event types.
-5. Never average across comparison domains (§20, §24): enforcement mode, upstream, and
+5. **Never average across comparison domains:** enforcement mode, upstream, and
    `digest_key_id` stay separate in `pkg/report`.
-6. Chain validity, signature validity and coverage are three statements; a valid chain can
+6. **Chain validity, signature validity and coverage are three statements;** a valid chain can
    still be incomplete.
-7. Privacy is a bound (§23, §24): arguments leave the process only as
+7. **Privacy is a bound:** arguments leave the process only as
    `HMAC(digest_key, JCS(args))`; results are hashed up to 4 MiB, else `omitted_oversize`. Raw
    observed payloads and key material never enter the chain or `summary.json`.
-8. Recording is opt-in per process: the endpoint has no default evidence directory and says so
+8. **Recording is opt-in per process:** the endpoint has no default evidence directory and says so
    on stderr. `EVIDRA_EVIDENCE_DIR` applies to the read side only. `--actor-id` sets the
    accountable actor on substantive events; lifecycle events stay attributed to the recorder.
-9. Do not advertise capabilities the wrapper cannot cover (§44) — prompts, resources and
+9. **Do not advertise capabilities the wrapper cannot cover** — prompts, resources and
    completions stay unadvertised unless `--advertise-passthrough`.
-10. Out of scope by §44: generic MCP gateway or multi-upstream multiplexing, HTTP/SSE
+10. **Out of scope:** generic MCP gateway or multi-upstream multiplexing, HTTP/SSE
     transports, domain verification, risk scoring, policy/HITL, legacy compatibility shims.
     No repo split, and no module-path change (`samebits.com/evidra`).
 
@@ -128,7 +134,7 @@ which is the mechanism that once put 53 JPGs into this repository's history.
   does not exist.
 - Every run records source revision and binary hashes, and the runner refuses a `bin/`
   artifact older than its sources. An invalid experiment does not error; it produces data.
-- Deletion is not a milestone (§43): land a removal only when the new vertical path is the
+- **Deletion is not a milestone:** land a removal only when the new vertical path is the
   path being measured, and say in the commit what the removal made impossible to confuse.
 
 ## Environment

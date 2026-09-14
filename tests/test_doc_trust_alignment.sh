@@ -19,8 +19,49 @@ fi
 grep -Fq "Requires Go ${go_floor}+." CONTRIBUTING.md \
   || fail "CONTRIBUTING.md should advertise the same Go floor as go.mod"
 
-grep -Fq "| 0.4.x | Yes |" SECURITY.md \
-  || fail "SECURITY.md should list the maintained 0.4.x release line"
+# CONTRIBUTING may only name commands that exist.
+for cmd in \
+  "make build" \
+  "make test" \
+  "make lint" \
+  "go vet ./..." \
+  "go test -race ./pkg/evidence/... ./pkg/proxy/... ./pkg/report/... ./cmd/evidra-fixture/... ./cmd/evidra-gatea/..." \
+  "bash tests/run_guards.sh" \
+  "cd ui && npm ci" \
+  "npm run lint" \
+  "npm test" \
+  "npm run build"
+do
+  grep -Fq "$cmd" CONTRIBUTING.md \
+    || fail "CONTRIBUTING.md should list the existing command: $cmd"
+done
+
+for cmd in "make e2e" "make test-signals"; do
+  if grep -Fq "$cmd" CONTRIBUTING.md; then
+    fail "CONTRIBUTING.md should not reference a nonexistent target: $cmd"
+  fi
+done
+
+grep -Fq "actively developed, unreleased" SECURITY.md \
+  || fail "SECURITY.md should identify main as the active unreleased Core line"
+
+grep -Fq "pre-vNext" SECURITY.md \
+  || fail "SECURITY.md should label published pre-vNext releases as legacy"
+
+# CLAUDE.md may link only the five canonical documents and the plan corpus.
+while IFS= read -r link; do
+  case "$link" in
+    docs/architecture.md|docs/cli-reference.md|docs/evidence-format.md|docs/getting-started.md|docs/validation.md|docs/plans/*) ;;
+    *) fail "CLAUDE.md links outside the canonical document set: $link" ;;
+  esac
+done < <(grep -oE '\]\(docs/[^)]+' CLAUDE.md | sed 's/](//')
+
+grep -Fq "not a scoring platform" CLAUDE.md \
+  || fail "CLAUDE.md should state that Core is an MCP execution-evidence recorder, not a scoring platform"
+
+if grep -Fq "retained for a future relocation" CLAUDE.md; then
+  fail "CLAUDE.md should not keep the ui/ 'future relocation' claim"
+fi
 
 for file in README.md docs/cli-reference.md; do
   grep -Fq "Evidra does not sandbox the wrapped command" "$file" \

@@ -2,10 +2,14 @@
 
 ## Supported Versions
 
-| Version | Supported |
-|---|---|
-| 0.4.x | Yes |
-| < 0.4 | No |
+The `main` branch is the actively developed, unreleased Evidra Core line: the
+MCP execution-evidence recorder described in [README.md](README.md). Security
+work lands there.
+
+Published pre-vNext releases describe a different, legacy product (the
+all-in-one DevOps surface retired during vNext) and receive no implied feature
+or security support from `main`. If you are affected by a pre-vNext release,
+say so in your report; it will be triaged as legacy.
 
 ## Reporting a Vulnerability
 
@@ -23,20 +27,28 @@ Include:
 
 We will acknowledge receipt within 48 hours and provide a timeline for a fix.
 
-## Scope
+## What Evidra Does Not Do
 
-Security-relevant areas in Evidra include:
-- Evidence chain integrity (hash-linking, signatures)
-- Ed25519 signing key handling
-- File-based locking and concurrent access
-- SARIF parser input handling
-- `evidra run` local command execution wrapper
+- **Evidra is not a sandbox.** The endpoint forwards tool calls to the upstream
+  MCP server it wraps; that server executes whatever it executes, with whatever
+  privileges it has. Evidra does not contain, restrict, or make safe the work
+  it observes.
+- **Evidra is not an external-state verifier.** A successful upstream response
+  is not proof of the external outcome. The evidence chain records what was
+  declared, observed, and reported — reconciling that with reality is the
+  human step.
+- **The recorder does not authenticate organizations.** The local Ed25519
+  signing key and the HMAC digest key protect chain consistency within the
+  directory threat model stated in
+  [docs/evidence-format.md](docs/evidence-format.md): anyone who can replace
+  the whole evidence directory can replace its history. The keys do not prove
+  organizational identity against directory replacement.
 
-## Command Execution Boundary
+## Handling Data
 
-`evidra run` executes a local command and records evidence around that execution.
-Evidra does not sandbox the wrapped command.
-
-Treat `evidra run` with the same trust model as direct shell execution. Evidra
-records and analyzes the command; it does not contain, restrict, or make the
-wrapped process safe.
+Arguments and results are agent- and upstream-controlled text. Do not place
+raw secrets in agent declarations or reports: declared and reported payloads
+are stored in the chain as given. Observed arguments leave the process only as
+keyed HMAC digests, and observed results are fingerprinted, never stored raw;
+see [docs/evidence-format.md](docs/evidence-format.md) for the exact
+cryptographic and privacy behavior.
