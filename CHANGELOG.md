@@ -53,6 +53,17 @@
   tracked file may exceed 1 MiB. The first found one real hit immediately: `.gitignore` listed
   `CLAUDE.md`, which is tracked and is the guidance file every agent in this repository reads.
 
+### vNext — the CI fix broke CI twice, and both shapes are now checked locally
+
+The second one was a deleted `e2e` job still named by two `needs:` lists in `release.yml`.
+GitHub answers that with a run that has no jobs, no step log and a red mark, so the failure was
+invisible until someone read the checks API. `tests/ci_workflow_structure.py` checks mappings
+that must not be empty, `needs:` targets that must name a job in the same file, and acyclicity
+of the needs graph — as a separate program, because the first version of the check was a bash
+heredoc that never installed itself and reported PASS over the reference it was written to
+catch. All four rules were mutation-tested by re-inserting the broken shapes and watching each
+fail with a file, line, job and target named.
+
 ### vNext — the CI fix itself broke CI once, and now that is checked
 
 The first version of the fix below deleted `VNEXT_MIN_PACKAGES` by replacing it with comment
