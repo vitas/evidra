@@ -43,7 +43,10 @@ node_modules/
 .idea/
 .DS_Store
 
-CLAUDE.md
+# CLAUDE.md is NOT ignored: it is tracked, and it is the guidance every agent working in this
+# repository reads first (see its own top lines). Listing it here makes `git add CLAUDE.md`
+# a no-op for a new copy of the file - a nested CLAUDE.md, or one recreated after a reset -
+# which is precisely how committed guidance silently stops matching the code it documents.
 GEMINI.md
 .claude/
 .worktrees/
