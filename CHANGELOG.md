@@ -38,6 +38,21 @@
   repository guards.
 - Dead links rewritten in README and `guides/self-hosted-setup.md`.
 
+### vNext — tracked binaries and the ignore rules that hid them
+
+- Stopped tracking `cmd/evidra-gatea/evidra-gatea` (9.7 MB) and `evidra-exp` (9.5 MB): neither
+  is referenced by any build, test, workflow or document, and the harness builds into the
+  ignored `bin/`. Their objects stay in history by decision, not oversight — `evidra-exp`
+  entered through a commit that is an ancestor of `main`, and `evidra-gatea` through an
+  already-pushed branch, so removal means rewriting shared history or force-pushing, and
+  GitHub keeps either blob SHA-reachable until it purges. The first commit about this claimed
+  to untrack the files and had changed only `.gitignore`: a `git add` of the paths by name
+  re-staged them, and a tracked file is never un-ignored. Fixed forward, not amended.
+- `test_repo_cleanup_hygiene` gained the two checks that make that class visible: no tracked
+  file may be one `.gitignore` claims (`git ls-files -i -c --exclude-standard`), and no
+  tracked file may exceed 1 MiB. The first found one real hit immediately: `.gitignore` listed
+  `CLAUDE.md`, which is tracked and is the guidance file every agent in this repository reads.
+
 ### vNext — CI was pointing at deleted things
 
 - `ci-vnext.yml` ran `go test -race ./internal/lifecycle/...` after the §43 prune deleted that
