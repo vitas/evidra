@@ -17,6 +17,26 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — §43 step 6b: only the v2 evidence model remains in `pkg/evidence`
+
+- Deleted the v1 shapes: `entry.go`, `entry_builder.go`, `entry_io.go`, `entry_store.go`,
+  `entry_lookup_cache.go`, `segment.go`, `manifest.go`, `lock.go`, `types.go`,
+  `validation.go`, `canonical.go` (the `CanonicalAction` layer), `digest.go`,
+  `payloads.go`, `evidence.go`, `trace.go`, `bundle.go`, `signer_ephemeral.go`,
+  `chain_test.go`, `external_bundle_test.go` and the v1 unit tests, plus `pkg/evlock`
+  (its only user was the v1 lock), `scripts/gen_external_bundle`,
+  `tests/external_bundle_v1` and `internal/testutil` (a v1 signer helper nothing
+  imported any more).
+- `pkg/evidence` is now five files: the store, the event envelope, the digest/JCS layer,
+  the verifier, and their tests. "Old evidence adapters not used by v2 schema" (§43)
+  is satisfied structurally: there is no second schema in the package to confuse it with,
+  and no shared file lock negotiating with the single-writer rule.
+- Every evidence test named in `vnext-gate-b-results.md` was re-run by name after the
+  deletion, because a conformance table that cites a test nobody compiles any more is
+  how a gate quietly stops existing.
+- The ephemeral-signing-key warning that used to appear in unrelated test output came
+  from the v1 signer; with it gone, the only key notices left are the v2 store's own.
+
 ### vNext experiment — §43 step 6: the analysis engine, prompt contracts and export layer are deleted
 
 - Gone: `internal/{canon,assess,risk,score,detectors,signal,pipeline,sarif,promptfactory}`,
