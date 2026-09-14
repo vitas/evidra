@@ -13,7 +13,7 @@ name: CI (vNext)
 #
 # Nothing is excluded any more: the hosted platform and legacy product packages were deleted
 # per §43, so every package in the module is vNext-supported. An empty exclusion regex would
-# have been a trap - `grep -Ev ''` matches every line, which turns "test everything left'
+# have been a trap - an empty pattern matches every line, which turns "test everything left"
 # into "test nothing" while still reporting success. The package set is therefore declared in
 # tests/vnext-packages.txt and compared against `go list ./...` in both directions rather than
 # guarded by a count floor: the floor passed at 9 packages while one of them was a dead root
