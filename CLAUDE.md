@@ -1,167 +1,130 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for agents working in this repository. More specific instructions (the user, the
+plan) take precedence.
 
-## Build & Test Commands
+Evidra is currently in **vNext**: an MCP execution-evidence recorder. One endpoint wraps one
+upstream MCP server, merges two local tools into its tool list, enforces protocol order, and
+writes a signed evidence chain that a human reconciles afterwards.
+
+**Read before changing behaviour:**
+[`docs/system-design/vnext-mcp-recorder.md`](docs/system-design/vnext-mcp-recorder.md) is the
+plan, cited by section number (§7, §13–§24, §34, §38, §41–§47, §59).
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) is the map;
+[`docs/system-design/vnext-prune-record.md`](docs/system-design/vnext-prune-record.md) records
+what was deleted and why.
+[`docs/system-design/vnext-experiment-harness.md`](docs/system-design/vnext-experiment-harness.md)
+states the invariants the measurement harness is built around.
+[`docs/system-design/vnext-history-scrub.md`](docs/system-design/vnext-history-scrub.md) records
+the pre-push history rewrite, so an old hash cited in an older document can be resolved.
+
+## Build & Test
 
 ```bash
-make build                              # build bin/evidra, bin/evidra-mcp, bin/evidra-api
-make test                               # go test ./... -v -count=1
-make fmt                                # gofmt -w .
-make lint                               # golangci-lint run
-make tidy                               # go mod tidy
-make canon-fixtures-update              # regenerate canon golden test files
-make docker-mcp                         # build MCP server Docker image
-make docker-cli                         # build CLI Docker image
-make docker-api                         # build API server Docker image
-
-go test -run TestFunctionName ./internal/canon/...   # run a single test
-go test -race ./...                                  # race detector
+make build            # bin/evidra, bin/evidra-mcp
+make test             # go test ./... -v -count=1
+make fmt lint tidy
+go build -o bin/evidra-fixture ./cmd/evidra-fixture/    # conformance upstream
+go build -o bin/evidra-gatea ./cmd/evidra-gatea/        # experiment runner
+go test -race ./pkg/evidence/... ./pkg/proxy/... ./cmd/evidra-fixture
+golangci-lint run ./...        # must report zero issues
+bash tests/run_guards.sh       # every shell guard, no exclusion list
 ```
+
+CI references are themselves checked: `tests/test_ci_workflows_resolve.sh` fails if a live
+workflow names a make target, script, package path, config or `-run` pattern that does not
+exist, and `tests/vnext-workflows.txt` declares every workflow as `enabled` or `disabled`
+(a `disabled` workflow must carry its refusal marker). The package graph is an exact declared
+set in `tests/vnext-packages.txt`, not a count floor.
+
+Single case: `go test -run 'TestName' -v ./pkg/proxy/`. Gate artifacts cite tests by name, so
+renaming or deleting one means updating the artifact in the same commit — a checklist row
+pointing at a function that no longer compiles is not evidence of anything.
 
 ## Git
-Alsways ask to push to remote repo
-Always use Signed-off-by to make a git commits
 
+- **Always ask before pushing.** Nothing leaves this branch without the user.
+- Sign every commit: `git commit -s` (DCO `Signed-off-by`).
+- No history rewrites, no force-pushes, do not touch `main`. One exception was granted and
+  executed: the pre-push `tmp/`/`examples/` scrub of this never-pushed branch, documented with
+  its checks in `docs/system-design/vnext-history-scrub.md`. The rule stands; that was a single
+  instruction, not a precedent for rewriting shared history.
+- Stage by path. A blanket `git add -A` once swept untracked scratch into history here;
+  `/output/` and `/tmp/` are gitignored because recorder directories hold ephemeral signing
+  and digest keys that must not reach history.
 
-## Architecture
+## Layout
 
-Evidra is a **flight recorder for infrastructure automation** — it observes and measures AI agent and CI pipeline reliability without blocking operations.
+- `cmd/evidra-mcp/` — the merged endpoint. The only binary that enforces or records.
+- `cmd/evidra/` — read side only: `summarize`, `verify`, `version`. A fourth command needs a
+  plan change, not a registry entry.
+- `pkg/proxy/` — endpoint (`endpoint*.go`). The pre-vNext relay and its mutation heuristics
+  are deleted; do not reintroduce content-based classification.
+- `pkg/evidence/` — evidence model **v2 only**: `store_v2.go`, `event_v2.go`, `digest_v2.go`,
+  `verify_v2.go`, `canon_jcs.go`. One schema, one writer per directory.
+- `pkg/report/` — reconciliation into `summary.json`.
+- `cmd/evidra-gatea/`, `cmd/evidra-fixture/` — the measurement harness. Not shipped product,
+  but **not disposable test code either**: it produces the evidence the product claim rests
+  on, so it obeys `docs/system-design/vnext-experiment-harness.md` (build provenance,
+  analytics invariants, regrade-don't-hand-read). Arm definitions live in
+  `cmd/evidra-gatea/arms.json`.
+- `ui/` — retained for a future relocation; nothing in the vNext path imports or serves it.
 
-**Module:** `samebits.com/evidra` (Go 1.24)
+## Rules the implementation exists to keep
 
-### Binaries
+1. Enforcement is protocol-only (§7): `--enforce=all` refuses `tools/call` while no operation
+   is open; `--enforce=off` observes. Never gate on argument content, tool names, or
+   annotations.
+2. §17 ordering is load-bearing: append `execution_started` before forwarding, and
+   `execution_finished` **before** relaying the response.
+3. §18's store-failure contract has three branches — refuse the call, relay-but-degrade, and
+   never acknowledge a report without durable evidence. Do not collapse them into one "log the
+   error" path, and never fabricate an upstream failure.
+4. Provenance is one of exactly three values (§15). Derived classes such as
+   `unprescribed_execution` are read-time computations, never stored event types.
+5. Never average across comparison domains (§20, §24): enforcement mode, upstream, and
+   `digest_key_id` stay separate in `pkg/report`.
+6. Chain validity, signature validity and coverage are three statements; a valid chain can
+   still be incomplete.
+7. Privacy is a bound (§23, §24): arguments leave the process only as
+   `HMAC(digest_key, JCS(args))`; results are hashed up to 4 MiB, else `omitted_oversize`. Raw
+   observed payloads and key material never enter the chain or `summary.json`.
+8. Recording is opt-in per process: the endpoint has no default evidence directory and says so
+   on stderr. `EVIDRA_EVIDENCE_DIR` applies to the read side only. `--actor-id` sets the
+   accountable actor on substantive events; lifecycle events stay attributed to the recorder.
+9. Do not advertise capabilities the wrapper cannot cover (§44) — prompts, resources and
+   completions stay unadvertised unless `--advertise-passthrough`.
+10. Out of scope by §44: generic MCP gateway or multi-upstream multiplexing, HTTP/SSE
+    transports, domain verification, risk scoring, policy/HITL, legacy compatibility shims.
+    No repo split, and no module-path change (`samebits.com/evidra`).
 
-- `cmd/evidra/` — CLI for prescribe, report, scorecard, explain, compare, record, import, export, validate, import-findings, prompts, detectors, keygen, skill, and version commands
-- `cmd/evidra-mcp/` — MCP server with two modes: direct (agent calls prescribe/report) and proxy (wraps upstream MCP server, auto-records mutations)
-- `cmd/evidra-api/` — Self-hosted API server with embedded UI, webhooks, and database-backed storage
+## Measurement discipline
 
-### Core pipeline
+- Report `not_measurable` instead of a number when the data cannot support one (recovery after
+  a first block, with zero blocks, is the standing example). Report `n/a` when the metric has no
+  referent in that cell at all: the harness's `none` baseline arm renders every protocol metric
+  that way, and a zero there would read as compliance failure.
+- The harness-only mode `none` (agent → `evidra-fixture`, no endpoint) is not a product mode: no
+  `evidra-mcp --enforce=none` exists and none may be added. Its grading is operational-only, its
+  provenance names no endpoint binary, and it certifies no gate.
+- A gate is not passed because the code exists. Gate C is recorded as **not passed** until a
+  real operational upstream and a reader who did not build the summary agree it changed their
+  understanding.
+- Do not re-run paid model arms beyond what is already spent; free-tier arms reproduce the
+  probe artifacts.
+- A deleted package must be removed from `tests/vnext-packages.txt` in the same commit that
+  deletes it; a workflow step may not outlive its target. Green that checks nothing is worse
+  than red that checks something.
+- **Regrade; do not hand-read artifacts.** `--regrade` recomputes verdicts from persisted
+  transcripts and re-checks the analytics invariants. A script reading `result.json` by hand
+  sits outside every guard the harness has — one did report `0/8` because it read a key that
+  does not exist.
+- Every run records source revision and binary hashes, and the runner refuses a `bin/`
+  artifact older than its sources. An invalid experiment does not error; it produces data.
+- Deletion is not a milestone (§43): land a removal only when the new vertical path is the
+  path being measured, and say in the commit what the removal made impossible to confuse.
 
-```
-raw artifact → canonicalize (adapter) → CanonicalAction + digests
-                                              │
-                                    assess.Pipeline [Assessor 1..N]
-                                              │
-                                    risk_inputs[] + effective_risk → Prescription
-                                                                          ↓
-exit code + prescription_id → Report → signal detectors → Scorecard
-```
+## Environment
 
-### Key packages
-
-**Core pipeline:**
-
-- **`internal/canon/`** — Canonicalization layer. Adapters (`K8sAdapter`, `TerraformAdapter`, `DockerAdapter`, `GenericAdapter`) translate raw artifacts into `CanonicalAction` — Evidra's protocol language. Output consumed by both the assessment pipeline and evidence entry construction.
-- **`internal/assess/`** — Pluggable assessment pipeline. Runs `Assessor` implementations against a `CanonicalAction` and aggregates `risk_inputs[]` into `effective_risk`. Used by both `lifecycle` (CLI/MCP) and `ingest` (API) prescribe paths.
-- **`internal/risk/`** — Risk matrix and severity comparison. `riskMatrix` maps `operationClass × scopeClass → riskLevel`. Used by `MatrixAssessor`.
-- **`internal/detectors/`** — Tag detectors that pattern-match misconfigurations (privileged containers, wildcard RBAC, etc.). Used by `DetectorAssessor`.
-- **`internal/signal/`** — Eight behavioral signal detectors: protocol violation, artifact drift, retry loop, blast radius, new scope, repair loop, thrashing, risk escalation. Post-hoc intelligence on evidence sequences.
-- **`internal/score/`** — Weighted penalty scoring (`score = 100 × (1 - penalty)`), workload profile comparison.
-- **`internal/lifecycle/`** — Core service for prescribe/report operations and evidence entry lifecycle. Delegates assessment to `internal/assess/` pipeline.
-- **`internal/pipeline/`** — Converts evidence entries to signal detector input by extracting prescriptions and reports.
-- **`internal/analytics/`** — Generates scorecard outputs with signal counts, rates, and weighted scoring.
-
-**Evidence & signing:**
-
-- **`pkg/evidence/`** — Evidence chain persistence (file-based, append-only segments with manifest and locking).
-- **`internal/evidence/`** — Ed25519 signer and signing payload construction.
-- **`pkg/evlock/`** — Cross-platform file locking for evidence store access.
-
-**MCP & API:**
-
-- **`pkg/mcpserver/`** — MCP server implementation. Tools: `prescribe_full`, `prescribe_smart`, `report`, `get_event`, `run_command`, `collect_diagnostics`, `write_file`, `describe_tool`. JSON schemas embedded from `pkg/mcpserver/schemas/`.
-- **`pkg/proxy/`** — MCP stdio proxy: mutation detection, JSON-RPC interception, evidence auto-recording
-- **`internal/api/`** — HTTP API router and handlers for entries, scorecards, webhooks, and auth.
-- **`internal/auth/`** — Authentication middleware for API keys and tenant context.
-- **`internal/store/`** — Database store for entries and API keys.
-- **`internal/db/`** — PostgreSQL connection pooling and schema migration.
-- **`internal/analyticsdb/`** — Decodes stored JSON payloads from database rows for analytics replay.
-- **`pkg/client/`** — HTTP client for Evidra API with retry and error handling.
-- **`pkg/mode/`** — Resolves operating mode (online/offline/fallback) for CLI and MCP server.
-
-**Ingestion & assessment:**
-
-- **`internal/assessment/`** — Computes assessment snapshots with scores, signal summaries, and sufficiency checks.
-- **`internal/automationevent/`** — Defines v1 ingestion contract for completed automation executions.
-- **`internal/sarif/`** — Parses SARIF security analysis reports into evidence format.
-
-**Prompts:**
-
-- **`internal/promptfactory/`** — Loads prompt bundles from the source contract tree (`CONTRACT`, `CLASSIFICATION`) and generates the active MCP server, MCP prompt-reference, and skill outputs.
-
-**Infra:**
-
-- **`internal/config/`** — Configuration resolution for signing mode, evidence write mode, and metrics.
-- **`internal/telemetry/`** — Metrics transport and labels for OTLP HTTP export.
-- **`pkg/version/`** — Build version, spec version, and scoring version constants.
-
-### Architecture reference
-
-`docs/ARCHITECTURE.md` is the **single architecture reference**.
-It consolidates key decisions, invariants, and known gaps from the former review and recommendation docs (now archived in `docs/plans/done/`).
-
-### Conventions
-
-- No web frameworks — stdlib `net/http` only.
-- IDs generated with `github.com/oklog/ulid/v2`.
-- `internal/` for server-only code, `pkg/` for shared code.
-- Canon golden test pattern: fixtures in `tests/canon_fixtures/`, update with `EVIDRA_UPDATE_CANON_FIXTURES=1`.
-- Canonicalization adapters implement the `canon.Adapter` interface.
-
-### Environment variables
-
-- `EVIDRA_EVIDENCE_DIR` — evidence storage directory (default: `~/.evidra/evidence`)
-- `EVIDRA_ENVIRONMENT` — environment label (MCP server only)
-- `EVIDRA_RETRY_TRACKER` — enable retry loop tracking (MCP server only)
-
-## API Changes — Mandatory Checklist
-
-When adding, modifying, or removing any REST API endpoint, ALL of the following must be updated:
-
-### Step 1: Implementation
-- Handler in `internal/api/`
-- Route registration in `RegisterRoutes`
-- Repository method and query implementation when persistence changes
-- Types in the appropriate package
-
-### Step 2: Tests
-- Handler test — at minimum: happy path + error case
-- Update ALL fake/mock repos that implement the Repository interface (there are multiple in tests)
-- Run the relevant package tests, usually `go test ./internal/api/... -v -count=1`
-
-### Step 3: OpenAPI Specification
-- Update `cmd/evidra-api/static/openapi.yaml` — full endpoint definition with:
-  - Path, method, summary, tags
-  - Parameters (query, path) with types and descriptions
-  - Request body schema (for POST/PUT)
-  - Response schema with example
-  - Security requirements (bearerAuth if authenticated)
-- Copy to `ui/public/openapi.yaml`: `cp cmd/evidra-api/static/openapi.yaml ui/public/openapi.yaml`
-- Verify YAML is valid: `python3 -c "import yaml; yaml.safe_load(open('cmd/evidra-api/static/openapi.yaml'))"`
-
-### Step 4: API Reference Documentation
-- Update `docs/api-reference.md` — human-readable docs with:
-  - Endpoint path and method
-  - Query parameters and request body
-  - Example response JSON
-  - Notes on behavior and edge cases
-
-### Step 5: Changelog
-- Add entry under `## Unreleased` in `CHANGELOG.md`
-
-### Step 6: Database Migrations (if needed)
-- New migration in `internal/db/migrations/NNN_description.up.sql`
-- Keep migrations additive (ADD COLUMN, not DROP)
-
-### Step 7: Version Bump and Release
-- Run `./scripts/bump-version.sh X.Y.Z`
-- Commit, tag, push: `git tag -a vX.Y.Z -m "description" && git push origin main vX.Y.Z`
-- Wait for release pipeline to build Docker images
-- Deploy: `gh workflow run deploy.yml --repo vitas/evidra-infra`
-
-### Common mistakes to avoid
-- Adding a method to the Repository interface without updating ALL test fakes (there are 4+)
-- Forgetting to copy openapi.yaml to ui/public/
-- Using nullable arrays in PostgreSQL queries — always coalesce nil slices to empty `[]`
-- Not running `gofmt -w .` after changes
+- `EVIDRA_EVIDENCE_DIR` — default root for `evidra summarize|verify --dir`.
+- `EVIDRA_ACTOR_ID` — default for `evidra-mcp --actor-id`.

@@ -1,5 +1,19 @@
 # Evidra
 
+> **The README describes the pre-vNext product.** Reliability scoring, risk assessment,
+> the hosted API, and the direct MCP tool surface were removed from this branch per §43
+> of [`docs/system-design/vnext-mcp-recorder.md`](docs/system-design/vnext-mcp-recorder.md).
+> What ships on `vnext/mcp-recorder` today is narrower and is documented in
+> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): one MCP endpoint that wraps an upstream
+> server, enforces protocol order, and records a signed evidence chain read back with
+> `evidra summarize` and `evidra verify`.
+>
+> A full README rewrite waits on the product decision the gates feed (Gate C is not
+> passed yet); until then the gap is stated here rather than left for a newcomer to fall
+> into. The instructions agents read first, [`CLAUDE.md`](CLAUDE.md), do describe the
+> current code.
+
+
 [![CI](https://github.com/vitas/evidra/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vitas/evidra/actions/workflows/ci.yml)
 [![Release Pipeline](https://github.com/vitas/evidra/actions/workflows/release.yml/badge.svg?event=push)](https://github.com/vitas/evidra/actions/workflows/release.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -139,7 +153,7 @@ evidra import --input record.json
 evidra scorecard --period 30d
 ```
 
-References: [Self-hosted setup](docs/guides/self-hosted-setup.md) · [CLI reference](docs/integrations/cli-reference.md) · [API reference](docs/api-reference.md)
+References: [Self-hosted setup](docs/guides/self-hosted-setup.md) · [CLI reference](docs/integrations/cli-reference.md)
 
 ## Intelligence Layer
 
@@ -150,7 +164,7 @@ From the evidence chain, Evidra computes:
 
 Risk assessment can be supplied by an external scanner or policy engine as an optional `assessment` block on prescribe entries. When no assessment is supplied, Evidra still records the intent and outcome and leaves risk fields empty.
 
-Eight behavioral signals documented in the [Signal specification](docs/system-design/EVIDRA_SIGNAL_SPEC_V1.md).
+Eight behavioral signals. Their specification (`EVIDRA_SIGNAL_SPEC_V1.md`) described the pre-vNext signal engine and was removed in the vNext prune; it remains readable in Git history.
 
 ## Explicit Protocol (Advanced)
 
@@ -195,10 +209,10 @@ The proxy records evidence when it sees `run_command` or other mutation-shaped M
 - [MCP Setup Guide](docs/guides/mcp-setup.md)
 - [Skill Setup Guide](docs/guides/skill-setup.md)
 - [CLI Reference](docs/integrations/cli-reference.md)
-- [API Reference](docs/api-reference.md)
-- [Architecture](docs/system-design/EVIDRA_ARCHITECTURE_V1.md)
-- [Protocol Specification](docs/system-design/EVIDRA_PROTOCOL_V1.md)
-- [Scoring Rationale](docs/system-design/scoring/default.v1.1.0.md)
+- REST API reference — described the hosted service removed in the vNext prune; see Git history
+- [Architecture](docs/ARCHITECTURE.md) — the vNext shape, current
+- Protocol, data-model, scoring and signal specs described the pre-vNext product and were
+  removed in the vNext prune (`docs/system-design/vnext-prune-record.md`); Git history keeps them.
 - [MCP Registry Publication Guide](docs/guides/mcp-registry-publication.md)
 - [Supported Tools](docs/supported-tools.md)
 
@@ -208,17 +222,23 @@ The proxy records evidence when it sees `run_command` or other mutation-shaped M
 make build
 make test
 make lint
-make test-mcp-inspector    # MCP protocol compliance tests
 ```
 
 ### Environment Variables
 
+The current build reads two environment variables (`grep -rn "EVIDRA_" --include=*.go cmd pkg`
+is the check for this table):
+
 | Variable | Description |
 |---|---|
-| `EVIDRA_EVIDENCE_DIR` | Evidence storage path (default: `~/.evidra/evidence`) |
-| `EVIDRA_SIGNING_MODE` | `strict` (default) or `optional` (dev mode) |
-| `EVIDRA_SIGNING_KEY` | Base64 Ed25519 signing key |
-| `EVIDRA_ENVIRONMENT` | Environment label (production, staging) |
+| `EVIDRA_EVIDENCE_DIR` | Default evidence root for the **read side** (`evidra summarize`, `evidra verify`). The endpoint has no default location — recording is chosen per process with `--evidence-dir`. |
+| `EVIDRA_ACTOR_ID` | Default for `evidra-mcp --actor-id`: the actor recorded as accountable. |
+
+The pre-vNext table listed here also named `EVIDRA_SIGNING_MODE`, `EVIDRA_SIGNING_KEY` and
+`EVIDRA_ENVIRONMENT`. None of the three appears anywhere in the Go sources of this branch:
+signing keys come from the recorder directory, and the environment label went with the hosted
+service. They are left out rather than marked "legacy", because a variable that never existed
+in this build cannot be deprecated by it.
 
 ## License
 

@@ -1,0 +1,8 @@
+samebits.com/evidra/cmd/evidra
+samebits.com/evidra/cmd/evidra-fixture
+samebits.com/evidra/cmd/evidra-gatea
+samebits.com/evidra/cmd/evidra-mcp
+samebits.com/evidra/pkg/evidence
+samebits.com/evidra/pkg/proxy
+samebits.com/evidra/pkg/report
+samebits.com/evidra/pkg/version

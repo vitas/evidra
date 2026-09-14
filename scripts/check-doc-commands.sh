@@ -27,50 +27,60 @@ require_pattern() {
   fi
 }
 
-require_pattern "README.md" "EVIDRA_SIGNING_MODE"
-require_pattern "README.md" "make test-mcp-inspector"
-require_pattern "README.md" "docs/integrations/cli-reference.md"
-require_pattern "docs/integrations/cli-reference.md" "evidra-mcp"
-require_pattern "docs/integrations/cli-reference.md" "evidra prescribe"
-require_pattern "docs/integrations/scanner-sarif-quickstart.md" "--signing-mode optional"
-require_pattern "tests/inspector/README.md" "EVIDRA_TEST_MODE=hosted-mcp"
-require_pattern "tests/inspector/README.md" "EVIDRA_MCP_URL"
-require_pattern "tests/inspector/README.md" "EVIDRA_SIGNING_MODE=optional"
-require_pattern "server.json" "\"name\": \"EVIDRA_SIGNING_MODE\""
-require_pattern "server.json" "\"name\": \"EVIDRA_SIGNING_KEY\""
-require_pattern "server.json" "\"name\": \"EVIDRA_SIGNING_KEY_PATH\""
+require_file() {
+  [[ -e "$1" ]] || fail "documented file does not exist: $1"
+}
 
-# Smoke-check documented command paths with local optional signing mode.
-tmpdir="$(mktemp -d)"
-trap 'rm -rf "$tmpdir"' EXIT
+# --------------------------------------------------------------------------------------------
+# The commands named in docs/integrations/cli-reference.md must exist, and the binaries must
+# still behave the way that file says. A previous version of this script drove
+# `evidra prescribe` and `evidra report` and required README to mention a signing-mode
+# variable; the §43 prune deleted both commands and that variable never existed in the Go
+# sources. The check stayed green for exactly as long as nobody ran it, which is the failure
+# mode every other guard in tests/ was built to prevent.
+# --------------------------------------------------------------------------------------------
 
-cat >"$tmpdir/artifact.json" <<'JSON'
-{"noop":true}
-JSON
+require_file "docs/integrations/cli-reference.md"
 
-go run ./cmd/evidra-mcp --help >/dev/null
+# Every flag documented in the CLI reference has to be one the binary advertises.
+mcp_help="$(go run ./cmd/evidra-mcp --help 2>&1 || true)"
+for flag in --proxy --enforce --evidence-dir --server-name --advertise-passthrough --max-message --actor-id; do
+  # grep without -q: -q closes the pipe early, and under `set -o pipefail` the writer's
+  # SIGPIPE becomes the pipeline's status, so the check fails on success.
+  printf '%s\n' "$mcp_help" | grep -- "$flag" >/dev/null || fail "docs advertise $flag but --help does not list it"
+  require_pattern "docs/integrations/cli-reference.md" "$flag"
+done
 
-prescribe_out="$(go run ./cmd/evidra prescribe \
-  --tool terraform \
-  --artifact "$tmpdir/artifact.json" \
-  --canonical-action '{"tool":"terraform","operation":"apply","operation_class":"mutate","scope_class":"production","resource_count":1,"resource_shape_hash":"sha256:test"}' \
-  --signing-mode optional \
-  --evidence-dir "$tmpdir/evidence")"
+evidra_help="$(go run ./cmd/evidra --help 2>&1 || true)"
+summarize_help="$(go run ./cmd/evidra summarize --help 2>&1 || true)"
+verify_help="$(go run ./cmd/evidra verify --help 2>&1 || true)"
+for cmd in summarize verify version; do
+  printf '%s\n' "$evidra_help" | grep -- "$cmd" >/dev/null || fail "evidra $cmd missing from the command list"
+done
+for flag in -dir -since; do
+  printf '%s\n' "$summarize_help" | grep -- "$flag" >/dev/null || fail "summarize $flag missing"
+  printf '%s\n' "$verify_help" | grep -- "$flag" >/dev/null || fail "verify $flag missing"
+done
 
-prescription_id="$(
-  printf '%s\n' "$prescribe_out" \
-    | sed -nE 's/.*"prescription_id"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/p' \
-    | head -n1
-)"
-if [[ -z "${prescription_id:-}" ]]; then
-  fail "could not parse prescription_id from prescribe output"
+# A documented environment variable must be one the code actually reads. The table rows are
+# the documented set; the prose around them may name removed variables to explain them.
+# Only the table rows count as documented; the prose under them names removed variables in
+# order to explain why they are gone.
+documented="$(awk -F'|' '/^\| `EVIDRA_[A-Z_]+`/ { gsub(/[ `]/, "", $2); print $2 }' README.md | sort -u)"
+in_code="$(grep -rhoE 'EVIDRA_[A-Z_]+' --include=*.go cmd pkg | sort -u || true)"
+for var in $documented; do
+  printf '%s\n' "$in_code" | grep -x -- "$var" >/dev/null || fail "README documents $var, which no Go source reads"
+done
+for var in $in_code; do
+  printf '%s\n' "$documented" | grep -x -- "$var" >/dev/null || fail "$var is read by the code but missing from the README table"
+done
+[[ -n "$documented" ]] || fail "README documents no environment variables at all"
+
+# The endpoint records, so it must refuse to start with nothing to wrap.
+if go run ./cmd/evidra-mcp --proxy >/dev/null 2>&1; then
+  fail "evidra-mcp --proxy accepted an empty upstream command"
 fi
 
-go run ./cmd/evidra report \
-  --prescription "$prescription_id" \
-  --verdict success \
-  --exit-code 0 \
-  --signing-mode optional \
-  --evidence-dir "$tmpdir/evidence" >/dev/null
+go run ./cmd/evidra version >/dev/null
 
 echo "doc checks passed"

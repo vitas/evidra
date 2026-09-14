@@ -1,8 +1,0 @@
-{
-  "type": "object",
-  "required": ["event_id"],
-  "properties": {
-    "event_id": { "type": "string", "description": "Event ID to look up in the evidence chain" }
-  },
-  "additionalProperties": false
-}

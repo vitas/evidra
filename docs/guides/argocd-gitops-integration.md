@@ -1,7 +1,8 @@
 # Argo CD GitOps Integration
+> **Pre-vNext surface.** The GitOps controller integration and the hosted API this guide drives were removed by the §43 prune. Kept for reference until the documentation pass after Gate C; it does not describe the MCP evidence recorder.
 
 - Status: Guide
-- Version: current
+- Version: frozen at removal (see the banner above)
 - Canonical for: controller-first Argo CD integration guidance
 - Audience: public
 

@@ -53,6 +53,7 @@ const SIGNAL_META: Record<string, { icon: string; label: string }> = {
   risk_escalation: { icon: "\u2191", label: "Risk Escalation" },
   new_scope: { icon: "\u2737", label: "New Scope" },
   repair_loop: { icon: "\u2795", label: "Repair Loop" },
+  unprescribed_mutation: { icon: "\u2298", label: "Unprescribed Mutation" },
 };
 
 function computeBreakdown(entries: EvidenceEntry[], field: keyof EvidenceEntry): BreakdownItem[] {

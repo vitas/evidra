@@ -1,7 +1,15 @@
 # Terraform CI Quickstart
 
+
+> **Pre-vNext surface.** The commands and file formats described here belong to the
+> product path that §43 of
+> [`vnext-mcp-recorder.md`](../system-design/vnext-mcp-recorder.md) removes from the
+> branch. They are kept for reference until the documentation pass at the end of the
+> prune rewrites them; they do not describe the current `evidra` binary, which is
+> `summarize`, `verify` and `version` only. See
+> [`vnext-prune-record.md`](../system-design/vnext-prune-record.md).
 - Status: Guide
-- Version: current
+- Version: frozen at removal (see the banner above)
 - Canonical for: Terraform CI integration quickstart
 - Audience: public
 
@@ -72,7 +80,7 @@ Output includes:
 The first prescription establishes the baseline scope and is never penalized.
 `new_scope` only fires on a subsequent operation that introduces a previously
 unseen `(actor, tool, operation_class, scope_class)` combination. See the
-[Signal Specification](../system-design/EVIDRA_SIGNAL_SPEC_V1.md) for the exact
+the Signal Specification (removed in the vNext prune; see Git history) for the exact
 signal rules.
 
 The score starts in `preview` mode until you reach 100 operations (configurable with `--min-operations`). To see meaningful scores earlier during evaluation:
@@ -226,5 +234,5 @@ Behavioral signals tracked over time:
 ## Next Steps
 
 - [Scanner SARIF Quickstart](../integrations/scanner-sarif-quickstart.md) — add Trivy/Checkov findings to evidence
-- [Signal Spec](../system-design/EVIDRA_SIGNAL_SPEC_V1.md) — detailed signal definitions
+- Signal Spec — detailed signal definitions; removed in the vNext prune, see Git history
 - [CLI Reference](../integrations/cli-reference.md) — all flags and commands

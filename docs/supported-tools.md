@@ -1,7 +1,15 @@
 # Supported Tools
 
-- Status: Reference
-- Version: current
+
+> **Pre-vNext surface.** The commands and file formats described here belong to the
+> product path that §43 of
+> [`vnext-mcp-recorder.md`](system-design/vnext-mcp-recorder.md) removes from the
+> branch. They are kept for reference until the documentation pass at the end of the
+> prune rewrites them; they do not describe the current `evidra` binary, which is
+> `summarize`, `verify` and `version` only. See
+> [`vnext-prune-record.md`](system-design/vnext-prune-record.md).
+- Status: Historical (pre-vNext surface)
+- Version: frozen at removal (see the banner above)
 - Canonical for: supported tool matrix and adapter coverage
 - Audience: public
 

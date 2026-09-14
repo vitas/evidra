@@ -26,31 +26,25 @@ func lookupCommand(name string) (commandSpec, bool) {
 	return command, ok
 }
 
+// orderedCommands is the entire CLI surface by design (§41): two commands plus
+// version. Enforcement is not in this binary — it lives in the `evidra-mcp --proxy`
+// endpoint, and the CLI only reads what that endpoint recorded. The commands that used
+// to be listed here belonged to the pre-vNext product path and were removed per §43;
+// `docs/system-design/vnext-prune-record.md` records what went and in which order.
 var orderedCommands = []commandSpec{
-	{name: "scorecard", description: "Generate reliability scorecard for an actor", run: cmdScorecard},
-	{name: "explain", description: "Explain signals contributing to a score", run: cmdExplain},
-	{name: "compare", description: "Compare reliability scores between actors", run: cmdCompare},
-	{name: "record", description: "Execute command live and record lifecycle outcome", run: cmdRecord},
-	{name: "prescribe", description: "Analyze artifact before execution", run: cmdPrescribe},
-	{name: "report", description: "Record execution outcome or declined decision", run: cmdReport},
-	{name: "import", description: "Ingest completed automation operation from structured input", run: cmdImport},
-	{name: "validate", description: "Validate evidence chain integrity and signatures", run: cmdValidate},
-	{name: "import-findings", description: "Ingest SARIF scanner findings as evidence entries", run: cmdImportFindings},
-	{name: "prompts", description: "Prompt contract generation and verification", run: cmdPrompts},
-	{name: "detectors", description: "Detector registry command group", run: cmdDetectors},
-	{name: "export", description: "Export anonymized evidence bundle for sharing", run: runExport},
-	{name: "keygen", description: "Generate Ed25519 signing keypair", run: cmdKeygen},
-	{name: "skill", description: "Install Evidra skill for AI agent protocol compliance", run: cmdSkill},
+	{name: "summarize", description: "Reconcile vNext MCP evidence: declared vs observed vs reported", run: cmdSummarize},
+	{name: "verify", description: "Verify vNext evidence chains, signatures and coverage per recorder", run: cmdVerifyChain},
 	{name: "version", description: "Print version information", run: cmdVersion},
 }
 
 func printUsage(w io.Writer) {
-	fmt.Fprintln(w, "evidra -- flight recorder for AI infrastructure agents")
+	fmt.Fprintln(w, "evidra -- read side of the vNext MCP evidence recorder")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "COMMANDS:")
 	for _, command := range orderedCommands {
-		fmt.Fprintf(w, "  %-18s %s\n", command.name, command.description)
+		fmt.Fprintf(w, "  %-12s %s\n", command.name, command.description)
 	}
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Run 'evidra <command> --help' for command-specific flags.")
+	fmt.Fprintln(w, "Evidence is written by: evidra-mcp --proxy --evidence-dir DIR -- <upstream command>")
+	fmt.Fprintln(w, "Point these commands at a recorder root or at one recorder directory.")
 }

@@ -1,0 +1,11 @@
+# Every workflow in .github/workflows must appear here. State column decides how
+# tests/test_ci_workflows_resolve.sh treats it:
+#   enabled   - every target it references must exist (a dead reference fails CI)
+#   disabled  - references are reported but not enforced, and the workflow MUST contain
+#               the refusal marker in its marker column, so "disabled" can never rot into
+#               "silently broken but runnable".
+# name<TAB>state<TAB>marker-or-reason
+ci-vnext.yml	enabled	-
+ci.yml	enabled	-
+dco.yml	enabled	-
+release.yml	disabled	vnext-release-refusal

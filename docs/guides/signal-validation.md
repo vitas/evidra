@@ -1,7 +1,8 @@
 # Signal Validation
+> **Pre-vNext surface.** This guide documents the signal engine and the scoring profile, both removed by the §43 prune. It is kept for reference until the documentation pass after Gate C; nothing here describes the MCP evidence recorder.
 
 - Status: Guide
-- Version: current
+- Version: frozen at removal (see the banner above)
 - Canonical for: signal-validation harness usage
 - Audience: public
 
@@ -22,6 +23,7 @@ The harness exercises these behavioral patterns:
 - thrashing
 - artifact drift
 - risk escalation
+- unprescribed mutations (server-derived prescriptions)
 
 ## How It Works
 
@@ -38,7 +40,7 @@ the core prescribe path to canonicalize artifacts or infer risk.
 The expectation windows in `expected-bands.json` are calibration snapshots
 derived from the active scoring model and profile, not an independent scoring
 spec. For the score pipeline itself, see
-[`EVIDRA_SCORING_MODEL_V1.md`](../system-design/EVIDRA_SCORING_MODEL_V1.md).
+`EVIDRA_SCORING_MODEL_V1.md`, removed in the vNext prune and readable in Git history.
 
 The harness is intentionally deterministic:
 

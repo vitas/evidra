@@ -1,291 +1,84 @@
-# Evidra CLI Reference
+# CLI reference
 
 - Status: Reference
-- Version: current
-- Canonical for: CLI commands and flags
-- Audience: public
+- Version: current (vNext)
+- Spec: [`docs/system-design/vnext-mcp-recorder.md`](../system-design/vnext-mcp-recorder.md) §7, §20, §41
 
-This document is the user-facing command and flag reference for all binaries in this repository:
-- `evidra` (core CLI)
-- `evidra-mcp` (MCP server)
+Evidra ships two binaries, and both are listed here. Anything not in this file does not exist
+in this build. The pre-vNext command surface (`prescribe`, `report`, `record`, `import`,
+`export`, `scorecard`, `explain`, `compare`, `validate`, `detectors`, `prompts`, `skill`,
+`keygen`, `import-findings`) and the self-hosted API server were removed by the
+[§43 prune](../system-design/vnext-prune-record.md); `scripts/check-doc-commands.sh` runs the
+commands documented below, so a document that outlives its command fails CI.
 
-For architecture and protocol semantics, see:
-- [Integration Protocol](../system-design/EVIDRA_PROTOCOL_V1.md)
-- [Record/Import Contract](../contracts/EVIDRA_RUN_RECORD_CONTRACT_V1.md)
-- [Core Data Model](../system-design/EVIDRA_CORE_DATA_MODEL_V1.md)
-
-## 1) `evidra` (core CLI)
-
-### Command Groups
-
-| Command | Purpose |
-|---|---|
-| `scorecard` | Generate reliability scorecard for an actor/session/window |
-| `explain` | Show signal-level explanation for scorecard |
-| `compare` | Compare actors and workload overlap |
-| `record` | Execute wrapped command and record lifecycle outcome |
-| `import` | Ingest completed operation from structured JSON input |
-| `prescribe` | Record pre-execution intent/risk |
-| `report` | Record post-execution outcome |
-| `validate` | Validate evidence chain/signatures |
-| `import-findings` | Ingest SARIF findings as evidence entries |
-| `prompts` | Prompt artifact generation/verification |
-| `keygen` | Generate Ed25519 keypair |
-| `skill` | Install Evidra skill for AI agent protocol compliance |
-| `version` | Print version |
-
-### `evidra scorecard` Flags
-
-| Flag | Description |
-|---|---|
-| `--actor` | Actor ID filter |
-| `--period` | Time period filter (`30d` default) |
-| `--evidence-dir` | Evidence directory override |
-| `--ttl` | TTL for unreported prescription detection (`10m0s` default) |
-| `--tool` | Tool filter |
-| `--scope` | Scope-class filter |
-| `--session-id` | Session ID filter |
-| `--min-operations` | Override score sufficiency threshold |
-| `--pretty` | Render human-readable ASCII output instead of JSON |
-
-`scorecard` JSON output includes `days_observed`, which is the number of distinct UTC calendar days with matching prescription activity inside the selected window.
-
-### `evidra explain` Flags
-
-| Flag | Description |
-|---|---|
-| `--actor` | Actor ID filter |
-| `--period` | Time period filter (`30d` default) |
-| `--evidence-dir` | Evidence directory override |
-| `--ttl` | TTL for unreported prescription detection (`10m0s` default) |
-| `--tool` | Tool filter |
-| `--scope` | Scope-class filter |
-| `--session-id` | Session ID filter |
-
-### `evidra compare` Flags
-
-| Flag | Description |
-|---|---|
-| `--actors` | Comma-separated actor IDs (required for meaningful output; expects at least 2) |
-| `--period` | Time period filter (`30d` default) |
-| `--evidence-dir` | Evidence directory override |
-| `--tool` | Tool filter |
-| `--scope` | Scope-class filter |
-| `--session-id` | Session ID filter |
-
-### `evidra prescribe` Flags
-
-| Flag | Description |
-|---|---|
-| `-f`, `--artifact` | Artifact file path (YAML/JSON) |
-| `--tool` | Tool name (for example `kubectl`, `terraform`) |
-| `--operation` | Operation name (`apply` default) |
-| `--environment` | Environment label |
-| `--findings` | SARIF findings path (repeatable); writes finding evidence, does not alter risk without an explicit assessment |
-| `--evidence-dir` | Evidence directory override |
-| `--actor` | Actor ID |
-| `--canonical-action` | Optional external canonical identity JSON; Evidra records it but does not run adapters or assessment |
-| `--session-id` | Session boundary ID (generated if omitted) |
-| `--operation-id` | Operation identifier |
-| `--attempt` | Retry attempt counter |
-| `--signing-key` | Base64 Ed25519 private key |
-| `--signing-key-path` | PEM Ed25519 private key path |
-| `--signing-mode` | `strict` (default) or `optional` |
-| `--url` | Evidra API URL for evidence forwarding |
-| `--api-key` | API key for online mode |
-| `--offline` | Force offline mode |
-| `--fallback-offline` | Fall back to offline mode on API failure |
-| `--timeout` | API request timeout |
-
-### `evidra report` Flags
-
-| Flag | Description |
-|---|---|
-| `--prescription` | Prescription event ID |
-| `--verdict` | Required terminal verdict: `success`, `failure`, `error`, or `declined` |
-| `--exit-code` | Command exit code (required for `success`/`failure`/`error`, forbidden for `declined`) |
-| `--decline-trigger` | Required trigger string for `--verdict declined` |
-| `--decline-reason` | Required short operational reason for `--verdict declined` |
-| `--evidence-dir` | Evidence directory override |
-| `--actor` | Actor ID |
-| `--artifact-digest` | Artifact digest for correlation |
-| `--external-refs` | External references JSON array |
-| `--session-id` | Session boundary ID |
-| `--operation-id` | Operation identifier |
-| `--signing-key` | Base64 Ed25519 private key |
-| `--signing-key-path` | PEM Ed25519 private key path |
-| `--signing-mode` | `strict` (default) or `optional` |
-| `--url` | Evidra API URL for evidence forwarding |
-| `--api-key` | API key for online mode |
-| `--offline` | Force offline mode |
-| `--fallback-offline` | Fall back to offline mode on API failure |
-| `--timeout` | API request timeout |
-
-### `evidra record` Flags
-
-`record` requires `--` before the wrapped command:
+## `evidra-mcp` — the endpoint that enforces and records
 
 ```bash
-evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml
+evidra-mcp --proxy [flags] -- <upstream-command> [args...]
 ```
 
-Expanded form is equivalent when you want to attach more metadata:
+One process wraps one upstream stdio MCP server. It merges two local tools into the upstream
+tool list — `evidra_prescribe` (open an operation) and `evidra_report` (close it) — refuses
+`tools/call` while no operation is open under `--enforce=all`, and appends a signed event
+chain to its recorder directory.
 
 ```bash
-evidra record \
-  -f deploy.yaml \
-  --environment staging \
-  --actor ci-gha \
-  -- kubectl apply -f deploy.yaml
+evidra-mcp --proxy --evidence-dir /tmp/evidence -- ./bin/evidra-fixture
 ```
 
-Security boundary: Evidra does not sandbox the wrapped command. Treat it with
-the same trust model as direct shell execution. Evidra records and analyzes
-evidence around the command; it does not contain or block it.
-
-| Flag | Description |
+| Flag | Meaning |
 |---|---|
-| `-f`, `--artifact` | Artifact file path (YAML/JSON) |
-| `--tool` | Tool name override (optional when inferred from wrapped command) |
-| `--operation` | Operation override (optional when inferred from wrapped command) |
-| `--environment` | Environment label |
-| `--findings` | SARIF findings path (repeatable) |
-| `--evidence-dir` | Evidence directory override |
-| `--actor` | Actor ID |
-| `--canonical-action` | Pre-canonicalized JSON action |
-| `--session-id` | Session boundary ID (generated if omitted) |
-| `--operation-id` | Operation identifier |
-| `--attempt` | Retry attempt counter |
-| `--signing-key` | Base64 Ed25519 private key |
-| `--signing-key-path` | PEM Ed25519 private key path |
-| `--signing-mode` | `strict` (default) or `optional` |
+| `--proxy` | Wrap the upstream command as the merged endpoint. Required. |
+| `--enforce <all\|off>` | `all` (default): refuse calls outside an open operation. `off`: observe and record, never refuse. Protocol order only — argument content, tool names and annotations never gate (§7). |
+| `--evidence-dir <dir>` | Recorder root; one dated directory per recorder process (§20). Omit it to enforce without writing evidence. |
+| `--server-name <label>` | `serverInfo.name` and the label stored in evidence. |
+| `--advertise-passthrough` | Advertise relayed prompts/resources/completions that sit outside the supported profile. Not advertised by default (§44). |
+| `--max-message <size>` | Largest single JSON-RPC message accepted in either direction (default 64 MiB). |
+| `--actor-id <id>` | Actor recorded as accountable on substantive events. Default `$EVIDRA_ACTOR_ID`, else the recorder's fallback identity. Lifecycle events stay attributed to the recorder. |
+| `--version`, `--help` | Version / usage. |
 
-`record` infers `tool` from the wrapped command's first word for `kubectl`, `oc`, `helm`, `terraform`, `docker`, `argocd`, `kustomize`, and `pulumi`. It infers `operation` only from supported command patterns. Shell wrappers such as `sh -c` require explicit `--tool` and `--operation`.
+**Evidra does not sandbox the wrapped command.** `-- <upstream-command>` is executed as a
+child of the recorder with the recorder's own privileges, environment and working directory:
+the endpoint observes and records what the upstream does, it does not confine it. Treat the
+upstream command line as part of the trust boundary: whoever can choose it can run anything
+the recorder itself could run, with the same trust model as direct shell execution.
 
-### `evidra import` Flags
+There is **no default evidence location for the endpoint.** Recording is a per-process choice
+made with `--evidence-dir`, so a test or dogfood run cannot silently append to a home
+directory nothing pointed at; the endpoint says so on stderr when it runs without a store.
 
-| Flag | Description |
+Arguments leave the process only as `HMAC(digest_key, JCS(args))`; results are hashed up to
+4 MiB and larger ones become `omitted_oversize` (§23, §24). Raw upstream payloads and key
+material never enter the chain or `summary.json`.
+
+## `evidra` — the read side
+
+```
+COMMANDS:
+  summarize    Reconcile vNext MCP evidence: declared vs observed vs reported
+  verify       Verify vNext evidence chains, signatures and coverage per recorder
+  version      Print version information
+```
+
+`summarize` and `verify` take the same two flags:
+
+| Flag | Meaning |
 |---|---|
-| `--input` | Path to import JSON file (`-` for stdin) |
-| `--evidence-dir` | Evidence directory override |
-| `--signing-key` | Base64 Ed25519 private key |
-| `--signing-key-path` | PEM Ed25519 private key path |
-| `--signing-mode` | `strict` (default) or `optional` |
-| `--url` | Evidra API URL for evidence forwarding |
-| `--api-key` | API key for online mode |
-| `--offline` | Force offline mode |
-| `--fallback-offline` | Fall back to offline mode on API failure |
-| `--timeout` | API request timeout |
+| `-dir <dir>` | Evidence root holding recorder directories, or one recorder directory. Default: `$EVIDRA_EVIDENCE_DIR`. |
+| `-since <instant>` | Only events recorded after this instant: `7d`, `36h`, or RFC 3339. |
 
-### Assessment Snapshot Output
+`EVIDRA_EVIDENCE_DIR` applies to the read side only — never to the endpoint.
 
-`evidra record` and `evidra import` return the same immediate analytics fields:
+```bash
+evidra summarize --dir /tmp/evidence      # declared / observed / reported per operation
+evidra verify --dir /tmp/evidence --since 7d
+evidra version
+```
 
-- `risk_inputs`
-- `effective_risk`
-- `score`
-- `score_band`
-- `signal_summary`
-- `basis`
-- `confidence`
+`summarize` prints, per operation, what the agent **declared**, what the proxy **observed**
+through the wrapped boundary, and what the agent **reported**, then the reconciliation stance.
+It does not decide whether a claim is true; it puts the layers side by side so an unsupported
+one is inspectable. `verify` reports chain validity, signature validity and coverage as three
+separate statements — a valid chain can still be incomplete (§34).
 
-`risk_inputs` and `effective_risk` are empty unless an external assessment is
-provided by the caller. Score and signal fields are still computed from the
-evidence chain.
-
-The legacy score-band alias is not part of the v1 output contract.
-
-`evidra report` returns an immediate session assessment snapshot:
-
-- `prescription_id`
-- `verdict`
-- `exit_code`
-- `decision_context` (when `verdict=declined`)
-- `score`
-- `score_band`
-- `signal_summary`
-- `basis`
-- `confidence`
-
-### `evidra validate` Flags
-
-| Flag | Description |
-|---|---|
-| `--evidence-dir` | Evidence directory override |
-| `--public-key` | Ed25519 public key PEM (enables signature verification) |
-
-### `evidra import-findings` Flags
-
-| Flag | Description |
-|---|---|
-| `--sarif` | SARIF report path |
-| `--artifact` | Artifact path used for digest linking |
-| `--tool-version` | Tool version override for all ingested findings |
-| `--evidence-dir` | Evidence directory override |
-| `--actor` | Actor ID |
-| `--session-id` | Session boundary ID |
-| `--signing-key` | Base64 Ed25519 private key |
-| `--signing-key-path` | PEM Ed25519 private key path |
-| `--signing-mode` | `strict` (default) or `optional` |
-
-### `evidra prompts` Subcommands and Flags
-
-| Subcommand | Flags |
-|---|---|
-| `prompts generate` | `--contract` (default `v1.3.0`), `--root` (default `.`), `--write-active` (default `true`), `--write-generated` (default `true`), `--write-manifest` (default `true`) |
-| `prompts verify` | `--contract` (default `v1.3.0`), `--root` (default `.`) |
-
-### `evidra skill install` Flags
-
-| Flag | Description |
-|---|---|
-| `--target` | Target platform: `claude` (default: `claude`) |
-| `--scope` | Installation scope: `global` (default) or `project` |
-| `--project-dir` | Project directory for `--scope project` (default: `.`) |
-| `--full-prescribe` | Install the full-prescribe skill variant |
-
-Global installs to `~/.claude/skills/evidra/SKILL.md`. Project installs to `.claude/skills/evidra/SKILL.md` in the specified directory.
-
-### Developer Commands
-
-These commands are functional but not yet part of the stable public API.
-
-#### `evidra detectors list`
-
-Legacy/companion surface for the built-in detector registry. Core
-prescribe/report does not depend on these detectors.
-
-| Flag | Description |
-|---|---|
-| `--stable-only` | Show only stable (non-experimental) detectors |
-
-Output: JSON with `count` and `items` array of detector metadata (tag, description, severity, stability).
-
-## 2) `evidra-mcp` (MCP server)
-
-### Flags
-
-| Flag | Description |
-|---|---|
-| `--evidence-dir` | Evidence chain storage path |
-| `--environment` | Environment label |
-| `--retry-tracker` | Enable retry-loop tracking |
-| `--signing-mode` | `strict` (default) or `optional` |
-| `--version` | Print version and exit |
-| `--help` | Print help and exit |
-
-### Environment Variables
-
-| Variable | Description |
-|---|---|
-| `EVIDRA_EVIDENCE_DIR` | Default evidence directory |
-| `EVIDRA_ENVIRONMENT` | Default environment label |
-| `EVIDRA_RETRY_TRACKER` | Retry tracker toggle (`true/false`) |
-| `EVIDRA_EVIDENCE_WRITE_MODE` | Evidence write mode (`strict` or `best_effort`) |
-| `EVIDRA_SIGNING_MODE` | Signing mode (`strict` or `optional`) |
-| `EVIDRA_SIGNING_KEY` | Base64 Ed25519 private key |
-| `EVIDRA_SIGNING_KEY_PATH` | PEM Ed25519 private key path |
-
-### MCP Tools
-
-`prescribe_full`, `prescribe_smart`, `report`, `get_event`
+A fourth `evidra` command is a plan change, not a registry entry (§41).
