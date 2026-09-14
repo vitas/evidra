@@ -177,6 +177,41 @@ func checkRunInvariants(runs []runResult, cells []cellMetrics, byCell map[string
 	violations = append(violations, checkBaselineInvariants(cells, byCell)...)
 	violations = append(violations, checkOperationalAgreement(runs, cells)...)
 	violations = append(violations, checkComparisonAgreement(cells)...)
+	violations = append(violations, checkComplianceConsistency(runs)...)
+	return violations
+}
+
+// checkComplianceConsistency cross-checks the protocol-compliance fields of one run
+// against each other. Every other family here compares a cell to its rows, a row to its
+// transcript, or a metric to its denominator; this one asks whether the fields inside a
+// single verdict can all be true at once.
+//
+// The rule: with no refusals and no unprescribed executions, every upstream call that
+// ran had an operation open - including the first one. So a run reporting
+// `blocked_attempts = 0`, `unprescribed_executions = 0`, at least one prescription and
+// at least one upstream call cannot also report that its first action was uncovered.
+//
+// This is the invariant whose absence let a serialization bug stand: the compliance
+// fields were unexported, so `--regrade` restored them as zero values and reported
+// `voluntary_prescription_coverage = 0/N` for every archived set, while
+// `unprescribed_executions` stayed 0 in the same records. Zero satisfies every bound the
+// other families check, because zero is a legal value - it was only the disagreement
+// between two fields of one record that could not be explained.
+func checkComplianceConsistency(runs []runResult) []string {
+	var violations []string
+	for _, r := range runs {
+		if !r.valid() || r.ProtocolNotApplicable {
+			continue
+		}
+		if r.UpstreamCalls > 0 && r.Prescribes > 0 && r.Unprescribed == 0 && r.Blocked == 0 &&
+			!r.FirstUpstreamPrescribed {
+			violations = append(violations, fmt.Sprintf(
+				"%s/%s %s run%d: first action reported uncovered, but the same record has "+
+					"%d upstream calls, %d prescribes, 0 unprescribed executions and 0 blocked attempts - "+
+					"those cannot all be true",
+				r.Arm, r.Mode, r.Task, r.Run, r.UpstreamCalls, r.Prescribes))
+		}
+	}
 	return violations
 }
 

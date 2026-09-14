@@ -244,3 +244,87 @@ func TestProvenanceDriftNamesUnattributedAndForeignRuns(t *testing.T) {
 		t.Errorf("drift reported against an identical build: %v", d)
 	}
 }
+
+// TestInvariantsCatchASelfContradictoryComplianceRecord covers the invariant whose
+// absence let a serialization bug stand for an entire archived set. The compliance
+// fields were unexported, so --regrade restored them as zero values and reported
+// voluntary coverage 0/N everywhere, while `unprescribed_executions` stayed 0 in the
+// very same records. Zero satisfies every bound the other families check; only the
+// disagreement between two fields of one record was unexplainable.
+func TestInvariantsCatchASelfContradictoryComplianceRecord(t *testing.T) {
+	dir := t.TempDir()
+	base := gradingRun(t, dir, "a", true, true)
+	base.UpstreamCalls = 2 // so the guard below is reached at all
+
+	cases := []struct {
+		name      string
+		mutate    func(*runResult)
+		wantCatch bool
+	}{
+		// The H-0 signature: nothing was refused, nothing ran uncovered, a
+		// prescription happened - and yet the first action is reported uncovered.
+		{"zeroed coverage", func(r *runResult) { r.FirstUpstreamPrescribed = false }, true},
+		{"consistent record", func(r *runResult) { r.FirstUpstreamPrescribed = true }, false},
+		// A refused first attempt really is uncovered, and really has no unprescribed
+		// execution either: the call never reached the upstream. Not a contradiction.
+		{"blocked first attempt", func(r *runResult) {
+			r.FirstUpstreamPrescribed = false
+			r.Blocked = 1
+		}, false},
+		// Acting before prescribing with nothing to stop it is a genuine miss, and it
+		// is already counted by unprescribed_executions. Not a contradiction.
+		{"unprescribed execution", func(r *runResult) {
+			r.FirstUpstreamPrescribed = false
+			r.Unprescribed = 1
+		}, false},
+		// No upstream work at all leaves the metric with no referent.
+		{"no upstream calls", func(r *runResult) {
+			r.FirstUpstreamPrescribed = false
+			r.UpstreamCalls = 0
+		}, false},
+		// A baseline cell has no protocol surface, so the rollup renders n/a and a zero
+		// there is a statement about a tool the agent was never given.
+		{"baseline run", func(r *runResult) {
+			r.FirstUpstreamPrescribed = false
+			r.ProtocolNotApplicable = true
+		}, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := base
+			tc.mutate(&r)
+			v := checkComplianceConsistency([]runResult{r})
+			if tc.wantCatch && len(v) == 0 {
+				t.Fatal("a self-contradictory compliance record passed the invariants")
+			}
+			if !tc.wantCatch && len(v) != 0 {
+				t.Fatalf("a legitimate record was rejected: %v", v)
+			}
+			if tc.wantCatch && !strings.Contains(v[0], "cannot all be true") {
+				t.Errorf("violation does not name the contradiction: %q", v[0])
+			}
+		})
+	}
+}
+
+// TestInvariantsWireComplianceConsistencyIntoTheRollup proves the new family is actually
+// composed into checkRunInvariants: an invariant nobody calls is indistinguishable from
+// one that never fires.
+func TestInvariantsWireComplianceConsistencyIntoTheRollup(t *testing.T) {
+	dir := t.TempDir()
+	r := gradingRun(t, dir, "a", true, true)
+	r.UpstreamCalls = 2
+	r.FirstUpstreamPrescribed = false
+	runs := []runResult{r}
+	v := checkRunInvariants(runs, []cellMetrics{cellFor(runs)}, byCellOf(runs))
+	found := false
+	for _, line := range v {
+		if strings.Contains(line, "cannot all be true") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("compliance consistency is not part of the rollup check: %v", v)
+	}
+}
