@@ -117,7 +117,10 @@ of `cmd/evidra` **before** the hosted chain can be deleted, not after:
 5. Delete the legacy relay inside `pkg/proxy` with its tests in the same commit
    (`detect.go`, `runProxyMode`), then remove `--legacy-proxy`. The vNext endpoint shares
    no code with `detect.go`, which is why this is a removal rather than a refactoring.
-6. Delete the v1 evidence shapes (`pkg/evidence/entry.go`, `internal/evidence`,
+6. Delete `examples/kagent/` content that documents the removed API and direct-MCP
+   integration, or rewrite it against `evidra-mcp --proxy`. It is untracked local
+   material today, so the choice is "re-adding" rather than "deleting".
+7. Delete the v1 evidence shapes (`pkg/evidence/entry.go`, `internal/evidence`,
    `pkg/evlock`, `internal/lifecycle`) once nothing imports them, then rewrite
    `docs/ARCHITECTURE.md`, which still describes the pre-vNext product.
 
