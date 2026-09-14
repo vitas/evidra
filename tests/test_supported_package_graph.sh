@@ -20,7 +20,11 @@ fail() {
 
 [[ -f tests/vnext-packages.txt ]] || fail "tests/vnext-packages.txt is missing"
 
-actual="$(go list ./... 2>/dev/null | sort -u)"
+# node_modules is third-party JavaScript that sometimes ships Go source of its own
+# (flatted ships golang/pkg/flatted). That code is not part of this module's graph,
+# and a guard whose verdict depends on which npm package was installed today is not
+# a guard. Everything else in the module must match the declared set exactly.
+actual="$(go list ./... 2>/dev/null | grep -v '/node_modules/' | sort -u)"
 [[ -n "$actual" ]] || fail "go list ./... returned nothing (broken module?)"
 
 declared="$(sort -u tests/vnext-packages.txt)"

@@ -1,11 +1,11 @@
 {
   "name": "Evidra",
   "short_name": "Evidra",
-  "description": "AI infrastructure agent evidence and reliability reports.",
+  "description": "Open-source MCP execution evidence that reconciles declared, observed, and reported actions.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#fafffe",
-  "theme_color": "#064e3b",
+  "background_color": "#f6f7f6",
+  "theme_color": "#047857",
   "icons": [
     {
       "src": "/favicon.svg",
