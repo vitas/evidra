@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "evidra": {
-      "command": "evidra-mcp",
-      "args": ["--evidence-dir", "/tmp/evidra-inspector-evidence", "--full-prescribe"]
-    }
-  }
-}

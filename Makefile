@@ -1,5 +1,4 @@
-.PHONY: build test e2e clean canon-fixtures-update docker-mcp docker-cli docker-up docker-down fmt lint tidy \
-	test-contracts test-mcp-inspector test-mcp-inspector-ci test-mcp-inspector-hosted \
+.PHONY: build test clean canon-fixtures-update docker-mcp docker-cli docker-up docker-down fmt lint tidy \
 	prompts-generate prompts-verify test-signals \
 	ui-build docker-hosted
 
@@ -17,22 +16,6 @@ test:
 
 test-signals: build
 	PATH="$(PWD)/bin:$$PATH" bash tests/signal-validation/validate-signals-engine.sh
-
-e2e: build
-	go test -tags e2e ./tests/e2e/ -v -count=1 -timeout=120s
-
-test-contracts: build
-	go test -tags e2e ./tests/contracts/ -v -count=1 -timeout=120s
-
-test-mcp-inspector:
-	bash tests/inspector/run_inspector_tests.sh
-
-test-mcp-inspector-ci:
-	mkdir -p tests/inspector/out
-	bash -o pipefail -c 'bash tests/inspector/run_inspector_tests.sh | tee tests/inspector/out/latest.log'
-
-test-mcp-inspector-hosted:
-	EVIDRA_TEST_MODE=hosted-mcp bash tests/inspector/run_inspector_tests.sh
 
 prompts-generate:
 	bash scripts/prompts-generate.sh

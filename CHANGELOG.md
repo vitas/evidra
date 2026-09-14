@@ -17,6 +17,21 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — §43 step 4: the legacy MCP server and its test harnesses go
+
+- Deleted `pkg/mcpserver` (with the embedded `run_command` / `collect_diagnostics` /
+  `write_file` / `describe_tool` / `prescribe_smart` / `prescribe_full` schemas),
+  `internal/lifecycle`, `internal/assessment`, `internal/evidence`, `internal/config`,
+  `internal/telemetry`, `pkg/mode`, `pkg/client`.
+- Deleted the harnesses that could only drive those surfaces: `tests/inspector`
+  (JSON cases calling tools that no longer exist), `tests/e2e`, `tests/contracts`
+  (prescribe/report parity, scoring and risk-escalation contracts against the removed
+  CLI), and `tests/testutil`. Makefile loses `e2e`, `test-contracts` and the three
+  inspector targets, and the vNext CI exclusion list shrinks to `sarif`.
+- A suite that cannot compile is worse than one that is deleted: `tests/contracts` and
+  `tests/e2e` were tag-gated out of vNext CI, so nothing would have told anyone they
+  broke when the CLI commands they exercised disappeared in step 1.
+
 ### vNext experiment — §43 step 3: `evidra-mcp` is the endpoint only
 
 - The direct MCP server mode is gone: `pkg/mcpserver` is no longer started, and with it

@@ -23,7 +23,7 @@ env:
   # tag-gated legacy e2e suite (every real file there is behind `-tags e2e`, so a
   # plain `go build` of the graph cannot include it). They stay in the tree until
   # the prune step but are not part of what vNext certifies.
-  VNEXT_UNSUPPORTED: '/(internal|pkg)/(apicrypto|assessment|client|config|mode|sarif)(/|$)|/tests/(e2e|testutil)$'
+  VNEXT_UNSUPPORTED: '/(internal|pkg)/(sarif)(/|$)'
 
 jobs:
   core:
