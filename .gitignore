@@ -10,7 +10,12 @@
 
 docs/research/
 docs/experimental/
-docs/plans/
+# Personal planning history stays local. The explicitly approved current cleanup design
+# and implementation plan are tracked because they are the handoff for repository work,
+# not an archive of one-reader notes.
+docs/plans/*
+!docs/plans/2026-09-14-public-docs-landing-cleanup-design.md
+!docs/plans/2026-09-14-public-docs-landing-cleanup.md
 docs/superpowers/plans/
 docs/superpowers/specs/
 docs/system-design/done/
