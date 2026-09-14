@@ -104,6 +104,9 @@ type epEndpoint struct {
 	enforce     string
 	evidence    epEvidence
 	sessionID   string
+	// obs counts executions per operation so a closed report can be answered with
+	// what the proxy saw, without waiting for a store read (§47).
+	obs *epObservations
 
 	child    *exec.Cmd
 	childIn  io.WriteCloser
@@ -151,6 +154,9 @@ type epFwd struct {
 	// written: an execution that answered anyway after being cancelled is
 	// recorded as answered, because that is what happened.
 	cancelRequested bool
+	// readOnlyAnn is the upstream's own unverified read-only claim for this call
+	// (§27). nil means no annotation was present, which is not the same as false.
+	readOnlyAnn *bool
 	// compose marks a forwarded request whose response the endpoint rewrites.
 	compose bool
 	// firstPage records that the tools/list request carried no cursor, the only
@@ -238,6 +244,7 @@ func RunEndpoint(ctx context.Context, clientIn io.Reader, clientOut io.Writer, o
 		enforce:     enforce,
 		evidence:    ev,
 		sessionID:   "SES-" + ulid.Make().String(),
+		obs:         newObservations(),
 		upWait:      map[string]chan *epMsg{},
 		fwd:         map[string]*epFwd{},
 		toClient:    map[string]*epFwd{},
@@ -550,13 +557,14 @@ func (e *epEndpoint) dispatchToolCall(msg *epMsg, key string) error {
 	if e.evidence.unhealthy() {
 		return e.recorderUnavailable(msg, params.Name, "evidence store is unhealthy")
 	}
-	ex, err := e.evidence.startExecution(e.sessionID, open, params.Name, args, e.annotationsFor(params.Name))
+	ann := e.annotationsFor(params.Name)
+	ex, err := e.evidence.startExecution(e.sessionID, open, params.Name, args, ann)
 	if err != nil {
 		e.logger.Printf("endpoint: refused %s, execution_started was not persisted: %v", params.Name, err)
 		return e.recorderUnavailable(msg, params.Name, "could not record execution_started")
 	}
 	e.stateMu.Lock()
-	e.fwd[key] = &epFwd{clientID: key, tool: params.Name, operationID: open, exec: ex}
+	e.fwd[key] = &epFwd{clientID: key, tool: params.Name, operationID: open, exec: ex, readOnlyAnn: epReadOnlyAnnotation(ann)}
 	e.stateMu.Unlock()
 	return e.writeUpstream(msg.raw)
 }
@@ -841,10 +849,17 @@ func (e *epEndpoint) annotationsFor(tool string) json.RawMessage {
 // relayed either way, because a fabricated operational failure invites an
 // automatic retry of work that succeeded (§18).
 func (e *epEndpoint) finishExecution(fwd *epFwd, raw json.RawMessage) {
-	if fwd == nil || fwd.exec.ID == "" {
+	if fwd == nil {
 		return
 	}
 	status, code, message := epClassifyResponse(raw)
+	// Counted before the durable-id check on purpose: an execution the proxy watched
+	// happened whether or not it was persisted, and dropping it here would make the
+	// in-band feedback silently depend on --evidence-dir (§47, §18).
+	e.obs.note(fwd.operationID, fwd.tool, status == evidence.ExecutionSuccess, fwd.readOnlyAnn)
+	if fwd.exec.ID == "" {
+		return
+	}
 	if err := e.evidence.finishExecution(fwd.exec, raw, status, code, message); err != nil {
 		e.logger.Printf("endpoint: execution terminal evidence lost for %s: %v", fwd.tool, err)
 	}

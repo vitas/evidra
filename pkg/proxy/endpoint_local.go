@@ -291,10 +291,21 @@ func (e *epEndpoint) handleReport(raw json.RawMessage) (any, *epError) {
 			Data: map[string]any{"error": "recorder_unhealthy", "operation_id": closed.ID,
 				"instruction": "No report was persisted. Retry evidra_report; the operation is still open."}}
 	}
+	// §47's in-band feedback: the narrow observation statement about the operation
+	// that was just closed. Not a summary (§35) - it says what the proxy saw inside
+	// this window and nothing about whether the agent's goal was reached.
+	obs, seen := e.obs.renderFor(closed.ID)
+	if !seen {
+		obs["note"] = "No upstream tool execution was observed for this operation. If work " +
+			"was expected to happen, that expectation and this record disagree."
+	} else {
+		obs["note"] = "These counts are the proxy's own observations for this operation, not a judgement of your outcome."
+	}
 	return map[string]any{
 		"ok":           true,
 		"state":        "reported",
 		"operation_id": closed.ID,
+		"observations": obs,
 		"note":         "Call evidra_prescribe before the next operation.",
 	}, nil
 }

@@ -129,11 +129,16 @@ In rough order of expected value:
 1. Wrap a real operational server (a Kubernetes or cloud MCP server in a sandbox),
    where read-only-looking claims have consequences and an outside log can confirm
    what actually changed.
-2. Implement §47's `in-band evidra_report feedback`: a compact observation statement
-   returned with the report acknowledgment ("no executions observed in this
-   operation's window"). This is the mechanism that can change an *agent's* next
-   action, and it is the one Gate C item still unimplemented. It must stay compact —
-   §35 forbids rebuilding a human summary synchronously inside `evidra_report`.
+2. ~~Implement §47's `in-band evidra_report feedback`~~ — **implemented after this
+   probe was recorded.** `evidra_report` now answers with `observations`: execution
+   count inside the just-closed operation's window, succeeded vs failed-or-cancelled,
+   observed tool names, and the §38.C read-only conjunction labelled
+   `annotations_verified: false`, plus `provenance: proxy_observed`. It is counted from
+   what the proxy watched, so it is present with or without `--evidence-dir`, and it is
+   deliberately verdict-free — no field says achieved, because §35 forbids rebuilding a
+   human summary synchronously inside `evidra_report`.
+   **This probe set does not exercise it**: these 8 transcripts predate it, so any
+   statement about whether the feedback changes agent behaviour still needs new runs.**
 3. Have a person who did not run the experiment read one terminal summary and one
    transcript for the same session, and write down which gave them the better
    account, and why.

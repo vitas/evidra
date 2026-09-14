@@ -35,6 +35,12 @@ evidra summarize --dir DIR   ──▶ declared vs observed vs reported, per com
 evidra verify    --dir DIR   ──▶ chain validity, signature validity, coverage, per recorder
 ```
 
+A closing `evidra_report` is answered in-band with what the proxy observed inside that
+operation's window (§47): counts, terminal statuses, tool names, and the read-only
+conjunction marked `annotations_verified: false`. It carries no verdict — §35 forbids
+rebuilding a human summary inside a tool response — and it is computed from observation,
+so it is present whether or not `--evidence-dir` was given.
+
 Three shipped-ish binaries: `cmd/evidra-mcp` (the endpoint — the only thing that enforces
 or records), `cmd/evidra` (read side: `summarize`, `verify`, `version` — §41), plus the
 experiment surface `cmd/evidra-fixture` (generic MCP conformance upstream for Gate B) and

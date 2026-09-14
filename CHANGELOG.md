@@ -17,6 +17,31 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — §47 in-band `evidra_report` feedback
+
+- A closing `evidra_report` now answers with an `observations` object: executions the
+  proxy saw inside that operation's window, succeeded vs failed-or-cancelled, the tool
+  names touched (capped at 5 distinct), and the §38.C read-only conjunction
+  (`all_observed_declared_read_only`) always accompanied by
+  `annotations_verified: false` and `provenance: proxy_observed`. When the window was
+  empty the note says so in the response, which is the case the mechanism exists for: an
+  agent claiming achievement with nothing observed is told before it acts again, not in a
+  file after the session.
+- Bounded by construction: 128 tracked operations, oldest evicted and the eviction count
+  reported in the next render (`older_operations_dropped`), so feedback that nobody reads
+  cannot grow with the session.
+- Counted from the proxy's own view rather than from the store, so it works with recording
+  switched off, and `finishExecution` notes the observation **before** its durable-id
+  check — an execution that happened but could not be persisted still happened, and
+  feedback that silently depended on `--evidence-dir` would be a different feature than
+  the one §47 asked for.
+- No verdict fields. §35 forbids rebuilding a human summary inside `evidra_report`, so
+  nothing here says achieved, score, or risk, and a test asserts that absence rather than
+  trusting intent.
+- `docs/system-design/vnext-gate-c-reconciliation-probe.md` was corrected to say the item
+  is implemented **after** the probe's 8 transcripts were recorded, so the artifact does
+  not imply the new response was measured.
+
 ### vNext experiment — §43 step 7: documentation follows the code, and `--actor-id` comes back
 
 - `docs/ARCHITECTURE.md` rewritten as the vNext map. Its old opening line — "Evidra is a
