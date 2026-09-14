@@ -1,157 +1,102 @@
-import { Link, useLocation } from "react-router";
 import { ThemeToggle } from "./ThemeToggle";
-import { useHealthCheck } from "../hooks/useHealthCheck";
-import { useAuth } from "../context/AuthContext";
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
-const LANDING_LINKS = [
-  { href: "#features", label: "Features" },
-  { href: "#signals", label: "Signals" },
-  { href: "#architecture", label: "Architecture" },
-  { href: "#get-started", label: "Get Started" },
-  { href: "#mcp-setup", label: "MCP Setup" },
-  { href: "#api", label: "API" },
-  { href: "#guides", label: "Guides" },
-  { href: "/evidence", label: "Evidence" },
+const NAV_LINKS = [
+  { href: "#runtime-topology", label: "Product" },
+  { href: "https://github.com/vitas/evidra/blob/main/docs/getting-started.md", label: "Docs", external: true },
 ];
 
 export function Layout({ children }: LayoutProps) {
   return (
     <>
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
       <Header />
-      {children}
-      <StatusBar />
+      <main id="main-content">{children}</main>
       <Footer />
     </>
   );
 }
 
 function Header() {
-  const { pathname } = useLocation();
-  const { apiKey } = useAuth();
-  const isLanding = pathname === "/";
-
   return (
-    <header className="sticky top-0 z-50 glass border-b border-border-subtle">
-      <div className="px-6 flex justify-between items-center py-3">
-        <div className="flex items-center gap-8">
-          <Link to="/" className="font-extrabold text-[1.05rem] text-fg tracking-tight no-underline hover:text-fg">
+    <header className="border-b border-border-subtle bg-bg">
+      <div className="mx-auto max-w-[72rem] px-4 flex flex-wrap items-center gap-x-6 gap-y-2 py-3 justify-between">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <a
+            href="/"
+            className="font-bold text-[1.05rem] text-fg no-underline hover:text-fg"
+          >
             evidra<span className="text-accent">.</span>
-          </Link>
-          <nav className="flex gap-5 items-center">
-            {isLanding ? (
-              <>
-                {LANDING_LINKS.map((l) => (
-                  <a
-                    key={l.href}
-                    href={l.href}
-                    {...("external" in l && l.external ? { target: "_blank", rel: "noopener" } : {})}
-                    className="text-[0.82rem] font-medium text-fg-muted tracking-wide hover:text-fg no-underline transition-colors max-lg:hidden"
-                  >
-                    {l.label}
-                  </a>
-                ))}
-              </>
-            ) : (
-              <>
-                <Link
-                  to="/"
-                  className="text-[0.82rem] font-medium text-fg-muted tracking-wide hover:text-fg no-underline transition-colors"
-                >
-                  Home
-                </Link>
-                <Link
-                  to="/dashboard"
-                  className={`text-[0.82rem] font-medium tracking-wide no-underline transition-colors ${
-                    pathname === "/dashboard" ? "text-accent" : "text-fg-muted hover:text-fg"
-                  }`}
-                >
-                  Dashboard
-                </Link>
-                <Link
-                  to="/evidence"
-                  className={`text-[0.82rem] font-medium tracking-wide no-underline transition-colors ${
-                    pathname === "/evidence" ? "text-accent" : "text-fg-muted hover:text-fg"
-                  }`}
-                >
-                  Evidence
-                </Link>
-              </>
-            )}
+          </a>
+          <nav aria-label="Main" className="flex flex-wrap items-center gap-x-5 gap-y-1">
+            {NAV_LINKS.map((l) => (
+              <a
+                key={l.label}
+                href={l.href}
+                {...(l.external ? { target: "_blank", rel: "noopener" } : {})}
+                className="text-[0.85rem] font-medium text-fg-muted no-underline hover:text-fg"
+              >
+                {l.label}
+              </a>
+            ))}
+            <a
+              href="https://github.com/vitas/evidra"
+              target="_blank"
+              rel="noopener"
+              className="text-[0.85rem] font-medium text-fg-muted no-underline hover:text-fg"
+            >
+              GitHub
+            </a>
           </nav>
         </div>
-        <div className="flex items-center gap-4">
-          {!apiKey && (
-            <Link
-              to="/onboarding"
-              className={`text-[0.82rem] font-medium tracking-wide no-underline transition-colors ${
-                pathname === "/onboarding" ? "text-accent" : "text-fg-muted hover:text-fg"
-              }`}
-            >
-              Get API Key
-            </Link>
-          )}
-          <a
-            className="inline-flex items-center gap-1 text-[0.82rem] font-medium text-fg-muted tracking-wide hover:text-fg no-underline transition-colors"
-            href="https://github.com/vitas/evidra"
-            target="_blank"
-            rel="noopener"
-          >
-            <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 fill-current">
-              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-            </svg>
-            GitHub
-          </a>
-          <ThemeToggle />
-        </div>
+        <ThemeToggle />
       </div>
     </header>
   );
 }
 
-function StatusBar() {
-  return (
-    <div className="glass border-t border-border-subtle py-2.5 text-[0.78rem] text-fg-muted font-mono">
-      <div className="max-w-[980px] mx-auto px-8 flex justify-center gap-10 items-center flex-wrap">
-        <StatusDot endpoint="/healthz" label="api" />
-        <StatusDot endpoint="/readyz" label="database" />
-      </div>
-    </div>
-  );
-}
-
-function StatusDot({ endpoint, label }: { endpoint: string; label: string }) {
-  const status = useHealthCheck(endpoint);
-  const dotColor = status === "healthy" ? "bg-accent shadow-[0_0_4px_rgba(5,150,105,0.4)]"
-    : status === "unhealthy" ? "bg-red-400 shadow-[0_0_4px_rgba(248,113,113,0.4)]"
-    : "bg-fg-muted";
-  const text = status === "healthy" ? (label === "api" ? "healthy" : "connected")
-    : status === "unhealthy" ? (label === "api" ? "unreachable" : "unavailable")
-    : "checking";
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className={`w-[7px] h-[7px] rounded-full inline-block transition-colors ${dotColor}`} />
-      {label}: <span>{text}</span>
-    </div>
-  );
-}
-
 function Footer() {
   return (
-    <footer className="glass py-8 text-center text-[0.8rem] text-fg-muted border-t border-border-subtle">
-      <div className="max-w-[980px] mx-auto px-8">
-        <a href="https://github.com/vitas/evidra" target="_blank" rel="noopener" className="text-fg-muted font-medium hover:text-accent">
-          github.com/vitas/evidra
+    <footer className="border-t border-border-subtle py-8 mt-8">
+      <div className="mx-auto max-w-[72rem] px-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-[0.85rem] text-fg-muted">
+        <a
+          href="https://github.com/vitas/evidra"
+          target="_blank"
+          rel="noopener"
+          className="no-underline hover:text-fg"
+        >
+          GitHub
         </a>
-        {" \u00B7 "}
-        <a href="https://github.com/vitas/evidra-bench" target="_blank" rel="noopener" className="text-fg-muted font-medium hover:text-accent">
-          github.com/vitas/evidra-bench
+        <a
+          href="https://github.com/vitas/evidra/blob/main/docs/getting-started.md"
+          target="_blank"
+          rel="noopener"
+          className="no-underline hover:text-fg"
+        >
+          Documentation
         </a>
-        {" \u00B7 Apache 2.0"}
+        <a
+          href="https://github.com/vitas/evidra/blob/main/SECURITY.md"
+          target="_blank"
+          rel="noopener"
+          className="no-underline hover:text-fg"
+        >
+          Security
+        </a>
+        <a
+          href="https://github.com/vitas/evidra-bench"
+          target="_blank"
+          rel="noopener"
+          className="no-underline hover:text-fg"
+        >
+          Evidra Bench
+        </a>
+        <span>Apache 2.0</span>
       </div>
     </footer>
   );

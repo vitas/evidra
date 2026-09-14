@@ -2,174 +2,295 @@
 
 /* ── Theme tokens ── */
 @theme {
-  --color-bg: #ebf3ef;
-  --color-bg-alt: #e2ede7;
+  --color-bg: #f6f7f6;
+  --color-bg-alt: #eceeea;
   --color-bg-elevated: #ffffff;
-  --color-fg: #064e3b;
-  --color-fg-body: #1a3a2a;
-  --color-fg-muted: #6b8f7b;
-  --color-accent: #059669;
-  --color-accent-bright: #10b981;
-  --color-accent-tint: #d1fae5;
-  --color-accent-subtle: #ecfdf5;
-  --color-border: #c6e8d6;
-  --color-border-subtle: #e0f2e9;
-  --color-code-bg: #f0fdf4;
-  --color-code-header: #d1fae5;
-  --font-sans: "Plus Jakarta Sans", -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --color-fg: #17251d;
+  --color-fg-body: #24312a;
+  --color-fg-muted: #5f6f66;
+  --color-accent: #047857;
+  --color-accent-bright: #059669;
+  --color-accent-tint: #d8f0e4;
+  --color-accent-subtle: #ecf7f1;
+  --color-border: #d3dad4;
+  --color-border-subtle: #e4e8e3;
+  --font-sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
-/* ── Shadow + glass tokens (outside @theme to avoid comma parsing) ── */
-:root, [data-theme="light"] {
-  --shadow-card: 0 1px 3px rgba(5,80,60,0.06), 0 1px 2px rgba(5,80,60,0.04);
-  --shadow-card-lg: 0 4px 16px rgba(5,80,60,0.08);
-  --shadow-glow: 0 0 20px rgba(5,150,105,0.08);
-  --shadow-glow-lg: 0 0 40px rgba(5,150,105,0.12);
-  --glass-bg: rgba(255,255,255,0.7);
-  --glass-border: rgba(5,80,60,0.08);
-  --glass-blur: blur(16px);
-}
-
-/* ── Dark theme — glass morphism ── */
+/* ── Dark theme (neutral, one green accent) ── */
 [data-theme="dark"] {
-  --color-bg: #0f1512;
-  --color-bg-alt: #151d19;
-  --color-bg-elevated: rgba(255,255,255,0.04);
-  --color-fg: #e2faf0;
-  --color-fg-body: #b8deca;
-  --color-fg-muted: #6b9680;
+  --color-bg: #101412;
+  --color-bg-alt: #171c19;
+  --color-bg-elevated: #1d2320;
+  --color-fg: #e6ebe7;
+  --color-fg-body: #ccd5cd;
+  --color-fg-muted: #8fa096;
   --color-accent: #34d399;
   --color-accent-bright: #6ee7b7;
-  --color-accent-tint: rgba(52,211,153,0.12);
-  --color-accent-subtle: rgba(52,211,153,0.06);
-  --color-border: rgba(255,255,255,0.09);
-  --color-border-subtle: rgba(255,255,255,0.05);
-  --color-code-bg: rgba(255,255,255,0.04);
-  --color-code-header: rgba(52,211,153,0.1);
-  --shadow-card: 0 0 1px rgba(255,255,255,0.06), 0 2px 8px rgba(0,0,0,0.4);
-  --shadow-card-lg: 0 0 1px rgba(255,255,255,0.08), 0 8px 32px rgba(0,0,0,0.5);
-  --shadow-glow: 0 0 20px rgba(52,211,153,0.1);
-  --shadow-glow-lg: 0 0 40px rgba(52,211,153,0.15);
-  --glass-bg: rgba(255,255,255,0.025);
-  --glass-border: rgba(255,255,255,0.07);
-  --glass-blur: blur(20px);
+  --color-accent-tint: rgba(52, 211, 153, 0.14);
+  --color-accent-subtle: rgba(52, 211, 153, 0.07);
+  --color-border: #2c342f;
+  --color-border-subtle: #232a25;
 }
 
-/* ── Dark mode button override ── */
-[data-theme="dark"] .btn-primary {
-  background: #065f46;
-  color: #d1fae5;
-}
-[data-theme="dark"] .btn-primary:hover {
-  background: #047857;
-  color: #ecfdf5;
-}
-
-/* ── Base styles (layered so Tailwind utilities win) ── */
+/* ── Base styles ── */
 @layer base {
-  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+  *,
+  *::before,
+  *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
   body {
     font-family: var(--font-sans);
     background: var(--color-bg);
     color: var(--color-fg-body);
     line-height: 1.65;
     -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
   }
-  a { color: var(--color-accent); text-decoration: none; transition: color 0.15s; }
-  a:hover { color: var(--color-accent-bright); }
-  ::-webkit-scrollbar { width: 5px; height: 5px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--color-fg-muted); }
+  a {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+  a:hover {
+    color: var(--color-accent-bright);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 }
 
-/* ── Glass utility classes ── */
-.glass {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
-.glass-card {
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--glass-border);
+/* ── Layout primitives (8px spacing rhythm) ── */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--color-accent);
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 0 0 12px 0;
+  z-index: 100;
+}
+.skip-link:focus {
+  left: 0;
+  color: #ffffff;
+}
+
+.hero-copy {
+  max-width: 60ch;
+}
+
+.section-title {
+  font-size: 1.6rem;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--color-fg);
+  letter-spacing: -0.01em;
+}
+
+/* ── Buttons ── */
+.btn-primary,
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.btn-primary {
+  background: var(--color-accent);
+  color: #ffffff;
+}
+.btn-primary:hover {
+  background: var(--color-accent-bright);
+  color: #ffffff;
+}
+.btn-secondary {
+  background: var(--color-bg-elevated);
+  color: var(--color-fg);
+  border-color: var(--color-border);
+}
+.btn-secondary:hover {
+  border-color: var(--color-accent);
+  color: var(--color-fg);
+}
+
+/* ── Cards: auto-fit grid, fixed radii, no glass ── */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 16px;
+}
+.card {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
   border-radius: 16px;
-  box-shadow: var(--shadow-card);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  padding: 24px;
 }
 
-.glass-card:hover {
-  box-shadow: var(--shadow-glow);
-  border-color: rgba(52,211,153,0.15);
-  transform: translateY(-1px);
+.trust-item {
+  padding-left: 16px;
+  border-left: 3px solid var(--color-accent-tint);
+  color: var(--color-fg-muted);
+  font-size: 0.95rem;
 }
 
-.glow-accent {
-  box-shadow: var(--shadow-glow);
+.faq-item {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 16px 20px;
 }
 
-.glow-accent-lg {
-  box-shadow: var(--shadow-glow-lg);
+/* ── Runtime topology (pure HTML/CSS, no diagram library) ── */
+.topology {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+.topology-node {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 12px 20px;
+  font-weight: 600;
+  color: var(--color-fg);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.topology-node-primary {
+  border-color: var(--color-accent);
+}
+.topology-note {
+  font-weight: 400;
+  font-size: 0.78rem;
+  color: var(--color-fg-muted);
+}
+.topology-arrow {
+  font-family: var(--font-mono);
+  color: var(--color-fg-muted);
+  padding-left: 24px;
+}
+.topology-branches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-left: 48px;
+}
+.topology-branch {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
 }
 
-.text-gradient {
-  background: linear-gradient(135deg, var(--color-accent), var(--color-accent-bright));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+/* ── Reconciliation example ── */
+.reconciliation {
+  display: grid;
+  gap: 8px;
+}
+.reconciliation-row {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: 16px;
+  align-items: baseline;
+}
+.reconciliation dt {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.reconciliation dd {
+  font-size: 0.92rem;
+  color: var(--color-fg-body);
+}
+@media (max-width: 560px) {
+  .reconciliation-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
 }
 
-/* ── Animations ── */
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
+/* ── Workflow steps ── */
+.step-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--color-fg);
+}
+.step-desc {
+  margin: 8px 0 16px;
+  font-size: 0.9rem;
+  color: var(--color-fg-muted);
+  max-width: 60ch;
 }
 
-@keyframes tour-in {
-  0% { opacity: 0; transform: translateY(8px); }
-  100% { opacity: 1; transform: translateY(0); }
+/* ── Code block: scrolls inside its own frame, never widens the page ── */
+.codeblock {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
 }
-
-@keyframes fade-in {
-  0% { opacity: 0; }
-  100% { opacity: 1; }
+.codeblock-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-accent-subtle);
 }
-
-@keyframes slide-up {
-  0% { opacity: 0; transform: translateY(16px); }
-  100% { opacity: 1; transform: translateY(0); }
+.codeblock-status {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-accent);
+  min-height: 1em;
 }
-
-.animate-tour-in { animation: tour-in 0.25s ease-out; }
-.animate-fade-in { animation: fade-in 0.4s ease-out; }
-.animate-slide-up { animation: slide-up 0.5s ease-out; }
-
-/* ── React Flow dark-mode overrides ── */
-.react-flow__background {
-  background-color: var(--color-bg) !important;
+.codeblock-copy {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 2px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-fg-muted);
+  cursor: pointer;
 }
-.react-flow__minimap {
-  background-color: var(--color-bg-alt) !important;
+.codeblock-copy:hover {
+  border-color: var(--color-accent);
+  color: var(--color-fg);
 }
-.react-flow__controls button {
-  background: var(--glass-bg) !important;
-  backdrop-filter: var(--glass-blur) !important;
-  border-color: var(--glass-border) !important;
-  color: var(--color-fg) !important;
-  fill: var(--color-fg) !important;
-}
-.react-flow__controls button:hover {
-  background-color: var(--color-bg-alt) !important;
-}
-.react-flow__controls button svg {
-  fill: var(--color-fg) !important;
-}
-.react-flow__panel {
-  background: transparent !important;
+.codeblock-body {
+  padding: 16px 20px;
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: var(--color-fg-body);
+  white-space: pre;
 }

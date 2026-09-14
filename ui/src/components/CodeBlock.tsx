@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface CodeBlockProps {
   code: string;
@@ -6,34 +6,39 @@ interface CodeBlockProps {
 }
 
 export function CodeBlock({ code, className = "" }: CodeBlockProps) {
-  const [copied, setCopied] = useState(false);
+  const [status, setStatus] = useState<"idle" | "copied" | "failed">("idle");
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(code).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  }, [code]);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(code);
+      setStatus("copied");
+    } catch {
+      setStatus("failed");
+    }
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setStatus("idle"), 2000);
+  }
 
   return (
-    <div
-      className={`relative bg-[var(--color-code-bg,var(--color-bg-alt))] border border-border rounded-[10px] overflow-hidden ${className}`}
-    >
-      <div className="flex items-center gap-1.5 px-4 py-2.5 bg-[var(--color-code-header,var(--color-accent-tint))] border-b border-border">
-        <span className="w-2 h-2 rounded-full bg-red-400" />
-        <span className="w-2 h-2 rounded-full bg-yellow-400" />
-        <span className="w-2 h-2 rounded-full bg-emerald-400" />
+    <div className={`codeblock ${className}`}>
+      <div className="codeblock-bar">
+        <span className="codeblock-status" role="status" aria-live="polite">
+          {status === "copied" && "copied"}
+          {status === "failed" && "copy failed"}
+        </span>
+        <button
+          type="button"
+          onClick={handleCopy}
+          aria-label="Copy code"
+          className="codeblock-copy"
+        >
+          copy
+        </button>
       </div>
-      <button
-        onClick={handleCopy}
-        aria-label="Copy code"
-        className="absolute top-2 right-3 bg-bg-elevated border border-border rounded px-2 py-0.5 cursor-pointer text-xs font-mono text-fg-muted transition-all hover:border-accent hover:text-fg"
-      >
-        {copied ? "copied!" : "copy"}
-      </button>
-      <pre className="px-6 py-5 overflow-x-auto font-mono text-sm leading-7 text-fg-body whitespace-pre">
-        {code}
-      </pre>
+      <pre className="codeblock-body">{code}</pre>
     </div>
   );
 }

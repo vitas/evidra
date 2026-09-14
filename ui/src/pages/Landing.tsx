@@ -1,422 +1,151 @@
-import { useState } from "react";
-import { Link } from "react-router";
 import { CodeBlock } from "../components/CodeBlock";
-import { MermaidDiagram } from "../components/MermaidDiagram";
 
-const PIPELINE_CHART = `flowchart LR
-  A["Agent calls<br/>run_command"] --> B["Auto-Evidence<br/>prescribe intent"]
-  B --> C["Execute<br/>kubectl · helm · terraform"]
-  C --> D["Auto-Evidence<br/>report outcome"]
-  B & D --> E[("Evidence<br/>Chain")]
-  F["Optional external<br/>assessment"] --> E
-  E --> G["Signal Detectors<br/>8 behavioral signals"]
-  G --> H["Reconciliation"]
-  H --> I["Declared · Observed · Reported"]`;
+function Container({ children }: { children: React.ReactNode }) {
+  return <div className="mx-auto w-full max-w-[72rem] px-4">{children}</div>;
+}
 
-const SYSTEM_CHART = `flowchart TB
-  subgraph Agent ["AI Agent"]
-    LLM["Agent · LLM"]
-  end
-  subgraph MCP ["evidra-mcp (MCP evidence wrapper)"]
-    RC["run_command<br/>kubectl · helm · terraform"]
-    CD["collect_diagnostics<br/>one-call workload diagnosis"]
-    PS["prescribe_smart · report<br/>explicit control"]
-    AE["Auto-Evidence<br/>every mutation recorded"]
-  end
-  subgraph Recorder ["Recorder"]
-    Pipeline["Intent + optional<br/>assessment"]
-    Store[("Evidence Store<br/>sign · chain · persist")]
-    Pipeline --> Store
-  end
-  subgraph Intelligence ["Intelligence"]
-    Signals["8 Signal Detectors"]
-    Scoring["Reconciliation summary"]
-  end
-  subgraph Storage ["Storage"]
-    DB[("PostgreSQL")]
-  end
-  LLM --> RC & CD & PS
-  RC --> AE
-  AE --> Pipeline
-  PS --> Pipeline
-  Store --> DB
-  DB --> Signals --> Scoring`;
-
-export const SEQUENCE_CHART = `sequenceDiagram
-  participant Agent as AI Agent
-  participant MCP as evidra-mcp
-  participant K8s as Kubernetes
-  participant Store as Evidence Store
-  participant Intel as Intelligence
-
-  Agent->>MCP: run_command("kubectl get pods -n demo")
-  MCP->>K8s: execute (read-only, no evidence)
-  K8s-->>MCP: pod list (smart output)
-  MCP-->>Agent: condensed result
-
-  Agent->>MCP: run_command("kubectl set image deploy/web nginx:1.27")
-  Note over MCP: Auto-evidence: mutation detected
-  MCP->>Store: prescribe(kubectl set, deployment/web)
-  MCP->>K8s: execute mutation
-  K8s-->>MCP: result
-  MCP->>Store: report(prescription_id, verdict=success)
-  MCP-->>Agent: result + evidence recorded
-
-  Agent->>MCP: run_command("kubectl rollout status deploy/web")
-  MCP->>K8s: execute (read-only)
-  K8s-->>MCP: rollout complete
-  MCP-->>Agent: healthy ✓
-
-  Note over Intel: Post-hoc analysis
-  Intel->>Store: read evidence sequence
-  Intel->>Intel: detect signals (retry_loop, blast_radius, ...)
-  Intel->>Intel: reconcile declared / observed / reported
-  Intel-->>Agent: evidence summary`;
-
-const INSTALL_BINARY = `# Download latest release (Linux/macOS)
-curl -fsSL https://github.com/samebits/evidra/releases/latest/download/evidra_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz \\
-  | tar -xz -C /usr/local/bin evidra
-
-# Run your first observation
-evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml
-
-# Read the evidence
-evidra summarize --dir ./evidence`;
-
-const INSTALL_BREW = `# Install via Homebrew
-brew install samebits/tap/evidra
-
-# Run your first observation
-evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml
-
-# Read the evidence
-evidra summarize --dir ./evidence`;
-
-const INSTALL_SELFHOST = `# Download docker-compose.yml
-curl -O https://raw.githubusercontent.com/vitas/evidra/main/docker-compose.yml
-
-# Set your API key and start
-export EVIDRA_API_KEY=my-secret-key
-docker compose up -d
-
-# Verify it's running
-curl http://localhost:8080/healthz
-
-# Query tenant-wide hosted analytics
-curl -H "Authorization: Bearer $EVIDRA_API_KEY" \\
-  "http://localhost:8080/v1/evidence/scorecard?period=30d"`;
-
-const PRIMARY_SIGNALS = [
-  {
-    name: "protocol_violation",
-    icon: "\u26A0",
-    desc: "Prescribe without report \u2014 agent crashed, timed out, or skipped the protocol. Report without prescribe \u2014 unauthorized action. The most operationally immediate signal.",
-    tag: "fires immediately",
-  },
-  {
-    name: "retry_loop",
-    icon: "\u21BA",
-    desc: "Same intent retried 3+ times after failure within 30 minutes. Your agent is stuck in a loop.",
-    tag: "fires immediately",
-  },
-  {
-    name: "blast_radius",
-    icon: "\u25C9",
-    desc: "Destroy operation affecting more than 5 resources. High-impact deletion that warrants review.",
-    tag: "fires immediately",
-  },
-];
-
-const FEATURES = [
-  { icon: "\u25CE", title: "Prescribe", desc: "Register intent before execution or reconciliation. Record declared intent, artifact digest, and optional external canonical_action or assessment enrichment." },
-  { icon: "\u25A4", title: "Report", desc: "Record the terminal outcome \u2014 success, failure, reconcile completion, or an explicit refusal with structured context. Every prescribe gets exactly one report. No silent gaps." },
-  { icon: "\u2605", title: "Evidence", desc: "Signed, timestamped, hash-chained. The evidence chain is append-only and tamper-evident. Cryptographically verifiable by anyone, editable by no one." },
-  { icon: "\u21C4", title: "Reconcile", desc: "The protocol structure keeps agent declarations, proxy observations, and terminal reports separate for review." },
-];
-
-const GUIDES = [
-  { tag: "Start", title: "Getting Started", desc: "Build the binaries, wrap the included fixture, and complete one operation.", href: "https://github.com/vitas/evidra/blob/main/docs/getting-started.md" },
-  { tag: "Reference", title: "CLI Reference", desc: "Review the current commands, flags, environment variables, and exit behavior.", href: "https://github.com/vitas/evidra/blob/main/docs/cli-reference.md" },
-  { tag: "Design", title: "Architecture", desc: "Understand the runtime topology, operation state, ordering, and failure contracts.", href: "https://github.com/vitas/evidra/blob/main/docs/architecture.md" },
-  { tag: "Trust", title: "Evidence Format", desc: "Inspect the event schema, signatures, fingerprints, coverage, and limitations.", href: "https://github.com/vitas/evidra/blob/main/docs/evidence-format.md" },
-  { tag: "Evidence", title: "Validation Status", desc: "See what has been measured and what remains unproven.", href: "https://github.com/vitas/evidra/blob/main/docs/validation.md" },
-];
-
-type EditorTab = "claude-code" | "json-config" | "codex" | "gemini";
-
-const EDITOR_TABS: { id: EditorTab; label: string }[] = [
-  { id: "claude-code", label: "Claude Code" },
-  { id: "json-config", label: "Cursor / Claude Desktop" },
-  { id: "codex", label: "Codex" },
-  { id: "gemini", label: "Gemini CLI" },
-];
-
-type LandingConfigMode = "hosted" | "self-hosted" | "local";
-
-const HOSTED_MCP_URL = "https://evidra.cc/mcp";
-
-function mcpConfig(editor: EditorTab, mode: LandingConfigMode): string {
-  if (mode === "hosted") {
-    const url = HOSTED_MCP_URL;
-
-    if (editor === "claude-code") {
-      return `claude mcp add --transport http \\
-  -H "Authorization: Bearer YOUR_KEY" \\
-  -s user evidra ${url}`;
-    }
-
-    if (editor === "codex") {
-      return `# ~/.codex/config.toml
-[mcp_servers.evidra]
-url = "${url}"
-
-[mcp_servers.evidra.headers]
-Authorization = "Bearer YOUR_KEY"`;
-    }
-
-    const jsonObj = {
-      mcpServers: {
-        evidra: {
-          url,
-          headers: { Authorization: "Bearer YOUR_KEY" },
-        },
-      },
-    };
-
-    if (editor === "gemini") {
-      return `// ~/.gemini/settings.json\n${JSON.stringify(jsonObj, null, 2)}`;
-    }
-    return JSON.stringify(jsonObj, null, 2);
-  }
-
-  if (mode === "self-hosted") {
-    if (editor === "claude-code") {
-      return `claude mcp add evidra -- evidra-mcp \\
-  --signing-mode optional \\
-  --url http://localhost:8080 \\
-  --api-key YOUR_KEY \\
-  --fallback-offline`;
-    }
-
-    if (editor === "codex") {
-      return `# ~/.codex/config.toml
-[mcp_servers.evidra]
-command = "evidra-mcp"
-args = ["--signing-mode", "optional"]
-
-[mcp_servers.evidra.env]
-EVIDRA_URL = "http://localhost:8080"
-EVIDRA_API_KEY = "YOUR_KEY"
-EVIDRA_FALLBACK = "offline"`;
-    }
-
-    const jsonObj = {
-      mcpServers: {
-        evidra: {
-          command: "evidra-mcp",
-          args: ["--signing-mode", "optional"],
-          env: {
-            EVIDRA_URL: "http://localhost:8080",
-            EVIDRA_API_KEY: "YOUR_KEY",
-            EVIDRA_FALLBACK: "offline",
-          },
-        },
-      },
-    };
-
-    if (editor === "gemini") {
-      return `// ~/.gemini/settings.json\n${JSON.stringify(jsonObj, null, 2)}`;
-    }
-    return JSON.stringify(jsonObj, null, 2);
-  }
-
-  // Local mode
-  if (editor === "claude-code") {
-    return `claude mcp add evidra -- evidra-mcp --signing-mode optional`;
-  }
-
-  if (editor === "codex") {
-    return `# ~/.codex/config.toml
-[mcp_servers.evidra]
-command = "evidra-mcp"
-args = ["--signing-mode", "optional"]`;
-  }
-
-  const jsonObj = {
-    mcpServers: {
-      evidra: {
-        command: "evidra-mcp",
-        args: ["--signing-mode", "optional"],
-      },
-    },
-  };
-
-  if (editor === "gemini") {
-    return `// ~/.gemini/settings.json\n${JSON.stringify(jsonObj, null, 2)}`;
-  }
-  return JSON.stringify(jsonObj, null, 2);
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="text-[0.8rem] font-semibold uppercase tracking-[0.08em] text-accent mb-2">
+      {children}
+    </p>
+  );
 }
 
 export function Landing() {
   return (
     <>
       <Hero />
-      <Divider />
-      <TheGap />
-      <Divider />
-      <Features />
-      <Divider />
-      <Signals />
-      <Divider />
-      <Architecture />
-      <Divider />
-      <GettingStarted />
-      <Divider />
-      <McpSetup />
-      <Divider />
-      <ApiReference />
-      <Divider />
-      <GuidesSection />
+      <RuntimeTopology />
+      <SourceBoundaries />
+      <ReconciliationExample />
+      <TrustBoundaries />
+      <Workflow />
+      <UseCases />
+      <OpenSource />
+      <Faq />
+      <FinalCta />
     </>
   );
 }
 
-function Divider() {
-  return <hr className="h-px border-none bg-[linear-gradient(90deg,transparent,var(--color-accent-tint),var(--color-accent),var(--color-accent-tint),transparent)] m-0" />;
-}
-
-function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <div className="font-mono text-[0.72rem] font-medium tracking-widest uppercase text-accent mb-3">{children}</div>;
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h2 className="text-[1.28rem] font-bold text-fg tracking-tight mb-2">{children}</h2>;
-}
-
-function Container({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`max-w-[980px] mx-auto px-8 ${className}`}>{children}</div>;
-}
-
 function Hero() {
   return (
-    <section className="relative pt-16 pb-14 text-center bg-[radial-gradient(ellipse_80%_60%_at_50%_0%,var(--color-accent-subtle),var(--color-bg)_70%)] overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle,var(--color-accent)_1px,transparent_1px)] bg-[length:24px_24px] opacity-[0.06] [mask-image:radial-gradient(ellipse_60%_70%_at_50%_30%,black,transparent)]" />
-      <Container className="relative">
-        <div className="inline-flex items-center gap-2 font-mono text-[0.75rem] font-medium text-accent bg-accent-subtle border border-border rounded-full px-4 py-1 mb-6 tracking-wide">
-          <span className="w-1.5 h-1.5 rounded-full bg-accent inline-block animate-pulse" />
-          Open source Bench · Open source evidence recorder
-        </div>
-        <h1 className="text-[clamp(2.2rem,5vw,3.2rem)] font-extrabold text-fg leading-[1.15] tracking-tighter mb-5">
-          AI infra agents need evidence, not vibes.
-        </h1>
-        <p className="text-[1.15rem] text-fg-muted max-w-[700px] mx-auto mb-10 leading-relaxed">
-          Evidra Bench is open source external regression testing for
-          infrastructure agents and MCP tools. Use hosted Bench for reports, or
-          inspect and extend the benchmark harness on GitHub.
-        </p>
-
-        <div className="grid grid-cols-[1.1fr_1fr_1fr] gap-4 text-left mb-8 max-lg:grid-cols-1">
-          <div className="glass-card p-6 border-l-[3px] border-l-accent">
-            <div className="font-mono text-[0.68rem] font-semibold uppercase tracking-widest text-accent mb-3">
-              Hosted reports
-            </div>
-            <h2 className="text-[1.35rem] font-bold text-fg tracking-tight mb-2">
-              Baseline agents against real infrastructure incidents
-            </h2>
-            <p className="text-[0.92rem] text-fg-muted leading-relaxed mb-4">
-              Run repeatable Kubernetes, Helm, Terraform, Argo CD, and
-              AWS-local scenarios, then publish product-ready external
-              benchmark reports.
-            </p>
-            <a href="https://bench.evidra.cc/" className="font-semibold text-[0.85rem] no-underline">
-              Open Bench →
+    <section id="hero" className="py-16 sm:py-20">
+      <Container>
+        <div className="hero-copy">
+          <Eyebrow>Open-source MCP execution evidence</Eyebrow>
+          <h1 className="text-[2.4rem] sm:text-[3rem] leading-tight font-bold text-fg tracking-tight">
+            Evidence for what MCP agents actually did.
+          </h1>
+          <p className="mt-4 text-[1.15rem] text-fg-muted">
+            Evidra records what an agent declared, what the proxy observed, and
+            what the agent reported&mdash;without confusing any one of them with
+            external truth.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <a
+              className="btn-primary"
+              href="https://github.com/vitas/evidra/blob/main/docs/getting-started.md"
+              target="_blank"
+              rel="noopener"
+            >
+              Get started
+            </a>
+            <a
+              className="btn-secondary"
+              href="https://github.com/vitas/evidra"
+              target="_blank"
+              rel="noopener"
+            >
+              View on GitHub
             </a>
           </div>
-
-          <div className="glass-card p-6">
-            <div className="font-mono text-[0.68rem] font-semibold uppercase tracking-widest text-accent mb-3">
-              Open source Bench
-            </div>
-            <h2 className="text-[1.1rem] font-bold text-fg tracking-tight mb-2">
-              Inspect and extend the benchmark harness
-            </h2>
-            <p className="text-[0.86rem] text-fg-muted leading-relaxed mb-4">
-              The Bench source is public, so teams can review scenarios, run the
-              harness, and contribute coverage for new MCP tools and agent
-              workflows.
-            </p>
-            <a href="https://github.com/vitas/evidra-bench" target="_blank" rel="noopener" className="font-semibold text-[0.85rem] no-underline">
-              View Bench source →
-            </a>
-          </div>
-
-          <div className="glass-card p-6">
-            <div className="font-mono text-[0.68rem] font-semibold uppercase tracking-widest text-fg-muted mb-3">
-              Open source
-            </div>
-            <h2 className="text-[1.1rem] font-bold text-fg tracking-tight mb-2">
-              Evidra OSS
-            </h2>
-            <p className="text-[0.86rem] text-fg-muted leading-relaxed mb-4">
-              Flight recorder for agent intent, actions, outcomes, and
-              reliability signals. It supports Bench, and works as a standalone
-              MCP tool for evidence capture.
-            </p>
-            <a href="https://github.com/vitas/evidra" target="_blank" rel="noopener" className="font-semibold text-[0.85rem] no-underline">
-              View Evidra OSS →
-            </a>
-          </div>
-        </div>
-
-        <div className="flex gap-3 justify-center flex-wrap">
-          <a href="https://bench.evidra.cc/" className="btn-primary inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold bg-accent text-white transition-all hover:bg-accent-bright hover:-translate-y-0.5 glow-accent hover:shadow-lg no-underline">
-            Start with Bench
-          </a>
-          <a href="https://github.com/vitas/evidra-bench" target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold glass text-fg-muted transition-all hover:border-accent hover:text-fg no-underline">
-            View Bench source
-          </a>
-          <Link to="/onboarding" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold glass text-fg-muted transition-all hover:border-accent hover:text-fg no-underline">
-            Get API Key
-          </Link>
-          <a href="/docs/api" className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-[0.88rem] font-semibold glass text-fg-muted transition-all hover:border-accent hover:text-fg no-underline">
-            API Docs
-          </a>
+          <p className="mt-4 text-[0.85rem] text-fg-muted">
+            Local-first. Inspectable JSONL. No hosted service required.
+          </p>
         </div>
       </Container>
     </section>
   );
 }
 
-function TheGap() {
-  const columns = [
-    {
-      icon: "\u26A1",
-      title: "Smart output \u2014 60x fewer tokens",
-      body: "Raw kubectl JSON is ~2,400 tokens. evidra-mcp returns a 40-token summary with the same information. Your agent reasons faster and cheaper.",
-    },
-    {
-      icon: "\u2705",
-      title: "Auto-evidence \u2014 zero agent code",
-      body: "Every mutation (apply, patch, delete) is automatically recorded with intent and outcome. Read-only commands pass through with no overhead. No skill prompt needed.",
-    },
-    {
-      icon: "\uD83C\uDFAF",
-      title: "Role skills \u2014 operational defaults",
-      body: "k8s-admin, security-ops, platform-eng \u2014 compact prompts that steer diagnosis, safety boundaries, and evidence discipline without extra agent code.",
-    },
-  ];
-
+function RuntimeTopology() {
   return (
-    <section className="py-8 bg-bg-alt">
+    <section id="runtime-topology" className="py-12 bg-bg-alt">
       <Container>
-        <SectionLabel>Why evidra-mcp</SectionLabel>
-        <SectionTitle>One MCP Server. Smart Output. Auto-Evidence. Role Skills.</SectionTitle>
-        <div className="grid grid-cols-3 gap-5 mt-10 max-md:grid-cols-1">
-          {columns.map((c) => (
-            <div key={c.title} className="glass-card p-6">
-              <div className="w-9 h-9 rounded-lg bg-accent-subtle border border-border flex items-center justify-center text-lg mb-4">{c.icon}</div>
-              <h3 className="text-[0.92rem] font-bold text-fg mb-2">{c.title}</h3>
-              <p className="text-[0.83rem] text-fg-muted leading-relaxed">{c.body}</p>
+        <Eyebrow>How it runs</Eyebrow>
+        <h2 className="section-title">Runtime topology</h2>
+        <p className="mt-3 text-fg-muted max-w-[60ch]">
+          One endpoint wraps one upstream MCP server; the agent sees a single
+          server in its tool list.
+        </p>
+        <div className="topology mt-8" aria-label="Runtime topology">
+          <div className="topology-node">Agent</div>
+          <div className="topology-arrow" aria-hidden="true">
+            &darr; &uarr;
+          </div>
+          <div className="topology-node topology-node-primary">
+            Evidra MCP endpoint
+            <span className="topology-note">
+              merges evidra_prescribe / evidra_report into the tool list
+            </span>
+          </div>
+          <div className="topology-branches" aria-hidden="true">
+            <div className="topology-branch">
+              <span className="topology-arrow">&rarr;</span>
+              <div className="topology-node">Upstream MCP server</div>
+            </div>
+            <div className="topology-branch">
+              <span className="topology-arrow">&darr;</span>
+              <div className="topology-node">Signed evidence directory</div>
+            </div>
+          </div>
+        </div>
+        <p className="mt-6 text-[0.9rem] text-fg-muted max-w-[60ch]">
+          Tool calls the agent makes are forwarded to the upstream server
+          unchanged. The endpoint appends each step to a local, Ed25519-signed
+          hash chain as it happens, and nothing about the upstream&rsquo;s work
+          is simulated or inferred on the way.
+        </p>
+      </Container>
+    </section>
+  );
+}
+
+const BOUNDARIES = [
+  {
+    title: "Declared",
+    desc: "The objective and expected outcome supplied by the agent.",
+  },
+  {
+    title: "Observed",
+    desc: "Tool calls and responses that crossed the Evidra proxy.",
+  },
+  {
+    title: "Reported",
+    desc: "The final status and outcome claimed by the agent.",
+  },
+];
+
+function SourceBoundaries() {
+  return (
+    <section id="source-boundaries" className="py-12">
+      <Container>
+        <Eyebrow>Three sources, never merged</Eyebrow>
+        <h2 className="section-title">Declared, observed, reported</h2>
+        <p className="mt-3 text-fg-muted max-w-[60ch]">
+          Every record keeps its origin. A claim never becomes an observation,
+          and an observation never becomes a verdict. Reconciliation is what a
+          human reads.
+        </p>
+        <div className="card-grid mt-8">
+          {BOUNDARIES.map((b) => (
+            <div key={b.title} className="card">
+              <h3 className="font-mono text-[0.95rem] font-semibold text-accent">
+                {b.title}
+              </h3>
+              <p className="mt-2 text-[0.9rem] text-fg-muted">{b.desc}</p>
             </div>
           ))}
         </div>
@@ -425,260 +154,239 @@ function TheGap() {
   );
 }
 
-function Features() {
+function ReconciliationExample() {
   return (
-    <section id="features" className="py-8">
+    <section id="reconciliation-example" className="py-12 bg-bg-alt">
       <Container>
-        <SectionLabel>The Protocol</SectionLabel>
-        <SectionTitle>Prescribe Before. Report After. Evidence Always.</SectionTitle>
-        <p className="text-fg-muted mb-10 text-[1.14rem]">Every infrastructure mutation or reconciliation follows the same lifecycle. The actor records what it intends to do, does it (or refuses), and records what happened. Evidra stores the evidence.</p>
-        <div className="grid grid-cols-4 gap-5 max-md:grid-cols-2 max-sm:grid-cols-1">
-          {FEATURES.map((f) => (
-            <div key={f.title} className="glass-card border-l-[3px] border-l-accent p-6">
-              <div className="w-9 h-9 rounded-lg bg-accent-subtle border border-border flex items-center justify-center text-lg mb-4">{f.icon}</div>
-              <h3 className="text-[0.92rem] font-bold text-fg mb-1.5">{f.title}</h3>
-              <p className="text-[0.83rem] text-fg-muted leading-relaxed">{f.desc}</p>
+        <Eyebrow>Example</Eyebrow>
+        <h2 className="section-title">What reconciliation reads like</h2>
+        <div className="card mt-8 p-6">
+          <dl className="reconciliation">
+            <div className="reconciliation-row">
+              <dt>Declared</dt>
+              <dd>Restart the deployment and confirm recovery</dd>
             </div>
+            <div className="reconciliation-row">
+              <dt>Observed</dt>
+              <dd>restart_deployment &rarr; success; get_status &rarr; ready</dd>
+            </div>
+            <div className="reconciliation-row">
+              <dt>Reported</dt>
+              <dd>completed / achieved</dd>
+            </div>
+            <div className="reconciliation-row">
+              <dt>Finding</dt>
+              <dd>
+                The proxy observed the requested calls and successful
+                responses. External application health was not independently
+                verified.
+              </dd>
+            </div>
+          </dl>
+        </div>
+        <p className="mt-4 text-[0.85rem] text-fg-muted">
+          Illustrative example; findings are produced by your own review of a
+          real chain, not by the recorder.
+        </p>
+      </Container>
+    </section>
+  );
+}
+
+const TRUST_BOUNDARIES = [
+  "Evidra is not a sandbox: the upstream server executes with whatever it has. What Evidra guarantees is that the execution is recorded, not that it is safe.",
+  "A successful tool response is not proof of the external outcome. The chain records what crossed the proxy; reconciling that with reality is the human step.",
+  "Declared and reported entries are agent claims. They are stored as claims, verifiable in origin and position, never rewritten into observations.",
+  "Observed arguments leave the recording process only as keyed HMAC digests; observed results are fingerprinted, never stored raw.",
+  "Chain validity, signature validity, and evidence coverage are three separate conclusions. A valid chain can still be incomplete, and that gap is reported.",
+];
+
+function TrustBoundaries() {
+  return (
+    <section id="trust-boundaries" className="py-12">
+      <Container>
+        <Eyebrow>Trust boundaries</Eyebrow>
+        <h2 className="section-title">What the evidence does not claim</h2>
+        <ul className="mt-8 space-y-3 max-w-[70ch]">
+          {TRUST_BOUNDARIES.map((line) => (
+            <li key={line} className="trust-item">
+              {line}
+            </li>
           ))}
-        </div>
+        </ul>
       </Container>
     </section>
   );
 }
 
-function Signals() {
+function Workflow() {
   return (
-    <section id="signals" className="py-8 bg-bg-alt">
+    <section id="workflow" className="py-12 bg-bg-alt">
       <Container>
-        <SectionLabel>Behavioral Detection</SectionLabel>
-        <SectionTitle>Patterns That Fire on Day One</SectionTitle>
-        <p className="text-fg-muted mb-8 text-[1.14rem]">
-          The prescribe/report structure makes automation behavior patterns visible without external instrumentation. Three signals fire immediately in real operations.
-        </p>
-        <div className="grid grid-cols-3 gap-5 mb-6 max-md:grid-cols-1">
-          {PRIMARY_SIGNALS.map((s) => (
-            <div key={s.name} className="glass-card border-l-[3px] border-l-accent p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-9 h-9 rounded-lg bg-accent-subtle border border-border flex items-center justify-center text-lg">{s.icon}</div>
-                <span className="font-mono text-[0.7rem] font-medium text-accent tracking-wide uppercase">{s.tag}</span>
-              </div>
-              <div className="font-mono text-[0.82rem] font-semibold text-fg mb-2">{s.name}</div>
-              <p className="text-[0.83rem] text-fg-muted leading-relaxed">{s.desc}</p>
-            </div>
-          ))}
-        </div>
-        <div className="glass-card p-5 px-6">
-          <p className="text-[0.83rem] text-fg-muted leading-relaxed">
-            Additional signals &mdash; <code>artifact_drift</code>, <code>new_scope</code>, <code>repair_loop</code>, <code>thrashing</code>, <code>risk_escalation</code>, <code>unprescribed_mutation</code> (experimental) &mdash; contribute to scoring and mature as evidence accumulates. All nine are documented in the{" "}
-            <a href="https://github.com/vitas/evidra/blob/main/docs/signal-spec.md" target="_blank" rel="noopener" className="font-semibold">Signal Specification &rarr;</a>
-          </p>
-        </div>
-        <p className="text-[0.82rem] text-fg-muted mt-4 text-center">
-          Score = 100 &times; (1 &minus; weighted penalty). Bands: excellent &ge; 99, good &ge; 95, fair &ge; 90, poor &lt; 90.
-        </p>
-      </Container>
-    </section>
-  );
-}
-
-function Architecture() {
-  const [tab, setTab] = useState<"pipeline" | "system" | "sequence">("sequence");
-  return (
-    <section id="architecture" className="py-8 bg-bg-alt">
-      <Container>
-        <SectionLabel>Architecture</SectionLabel>
-        <SectionTitle>From Intent to Signed Evidence</SectionTitle>
-        <p className="text-fg-muted mb-10 text-[1.14rem]">Follow one operation through the protocol &mdash; from the moment an actor decides to act, through execution or reconciliation, to fleet-wide analytics.</p>
-        <div className="inline-flex bg-accent-subtle border border-border rounded-lg p-[3px] mb-6">
-          <TabBtn active={tab === "sequence"} onClick={() => setTab("sequence")}>Protocol Flow</TabBtn>
-          <TabBtn active={tab === "system"} onClick={() => setTab("system")}>System Architecture</TabBtn>
-          <TabBtn active={tab === "pipeline"} onClick={() => setTab("pipeline")}>Scoring Pipeline</TabBtn>
-        </div>
-        {tab === "pipeline" && <MermaidDiagram chart={PIPELINE_CHART} />}
-        {tab === "system" && <MermaidDiagram chart={SYSTEM_CHART} />}
-        {tab === "sequence" && <MermaidDiagram chart={SEQUENCE_CHART} />}
-      </Container>
-    </section>
-  );
-}
-
-function GettingStarted() {
-  const [tab, setTab] = useState<"binary" | "brew" | "selfhost">("binary");
-  const code = tab === "binary" ? INSTALL_BINARY : tab === "brew" ? INSTALL_BREW : INSTALL_SELFHOST;
-  return (
-    <section id="get-started" className="py-8">
-      <Container>
-        <SectionLabel>Quick Start</SectionLabel>
-        <SectionTitle>Getting Started</SectionTitle>
-        <p className="text-fg-muted mb-10 text-[1.14rem]">Record your first prescribe/report lifecycle in under 5 minutes. Works with kubectl, helm, terraform, docker, and controller-emitted evidence.</p>
-        <div className="inline-flex bg-accent-subtle border border-border rounded-lg p-[3px] mb-6">
-          <TabBtn active={tab === "binary"} onClick={() => setTab("binary")}>Binary</TabBtn>
-          <TabBtn active={tab === "brew"} onClick={() => setTab("brew")}>Homebrew</TabBtn>
-          <TabBtn active={tab === "selfhost"} onClick={() => setTab("selfhost")}>Self-Hosted</TabBtn>
-        </div>
-        <CodeBlock code={code} />
-        {tab === "selfhost" && (
-          <p className="text-[0.85rem] text-fg-muted mt-4">
-            Self-hosted centralizes evidence across agents, pipelines, and controllers. Run the Argo CD controller integration, ingest webhook evidence, and compare reliability fleet-wide.{" "}
-            <a href="https://github.com/vitas/evidra/blob/main/docs/validation.md" target="_blank" rel="noopener" className="font-semibold">Validation status &rarr;</a>
-          </p>
-        )}
-      </Container>
-    </section>
-  );
-}
-
-function McpSetup() {
-  const [editor, setEditor] = useState<EditorTab>("claude-code");
-  const [mode, setMode] = useState<LandingConfigMode>("hosted");
-  const code = mcpConfig(editor, mode);
-
-  const configPathNote = editor === "json-config"
-    ? "Add to .cursor/mcp.json (Cursor), claude_desktop_config.json (Claude Desktop), or ~/.codeium/windsurf/mcp_config.json (Windsurf)."
-    : editor === "codex" ? "Edit ~/.codex/config.toml."
-    : editor === "gemini" ? "Edit ~/.gemini/settings.json."
-    : "Run in your terminal.";
-
-  return (
-    <section id="mcp-setup" className="py-8 bg-bg-alt">
-      <Container>
-        <SectionLabel>AI Agents</SectionLabel>
-        <SectionTitle>Give Your Agent the Protocol</SectionTitle>
-        <p className="text-fg-muted mb-6 text-[1.14rem]">Connect any MCP-capable agent to Evidra. The agent prescribes before every infrastructure mutation and reports the outcome. When it decides not to act, it reports why.</p>
-
-        {mode !== "hosted" && (
-          <div className="mb-8">
-            <h3 className="text-[0.95rem] font-bold text-fg mb-3">1. Install</h3>
-            <CodeBlock code="brew install samebits/tap/evidra" />
-            <p className="text-[0.83rem] text-fg-muted mt-2">
-              Or: <code className="text-[0.8rem]">go install samebits.com/evidra/cmd/evidra-mcp@latest</code>
-            </p>
-          </div>
-        )}
-
-        <div className="mb-8">
-          <h3 className="text-[0.95rem] font-bold text-fg mb-3">{mode === "hosted" ? "1" : "2"}. Connect to your editor</h3>
-
-          <div className="flex items-center gap-4 mb-4 flex-wrap">
-            <div className="inline-flex bg-accent-subtle border border-border rounded-lg p-[3px]">
-              {EDITOR_TABS.map((tab) => (
-                <TabBtn key={tab.id} active={editor === tab.id} onClick={() => setEditor(tab.id)}>{tab.label}</TabBtn>
-              ))}
-            </div>
-            <div className="inline-flex bg-accent-subtle border border-border rounded-lg p-[3px]">
-              {(["hosted", "self-hosted", "local"] as LandingConfigMode[]).map((m) => (
-                <TabBtn key={m} active={mode === m} onClick={() => setMode(m)}>
-                  {m === "hosted" ? "Hosted" : m === "self-hosted" ? "Self-hosted" : "Local only"}
-                </TabBtn>
-              ))}
-            </div>
-          </div>
-
-          <p className="text-[0.83rem] text-fg-muted mb-3">{configPathNote}</p>
-          <CodeBlock code={code} />
-        </div>
-
-        {editor === "claude-code" && mode !== "hosted" && (
-          <div className="mb-8">
-            <h3 className="text-[0.95rem] font-bold text-fg mb-3">3. Install the Evidra skill</h3>
-            <CodeBlock code="evidra skill install" />
-            <p className="text-[0.83rem] text-fg-muted mt-2">
-              The MCP server gives agents the tools. The skill teaches them <em>when</em> and <em>how</em> to use them &mdash; achieving 100% protocol compliance.{" "}
-              <a href="https://github.com/vitas/evidra/blob/main/docs/getting-started.md" target="_blank" rel="noopener" className="font-semibold">Getting started &rarr;</a>
-            </p>
-          </div>
-        )}
-
-        <div className="mb-8">
-          <h3 className="text-[0.95rem] font-bold text-fg mb-3">{editor === "claude-code" && mode !== "hosted" ? "4" : mode === "hosted" ? "2" : "3"}. Verify</h3>
-          <p className="text-[0.85rem] text-fg-muted">
-            Restart your editor. Ask your agent: <em>&ldquo;What tools do you have from Evidra?&rdquo;</em> &mdash; you should see <code>run_command</code>, <code>collect_diagnostics</code>, <code>write_file</code>, <code>prescribe_smart</code>, <code>report</code>, and <code>get_event</code>. Add <code>--full-prescribe</code> if you also want <code>prescribe_full</code>.
-          </p>
-        </div>
-
-        <div className="glass-card p-6">
-          <h3 className="text-[0.92rem] font-bold text-fg mb-2">How it works</h3>
-          <p className="text-[0.83rem] text-fg-muted leading-relaxed mb-3">
-            Every infrastructure mutation follows the same lifecycle. The default path is <code>run_command</code> plus auto-evidence, with <code>write_file</code> available for agent-authored manifests. When you enable <code>--full-prescribe</code>, the agent can call <code>prescribe_full</code> with an artifact; otherwise it can call <code>prescribe_smart</code> with lightweight target context before execution. After execution (or refusal), the agent calls <code>report</code>. The evidence chain grows. Behavioral patterns become visible.
-          </p>
-          <div className="grid grid-cols-3 gap-4 max-sm:grid-cols-1">
-            <div className="text-center">
-              <div className="font-mono text-[0.78rem] font-semibold text-accent mb-1">run_command / write_file</div>
-              <div className="text-[0.78rem] text-fg-muted">Default DevOps surface: operate directly, author manifests in the workspace, and let Evidra observe mutations automatically.</div>
-            </div>
-            <div className="text-center">
-              <div className="font-mono text-[0.78rem] font-semibold text-accent mb-1">prescribe_smart / prescribe_full</div>
-              <div className="text-[0.78rem] text-fg-muted">Explicit mode: register intent before execution with lightweight target context or full artifact bytes.</div>
-            </div>
-            <div className="text-center">
-              <div className="font-mono text-[0.78rem] font-semibold text-accent mb-1">report / get_event</div>
-              <div className="text-[0.78rem] text-fg-muted">Record the outcome, then look up any evidence entry by ID.</div>
-            </div>
-          </div>
-        </div>
-
-        <p className="text-[0.85rem] text-fg-muted mt-6">
-          Full setup guide with agent instructions, configuration options, and troubleshooting:{" "}
-          <a href="https://github.com/vitas/evidra/blob/main/docs/getting-started.md" target="_blank" rel="noopener" className="font-semibold">Getting started &rarr;</a>
-        </p>
-      </Container>
-    </section>
-  );
-}
-
-function ApiReference() {
-  return (
-    <section id="api" className="py-8 bg-bg-alt">
-      <Container>
-        <SectionLabel>API</SectionLabel>
-        <SectionTitle>API Reference</SectionTitle>
-        <p className="text-fg-muted mb-10 text-[1.14rem]">Full OpenAPI 3.0 documentation for all endpoints, including webhook ingress, controller-facing evidence routes, and hosted analytics.</p>
-        <a href="/docs/api" className="flex items-center justify-between glass-card p-6 px-8 no-underline">
+        <Eyebrow>Workflow</Eyebrow>
+        <h2 className="section-title">Four commands, one protocol order</h2>
+        <div className="grid gap-8 mt-8 lg:grid-cols-2">
           <div>
-            <h3 className="text-base text-fg mb-1">Interactive API Documentation</h3>
-            <p className="text-[0.85rem] text-fg-muted">Review the current CLI, evidence, and trust contracts in the repository documentation.</p>
+            <h3 className="step-title">1 &middot; Wrap your MCP server</h3>
+            <p className="step-desc">
+              The endpoint starts the upstream as a child process and merges two
+              protocol tools into its list. Protocol order is enforced: while no
+              operation is open, tool calls are refused and noted.
+            </p>
+            <CodeBlock code="evidra-mcp --proxy -- <your upstream MCP server>" />
           </div>
-          <div className="font-mono text-[0.8rem] text-accent font-medium whitespace-nowrap">/docs/api &rarr;</div>
-        </a>
+          <div>
+            <h3 className="step-title">2 &middot; Reconcile afterwards</h3>
+            <p className="step-desc">
+              The read side verifies the chain and builds a summary that puts
+              declarations, observations and reports side by side.
+            </p>
+            <CodeBlock
+              code={`evidra summarize --dir ./evidence\nevidra verify --dir ./evidence`}
+            />
+          </div>
+        </div>
       </Container>
     </section>
   );
 }
 
-function GuidesSection() {
+const USE_CASES = [
+  {
+    title: "Incident reconstruction",
+    desc: "After the fact, replay who declared what, what actually crossed the proxy, and in what order — from the signed chain, not from chat logs.",
+  },
+  {
+    title: "Agent evaluation",
+    desc: "Compare runs on evidence: voluntary protocol compliance, unprescribed mutations, retries and drift — each measured and reported per mode.",
+  },
+  {
+    title: "Operational review",
+    desc: "Give a reviewer a summary that separates claim from observation, so disagreement becomes a finding instead of a silent gap.",
+  },
+];
+
+function UseCases() {
   return (
-    <section id="guides" className="py-8">
+    <section id="use-cases" className="py-12">
       <Container>
-        <SectionLabel>Guides</SectionLabel>
-        <SectionTitle>Integrate Into Your Workflow</SectionTitle>
-        <p className="text-fg-muted mb-10 text-[1.14rem]">Step-by-step guides for agents, pipelines, controllers, and observability.</p>
-        <div className="grid grid-cols-4 gap-5 max-lg:grid-cols-2 max-sm:grid-cols-1">
-          {GUIDES.map((g) => (
-            <a key={g.title} href={g.href} target="_blank" rel="noopener" className="glass-card p-6 transition-all hover:shadow-[var(--shadow-card-lg)] hover:border-accent hover:-translate-y-0.5 no-underline block">
-              <div className="font-mono text-[0.7rem] font-medium text-accent tracking-wide uppercase mb-2">{g.tag}</div>
-              <h3 className="text-[0.95rem] text-fg mb-1.5 font-semibold">{g.title}</h3>
-              <p className="text-[0.83rem] text-fg-muted leading-relaxed">{g.desc}</p>
-            </a>
+        <Eyebrow>Use cases</Eyebrow>
+        <h2 className="section-title">What people reconcile with it</h2>
+        <div className="card-grid mt-8">
+          {USE_CASES.map((u) => (
+            <div key={u.title} className="card">
+              <h3 className="font-semibold text-fg">{u.title}</h3>
+              <p className="mt-2 text-[0.9rem] text-fg-muted">{u.desc}</p>
+            </div>
           ))}
         </div>
-        <div className="mt-8 py-4 px-6 bg-accent-subtle border border-border rounded-lg text-center text-[0.88rem] text-fg-muted">
-          More guides, GitHub Actions setup, architecture docs, and source code on{" "}
-          <a href="https://github.com/vitas/evidra" target="_blank" rel="noopener" className="font-semibold">GitHub &rarr;</a>
+      </Container>
+    </section>
+  );
+}
+
+function OpenSource() {
+  return (
+    <section id="open-source" className="py-12 bg-bg-alt">
+      <Container>
+        <Eyebrow>Open source</Eyebrow>
+        <h2 className="section-title">Read every byte it writes</h2>
+        <div className="card-grid mt-8">
+          <div className="card">
+            <h3 className="font-semibold text-fg">Apache-2.0</h3>
+            <p className="mt-2 text-[0.9rem] text-fg-muted">
+              The recorder, the read side, and the conformance fixture are one
+              Go module with no hidden components.
+            </p>
+          </div>
+          <div className="card">
+            <h3 className="font-semibold text-fg">Inspectable JSONL</h3>
+            <p className="mt-2 text-[0.9rem] text-fg-muted">
+              The chain is a local file format with a published digest and
+              signature specification; verify it with your own tools.
+            </p>
+          </div>
+          <div className="card">
+            <h3 className="font-semibold text-fg">Guarded claims</h3>
+            <p className="mt-2 text-[0.9rem] text-fg-muted">
+              Public statements are tied to executable guards in-repo; what has
+              not been measured is written down as not measured.
+            </p>
+          </div>
         </div>
       </Container>
     </section>
   );
 }
 
-function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+const FAQ_ITEMS = [
+  {
+    q: "Does Evidra verify that the external system actually changed?",
+    a: "No. It records declarations, proxy observations, and reports, and keeps them attributable. External-state verification is outside the product boundary and is treated as a read-side reconciliation step.",
+  },
+  {
+    q: "What does an agent have to do to be recorded?",
+    a: "Nothing beyond calling the wrapped server through the endpoint. Prescribe/report raises the quality of evidence to declared; calls made without an open operation are recorded as observed and counted, and enforcement mode decides whether they are refused or watched.",
+  },
+  {
+    q: "Where do the keys live?",
+    a: "In the local evidence directory: an Ed25519 signing key and an HMAC digest key, created per recording directory. They prove chain consistency within that directory's threat model; they do not prove organizational identity.",
+  },
+  {
+    q: "Is there a hosted version?",
+    a: "No. Evidra Core runs entirely on your machine against your own evidence directories. There is no account, no upload, and no service to depend on.",
+  },
+];
+
+function Faq() {
   return (
-    <button
-      onClick={onClick}
-      className={`rounded-md px-4 py-2 cursor-pointer text-[0.82rem] font-semibold font-sans transition-all ${
-        active ? "bg-accent/10 border border-accent/30 text-accent" : "bg-transparent border border-transparent text-fg-muted hover:text-fg"
-      }`}
-    >
-      {children}
-    </button>
+    <section id="faq" className="py-12">
+      <Container>
+        <Eyebrow>FAQ</Eyebrow>
+        <h2 className="section-title">Honest answers to the first questions</h2>
+        <div className="mt-8 space-y-3 max-w-[70ch]">
+          {FAQ_ITEMS.map((item) => (
+            <details key={item.q} className="faq-item">
+              <summary className="font-medium text-fg cursor-pointer">
+                {item.q}
+              </summary>
+              <p className="mt-2 text-[0.9rem] text-fg-muted">{item.a}</p>
+            </details>
+          ))}
+        </div>
+      </Container>
+    </section>
+  );
+}
+
+function FinalCta() {
+  return (
+    <section id="final-cta" className="py-16 text-center">
+      <Container>
+        <h2 className="section-title">Record your first signed chain</h2>
+        <p className="mt-3 text-fg-muted max-w-[60ch] mx-auto">
+          Wrap one MCP server, run one real task, and read the summary while it
+          is still fresh.
+        </p>
+        <div className="mt-8 flex flex-wrap gap-3 justify-center">
+          <a
+            className="btn-primary"
+            href="https://github.com/vitas/evidra/blob/main/docs/getting-started.md"
+            target="_blank"
+            rel="noopener"
+          >
+            Run the two-minute setup
+          </a>
+          <a
+            className="btn-secondary"
+            href="https://github.com/vitas/evidra/blob/main/docs/evidence-format.md"
+            target="_blank"
+            rel="noopener"
+          >
+            Read the evidence format
+          </a>
+        </div>
+      </Container>
+    </section>
   );
 }
