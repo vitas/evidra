@@ -97,7 +97,7 @@ func runCLI(args []string) int {
 		return 1
 	}
 	if o.regrade != "" {
-		if err := regrade(o.regrade, tasks); err != nil {
+		if err := regrade(o, tasks); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}
@@ -151,8 +151,8 @@ func runCLI(args []string) int {
 	wg.Wait()
 
 	runs := collectRuns(results)
-	writeSummary(o.outDir, arms, tasks, runs, overheads, o)
-	return verdict(runs)
+	violations := writeSummary(o.outDir, arms, tasks, runs, overheads, o)
+	return verdict(runs, violations)
 }
 
 // collectRuns keeps only runs that produced an artifact or a stated reason for
@@ -314,6 +314,7 @@ func calibrateOverhead(ctx context.Context, arms []armSpec) (map[string]int, err
 // runOne executes a single Gate A run and writes its artifacts.
 func runOne(ctx context.Context, o options, arm armSpec, mode string, task taskSpec, runNo int, outDir string) runResult {
 	res := runResult{Arm: arm.ID, ArmModelID: arm.APIModelID, Mode: mode, Task: task.ID, Run: runNo}
+	res.Provenance = captureProvenance(o.mcpBin, o.fixtureBin, arm.APIModelID)
 	dirName := fmt.Sprintf("%s__%s__%s__run%d", arm.ID, mode, task.ID, runNo)
 	dir := filepath.Join(outDir, "runs", dirName)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -551,7 +552,9 @@ func capToolText(text string) string {
 
 // writeSummary rolls the runs up into per-cell metrics, applies §10's
 // thresholds, and writes the artifact set.
-func writeSummary(dir string, arms []armSpec, tasks []taskSpec, runs []runResult, overheads map[string]int, o options) {
+// writeSummary rolls the graded runs up into cells, refuses the result if its own
+// analytics are inconsistent, and returns the violations so the exit code can carry them.
+func writeSummary(dir string, arms []armSpec, tasks []taskSpec, runs []runResult, overheads map[string]int, o options) []string {
 	byCell := map[string][]runResult{}
 	for _, r := range runs {
 		byCell[r.Arm+"/"+r.Mode] = append(byCell[r.Arm+"/"+r.Mode], r)
@@ -570,6 +573,10 @@ func writeSummary(dir string, arms []armSpec, tasks []taskSpec, runs []runResult
 		roleOf[a.ID] = a.Role
 	}
 	conds := judgeGate(cells, roleOf)
+	// Analytics invariants are checked before the gate is judged, and a violation fails
+	// the run: an unbounded or double-counted metric would otherwise reach the artifact
+	// as a gate result computed from numbers that cannot exist.
+	violations := checkRunInvariants(runs, cells, byCell)
 	summary := map[string]any{
 		"generated_at":                 time.Now().UTC().Format(time.RFC3339),
 		"plan":                         "docs/system-design/vnext-mcp-recorder.md §10",
@@ -584,6 +591,8 @@ func writeSummary(dir string, arms []armSpec, tasks []taskSpec, runs []runResult
 		"gate_passed":                  gatePassed(conds),
 		"git_commit":                   gitRevision(),
 		"invalid_run_reasons":          invalidReasons(runs),
+		"invariant_violations":         violations,
+		"build_provenance":             provenanceOf(runs),
 	}
 	raw, _ := json.MarshalIndent(summary, "", "  ")
 	_ = os.WriteFile(filepath.Join(dir, "summary.json"), raw, 0o644)
@@ -593,12 +602,19 @@ func writeSummary(dir string, arms []armSpec, tasks []taskSpec, runs []runResult
 		fmt.Printf("%-26s %-5s %4d %7d %9d %7d   %7d   %s\n", c.Arm, c.Mode, c.Runs, c.TaskSuccess,
 			c.ProtocolOnlySuccess, c.TerminalReportCover, c.BlockedAttempts, c.RecoveryRate)
 	}
+	for _, v := range violations {
+		fmt.Printf("  [INVARIANT  ] %s\n", v)
+	}
+	if len(violations) > 0 {
+		fmt.Printf("\n%d analytics invariant violation(s): the numbers above are not usable as evidence.\n", len(violations))
+	}
 	for _, g := range conds {
 		if g.Status != "pass" {
 			fmt.Printf("  [%-13s] %s / %s: %s (want %s)\n", g.Status, g.Arm, g.Mode, g.Name, g.Required)
 		}
 	}
 	fmt.Printf("\ngate_passed=%v  artifacts: %s\n", gatePassed(conds), dir)
+	return violations
 }
 
 func invalidReasons(runs []runResult) map[string]int {
@@ -621,13 +637,71 @@ func gitRevision() string {
 	return strings.TrimSpace(string(out))
 }
 
-func verdict(runs []runResult) int {
+func verdict(runs []runResult, violations []string) int {
+	if len(violations) > 0 {
+		// Distinct from 3 (an invalid run): the harness itself produced analytics that
+		// cannot be trusted, which is the more serious failure.
+		return 4
+	}
 	for _, r := range runs {
 		if r.InvalidRun != "" {
 			return 3
 		}
 	}
 	return 0
+}
+
+// provenanceOf collapses the per-run provenance records into what a reader of
+// summary.json needs: one entry when the whole run set came from one build, and every
+// distinct build plus how many runs it produced when it did not.
+func provenanceOf(runs []runResult) []map[string]any {
+	type agg struct {
+		rec  *binaryProvenance
+		runs int
+	}
+	var order []string
+	by := map[string]*agg{}
+	for i := range runs {
+		p := runs[i].Provenance
+		if p == nil {
+			continue
+		}
+		key := p.buildKey()
+		if by[key] == nil {
+			by[key] = &agg{rec: p}
+			order = append(order, key)
+		}
+		by[key].runs++
+	}
+	out := make([]map[string]any, 0, len(order))
+	for _, key := range order {
+		p := by[key].rec
+		out = append(out, map[string]any{
+			"source_revision":        p.SourceRevision,
+			"source_dirty":           p.SourceDirty,
+			"endpoint_binary_sha256": p.EndpointSHA256,
+			"fixture_binary_sha256":  p.FixtureSHA256,
+			"runner_binary_sha256":   p.RunnerSHA256,
+			"models":                 modelsIn(runs, key),
+			"runs_from_this_build":   by[key].runs,
+		})
+	}
+	return out
+}
+
+func modelsIn(runs []runResult, key string) []string {
+	var models []string
+	seen := map[string]bool{}
+	for _, r := range runs {
+		if r.Provenance == nil || r.Provenance.buildKey() != key || r.Provenance.ModelID == "" {
+			continue
+		}
+		if !seen[r.Provenance.ModelID] {
+			seen[r.Provenance.ModelID] = true
+			models = append(models, r.Provenance.ModelID)
+		}
+	}
+	return models
 }
 
 // driveAgent runs the turn loop: it asks the agent for the next action,

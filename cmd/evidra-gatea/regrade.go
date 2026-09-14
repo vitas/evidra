@@ -13,7 +13,8 @@ import (
 // read - a predicate fix must not require spending tokens again - and a metric
 // that cannot be recomputed from the recorded frames is not evidence, it is a
 // claim about what the runner believed at the time.
-func regrade(dir string, tasks []taskSpec) error {
+func regrade(o options, tasks []taskSpec) error {
+	dir := o.regrade
 	byID := map[string]*taskSpec{}
 	for i := range tasks {
 		byID[tasks[i].ID] = &tasks[i]
@@ -102,9 +103,18 @@ func regrade(dir string, tasks []taskSpec) error {
 			runs = append(runs, r)
 		}
 	}
-	writeSummary(dir, prev.Arms, tasks, runs, prev.ProtocolDefinitionOverhead,
+	violations := writeSummary(dir, prev.Arms, tasks, runs, prev.ProtocolDefinitionOverhead,
 		options{runs: prev.RunsPlannedPerCell, dryRun: prev.DryRun})
+	// Regrade re-derives verdicts from persisted frames, so it is allowed to disagree
+	// with the build that produced them. Saying which build that was is the difference
+	// between a re-grade and a fabricated re-measurement.
+	for _, line := range provenanceDrift(runs, o.mcpBin, o.fixtureBin) {
+		fmt.Printf("  [PROVENANCE ] %s\n", line)
+	}
 	fmt.Printf("regraded %d runs in %s\n", n, dir)
+	if len(violations) > 0 {
+		return fmt.Errorf("%d analytics invariant violation(s); the rollup above is not evidence", len(violations))
+	}
 	return nil
 }
 

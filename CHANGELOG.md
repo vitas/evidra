@@ -17,6 +17,25 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — the harness records build provenance and refuses inconsistent analytics
+
+- Every graded run now carries `provenance`: source revision, whether the tree was dirty,
+  and sha256 of the endpoint, fixture and runner binaries it was measured against, plus the
+  model id. `summary.json` collapses those into one entry per distinct build, or one entry
+  per build plus the run counts each contributed when a cell mixed builds.
+- `checkRunInvariants` runs before the gate is judged, and a violation is exit code 4 —
+  distinct from 3 (an invalid run), because the harness itself producing untrustworthy
+  analytics is the more serious failure. It enforces: bounded numerators (`0 <= metric <=
+  runs`), companion metrics no larger than valid runs, per-cell run counts equal to graded
+  rows, per-run sums equal to cell aggregates, one build per comparison cell, and every
+  graded run pointing at a transcript that still exists.
+- `--regrade` now reports provenance drift instead of quietly re-reading: runs from another
+  endpoint build are named with their hash, and runs recorded before provenance existed are
+  called *unattributed* rather than assumed to match the current build.
+- Tests cover both directions — a consistent rollup built by the real code path must pass
+  (otherwise the check is noise), and each invariant must fire on the specific mistake it
+  exists for, including `task_success = 28` with 1 run, the shape of the bug that happened.
+
 ### vNext experiment — the runner refuses to measure a stale build
 
 - `cmd/evidra-gatea`'s preflight now compares `bin/evidra-mcp` against `cmd/evidra-mcp`,

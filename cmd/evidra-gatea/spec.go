@@ -426,6 +426,9 @@ type runResult struct {
 	LatePrescribe           bool        `json:"late_prescribe"`
 	DurationMS              int64       `json:"duration_ms"`
 	TranscriptPath          string      `json:"transcript,omitempty"`
+	// Provenance names the binaries this run was measured against, so a cell cannot
+	// quietly average two builds.
+	Provenance *binaryProvenance `json:"provenance,omitempty"`
 }
 
 // valid reports whether the run belongs in a denominator at all.
