@@ -41,6 +41,20 @@ Single case: `go test -run 'TestName' -v ./pkg/proxy/`. Gate artifacts cite test
 renaming or deleting one means updating the artifact in the same commit — a checklist row
 pointing at a function that no longer compiles is not evidence of anything.
 
+## Documents
+
+Everything in the tree is English — code comments, commit messages, gate artifacts, design
+documents, and reports about the work. "It is addressed to one reader" is not an exception:
+a document under `docs/` is read by whoever opens `docs/` next, and a report they cannot
+read is not a record of having found something, only a claim about it. If a claim in a
+document goes stale, correct it in place and say what changed; do not carry the stale
+sentence forward as though it had been reviewed.
+
+Notes written for one reader in another language go in `/local-notes/`, which is gitignored.
+The folder is ignored rather than merely unused so the rule holds without anyone
+remembering it: a draft written there cannot be swept into a commit by a blanket `git add`,
+which is the mechanism that once put 53 JPGs into this repository's history.
+
 ## Git
 
 - **Always ask before pushing.** Nothing leaves this branch without the user.
