@@ -120,15 +120,23 @@ func gitDirty() bool {
 	return len(out) > 0
 }
 
-// runInvariant is one violated property of the analytics. The list is returned rather
-// than panicked because a violation must reach the artifact and the exit code, and be
-// readable by whoever finds the file a month later.
+// checkRunInvariants refuses a rollup whose own analytics are inconsistent. Each family
+// of property lives in its own function, because the whole point is that these are not
+// one big opinion but several independent arithmetic facts.
 func checkRunInvariants(runs []runResult, cells []cellMetrics, byCell map[string][]runResult) []string {
+	var violations []string
+	violations = append(violations, checkCellBounds(cells, byCell)...)
+	violations = append(violations, checkAgreementWithRows(runs, cells)...)
+	violations = append(violations, checkTranscriptsPersist(runs)...)
+	return violations
+}
+
+// checkCellBounds enforces the bounds on each cell and the one-build-per-cell rule.
+func checkCellBounds(cells []cellMetrics, byCell map[string][]runResult) []string {
 	var violations []string
 	add := func(format string, args ...any) {
 		violations = append(violations, fmt.Sprintf(format, args...))
 	}
-
 	// 1. Every bounded metric must actually be bounded by its denominator, and the
 	//    invalid runs plus the counted runs must be the runs that were graded.
 	for _, c := range cells {
@@ -180,10 +188,17 @@ func checkRunInvariants(runs []runResult, cells []cellMetrics, byCell map[string
 			}
 		}
 	}
+	return violations
+}
 
-	// 3. Per-run values must sum to the aggregate, and the cell aggregates to the global
-	//    one. Both checks exist because a rollup that recomputes something subtly
-	//    differently from the row loop is the exact shape of the 28/16 bug.
+// checkAgreementWithRows makes the aggregate prove itself against the per-run rows. A
+// rollup that recomputes something slightly differently from the row loop is exactly how
+// a metric of 28 appeared over a denominator of 16.
+func checkAgreementWithRows(runs []runResult, cells []cellMetrics) []string {
+	var violations []string
+	add := func(format string, args ...any) {
+		violations = append(violations, fmt.Sprintf(format, args...))
+	}
 	var (
 		sumSuccess, sumReport, sumBlocked, sumRuns, sumInvalid int
 	)
@@ -222,22 +237,24 @@ func checkRunInvariants(runs []runResult, cells []cellMetrics, byCell map[string
 	if sumBlocked != aggBlocked {
 		add("aggregate: blocked_attempts sums to %d per run but %d per cell", sumBlocked, aggBlocked)
 	}
+	return violations
+}
 
-	// 4. A graded run must point at a transcript that still exists. A verdict with no
-	//    transcript cannot be re-graded, re-read or challenged.
+// checkTranscriptsPersist requires that a graded verdict still has its transcript. A run
+// that cannot be re-read cannot be challenged, which is the entire purpose of the store.
+func checkTranscriptsPersist(runs []runResult) []string {
+	var violations []string
 	for _, r := range runs {
 		if !r.valid() || r.TranscriptPath == "" {
 			continue
 		}
 		if _, err := os.Stat(r.TranscriptPath); err != nil {
-			add("%s/%s %s run%d: transcript %s is not persisted (%v)",
-				r.Arm, r.Mode, r.Task, r.Run, r.TranscriptPath, err)
+			violations = append(violations, fmt.Sprintf("%s/%s %s run%d: transcript %s is not persisted (%v)",
+				r.Arm, r.Mode, r.Task, r.Run, r.TranscriptPath, err))
 		}
 	}
 	return violations
-}
-
-// provenanceDrift compares the artifacts a run set was measured against with the ones
+} // provenanceDrift compares the artifacts a run set was measured against with the ones
 // this process would use now. It reports groupings, not per-run spam: what a reader needs
 // is whether the regrade ran against the same code, and how much of the set it covers.
 func provenanceDrift(runs []runResult, endpointBin, fixtureBin string) []string {
