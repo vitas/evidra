@@ -2,25 +2,15 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
 	"log"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/modelcontextprotocol/go-sdk/mcp"
-
-	"samebits.com/evidra/internal/config"
-	ievsigner "samebits.com/evidra/internal/evidence"
-	"samebits.com/evidra/pkg/evidence"
-	"samebits.com/evidra/pkg/mcpserver"
-	"samebits.com/evidra/pkg/mode"
 	"samebits.com/evidra/pkg/proxy"
 	"samebits.com/evidra/pkg/version"
 )
@@ -33,19 +23,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("evidra-mcp", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	showVersion := fs.Bool("version", false, "Print version information and exit")
-	evidenceFlag := fs.String("evidence-dir", "", "Path to store evidence records")
-	environmentFlag := fs.String("environment", "", "Environment label (production, staging, development)")
-	retryFlag := fs.Bool("retry-tracker", false, "Enable retry loop tracking")
-	signingModeFlag := fs.String("signing-mode", "", "Signing mode: strict (default) or optional")
-	urlFlag := fs.String("url", os.Getenv("EVIDRA_URL"), "Evidra API URL")
-	apiKeyFlag := fs.String("api-key", os.Getenv("EVIDRA_API_KEY"), "Evidra API key")
-	offlineFlag := fs.Bool("offline", false, "Force offline mode")
-	fallbackOfflineFlag := fs.Bool("fallback-offline", false, "Fall back to offline on API failure")
+	evidenceFlag := fs.String("evidence-dir", "", "Root for vNext recorder directories (one per process); omit to enforce without recording")
 	proxyModes := registerProxyFlags(fs)
-	fullPrescribeFlag := fs.Bool("full-prescribe", false, "Expose prescribe_full tool (experimental, for advanced models only)")
-	transportFlag := fs.String("transport", "stdio", "Transport mode: stdio (default) or streamable-http")
-	portFlag := fs.String("port", "3001", "HTTP port when using streamable-http transport")
-	actorIDFlag := fs.String("actor-id", os.Getenv("EVIDRA_ACTOR_ID"), "Actor identity for evidence entries (default: infrastructure-agent)")
 	helpFlag := fs.Bool("help", false, "Show help")
 
 	if err := fs.Parse(args); err != nil {
@@ -60,107 +39,19 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 
-	evidencePath := resolveEvidencePath(*evidenceFlag)
-	environment := resolveEnvironment(*environmentFlag)
 	logger := log.New(stderr, "", log.LstdFlags)
-
-	if code, handled := proxyModes.dispatch(context.Background(), stderr, evidencePath, *evidenceFlag, logger, fs.Args()); handled {
+	if code, handled := proxyModes.dispatch(context.Background(), stderr, resolveEvidencePath(*evidenceFlag), *evidenceFlag, logger, fs.Args()); handled {
 		return code
 	}
 
-	writeMode, writeModeErr := config.ResolveEvidenceWriteMode("")
-	if writeModeErr != nil {
-		fmt.Fprintf(stderr, "resolve evidence write mode: %v\n", writeModeErr)
-		return 1
-	}
-
-	signer, signerErr := resolveSigner(*signingModeFlag)
-	if signerErr != nil {
-		fmt.Fprintf(stderr, "resolve signer: %v\n", signerErr)
-		return 1
-	}
-
-	// Resolve online/offline mode.
-	fallbackPolicy := ""
-	if *fallbackOfflineFlag {
-		fallbackPolicy = "offline"
-	}
-	if v := os.Getenv("EVIDRA_FALLBACK"); v != "" && fallbackPolicy == "" {
-		fallbackPolicy = v
-	}
-	resolved, modeErr := mode.Resolve(mode.Config{
-		URL:            *urlFlag,
-		APIKey:         *apiKeyFlag,
-		FallbackPolicy: fallbackPolicy,
-		ForceOffline:   *offlineFlag,
-		Timeout:        30 * time.Second,
-	})
-	if modeErr != nil {
-		fmt.Fprintf(stderr, "resolve mode: %v\n", modeErr)
-		return 1
-	}
-
-	var forwardFn mcpserver.ForwardFunc
-	if resolved.IsOnline {
-		apiClient := resolved.Client
-		forwardFn = func(ctx context.Context, entry json.RawMessage) {
-			if _, fwdErr := apiClient.Forward(ctx, entry); fwdErr != nil {
-				log.New(stderr, "", log.LstdFlags).Printf("warning: forward evidence: %v", fwdErr)
-			}
-		}
-	}
-
-	server, cleanup, err := mcpserver.NewServerWithCleanup(mcpserver.Options{
-		Name:              "evidra-mcp",
-		Version:           version.Version,
-		EvidencePath:      evidencePath,
-		Environment:       environment,
-		ActorID:           *actorIDFlag,
-		RetryTracker:      *retryFlag || envBool("EVIDRA_RETRY_TRACKER", false),
-		BestEffortWrites:  writeMode == config.EvidenceWriteModeBestEffort,
-		HidePrescribeFull: !*fullPrescribeFlag,
-		Signer:            signer,
-		Forward:           forwardFn,
-	})
-	if err != nil {
-		fmt.Fprintf(stderr, "initialize server: %v\n", err)
-		return 1
-	}
-	defer func() {
-		if cleanupErr := cleanup(); cleanupErr != nil {
-			log.New(stderr, "", log.LstdFlags).Printf("warning: cleanup mcp service: %v", cleanupErr)
-		}
-	}()
-
-	logger.Printf("evidra-mcp running (evidence: %s, env: %s, transport: %s)", evidencePath, environment, *transportFlag)
-
-	switch *transportFlag {
-	case "stdio":
-		if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
-			fmt.Fprintf(stderr, "run mcp server: %v\n", err)
-			return 1
-		}
-	case "streamable-http":
-		handler := mcp.NewStreamableHTTPHandler(func(_ *http.Request) *mcp.Server {
-			return server
-		}, nil)
-		httpMux := http.NewServeMux()
-		httpMux.Handle("/mcp", handler)
-		httpMux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte("ok\n"))
-		})
-		addr := ":" + *portFlag
-		logger.Printf("evidra-mcp HTTP listening on %s", addr)
-		if err := http.ListenAndServe(addr, httpMux); err != nil {
-			fmt.Fprintf(stderr, "http listen: %v\n", err)
-			return 1
-		}
-	default:
-		fmt.Fprintf(stderr, "unsupported transport: %s (use stdio or streamable-http)\n", *transportFlag)
-		return 1
-	}
-	return 0
+	// Reaching this point means no wrapping mode was requested. The direct MCP
+	// server mode is gone with §43: what Evidra sells is an endpoint in front of a
+	// real upstream whose tools the agent prescribes against, so standing up alone
+	// would serve a tool surface that no longer exists. Failing with usage beats
+	// serving something an agent would then have to discover is hollow.
+	fmt.Fprintln(stderr, "evidra-mcp: nothing to wrap; run with --proxy -- <upstream command>")
+	printHelp(stderr)
+	return 2
 }
 
 // proxyFlags holds the wrapping-mode flags, registered in one helper so that
@@ -354,16 +245,6 @@ func resolveEvidencePath(explicit string) string {
 	return filepath.Join(home, ".evidra", "evidence")
 }
 
-func resolveEnvironment(explicit string) string {
-	if explicit != "" {
-		return explicit
-	}
-	if v := strings.TrimSpace(os.Getenv("EVIDRA_ENVIRONMENT")); v != "" {
-		return v
-	}
-	return ""
-}
-
 func envBool(key string, fallback bool) bool {
 	v := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
 	switch v {
@@ -375,82 +256,36 @@ func envBool(key string, fallback bool) bool {
 	return fallback
 }
 
-// resolveSigner creates a Signer from environment variables.
-// Returns an error when mode is strict and no key is configured.
-func resolveSigner(modeRaw string) (evidence.Signer, error) {
-	mode, err := config.ResolveSigningMode(modeRaw)
-	if err != nil {
-		return nil, err
-	}
-
-	keyBase64 := strings.TrimSpace(os.Getenv("EVIDRA_SIGNING_KEY"))
-	keyPath := strings.TrimSpace(os.Getenv("EVIDRA_SIGNING_KEY_PATH"))
-
-	noKey := keyBase64 == "" && keyPath == ""
-	if noKey && mode == config.SigningModeStrict {
-		return nil, fmt.Errorf("signing key required in strict mode: set EVIDRA_SIGNING_KEY or EVIDRA_SIGNING_KEY_PATH (or --signing-mode optional)")
-	}
-
-	s, err := ievsigner.NewSigner(ievsigner.SignerConfig{
-		KeyBase64: keyBase64,
-		KeyPath:   keyPath,
-		DevMode:   noKey && mode == config.SigningModeOptional,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("resolveSigner: %w", err)
-	}
-	return s, nil
-}
-
 func printHelp(w io.Writer) {
-	fmt.Fprintln(w, "evidra-mcp — MCP integration point for infrastructure automation reliability (including AI agents).")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "MODES:")
-	fmt.Fprintln(w, "  Direct (default)  run_command, collect_diagnostics, write_file, describe_tool, prescribe_smart, report, get_event")
-	fmt.Fprintln(w, "  Direct (+ flag)   Add prescribe_full with --full-prescribe for artifact-aware explicit intent capture")
-	fmt.Fprintln(w, "  Proxy (--proxy)   Wraps upstream MCP server, auto-records mutations")
+	fmt.Fprintln(w, "evidra-mcp — MCP endpoint that records execution evidence for one upstream server.")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "USAGE:")
-	fmt.Fprintln(w, "  evidra-mcp [flags]")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "PROXY USAGE:")
 	fmt.Fprintln(w, "  evidra-mcp --proxy [flags] -- <upstream-command> [args...]")
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "PROXY EXAMPLE:")
-	fmt.Fprintln(w, "  evidra-mcp --proxy -- kubectl-mcp-server")
-	fmt.Fprintln(w, "  evidra-mcp --proxy --evidence-dir /tmp/evidence -- npx -y @example/kubectl-mcp")
+	fmt.Fprintln(w, "EXAMPLE:")
+	fmt.Fprintln(w, "  evidra-mcp --proxy --evidence-dir /tmp/evidence -- ./bin/evidra-fixture")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "The endpoint merges two local tools into the upstream tool list: evidra_prescribe")
+	fmt.Fprintln(w, "(open an operation) and evidra_report (close it). Upstream tool calls are refused")
+	fmt.Fprintln(w, "unless an operation is open, and every accepted call is recorded as a paired")
+	fmt.Fprintln(w, "execution. Evidence is read back with: evidra summarize / evidra verify.")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "FLAGS:")
-	fmt.Fprintln(w, "  --evidence-dir <dir>    Where to store evidence chain (default: ~/.evidra/evidence)")
-	fmt.Fprintln(w, "  --environment <label>   Environment label (production, staging, development)")
-	fmt.Fprintln(w, "  --retry-tracker         Enable retry loop tracking")
-	fmt.Fprintln(w, "  --signing-mode <mode>   Signing mode: strict (default) or optional")
-	fmt.Fprintln(w, "  --full-prescribe        Expose prescribe_full alongside the default direct tool surface")
-	fmt.Fprintln(w, "  --proxy                 Enable proxy mode (wrap upstream MCP server)")
-	fmt.Fprintln(w, "  --version               Print version and exit")
-	fmt.Fprintln(w, "  --help                  Show this help")
+	fmt.Fprintln(w, "  --proxy                 Wrap the upstream command as the merged endpoint")
+	fmt.Fprintln(w, "  --enforce <all|off>    all (default): refuse calls outside an operation;")
+	fmt.Fprintln(w, "                          off: observe only, no refusals")
+	fmt.Fprintln(w, "  --evidence-dir <dir>    Recorder root; one dated directory per process. Omit it")
+	fmt.Fprintln(w, "                          to enforce without writing evidence")
+	fmt.Fprintln(w, "  --server-name <label>    serverInfo.name and evidence label for the wrapper")
+	fmt.Fprintln(w, "  --advertise-passthrough  Advertise relayed prompts/resources/completions that are")
+	fmt.Fprintln(w, "                          outside the supported profile (default: not advertised)")
+	fmt.Fprintln(w, "  --max-message <size>     Largest single JSON-RPC message accepted (default 64MiB)")
+	fmt.Fprintln(w, "  --legacy-proxy           Pre-vNext relay with the legacy evidence writer")
+	fmt.Fprintln(w, "                          (deprecated; removal is scheduled by §43)")
+	fmt.Fprintln(w, "  --version                Print version and exit")
+	fmt.Fprintln(w, "  --help                   Show this help")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "ENVIRONMENT:")
-	fmt.Fprintln(w, "  EVIDRA_EVIDENCE_DIR     Override evidence directory")
-	fmt.Fprintln(w, "  EVIDRA_ENVIRONMENT      Default environment label")
-	fmt.Fprintln(w, "  EVIDRA_RETRY_TRACKER    Enable retry tracking (true/false)")
-	fmt.Fprintln(w, "  EVIDRA_EVIDENCE_WRITE_MODE  strict (default) or best_effort")
-	fmt.Fprintln(w, "  EVIDRA_SIGNING_MODE     strict (default) or optional")
-	fmt.Fprintln(w, "  EVIDRA_PROXY_VERBOSE    Enable verbose proxy logging (true/false)")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "WORKFLOW:")
-	fmt.Fprintln(w, "  Use run_command for the normal workflow. Evidra adds auto-evidence for mutations.")
-	fmt.Fprintln(w, "  Use describe_tool only when you want explicit prescribe_smart/report control.")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "TOOLS (default direct mode):")
-	fmt.Fprintln(w, "  run_command      Execute kubectl/helm/terraform/aws with smart output and auto-evidence for mutations")
-	fmt.Fprintln(w, "  collect_diagnostics  Run one bundled Kubernetes diagnosis pass for a workload")
-	fmt.Fprintln(w, "  write_file       Write files under cwd or temp directories; blocks system dirs and ~/.ssh")
-	fmt.Fprintln(w, "  describe_tool    Show the full schema for deferred protocol tools when you need explicit control")
-	fmt.Fprintln(w, "  prescribe_smart  Deferred by default; use describe_tool first for the full explicit-control schema")
-	fmt.Fprintln(w, "  report           Deferred by default; use describe_tool first for the full explicit-control schema")
-	fmt.Fprintln(w, "  get_event        Look up evidence record by event_id")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "OPTIONAL TOOL (--full-prescribe):")
-	fmt.Fprintln(w, "  prescribe_full   Analyze artifact BEFORE execution (returns risk + prescription_id)")
+	fmt.Fprintln(w, "  EVIDRA_EVIDENCE_DIR     Default for --evidence-dir")
+	fmt.Fprintln(w, "  EVIDRA_PROXY_VERBOSE    Verbose logging in the legacy relay only")
 }

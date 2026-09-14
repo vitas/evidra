@@ -5,48 +5,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-
-	"samebits.com/evidra/internal/config"
 )
-
-func TestResolveSigner_OptionalWithoutKey(t *testing.T) {
-	t.Setenv("EVIDRA_SIGNING_KEY", "")
-	t.Setenv("EVIDRA_SIGNING_KEY_PATH", "")
-	s, err := resolveSigner("optional")
-	if err != nil {
-		t.Fatalf("resolveSigner(optional): %v", err)
-	}
-	if s == nil {
-		t.Fatal("expected signer in optional mode")
-	}
-}
-
-func TestResolveSigner_StrictWithoutKeyFails(t *testing.T) {
-	t.Setenv("EVIDRA_SIGNING_KEY", "")
-	t.Setenv("EVIDRA_SIGNING_KEY_PATH", "")
-	if _, err := resolveSigner("strict"); err == nil {
-		t.Fatal("expected strict mode error when no key configured")
-	}
-}
-
-func TestResolveSigner_InvalidModeFails(t *testing.T) {
-	t.Setenv("EVIDRA_SIGNING_KEY", "")
-	t.Setenv("EVIDRA_SIGNING_KEY_PATH", "")
-	if _, err := resolveSigner("bad"); err == nil {
-		t.Fatal("expected invalid mode error")
-	}
-}
-
-func TestResolveEvidenceWriteMode_FromEnv(t *testing.T) {
-	t.Setenv("EVIDRA_EVIDENCE_WRITE_MODE", "best_effort")
-	mode, err := config.ResolveEvidenceWriteMode("")
-	if err != nil {
-		t.Fatalf("ResolveEvidenceWriteMode: %v", err)
-	}
-	if mode != config.EvidenceWriteModeBestEffort {
-		t.Fatalf("mode=%q, want %q", mode, config.EvidenceWriteModeBestEffort)
-	}
-}
 
 func TestNormalizeProxyArgs_StripsLeadingSeparator(t *testing.T) {
 	got, err := normalizeProxyArgs([]string{"--", "upstream", "--flag"})
@@ -72,28 +31,50 @@ func TestNormalizeProxyArgs_RejectsMissingCommand(t *testing.T) {
 	}
 }
 
-func TestPrintHelp_DescribesDefaultToolSurfaceAndOptionalFullPrescribe(t *testing.T) {
+func TestPrintHelp_DescribesTheEndpointContract(t *testing.T) {
 	var out bytes.Buffer
 	printHelp(&out)
 	help := out.String()
 
 	for _, needle := range []string{
-		"--full-prescribe",
-		"write_file",
-		"describe_tool",
-		"prescribe_smart",
-		"run_command",
-		"collect_diagnostics",
-		"auto-evidence",
+		"--proxy",
+		"--enforce",
+		"--evidence-dir",
+		"--max-message",
+		"evidra_prescribe",
+		"evidra_report",
+		"evidra summarize",
 	} {
 		if !strings.Contains(help, needle) {
-			t.Fatalf("help missing %q: %s", needle, help)
+			t.Fatalf("help missing %q:\n%s", needle, help)
 		}
 	}
-	if strings.Contains(help, "Agent calls prescribe_full/prescribe_smart/report tools explicitly") {
-		t.Fatalf("help should not claim prescribe_full is part of the default direct surface: %s", help)
+	// The removed direct-mode tools must not be advertised: an agent that finds them
+	// in help output will call them and get nothing back.
+	for _, gone := range []string{"run_command", "collect_diagnostics", "write_file", "describe_tool", "prescribe_full", "prescribe_smart", "full-prescribe"} {
+		if strings.Contains(help, gone) {
+			t.Errorf("help still advertises the removed %q", gone)
+		}
 	}
-	if !strings.Contains(help, "Use run_command for the normal workflow") {
-		t.Fatalf("help should describe run_command as the default workflow: %s", help)
+}
+
+func TestRunWithNoWrappingModeFails(t *testing.T) {
+	// Standing up without an upstream used to serve the direct MCP tool surface. That
+	// surface is gone, so the binary has to say it has nothing to wrap instead of
+	// running as something it no longer is.
+	var out, errOut bytes.Buffer
+	if code := run([]string{"--help"}, &out, &errOut); code != 0 {
+		t.Fatalf("--help exit = %d, want 0", code)
+	}
+	if !strings.Contains(errOut.String(), "--proxy") {
+		t.Errorf("--help output lacks the endpoint usage: %q", errOut.String())
+	}
+	out.Reset()
+	errOut.Reset()
+	if code := run(nil, &out, &errOut); code != 2 {
+		t.Fatalf("no-mode exit = %d, want 2", code)
+	}
+	if !strings.Contains(errOut.String(), "nothing to wrap") {
+		t.Errorf("no-mode message = %q", errOut.String())
 	}
 }

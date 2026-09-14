@@ -17,6 +17,28 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — §43 step 3: `evidra-mcp` is the endpoint only
+
+- The direct MCP server mode is gone: `pkg/mcpserver` is no longer started, and with it
+  the flags that configured it (`--environment`, `--retry-tracker`, `--signing-mode`,
+  `--url`, `--api-key`, `--offline`, `--fallback-offline`, `--full-prescribe`,
+  `--transport`, `--port`, `--actor-id`), the online/offline resolution, the API
+  forwarding hook, `resolveSigner` and the v1 evidence writer dependency.
+- Running the binary with no wrapping mode now exits 2 with "nothing to wrap" plus
+  help. It used to start a server with a tool surface the product no longer offers;
+  the failure is the honest version of that.
+- Help text rewritten around the actual contract: `--proxy` and `--enforce`, the two
+  merged local tools, where evidence goes, and how to read it back
+  (`evidra summarize` / `evidra verify`). Tests now assert both directions — the
+  endpoint flags must be present, and the removed tool names must not be, because an
+  agent that reads `run_command` in help output will call it.
+- `--legacy-proxy` survives one more step (it is the §59 step-9 "legacy flags" item and
+  the plan removes it with the relay it selects, not before).
+- Orphan check after this commit: `pkg/mcpserver`, `internal/lifecycle`, `internal/evidence`,
+  `pkg/mode`, `pkg/client`, `internal/config`, `internal/telemetry` are imported by
+  nothing outside themselves, which is what makes the next deletion a single
+  `git rm -r` rather than a refactor.
+
 ### vNext experiment — §43 step 2: the hosted chain leaves the module
 
 - Deleted `cmd/evidra-api` and its whole support graph: `internal/api`, `internal/apiutil`,
