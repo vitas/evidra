@@ -16,6 +16,20 @@ total=0
 failed=0
 failed_names=()
 
+# Guards may use git, grep, awk and sed - nothing outside what a Go toolchain image already has.
+# Two of them used `rg`, which the runner does not install, and a missing search tool is
+# indistinguishable from "no matches" unless someone says so: the positive half of one guard
+# failed loudly, the negative half of the other reported green for its whole life here. Naming
+# the required tools keeps that failure mode out of the suite rather than out of sight.
+missing=()
+for tool in git grep awk sed; do
+  command -v "$tool" >/dev/null 2>&1 || missing+=("$tool")
+done
+if [[ ${#missing[@]} -gt 0 ]]; then
+  echo "FAIL: required tools absent from PATH: ${missing[*]} - a missing search tool reads as 'no matches'"
+  exit 1
+fi
+
 for guard in tests/test_*.sh; do
   [[ -f "$guard" ]] || continue
   [[ "$(basename "$guard")" == "$self" ]] && continue

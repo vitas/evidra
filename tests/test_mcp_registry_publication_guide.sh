@@ -9,10 +9,17 @@ fail() {
   exit 1
 }
 
+# Both helpers check the file's existence before its content. The first version of this guard
+# searched with `rg`, which the GitHub runner does not have: `assert_contains` then failed loudly
+# ("missing 'Docker MCP Registry'"), while `assert_not_contains` read "command not found" as "the
+# forbidden text is absent" and passed. A guard whose negative half can pass because a binary is
+# missing is worse than the checks it replaced, so the tool is grep and an unreadable file is a
+# failure in both directions.
 assert_contains() {
   local pattern="$1"
   local path="$2"
-  if ! rg -q --fixed-strings -- "$pattern" "$path"; then
+  [[ -f "$path" ]] || fail "missing $path (cannot look for '$pattern')"
+  if ! grep -qF -- "$pattern" "$path"; then
     fail "missing '$pattern' in $path"
   fi
 }
@@ -20,7 +27,8 @@ assert_contains() {
 assert_not_contains() {
   local pattern="$1"
   local path="$2"
-  if rg -q --fixed-strings -- "$pattern" "$path"; then
+  [[ -f "$path" ]] || fail "missing $path (cannot confirm '$pattern' is absent)"
+  if grep -qF -- "$pattern" "$path"; then
     fail "found forbidden '$pattern' in $path"
   fi
 }
