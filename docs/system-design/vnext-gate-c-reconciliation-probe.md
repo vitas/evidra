@@ -102,6 +102,21 @@ carry; the transcript does not attribute calls to operations at all.
    (see [vnext-gate-b-results.md](vnext-gate-b-results.md) finding 1). The agent's
    behaviour was normal; the sensor was broken.
 
+## A limitation the in-band feedback introduces
+
+The `observations` block is a tool response, not an evidence event: §16 fixes the ten
+event types, and none of them records "the agent was shown that its window was empty".
+So after the fact, a chain can prove what was prescribed, observed and reported — but not
+whether the agent was warned while it still could have acted.
+
+That matters for the one question worth asking next. If a future run shows the feedback
+reducing over-claimed `achieved` records, the evidence will show the correlation and nothing
+about the mechanism: the recorder cannot distinguish "read the warning and corrected" from
+"never saw it". Any attempt to attribute the effect to the feedback rather than to the
+model's own second thought needs either a new event type (a protocol change, so a plan
+revision first) or a runner-side transcript diff, which is inference rather than record.
+This artifact records the gap instead of quietly treating the ack as part of the chain.
+
 ## Why the gate is not passed
 
 - **No real operational MCP server.** §47 requires the generic fixture *plus* one
@@ -142,3 +157,66 @@ In rough order of expected value:
 3. Have a person who did not run the experiment read one terminal summary and one
    transcript for the same session, and write down which gave them the better
    account, and why.
+
+---
+
+# Second probe: the in-band feedback, measured against its own delivery
+
+Re-run of the same 4 tasks × 2 modes × 1 run on the free arm, with the endpoint rebuilt
+to include §47's `observations` block. `gate-c-probe` (above) is the "before" set.
+
+```bash
+go build -o bin/evidra-mcp ./cmd/evidra-mcp/    # and the other three binaries
+./bin/evidra-gatea --arms-only qwen38-flash \
+  --tasks-only status-then-report,restart-after-status,oversize-result,change-of-mind \
+  --runs 1 --max-tokens 8192 --out output/gatea/gate-c-feedback-probe
+```
+
+| | before | after |
+|---|---|---|
+| sessions / operations | 8 / 11 | 8 / 14 |
+| reports `completed/achieved` | 7 | 12 |
+| reports `failed/not_achieved` | 2 | 0 |
+| reports `abandoned/not_achieved` | 2 | 2 |
+| operations achieving with **zero** observed executions | 0 | 0 |
+| `ACHIEVED_WITH_ONLY_DECLARED_READ_ONLY_EXECUTIONS_IN_SCOPE` | 3 | 8 |
+| task success (runner predicates) | 0/8 | 0/8 |
+| `observations` blocks delivered in tool results | 0 (feature absent) | 22 across 8 sessions (3/2/4/2/3/2/4/2) |
+| of those, the empty-window sentence | — | **0** |
+
+## What this sample can and cannot say
+
+**It cannot say the feedback changed anything.** The sentence it exists to say — "no
+upstream tool execution was observed for this operation" — fired zero times, because no
+operation in either probe closed as achieved with an empty window. An effect size of zero
+on a mechanism that never activated is `not_measurable`, not a null result. This is the
+same discipline Gate A applied to recovery-after-block with zero blocks.
+
+**It does say something about the shape of over-claiming.** Every achieved claim in the
+after set rested on *observed* calls — 8 of them on calls the upstream annotated
+read-only, which is why the count of that fact rose while honest `failed/not_achieved`
+reports fell to zero. The agent was not claiming credit for nothing; it was claiming
+credit for looking. A warning that fires on absence of observation cannot reach that, and
+raising this sample's achieved count while it was active is not evidence the feedback
+made it worse: the same runs also saw the 64 KiB fix land, so `big` started returning
+large successful payloads instead of erroring, which changes how much real work was
+observed per operation. Two variables moved; n=8.
+
+**The next candidate is therefore narrower than "warn the agent".** When an operation
+closes as `achieved` and every execution inside it was annotated read-only, the
+observation block already carries `all_observed_declared_read_only: true`. The open
+question is whether restating that as a sentence (still an observation, still marked
+unverified — §35 forbids a verdict, not a fact) changes the next claim, or only teaches
+the model to rephrase. That needs a task where "I checked, so it is fixed" fails the
+predicate, run against both builds, with the freshness preflight in place so a stale
+binary cannot fake the comparison.
+
+## One process finding
+
+The first attempt at this probe reported zero feedback deliveries across 8 sessions and
+looked like a measurement showing the feature did nothing. It was a stale
+`bin/evidra-mcp`: the Go tests build their own endpoint binary, so the tests proving the
+feature worked passed while the runner measured the previous build. `--regrade` and the
+runner now refuse a binary older than its sources (`cmd/evidra-gatea/freshness.go`).
+An invalid experiment does not error; it produces data, which is why the check belongs in
+preflight rather than in a postmortem.
