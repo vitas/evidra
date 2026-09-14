@@ -17,6 +17,22 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — the runner refuses to measure a stale build
+
+- `cmd/evidra-gatea`'s preflight now compares `bin/evidra-mcp` against `cmd/evidra-mcp`,
+  `pkg/proxy`, `pkg/evidence` and `pkg/report`, and refuses to start when a source file is
+  newer than the binary it is about to measure; `--allow-stale-build` opts out for the one
+  case where comparing against an older build is the point.
+- This is not a hypothetical guard. The first probe of the in-band feedback reported zero
+  feedback deliveries across 8 sessions, and the tests proving the feature worked passed
+  the same moment: the Go tests build their own endpoint binary in a temp directory, while
+  the runner shells out to `bin/evidra-mcp`. The probe had measured a build from before the
+  feature existed, and produced a well-formed run set that looked like data about the code
+  under review.
+- Test-only edits do not trip the check (they cannot change the binary), with a test that
+  exists to keep that property: a guard that blocks work over a comment edit gets worked
+  around, and the workaround is worse than having no check.
+
 ### vNext experiment — §47 in-band `evidra_report` feedback
 
 - A closing `evidra_report` now answers with an `observations` object: executions the

@@ -48,6 +48,9 @@ type options struct {
 	calibrate  bool
 	mcpBin     string
 	fixtureBin string
+	// allowStaleBuild opts out of the freshness preflight, which is the right call
+	// exactly when the point of the run is to compare against an older build.
+	allowStaleBuild bool
 }
 
 func main() { os.Exit(runCLI(os.Args[1:])) }
@@ -71,6 +74,7 @@ func runCLI(args []string) int {
 	fs.BoolVar(&o.calibrate, "calibrate", false, "measure protocol definition overhead per arm with a differential probe")
 	fs.StringVar(&o.mcpBin, "evidra-mcp", "bin/evidra-mcp", "path to the merged endpoint binary")
 	fs.StringVar(&o.fixtureBin, "fixture", "bin/evidra-fixture", "path to the fixture binary")
+	fs.BoolVar(&o.allowStaleBuild, "allow-stale-build", false, "run against bin/ artifacts newer than nothing, without checking they are up to date (comparison runs only)")
 	fs.StringVar(&o.regrade, "regrade", "", "recompute verdicts in an existing artifact directory from its transcripts")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -239,6 +243,18 @@ func preflight(ctx context.Context, o *options, arms []armSpec) error {
 	}
 	if _, err := os.Stat(o.fixtureBin); err != nil {
 		return fmt.Errorf("fixture binary %s: %w", o.fixtureBin, err)
+	}
+	// Measuring a stale build produces a run set that looks like data about the code
+	// under review and is actually data about whatever was compiled last. The Go tests
+	// build their own endpoint binary, so they can pass while this runner measures an
+	// older one; see cmd/evidra-gatea/freshness.go.
+	if !o.allowStaleBuild {
+		if err := checkBinaryFreshness([]binaryFreshness{
+			{binary: o.mcpBin, sources: []string{"cmd/evidra-mcp", "pkg/proxy", "pkg/evidence", "pkg/report"}},
+			{binary: o.fixtureBin, sources: []string{"cmd/evidra-fixture"}},
+		}); err != nil {
+			return fmt.Errorf("preflight: %w (or pass --allow-stale-build to measure this build deliberately)", err)
+		}
 	}
 	if o.dryRun {
 		return nil
