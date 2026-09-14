@@ -282,7 +282,8 @@
   `canon-fixtures-update`, `prompts-generate`, `prompts-verify`, `test-signals`.
 - §43's remaining lines are all here under different names: risk, score,
   canonicalization, detectors, behavioral signal engine, SARIF input, prompt generation.
-  What is left of the module is 12 packages: the endpoint, the v2 store, the
+  What is left of the module is 9 packages (`go list ./... | wc -l`; the count was 12 when
+  the entry was first written, three more packages went in the steps after it): the endpoint, the v2 store, the
   reconciler, the fixture, the runner, two CLIs, and version.
 - `.github/workflows/ci-vnext.yml` no longer excludes packages, because an empty
   exclusion regex is a trap: `grep -Ev ''` matches every line, so "test everything

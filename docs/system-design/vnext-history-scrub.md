@@ -82,6 +82,12 @@ git log --format='%h %s' vnext/mcp-recorder | grep 'the subject you have'
 | `4afa9cf` | `64480a6` | docs(vnext): stop writing commit counts in prose without the command… |
 | `d479134` | `57dd0e2` | docs(vnext): the prune record stops describing future work, and the … |
 
+**A number in this file that was wrong when written.** The report and CHANGELOG both said
+the module was pruned "40 → 12 packages". It is 9 (`go list ./... | wc -l`, CI floor 8). The 12
+was measured mid-prune and never re-derived, which is the same failure the commit-count rule
+above describes: a figure quoted in prose without the command that produces it becomes a
+false statement at the next commit, and a reader has no way to tell.
+
 **One thing this does not fix.** The scratch files existed only in this branch, so the removal
 is complete: `main` never had them (verified with `git log --full-history main -- tmp examples`
 → no commits), and they never reached the remote. Had the branch already been pushed, no
