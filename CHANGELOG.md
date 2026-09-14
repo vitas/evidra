@@ -17,6 +17,28 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — §43 step 7: documentation follows the code, and `--actor-id` comes back
+
+- `docs/ARCHITECTURE.md` rewritten as the vNext map. Its old opening line — "Evidra is a
+  wire tap, not a gatekeeper… it never blocks operations" — is now false, and the rewrite
+  says so explicitly instead of quietly dropping it: vNext gates protocol order and nothing
+  else. Replaced the hosted-mode/assessment/two-layer sections with the shipped shape
+  (endpoint, v2 store, reconciler, two CLIs), the nine invariants the code is built around,
+  and a gate table that still says Gate C is not passed.
+- `CLAUDE.md` rewritten to match: build/test commands that exist (no `e2e`, no
+  `canon-fixtures-update`, no `docker-api`), the package list after the prune, the §7/§17/§18
+  rules that a new agent must not "helpfully" violate, and the git discipline (ask before
+  push, DCO, stage by path).
+- `--actor-id` is restored to the endpoint with `EVIDRA_ACTOR_ID` as its default, plus
+  `TestActorIDFlagReachesEveryEvent`. It had been deleted as collateral with the other legacy
+  flags, but actor is part of the v2 envelope (§13): removing it left no way to say who was
+  accountable, which is the field the whole record exists to attribute.
+- The test also settled a question by measurement rather than by argument: `recorder_started`
+  and `recorder_stopped` carry no actor even when the flag is set. That is correct — those
+  events are `recorder_generated`, the recorder is what started — and the assertion now pins
+  it, with a comment recording that the reading was checked by removing the branch and
+  watching the result rather than assumed.
+
 ### vNext experiment — §43 step 6b: only the v2 evidence model remains in `pkg/evidence`
 
 - Deleted the v1 shapes: `entry.go`, `entry_builder.go`, `entry_io.go`, `entry_store.go`,

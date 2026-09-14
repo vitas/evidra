@@ -485,3 +485,43 @@ func assertCancelledExecutionRecorded(t *testing.T, requestID string) {
 		t.Errorf("%d executions started, %d finished: a started execution with no terminal event is a recorder lying by omission", started, finished)
 	}
 }
+
+// TestActorIDFlagReachesEveryEvent keeps accountability wired: --actor-id is the only
+// way to say who was responsible, so a flag that parsed but never landed would leave
+// every chainattributable to the fallback identity.
+func TestActorIDFlagReachesEveryEvent(t *testing.T) {
+	root := t.TempDir()
+	h := startEndpoint(t, "--enforce=off", "--evidence-dir", root, "--actor-id", "ops-bot-7", fixtureBin)
+	h.initialize()
+	if _, isErr := h.call("get_status", map[string]any{"verbose": true}); isErr {
+		t.Fatal("get_status failed")
+	}
+	h.closeIn()
+	if err := h.wait(); err != nil {
+		t.Fatalf("endpoint exited with error: %v\n%s", err, h.stderrText())
+	}
+
+	events, _, err := evidence.ReadStore(recorderDir(t, root), time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) == 0 {
+		t.Fatal("no events recorded")
+	}
+	for _, ev := range events {
+		// Lifecycle events are recorder_generated: the thing that started and stopped
+		// the recorder is the recorder, not the actor it was configured for. Asserted
+		// empty rather than skipped blindly - that reading was checked by running the
+		// test without this branch and watching recorder_started carry no actor even
+		// though the flag was set at open time.
+		if ev.EventType == evidence.EventRecorderStarted || ev.EventType == evidence.EventRecorderStopped {
+			if ev.Actor.ID != "" {
+				t.Fatalf("%s should attribute to the recorder, got actor %q", ev.EventType, ev.Actor.ID)
+			}
+			continue
+		}
+		if ev.Actor.ID != "ops-bot-7" {
+			t.Fatalf("%s actor = %q, want the id passed on the command line", ev.EventType, ev.Actor.ID)
+		}
+	}
+}

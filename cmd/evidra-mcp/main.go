@@ -61,6 +61,11 @@ type proxyFlags struct {
 	advertise  *bool
 	enforce    *string
 	maxMessage *string
+	// actorID labels who is accountable in every evidence event (§13). The default is
+	// read at registration time from EVIDRA_ACTOR_ID on purpose: the envelope always
+	// carries an actor, so with neither flag nor set the endpoint records its fallback
+	// and the reader can see that in the chain rather than guessing.
+	actorID *string
 }
 
 // Pointers are held deliberately: reading the values at registration time would
@@ -72,6 +77,7 @@ func registerProxyFlags(fs *flag.FlagSet) *proxyFlags {
 		advertise:  fs.Bool("advertise-passthrough", false, "Advertise upstream prompts/resources/completions that are relayed but outside the supported profile"),
 		enforce:    fs.String("enforce", "all", "Protocol enforcement for the merged endpoint: all (default) or off (observe-only)"),
 		maxMessage: fs.String("max-message", "64MiB", "Largest single JSON-RPC message accepted in either direction"),
+		actorID:    fs.String("actor-id", os.Getenv("EVIDRA_ACTOR_ID"), "Actor identity recorded as accountable for this session's executions"),
 	}
 }
 
@@ -85,6 +91,7 @@ func (p *proxyFlags) dispatch(ctx context.Context, stderr io.Writer, evidenceRaw
 			advertiseExtra: *p.advertise,
 			maxMessage:     *p.maxMessage,
 			enforce:        *p.enforce,
+			actorID:        *p.actorID,
 			evidenceDir:    evidenceRaw,
 		}), true
 	default:
@@ -99,6 +106,7 @@ type endpointFlags struct {
 	maxMessage     string
 	enforce        string
 	evidenceDir    string
+	actorID        string
 }
 
 // runEndpointMode serves the vNext merged endpoint (§59 step 2): one upstream
@@ -133,6 +141,7 @@ func runEndpointMode(ctx context.Context, stderr io.Writer, logger *log.Logger, 
 		ServerName:           flags.serverName,
 		EnforceMode:          flags.enforce,
 		EvidenceDir:          flags.evidenceDir,
+		ActorID:              flags.actorID,
 	}); err != nil {
 		fmt.Fprintf(stderr, "endpoint: %v\n", err)
 		return 1
@@ -216,6 +225,8 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  --advertise-passthrough  Advertise relayed prompts/resources/completions that are")
 	fmt.Fprintln(w, "                          outside the supported profile (default: not advertised)")
 	fmt.Fprintln(w, "  --max-message <size>     Largest single JSON-RPC message accepted (default 64MiB)")
+	fmt.Fprintln(w, "  --actor-id <id>           Actor recorded as accountable (default: $EVIDRA_ACTOR_ID,")
+	fmt.Fprintln(w, "                            else the recorder's fallback identity)")
 	fmt.Fprintln(w, "  --version                Print version and exit")
 	fmt.Fprintln(w, "  --help                   Show this help")
 	fmt.Fprintln(w)
