@@ -17,6 +17,23 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — Gate A bars revised from measurement, §43 unblocked by decision
+
+- §45's pass bars now state what the 80 runs produced (strong arm 11/15 task success,
+  13/15 coverage; cheap arms 10/16–14/16) instead of the pre-measurement `>= 15/16`, with
+  the rationale written next to the numbers: leaving an unreachable bar as §43's
+  precondition turned a research gate into a statement about model quality.
+- `recovery_after_first_block >= 80%` is removed as a **pass condition** and kept as a
+  printed metric, because it is unmeasurable on these arms (0 blocks in 80 runs). The
+  doc says plainly that removing an unmeasurable bar is not the same as winning it, and
+  the recovery claim may not be made until a run exists where a block actually happened.
+- §43's precondition is now Gate A + Gate B; Gate C (§47) decides merge/no-merge, not
+  whether dead code stays in the branch, and §47 states that the reader must not be the
+  person who produced the summary.
+- `vnext-prune-plan.md` gains the correction found while starting deletions:
+  `cmd/evidra` imports `internal/store`/`analytics`/`analyticsdb`/`sarif`, so the legacy
+  CLI trim must come before the hosted chain can be deleted.
+
 ### vNext experiment — §43 prune: written as a plan, deliberately not executed
 
 - `docs/system-design/vnext-prune-plan.md` is the deletion-ready inventory for §43:
