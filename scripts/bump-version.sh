@@ -22,12 +22,10 @@ else
 fi
 
 version_go="$root_dir/pkg/version/version.go"
-server_json="$root_dir/server.json"
 changelog="$root_dir/CHANGELOG.md"
 today="$(date +%F)"
 
 [[ -f "$version_go" ]] || fail "missing $version_go"
-[[ -f "$server_json" ]] || fail "missing $server_json"
 [[ -f "$changelog" ]] || fail "missing $changelog"
 
 if grep -Eq 'BaseVersion = "[0-9]+\.[0-9]+\.[0-9]+"' "$version_go"; then
@@ -37,10 +35,6 @@ elif grep -Eq 'Version = "[0-9]+\.[0-9]+\.[0-9]+"' "$version_go"; then
 else
   fail "could not find BaseVersion or Version assignment in $version_go"
 fi
-grep -Eq '"version": "[0-9]+\.[0-9]+\.[0-9]+"' "$server_json" \
-  || fail "could not find top-level version in $server_json"
-grep -Eq 'ghcr\.io/vitas/evidra-mcp:[0-9]+\.[0-9]+\.[0-9]+' "$server_json" \
-  || fail "could not find MCP image tag in $server_json"
 
 if ! grep -Fq '## Unreleased' "$changelog"; then
   tmp_file="$(mktemp)"
@@ -58,8 +52,6 @@ if ! grep -Fq '## Unreleased' "$changelog"; then
 fi
 
 perl -0pi -e 's/'"$version_symbol"' = "[0-9]+\.[0-9]+\.[0-9]+"/'"$version_symbol"' = "'"$version"'"/' "$version_go"
-perl -0pi -e 's/"version": "[0-9]+\.[0-9]+\.[0-9]+"/"version": "'"$version"'"/' "$server_json"
-perl -0pi -e 's#(ghcr\.io/vitas/evidra-mcp:)[0-9]+\.[0-9]+\.[0-9]+#${1}'"$version"'#' "$server_json"
 
 heading="## v$version — $today"
 if ! grep -Fq "$heading" "$changelog"; then
@@ -79,7 +71,3 @@ fi
 
 grep -Fq "$version_symbol = \"$version\"" "$version_go" \
   || fail "failed to update $version_go"
-grep -Fq "\"version\": \"$version\"" "$server_json" \
-  || fail "failed to update version in $server_json"
-grep -Fq "ghcr.io/vitas/evidra-mcp:$version" "$server_json" \
-  || fail "failed to update MCP image tag in $server_json"

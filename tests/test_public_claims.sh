@@ -28,4 +28,11 @@ if hits="$(grep -RInEi -- "$ui_forbidden" ui/src 2>/dev/null)"; then
   fail "UI source contains obsolete current-state product claims or variables"
 fi
 
+# Stale distribution metadata must not advertise a product that no longer exists.
+[[ ! -e server.json ]] || fail "stale MCP Registry manifest must not advertise the pre-vNext image"
+
+if grep -Fq "cd ui && npm install && npm run build" .goreleaser.yaml; then
+  fail "binary release must not build an unembedded marketing site"
+fi
+
 echo "PASS: test_public_claims"
