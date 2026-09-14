@@ -424,7 +424,14 @@ func (e *epEndpoint) writeUpstream(payload []byte) error {
 	if _, err := e.childW.Write(payload); err != nil {
 		return fmt.Errorf("endpoint: write upstream: %w", err)
 	}
-	return e.childW.Flush()
+	// A bufio.Writer can swallow the failure inside Write when the payload still fit
+	// the buffer and surface it at Flush instead, so the flush needs the same
+	// directional wrapping. Without it the caller sees a bare upstream error and
+	// cannot tell a write failure from the upstream answering badly.
+	if err := e.childW.Flush(); err != nil {
+		return fmt.Errorf("endpoint: write upstream: %w", err)
+	}
+	return nil
 }
 
 func (e *epEndpoint) writeClient(payload []byte) error {
@@ -433,7 +440,10 @@ func (e *epEndpoint) writeClient(payload []byte) error {
 	if _, err := e.client.Write(payload); err != nil {
 		return fmt.Errorf("endpoint: write client: %w", err)
 	}
-	return e.client.Flush()
+	if err := e.client.Flush(); err != nil {
+		return fmt.Errorf("endpoint: write client: %w", err)
+	}
+	return nil
 }
 
 // pumpClient reads the client's stdout-facing stream and routes each message.

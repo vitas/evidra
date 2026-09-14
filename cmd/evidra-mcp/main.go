@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -40,7 +39,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 
 	logger := log.New(stderr, "", log.LstdFlags)
-	if code, handled := proxyModes.dispatch(context.Background(), stderr, resolveEvidencePath(*evidenceFlag), *evidenceFlag, logger, fs.Args()); handled {
+	if code, handled := proxyModes.dispatch(context.Background(), stderr, *evidenceFlag, logger, fs.Args()); handled {
 		return code
 	}
 
@@ -58,7 +57,6 @@ func run(args []string, stdout, stderr io.Writer) int {
 // run() keeps a single dispatch statement.
 type proxyFlags struct {
 	wrap       *bool
-	legacy     *bool
 	serverName *string
 	advertise  *bool
 	enforce    *string
@@ -70,7 +68,6 @@ type proxyFlags struct {
 func registerProxyFlags(fs *flag.FlagSet) *proxyFlags {
 	return &proxyFlags{
 		wrap:       fs.Bool("proxy", false, "Merged endpoint: wrap one upstream MCP server and expose evidra_prescribe / evidra_report over its tools"),
-		legacy:     fs.Bool("legacy-proxy", false, "Pre-vNext relay: auto-record mutations with the legacy evidence writer (deprecated, slated for removal)"),
 		serverName: fs.String("server-name", "", "Label for the wrapped upstream in evidence and serverInfo"),
 		advertise:  fs.Bool("advertise-passthrough", false, "Advertise upstream prompts/resources/completions that are relayed but outside the supported profile"),
 		enforce:    fs.String("enforce", "all", "Protocol enforcement for the merged endpoint: all (default) or off (observe-only)"),
@@ -80,7 +77,7 @@ func registerProxyFlags(fs *flag.FlagSet) *proxyFlags {
 
 // dispatch routes to the requested wrapping mode, reporting whether one was
 // asked for at all.
-func (p *proxyFlags) dispatch(ctx context.Context, stderr io.Writer, evidencePath, evidenceRaw string, logger *log.Logger, args []string) (int, bool) {
+func (p *proxyFlags) dispatch(ctx context.Context, stderr io.Writer, evidenceRaw string, logger *log.Logger, args []string) (int, bool) {
 	switch {
 	case *p.wrap:
 		return runEndpointMode(ctx, stderr, logger, args, endpointFlags{
@@ -90,8 +87,6 @@ func (p *proxyFlags) dispatch(ctx context.Context, stderr io.Writer, evidencePat
 			enforce:        *p.enforce,
 			evidenceDir:    evidenceRaw,
 		}), true
-	case *p.legacy:
-		return runProxyMode(ctx, stderr, evidencePath, logger, args), true
 	default:
 		return 0, false
 	}
@@ -197,65 +192,6 @@ func normalizeProxyArgs(args []string) ([]string, error) {
 	return args, nil
 }
 
-func runProxyMode(ctx context.Context, stderr io.Writer, evidencePath string, logger *log.Logger, args []string) int {
-	remaining, err := normalizeProxyArgs(args)
-	if err != nil {
-		fmt.Fprintln(stderr, err)
-		return 1
-	}
-
-	evidenceWriter, err := proxy.NewEvidenceWriter(evidencePath)
-	if err != nil {
-		fmt.Fprintf(stderr, "proxy evidence: %v\n", err)
-		return 1
-	}
-	defer func() {
-		if closeErr := evidenceWriter.Close(); closeErr != nil {
-			logger.Printf("warning: close proxy evidence writer: %v", closeErr)
-		}
-	}()
-
-	p := &proxy.Proxy{
-		UpstreamCmd:  remaining[0],
-		UpstreamArgs: remaining[1:],
-		Evidence:     evidenceWriter,
-		Verbose:      envBool("EVIDRA_PROXY_VERBOSE", false),
-	}
-
-	logger.Printf("evidra-mcp proxy mode (upstream: %s, evidence: %s)", remaining[0], evidenceWriter.Dir())
-
-	if err := p.Run(ctx); err != nil {
-		fmt.Fprintf(stderr, "proxy: %v\n", err)
-		return 1
-	}
-	return 0
-}
-
-func resolveEvidencePath(explicit string) string {
-	if explicit != "" {
-		return explicit
-	}
-	if v := strings.TrimSpace(os.Getenv("EVIDRA_EVIDENCE_DIR")); v != "" {
-		return v
-	}
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return filepath.Join(os.TempDir(), ".evidra", "evidence")
-	}
-	return filepath.Join(home, ".evidra", "evidence")
-}
-
-func envBool(key string, fallback bool) bool {
-	v := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
-	switch v {
-	case "1", "true", "yes":
-		return true
-	case "0", "false", "no":
-		return false
-	}
-	return fallback
-}
-
 func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "evidra-mcp — MCP endpoint that records execution evidence for one upstream server.")
 	fmt.Fprintln(w)
@@ -280,12 +216,11 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, "  --advertise-passthrough  Advertise relayed prompts/resources/completions that are")
 	fmt.Fprintln(w, "                          outside the supported profile (default: not advertised)")
 	fmt.Fprintln(w, "  --max-message <size>     Largest single JSON-RPC message accepted (default 64MiB)")
-	fmt.Fprintln(w, "  --legacy-proxy           Pre-vNext relay with the legacy evidence writer")
-	fmt.Fprintln(w, "                          (deprecated; removal is scheduled by §43)")
 	fmt.Fprintln(w, "  --version                Print version and exit")
 	fmt.Fprintln(w, "  --help                   Show this help")
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "ENVIRONMENT:")
-	fmt.Fprintln(w, "  EVIDRA_EVIDENCE_DIR     Default for --evidence-dir")
-	fmt.Fprintln(w, "  EVIDRA_PROXY_VERBOSE    Verbose logging in the legacy relay only")
+	fmt.Fprintln(w, "There is no default evidence location for the endpoint: recording is chosen per")
+	fmt.Fprintln(w, "process with --evidence-dir, so a test or dogfood run cannot silently append to")
+	fmt.Fprintln(w, "a home directory nothing pointed at. The read side (evidra summarize, evidra")
+	fmt.Fprintln(w, "verify) does honour EVIDRA_EVIDENCE_DIR.")
 }

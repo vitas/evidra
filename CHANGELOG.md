@@ -17,6 +17,25 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — §43 step 5: the pre-vNext relay and `--legacy-proxy` are gone
+
+- Deleted `pkg/proxy/proxy.go` (the auto-recording relay, its mutation heuristics and
+  exit-code sniffing), `pkg/proxy/evidence.go` (the v1 evidence writer),
+  `pkg/proxy/detect.go` (`ClassifyCommand`, `ClassifyToolName`, `IsMutation`) and their
+  tests, plus `runProxyMode` and the `--legacy-proxy` flag. `pkg/proxy` is now the
+  merged endpoint and nothing else.
+- Help text and plumbing followed: no default evidence path exists any more for the
+  endpoint (recording stays per-process opt-in via `--evidence-dir`, while the read side
+  keeps honouring `EVIDRA_EVIDENCE_DIR`), and `resolveEvidencePath`/`envBool` were
+  deleted with their only callers.
+- Replaced the deleted relay's framing tests with `endpoint_write_test.go`, which caught
+  an attribution asymmetry in the endpoint: a write error surfaced at `Flush()` came back
+  bare while one caught at `Write()` was labelled with its direction, so a client-pipe
+  failure and an upstream failure were indistinguishable in the log. Both are wrapped now.
+- `docs/system-design/vnext-gate-b-results.md` and `vnext-prune-plan.md` were updated in
+  the same commit, because the Gate B checklist named tests that no longer exist and a
+  conformance table with dead test names is worse than no table.
+
 ### vNext experiment — §43 step 4: the legacy MCP server and its test harnesses go
 
 - Deleted `pkg/mcpserver` (with the embedded `run_command` / `collect_diagnostics` /

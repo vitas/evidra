@@ -29,7 +29,7 @@ about the wrapper, so it has to be measured on the wrapper.
 | cancellation used by tool flow | `TestCancelledExecutionIsRecordedAsCancelled` (both id spellings) | pass |
 | request-ID directionality / collision | `TestDirectionIDCollision` | pass |
 | >10 MB messages | `TestLargeResultPassesThroughAndIsFingerprintedWithinBounds` (20 MiB) | pass, **after a fix**; see below |
-| read / framing errors | `TestClientOversizeFrameRejectedStreamSurvives`, `TestWriteLine_PropagatesWriteErrors`, `TestWriteJSONLine_PropagatesWriterErrors` | pass |
+| read / framing errors | `TestClientOversizeFrameRejectedStreamSurvives`, `TestWriteClientPropagatesWriterError`, `TestWriteUpstreamPropagatesWriterError`, `TestWritersFlushExactlyOnceOnSuccess` | pass |
 | parallel upstream calls | `TestExecutionsPairByIdUnderParallelCalls` | pass |
 | unsupported capabilities advertised down / rejected clearly | `TestInitializeProfileAndInstructions`, `TestUpstreamServerRequestRelayedToClient` | pass |
 | reserved-name collision | `TestReservedToolNameCollisionRefusesToStart` | pass |
@@ -96,3 +96,12 @@ about the wrapper, so it has to be measured on the wrapper.
   real operational server for that reason.
 - HTTP/SSE transports, multi-upstream multiplexing, and generic gateway behaviour are
   out of scope by §44 and are not claimed.
+
+## Amended by §43 step 5 (relay deletion)
+
+The relay's framing tests (`TestWriteLine_*`, `TestWriteJSONLine_*`, the mutation-classifier
+tests) were deleted with the relay they covered. The endpoint's own write paths are now
+covered in `endpoint_write_test.go`, which found a real asymmetry on the way in: a write
+error surfaced at `Flush()` came back bare, while one caught at `Write()` was labelled
+with its direction — so a client-visible failure and an upstream-visible failure were not
+distinguishable in the log. Both are wrapped now.

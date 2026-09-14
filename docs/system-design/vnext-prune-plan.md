@@ -29,6 +29,22 @@ That is the exact failure mode §43 warns against. So the work here is to make t
 deletion one command list, executable the moment the gates are green, and to keep
 this branch honest about the fact that it has not been executed.
 
+## Execution status
+
+| Step | Scope | Commit |
+|---|---|---|
+| 1 | `cmd/evidra` trimmed to `summarize`, `verify`, `version` | `8351312` |
+| 2 | hosted chain: `cmd/evidra-api`, `internal/{api,apiutil,auth,db,store,analytics*,analyticsdb,analyticsvc,ingest,gitops,automationevent}`, `Dockerfile.api` | `cf7e2cb` |
+| 3 | `evidra-mcp` endpoint-only; 11 legacy flags gone | `318bcd5` |
+| 4 | `pkg/mcpserver`, `internal/{lifecycle,assessment,evidence,config,telemetry}`, `pkg/{mode,client}`, `tests/{inspector,e2e,contracts,testutil}` | `6c28a28` |
+| 5 | legacy relay: `pkg/proxy/{proxy,evidence,detect}.go` + tests, `--legacy-proxy`, `runProxyMode` | this commit |
+| 6 | v1 evidence shapes in `pkg/evidence`, `pkg/evlock`, `pkg/export`, `internal/{canon,assess,risk,score,detectors,signal,pipeline,sarif,promptfactory}` and their fixtures | pending |
+| 7 | documentation pass: `docs/ARCHITECTURE.md`, `CLAUDE.md`, README, `examples/kagent`, `tests/test_*.sh` doc guards | pending |
+
+`ui/` is retained by decision, not oversight: §43 removes its runtime coupling (done in
+step 2), and the sources are the asset earmarked for a later repo move that this branch
+is instructed not to perform.
+
 ## Inventory: what leaves the vNext product path
 
 Everything below is already outside the CI-supported set except where noted, so the
