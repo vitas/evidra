@@ -77,3 +77,8 @@ experiments/results/
 # Untracked on purpose; it was committed once by a blanket `git add -A` and
 # removed again in the next commit.
 /tmp/
+
+# Local scratch that a blanket `git add -A` once committed into history (54 tmp/ files, 5 examples/).
+# /tmp/ and /output/ were already ignored; examples/ was the gap. The history carrying those
+# blobs was scrubbed before the first push - see docs/system-design/vnext-history-scrub.md.
+/examples/
