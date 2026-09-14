@@ -699,7 +699,7 @@ func (e *epEndpoint) pumpUpstream(ctx context.Context) {
 				// only this message is lost; fail the request it belongs to
 				// rather than hanging the client.
 				e.logger.Printf("endpoint: upstream frame rejected: %v", err)
-				e.failAllOutstanding(err.Error())
+				e.failOutstanding(err.Error())
 				continue
 			}
 			e.logger.Printf("endpoint: upstream read: %v", err)
@@ -784,10 +784,6 @@ func (e *epEndpoint) routeUpstreamResponse(msg *epMsg) {
 	}
 }
 
-// annotationsFor returns the upstream-declared annotations for a tool as they
-// stood at the last tools/list. Absence is preserved on purpose: evidence that a
-// server declared nothing must not look like evidence that it declared read-only
-// (§22, §26).
 // lookupFwd finds an outstanding forwarded request from an id written by the
 // client. Ids are matched by value, and the cancel notification carries the id as
 // the client chose to spell it, so a numeric 7 and a string "7" both have to find
@@ -830,6 +826,10 @@ func epRequestIDField(params json.RawMessage, key string) string {
 	return buf.String()
 }
 
+// annotationsFor returns the upstream-declared annotations for a tool as they
+// stood at the last tools/list. Absence is preserved on purpose: evidence that a
+// server declared nothing must not look like evidence that it declared read-only
+// (§22, §26).
 func (e *epEndpoint) annotationsFor(tool string) json.RawMessage {
 	e.stateMu.Lock()
 	defer e.stateMu.Unlock()
@@ -917,8 +917,6 @@ func epClassifyResponse(raw json.RawMessage) (evidence.ExecutionStatus, string, 
 
 // failOutstanding answers every client request still waiting on the upstream so
 // a client never hangs when the child dies mid-call.
-func (e *epEndpoint) failAllOutstanding(reason string) { e.failOutstanding(reason) }
-
 func (e *epEndpoint) failOutstanding(reason string) {
 	e.stateMu.Lock()
 	ids := make([]string, 0, len(e.fwd))
