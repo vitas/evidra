@@ -17,6 +17,20 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext — the revised §45 bars cannot certify the run set that produced them
+
+- `docs/system-design/gate-a-results.md` adds the mechanical comparison of the official
+  80-run set against §45's revised bars — **every cell meets them** — and keeps
+  `gate_passed=false`, with the reason stated: bars chosen after seeing the data cannot
+  certify that data. §45 now says so explicitly in the plan.
+- §45 also fixes bar semantics when a cell is short of 16: comparison on counts with
+  `invalid_runs` reported beside the denominator, not on rates. Comparing rates would let a
+  cell that dropped its hardest runs outscore one that kept them, and dropping runs is
+  cheaper than passing them.
+- Without this, the natural reading of the revised bars plus the existing table was "Gate A
+  effectively passed" — which is the precise failure mode the revision was most exposed to,
+  introduced by me while arguing against a bar that blocked dead-code deletion.
+
 ### vNext — the reconciliation view, and the harness as a first-class product surface
 
 - `pkg/report` now emits `reconciliation_view` per operation: `declared` (the agent's own

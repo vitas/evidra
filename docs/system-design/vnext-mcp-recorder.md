@@ -2798,6 +2798,19 @@ and stays printed, and the claim "enforcement recovers a session" may not be mad
 Gate A until at least one run exists where a block actually happened. Removing an
 unmeasurable bar is not the same as winning it.
 
+**These bars bind the next run set, not the one that produced them.** The revised numbers
+are graded against the pre-revision gate in `gate-a-results.md` and remain
+`gate_passed=false`; they cannot also be the reason the gate passes. A threshold chosen
+after seeing data has no power to certify that data — otherwise any bar can be met by
+walking it down to the measurement, which is the failure mode this revision is most exposed
+to. Only a new 16-task set, run against these bars before its results are known, can pass.
+
+**Bar semantics when a cell is short of 16.** Bars are written as counts over 16 planned
+runs. If invalid runs reduce a cell's denominator, comparison is on the *count*, with
+`invalid_runs` reported beside it: `11/15` meets `>= 11/16`. Comparing rates instead
+(`11/15 = 73% >= 11/16 = 69%`) would let a cell that dropped its hardest runs look better
+than one that kept them, and dropping runs is cheaper than passing them.
+
 For recovery rate:
 
 ```text
