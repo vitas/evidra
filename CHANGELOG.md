@@ -17,6 +17,28 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — §43 step 1: the CLI is `summarize`, `verify`, `version`
+
+- `cmd/evidra` lost its pre-vNext command surface (16 files plus tests):
+  `scorecard`, `explain`, `compare`, `record`, `prescribe`, `report`, `import`,
+  `import-findings`, `prompts`, `detectors`, `export`, `keygen`, `skill`,
+  `validate`, and the helper/flag files that only they used. The binary now imports
+  exactly `pkg/evidence` (v2), `pkg/report` and `pkg/version`, which is what unblocks
+  deleting the hosted chain: `internal/store`, `internal/analytics`,
+  `internal/analyticsdb` and `internal/sarif` are no longer reachable from a shipped
+  vNext binary.
+- §41's thin-CLI claim is a test now, not a sentence: `orderedCommands` must equal
+  `{summarize, verify, version}`, each entry has a handler and a description, and the
+  usage output is parsed back and checked — a removed name may not reappear, and the
+  text must say which binary writes evidence, since the read side cannot record
+  anything itself.
+- Usage wording follows the code: "read side of the vNext MCP evidence recorder"
+  rather than the old marketing line, because the write path is `evidra-mcp --proxy`.
+- 11 user-facing docs that document removed commands got a retirement banner pointing
+  at §43 and the prune plan, instead of being deleted here: the documentation pass is
+  the last prune step, and deleting the description of a format before the code that
+  reads it is gone would leave the repo unable to explain evidence it can still verify.
+
 ### vNext experiment — Gate A bars revised from measurement, §43 unblocked by decision
 
 - §45's pass bars now state what the 80 runs produced (strong arm 11/15 task success,

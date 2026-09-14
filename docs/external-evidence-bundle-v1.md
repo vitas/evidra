@@ -1,5 +1,13 @@
 # External Evidence Bundle — v1
 
+
+> **Pre-vNext surface.** The commands and file formats described here belong to the
+> product path that §43 of
+> [`vnext-mcp-recorder.md`](system-design/vnext-mcp-recorder.md) removes from the
+> branch. They are kept for reference until the documentation pass at the end of the
+> prune rewrites them; they do not describe the current `evidra` binary, which is
+> `summarize`, `verify` and `version` only. See
+> [`vnext-prune-plan.md`](system-design/vnext-prune-plan.md).
 Spec: `evidra-external-bundle/v1`
 Status: stable contract. Additive changes only; breaking changes require a new spec id.
 
