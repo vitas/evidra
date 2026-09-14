@@ -41,7 +41,10 @@ claim, show it beside what was observed, let a reader decide.
 ## What ships
 
 One idea: an agent working through MCP leaves behind a signed account of what it actually
-did, which a human can reconcile afterwards without trusting the agent's own summary.
+did **through the wrapped MCP boundary**, which a human can reconcile afterwards without
+trusting the agent's own summary. The qualifier belongs in the headline: the recorder sees
+tool calls and results, not the state of the world those calls changed, and a reader should
+not have to reach §"Scope" twenty lines down to learn how far the account reaches.
 
 ```text
 agent  ──stdio──▶  evidra-mcp --proxy --evidence-dir DIR -- <upstream MCP server>  ──stdio──▶  upstream

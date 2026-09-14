@@ -76,7 +76,15 @@ worst of the three at closing its record (13/15) and did not beat either free ar
 task success (11/15). The cheap mimo-v2.5 was the only arm to pass its bar
 (14/16).
 
-**The failures that matter are false records.** Protocol-only misses:
+**The failures that matter are false records** — meaning, precisely, *claims the fixture
+predicate contradicts*. The oracle is in the harness: the runner knows what the fixture would
+have returned, so it can call a `completed/achieved` on a dropped operation wrong. Evidra
+itself can never say that. It records the claim beside the observations it actually has, and
+"unsupported" is a judgement a reader reaches from the two sitting together. The distinction
+is not pedantry — it is the whole scope limit of the product, and §43's terminology in the
+plan is written in the same experiment-relative sense.
+
+Protocol-only misses:
 
 | arm | miss | count |
 |---|---|---|
@@ -122,7 +130,8 @@ that from corrupting a cell.
 behavior. On this evidence that question is under-determined: nothing needed
 enforcing. The decision-relevant gate is C (does reconciliation of declared versus
 observed versus reported pay for itself), and Gate A already supplies its raw
-material - a set of real false records with matching observed executions.
+material — a set of experiment-relative false records (claims the fixture predicate
+contradicts) with matching observed executions.
 
 Suggested reordering of §59 without dropping anything: build the v2 store (step 4)
 and pairing (step 6) as planned, since reconciliation cannot be authoritative while

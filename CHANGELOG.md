@@ -17,6 +17,41 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext — repository consistency pass before push
+
+- **Pre-vNext normative specs deleted** rather than archived in place: seven
+  `docs/system-design/EVIDRA_*V1` documents (hosted architecture, core data model with
+  `CanonicalAction`/`prescribe_full`/`prescribe_smart`, REST ingest protocol, scoring model,
+  signal spec, prompt factory, end-to-end example), `system-design/scoring/default.v1.1.0.md`,
+  and both `docs/contracts/` V1 contracts. Each declared `Status: Normative` or `Active` for
+  subsystems this branch no longer contains, which made them a second competing spec rather
+  than history. Git keeps them.
+- **12 shell guards deleted** whose assertions were about the shape of those documents or of
+  already-pruned folders (`test_protocol_docs`, `test_split_prescribe_docs`, `test_mode_labels_docs`,
+  `test_scoring_rationale`, `test_hosted_architecture_docs`, `test_external_ingest_docs`,
+  `test_cli_command_rebranding`, `test_signal_validation_harness`, `test_no_legacy_benchmark_surface`,
+  `test_oss_dataset_corpus`, `test_acceptance_corpus_promotion`, `test_unified_artifact_layout`), plus `tests/tests-index.md`,
+  `tests/E2E_TESTING.md` and three orphaned SARIF fixtures. `test_governance_baseline` now
+  requires the guards covering claims still made publicly, and the surviving guards had their
+  executable bits restored — the `-x` check had been passing by selecting for the wrong property.
+- Dead inbound links rewritten to say what happened: README's spec list, `integrations/cli-reference`,
+  `guides/signal-validation`, `guides/terraform-ci-quickstart`.
+- `vnext-prune-plan.md` → **`vnext-prune-record.md`**: reframed as a record, execution table
+  closed through step 8 with commit hashes, and the stale claims ("ARCHITECTURE.md still
+  describes the pre-vNext product", two rows "pending") removed. Links updated tree-wide.
+- `docs/system-design/vnext-mcp-recorder.md` §43 now states the criterion the prune actually
+  ran under — new vertical path is the path being measured, plus green Gate B, decided
+  explicitly by a human — while Gate A's formal verdict stays `not passed` and Gate C governs
+  merge/product. The tree previously carried three incompatible versions of this.
+- Terminology boundary: "false record" in `gate-a-results.md` is qualified as *a claim the
+  fixture predicate contradicts* — the oracle belongs to the harness, and Evidra can never
+  assert falsity, only place a claim beside observations.
+- `docs/ARCHITECTURE.md`'s headline now reads "what it actually did **through the wrapped MCP
+  boundary**", so the scope limit is in the first sentence rather than twenty lines below it.
+- Known-red, not caused by this pass and left red deliberately: `test_bump_version_script`
+  expects a `## v0.4.7 — 2026-03-11` CHANGELOG heading that is absent on `main` too, and
+  `test_fixture_snapshot_names` objects to naming in files this branch does not touch.
+
 ### vNext — the revised §45 bars cannot certify the run set that produced them
 
 - `docs/system-design/gate-a-results.md` adds the mechanical comparison of the official
@@ -217,7 +252,7 @@
   an attribution asymmetry in the endpoint: a write error surfaced at `Flush()` came back
   bare while one caught at `Write()` was labelled with its direction, so a client-pipe
   failure and an upstream failure were indistinguishable in the log. Both are wrapped now.
-- `docs/system-design/vnext-gate-b-results.md` and `vnext-prune-plan.md` were updated in
+- `docs/system-design/vnext-gate-b-results.md` and `vnext-prune-record.md` were updated in
   the same commit, because the Gate B checklist named tests that no longer exist and a
   conformance table with dead test names is worse than no table.
 
@@ -316,13 +351,13 @@
 - §43's precondition is now Gate A + Gate B; Gate C (§47) decides merge/no-merge, not
   whether dead code stays in the branch, and §47 states that the reader must not be the
   person who produced the summary.
-- `vnext-prune-plan.md` gains the correction found while starting deletions:
+- `vnext-prune-record.md` gains the correction found while starting deletions:
   `cmd/evidra` imports `internal/store`/`analytics`/`analyticsdb`/`sarif`, so the legacy
   CLI trim must come before the hosted chain can be deleted.
 
 ### vNext experiment — §43 prune: written as a plan, deliberately not executed
 
-- `docs/system-design/vnext-prune-plan.md` is the deletion-ready inventory for §43:
+- `docs/system-design/vnext-prune-record.md` is the deletion-ready inventory for §43:
   every removal item mapped to the packages and files that implement it, the vNext
   surface that must survive, and a five-step order that keeps CI green at each commit
   (leaves first, then the analysis chain, then `pkg/mcpserver`, then the legacy relay
