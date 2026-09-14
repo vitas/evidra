@@ -731,8 +731,8 @@ func writeSummary(dir string, arms []armSpec, tasks []taskSpec, runs []runResult
 	violations := checkRunInvariants(runs, cells, byCell)
 	summary := map[string]any{
 		"generated_at":                 time.Now().UTC().Format(time.RFC3339),
-		"plan":                         "docs/system-design/vnext-mcp-recorder.md §10",
-		"task_set":                     "docs/system-design/gate-a-tasks.md",
+		"plan":                         "docs/validation.md#gate-a-protocol-adoption",
+		"task_set":                     "cmd/evidra-gatea/tasks.json",
 		"arms":                         arms,
 		"tasks":                        len(tasks),
 		"runs_planned_per_cell":        o.runs,

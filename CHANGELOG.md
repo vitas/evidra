@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+Historical entries may reference paths that are no longer present in the working
+tree. Those files remain available in the tag or revision that introduced the
+entry and in Git history.
+
 ### vNext experiment — step 3a: protocol enforcement (branch `vnext/mcp-recorder`)
 
 - `--enforce=all` (default) implements the single rule of §7: with no open operation an upstream `tools/call` is not forwarded, is noted as a `protocol_violation`, and the agent gets a tool result — not a transport error — containing `no_open_operation`, the tool it tried, and the instruction to prescribe and retry. Declared read-only tools are blocked by the same rule; annotations stay reporting data.

@@ -28,9 +28,9 @@ func lookupCommand(name string) (commandSpec, bool) {
 
 // orderedCommands is the entire CLI surface by design (§41): two commands plus
 // version. Enforcement is not in this binary — it lives in the `evidra-mcp --proxy`
-// endpoint, and the CLI only reads what that endpoint recorded. The commands that used
-// to be listed here belonged to the pre-vNext product path and were removed per §43;
-// `docs/system-design/vnext-prune-record.md` records what went and in which order.
+// endpoint, and the CLI only reads what that endpoint recorded. Commands outside this
+// set are not part of the current product; docs/cli-reference.md is the canonical public
+// command inventory.
 var orderedCommands = []commandSpec{
 	{name: "summarize", description: "Reconcile vNext MCP evidence: declared vs observed vs reported", run: cmdSummarize},
 	{name: "verify", description: "Verify vNext evidence chains, signatures and coverage per recorder", run: cmdVerifyChain},

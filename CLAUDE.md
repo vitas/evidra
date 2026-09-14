@@ -8,15 +8,11 @@ upstream MCP server, merges two local tools into its tool list, enforces protoco
 writes a signed evidence chain that a human reconciles afterwards.
 
 **Read before changing behaviour:**
-[`docs/system-design/vnext-mcp-recorder.md`](docs/system-design/vnext-mcp-recorder.md) is the
-plan, cited by section number (§7, §13–§24, §34, §38, §41–§47, §59).
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) is the map;
-[`docs/system-design/vnext-prune-record.md`](docs/system-design/vnext-prune-record.md) records
-what was deleted and why.
-[`docs/system-design/vnext-experiment-harness.md`](docs/system-design/vnext-experiment-harness.md)
-states the invariants the measurement harness is built around.
-[`docs/system-design/vnext-history-scrub.md`](docs/system-design/vnext-history-scrub.md) records
-the pre-push history rewrite, so an old hash cited in an older document can be resolved.
+[`docs/architecture.md`](docs/architecture.md) defines the runtime boundaries;
+[`docs/evidence-format.md`](docs/evidence-format.md) defines the event and trust model; and
+[`docs/validation.md`](docs/validation.md) records what has and has not been measured. The
+approved public-cleanup design and implementation plan remain under `docs/plans/` while this
+work is active.
 
 ## Build & Test
 
@@ -59,10 +55,8 @@ which is the mechanism that once put 53 JPGs into this repository's history.
 
 - **Always ask before pushing.** Nothing leaves this branch without the user.
 - Sign every commit: `git commit -s` (DCO `Signed-off-by`).
-- No history rewrites, no force-pushes, do not touch `main`. One exception was granted and
-  executed: the pre-push `tmp/`/`examples/` scrub of this never-pushed branch, documented with
-  its checks in `docs/system-design/vnext-history-scrub.md`. The rule stands; that was a single
-  instruction, not a precedent for rewriting shared history.
+- No history rewrites, no force-pushes, do not touch `main`. A past, explicitly authorized
+  cleanup is not a precedent for rewriting shared history.
 - Stage by path. A blanket `git add -A` once swept untracked scratch into history here;
   `/output/` and `/tmp/` are gitignored because recorder directories hold ephemeral signing
   and digest keys that must not reach history.
@@ -79,9 +73,8 @@ which is the mechanism that once put 53 JPGs into this repository's history.
 - `pkg/report/` — reconciliation into `summary.json`.
 - `cmd/evidra-gatea/`, `cmd/evidra-fixture/` — the measurement harness. Not shipped product,
   but **not disposable test code either**: it produces the evidence the product claim rests
-  on, so it obeys `docs/system-design/vnext-experiment-harness.md` (build provenance,
-  analytics invariants, regrade-don't-hand-read). Arm definitions live in
-  `cmd/evidra-gatea/arms.json`.
+  on, so it follows the provenance, analytics-invariant and regrade discipline summarized in
+  `docs/validation.md`. Arm definitions live in `cmd/evidra-gatea/arms.json`.
 - `ui/` — retained for a future relocation; nothing in the vNext path imports or serves it.
 
 ## Rules the implementation exists to keep

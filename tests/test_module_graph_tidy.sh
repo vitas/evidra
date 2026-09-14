@@ -6,8 +6,8 @@ cd "$ROOT_DIR"
 
 # Is go.mod the tidy form of the code that is actually here?
 #
-# This went unguarded through the whole §43 prune. `make tidy` existed, docs/ARCHITECTURE.md named
-# `modelcontextprotocol/go-sdk` as a dependency, and go.mod still required go-sdk, jsonschema-go,
+# This went unguarded during an earlier package prune. `make tidy` existed, the architecture
+# documentation named `modelcontextprotocol/go-sdk` as a dependency, and go.mod still required go-sdk, jsonschema-go,
 # terraform-json, yaml, protobuf and five otel modules - none of which any surviving file imports.
 # The consequence was not untidiness, it was misinformation: dependabot opened bumps against those
 # packages, they merged green, and each looked like a change to the shipped binary that the shipped

@@ -10,14 +10,14 @@ const PIPELINE_CHART = `flowchart LR
   B & D --> E[("Evidence<br/>Chain")]
   F["Optional external<br/>assessment"] --> E
   E --> G["Signal Detectors<br/>8 behavioral signals"]
-  G --> H["Scoring Engine"]
-  H --> I["Scorecard<br/>0-100 + Band"]`;
+  G --> H["Reconciliation"]
+  H --> I["Declared · Observed · Reported"]`;
 
 const SYSTEM_CHART = `flowchart TB
   subgraph Agent ["AI Agent"]
     LLM["Agent · LLM"]
   end
-  subgraph MCP ["evidra-mcp (DevOps MCP Server)"]
+  subgraph MCP ["evidra-mcp (MCP evidence wrapper)"]
     RC["run_command<br/>kubectl · helm · terraform"]
     CD["collect_diagnostics<br/>one-call workload diagnosis"]
     PS["prescribe_smart · report<br/>explicit control"]
@@ -30,7 +30,7 @@ const SYSTEM_CHART = `flowchart TB
   end
   subgraph Intelligence ["Intelligence"]
     Signals["8 Signal Detectors"]
-    Scoring["Scoring 0-100"]
+    Scoring["Reconciliation summary"]
   end
   subgraph Storage ["Storage"]
     DB[("PostgreSQL")]
@@ -70,8 +70,8 @@ export const SEQUENCE_CHART = `sequenceDiagram
   Note over Intel: Post-hoc analysis
   Intel->>Store: read evidence sequence
   Intel->>Intel: detect signals (retry_loop, blast_radius, ...)
-  Intel->>Intel: score: 100 × (1 - weighted penalties)
-  Intel-->>Agent: scorecard (0-100) + band`;
+  Intel->>Intel: reconcile declared / observed / reported
+  Intel-->>Agent: evidence summary`;
 
 const INSTALL_BINARY = `# Download latest release (Linux/macOS)
 curl -fsSL https://github.com/samebits/evidra/releases/latest/download/evidra_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz \\
@@ -80,8 +80,8 @@ curl -fsSL https://github.com/samebits/evidra/releases/latest/download/evidra_$(
 # Run your first observation
 evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml
 
-# View the scorecard
-evidra scorecard`;
+# Read the evidence
+evidra summarize --dir ./evidence`;
 
 const INSTALL_BREW = `# Install via Homebrew
 brew install samebits/tap/evidra
@@ -89,8 +89,8 @@ brew install samebits/tap/evidra
 # Run your first observation
 evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml
 
-# View the scorecard
-evidra scorecard`;
+# Read the evidence
+evidra summarize --dir ./evidence`;
 
 const INSTALL_SELFHOST = `# Download docker-compose.yml
 curl -O https://raw.githubusercontent.com/vitas/evidra/main/docker-compose.yml
@@ -131,17 +131,15 @@ const FEATURES = [
   { icon: "\u25CE", title: "Prescribe", desc: "Register intent before execution or reconciliation. Record declared intent, artifact digest, and optional external canonical_action or assessment enrichment." },
   { icon: "\u25A4", title: "Report", desc: "Record the terminal outcome \u2014 success, failure, reconcile completion, or an explicit refusal with structured context. Every prescribe gets exactly one report. No silent gaps." },
   { icon: "\u2605", title: "Evidence", desc: "Signed, timestamped, hash-chained. The evidence chain is append-only and tamper-evident. Cryptographically verifiable by anyone, editable by no one." },
-  { icon: "\u21C4", title: "Detect", desc: "The protocol structure makes behavioral patterns visible: agents stuck in retry loops, broken prescribe/report pairs, high-impact deletions, and reconcile failures. Reliability scorecards across actors, sessions, and time." },
+  { icon: "\u21C4", title: "Reconcile", desc: "The protocol structure keeps agent declarations, proxy observations, and terminal reports separate for review." },
 ];
 
 const GUIDES = [
-  { tag: "AI Agents", title: "MCP Setup", desc: "Connect Claude Code, Cursor, Codex, Gemini, or any MCP agent to the prescribe/report protocol.", href: "https://github.com/vitas/evidra/blob/main/docs/guides/mcp-setup.md" },
-  { tag: "AI Agents", title: "Skill Setup", desc: "Install the Evidra skill \u2014 agents with the skill achieve 100% protocol compliance for infrastructure mutations.", href: "https://github.com/vitas/evidra/blob/main/docs/guides/skill-setup.md" },
-  { tag: "GitOps", title: "Argo CD Integration", desc: "Controller-first GitOps evidence for zero-touch reconciliation and explicit traceability via evidra.cc/* annotations.", href: "https://github.com/vitas/evidra/blob/main/docs/guides/argocd-gitops-integration.md" },
-  { tag: "Hosted", title: "ArgoCD / generic webhooks", desc: "Translate controller and generic webhook events into prescribe/report evidence with decision_context support for deliberate refusals.", href: "https://github.com/vitas/evidra/blob/main/docs/guides/self-hosted-setup.md" },
-  { tag: "Platform", title: "Self-Hosted Setup", desc: "Centralize evidence across agents, pipelines, and controllers. Compare reliability fleet-wide.", href: "https://github.com/vitas/evidra/blob/main/docs/guides/self-hosted-setup.md" },
-  { tag: "CI / CD", title: "Pipeline Setup", desc: "Add prescribe/report to your CI pipeline. Record intent before deploy, outcome after. The same protocol works for workflow jobs and deploy runs.", href: "https://github.com/vitas/evidra/blob/main/docs/guides/terraform-ci-quickstart.md" },
-  { tag: "Observability", title: "Metrics Export", desc: "Export signals and scores to Grafana, Datadog, or any OTLP-compatible backend.", href: "https://github.com/vitas/evidra/blob/main/docs/guides/observability-quickstart.md" },
+  { tag: "Start", title: "Getting Started", desc: "Build the binaries, wrap the included fixture, and complete one operation.", href: "https://github.com/vitas/evidra/blob/main/docs/getting-started.md" },
+  { tag: "Reference", title: "CLI Reference", desc: "Review the current commands, flags, environment variables, and exit behavior.", href: "https://github.com/vitas/evidra/blob/main/docs/cli-reference.md" },
+  { tag: "Design", title: "Architecture", desc: "Understand the runtime topology, operation state, ordering, and failure contracts.", href: "https://github.com/vitas/evidra/blob/main/docs/architecture.md" },
+  { tag: "Trust", title: "Evidence Format", desc: "Inspect the event schema, signatures, fingerprints, coverage, and limitations.", href: "https://github.com/vitas/evidra/blob/main/docs/evidence-format.md" },
+  { tag: "Evidence", title: "Validation Status", desc: "See what has been measured and what remains unproven.", href: "https://github.com/vitas/evidra/blob/main/docs/validation.md" },
 ];
 
 type EditorTab = "claude-code" | "json-config" | "codex" | "gemini";
@@ -522,7 +520,7 @@ function GettingStarted() {
         {tab === "selfhost" && (
           <p className="text-[0.85rem] text-fg-muted mt-4">
             Self-hosted centralizes evidence across agents, pipelines, and controllers. Run the Argo CD controller integration, ingest webhook evidence, and compare reliability fleet-wide.{" "}
-            <a href="https://github.com/vitas/evidra/blob/main/docs/guides/self-hosted-setup.md" target="_blank" rel="noopener" className="font-semibold">Status guide &rarr;</a>
+            <a href="https://github.com/vitas/evidra/blob/main/docs/validation.md" target="_blank" rel="noopener" className="font-semibold">Validation status &rarr;</a>
           </p>
         )}
       </Container>
@@ -586,7 +584,7 @@ function McpSetup() {
             <CodeBlock code="evidra skill install" />
             <p className="text-[0.83rem] text-fg-muted mt-2">
               The MCP server gives agents the tools. The skill teaches them <em>when</em> and <em>how</em> to use them &mdash; achieving 100% protocol compliance.{" "}
-              <a href="https://github.com/vitas/evidra/blob/main/docs/guides/skill-setup.md" target="_blank" rel="noopener" className="font-semibold">Skill Setup Guide &rarr;</a>
+              <a href="https://github.com/vitas/evidra/blob/main/docs/getting-started.md" target="_blank" rel="noopener" className="font-semibold">Getting started &rarr;</a>
             </p>
           </div>
         )}
@@ -621,7 +619,7 @@ function McpSetup() {
 
         <p className="text-[0.85rem] text-fg-muted mt-6">
           Full setup guide with agent instructions, configuration options, and troubleshooting:{" "}
-          <a href="https://github.com/vitas/evidra/blob/main/docs/guides/mcp-setup.md" target="_blank" rel="noopener" className="font-semibold">MCP Setup Guide &rarr;</a>
+          <a href="https://github.com/vitas/evidra/blob/main/docs/getting-started.md" target="_blank" rel="noopener" className="font-semibold">Getting started &rarr;</a>
         </p>
       </Container>
     </section>
@@ -638,7 +636,7 @@ function ApiReference() {
         <a href="/docs/api" className="flex items-center justify-between glass-card p-6 px-8 no-underline">
           <div>
             <h3 className="text-base text-fg mb-1">Interactive API Documentation</h3>
-            <p className="text-[0.85rem] text-fg-muted">Explore all endpoints with request/response schemas, authentication details, examples, Argo CD webhook payloads, and hosted scorecard/explain analytics contracts.</p>
+            <p className="text-[0.85rem] text-fg-muted">Review the current CLI, evidence, and trust contracts in the repository documentation.</p>
           </div>
           <div className="font-mono text-[0.8rem] text-accent font-medium whitespace-nowrap">/docs/api &rarr;</div>
         </a>

@@ -22,12 +22,18 @@ grep -Fq "Requires Go ${go_floor}+." CONTRIBUTING.md \
 grep -Fq "| 0.4.x | Yes |" SECURITY.md \
   || fail "SECURITY.md should list the maintained 0.4.x release line"
 
-for file in README.md SECURITY.md docs/integrations/cli-reference.md; do
+for file in README.md docs/cli-reference.md; do
   grep -Fq "Evidra does not sandbox the wrapped command" "$file" \
-    || fail "$file should document the run command execution boundary"
+    || fail "$file should document the upstream execution boundary"
 done
 
-grep -Fq "same trust model as direct shell execution" docs/integrations/cli-reference.md \
-  || fail "CLI reference should explain the trust boundary for run"
+grep -Fq "Chain validity, signature validity, and evidence coverage are" docs/cli-reference.md \
+  || fail "CLI reference should keep integrity and coverage conclusions separate"
+
+grep -Fq "A successful upstream response is not proof of the" docs/cli-reference.md \
+  || fail "CLI reference should not upgrade an MCP response into outcome proof"
+
+grep -Fq "These are separate conclusions." docs/evidence-format.md \
+  || fail "evidence trust model should distinguish chain, signature, and coverage"
 
 echo "PASS: test_doc_trust_alignment"

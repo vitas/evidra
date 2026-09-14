@@ -67,7 +67,7 @@ Authorization = "${authHeader}"`;
 
     const envBlock = {
       EVIDRA_EVIDENCE_DIR: "~/.evidra/evidence",
-      EVIDRA_ENVIRONMENT: "production",
+      EVIDRA_ACTOR_ID: "local-operator",
       EVIDRA_URL: selfHostedUrl,
       EVIDRA_API_KEY: apiKey,
       EVIDRA_FALLBACK: "offline",
@@ -81,7 +81,7 @@ args = ["--signing-mode", "optional"]
 
 [mcp_servers.evidra.env]
 EVIDRA_EVIDENCE_DIR = "~/.evidra/evidence"
-EVIDRA_ENVIRONMENT = "production"
+EVIDRA_ACTOR_ID = "local-operator"
 EVIDRA_URL = "${selfHostedUrl}"
 EVIDRA_API_KEY = "${apiKey}"
 EVIDRA_FALLBACK = "offline"`;
@@ -113,7 +113,7 @@ EVIDRA_FALLBACK = "offline"`;
 
   const localEnv = {
     EVIDRA_EVIDENCE_DIR: "~/.evidra/evidence",
-    EVIDRA_ENVIRONMENT: "development",
+    EVIDRA_ACTOR_ID: "local-operator",
   };
 
   if (editor === "codex") {
@@ -124,7 +124,7 @@ args = ["--signing-mode", "optional"]
 
 [mcp_servers.evidra.env]
 EVIDRA_EVIDENCE_DIR = "~/.evidra/evidence"
-EVIDRA_ENVIRONMENT = "development"`;
+EVIDRA_ACTOR_ID = "local-operator"`;
   }
 
   const localObj = {
@@ -456,7 +456,7 @@ export function Onboarding() {
               )}
               {configMode === "local" && (
                 <div className="mb-4 px-4 py-3 bg-[var(--color-code-bg)] border border-border rounded-lg text-[0.82rem] text-fg-muted leading-relaxed">
-                  Evidence is stored locally in <code className="text-[0.78rem] text-fg">~/.evidra/evidence</code>. Requires <code className="text-[0.78rem] text-fg">evidra-mcp</code> binary installed locally. No API connection required. Use <code className="text-[0.78rem] text-fg">evidra scorecard</code> to analyze locally.
+                  Evidence is stored locally in <code className="text-[0.78rem] text-fg">~/.evidra/evidence</code>. Requires <code className="text-[0.78rem] text-fg">evidra-mcp</code> binary installed locally. No API connection required. Use <code className="text-[0.78rem] text-fg">evidra summarize --dir ~/.evidra/evidence</code> to inspect it.
                 </div>
               )}
 
@@ -506,16 +506,16 @@ export function Onboarding() {
                         <td className="px-4 py-2 text-fg-muted font-sans">Local evidence storage path</td>
                       </tr>
                       <tr className="border-b border-border-subtle">
-                        <td className="px-4 py-2 text-fg"><code>--environment</code></td>
-                        <td className="px-4 py-2 text-fg-muted"><code>EVIDRA_ENVIRONMENT</code></td>
+                        <td className="px-4 py-2 text-fg"><code>--actor-id</code></td>
+                        <td className="px-4 py-2 text-fg-muted"><code>EVIDRA_ACTOR_ID</code></td>
                         <td className="px-4 py-2 text-fg-muted/60">(none)</td>
-                        <td className="px-4 py-2 text-fg-muted font-sans">Label: production, staging, development</td>
+                        <td className="px-4 py-2 text-fg-muted font-sans">Accountable actor label</td>
                       </tr>
                       <tr className="border-b border-border-subtle">
-                        <td className="px-4 py-2 text-fg"><code>--signing-mode</code></td>
-                        <td className="px-4 py-2 text-fg-muted"><code>EVIDRA_SIGNING_MODE</code></td>
-                        <td className="px-4 py-2 text-fg-muted/60">strict</td>
-                        <td className="px-4 py-2 text-fg-muted font-sans">strict or optional (use optional for dev)</td>
+                        <td className="px-4 py-2 text-fg"><code>--max-message</code></td>
+                        <td className="px-4 py-2 text-fg-muted">&mdash;</td>
+                        <td className="px-4 py-2 text-fg-muted/60">64MiB</td>
+                        <td className="px-4 py-2 text-fg-muted font-sans">Largest accepted JSON-RPC frame</td>
                       </tr>
                       <tr className="border-b border-border-subtle">
                         <td className="px-4 py-2 text-fg"><code>--url</code></td>
@@ -542,10 +542,10 @@ export function Onboarding() {
                         <td className="px-4 py-2 text-fg-muted font-sans">Enable retry loop signal detection</td>
                       </tr>
                       <tr>
-                        <td className="px-4 py-2 text-fg">&mdash;</td>
-                        <td className="px-4 py-2 text-fg-muted"><code>EVIDRA_SIGNING_KEY</code></td>
-                        <td className="px-4 py-2 text-fg-muted/60">(none)</td>
-                        <td className="px-4 py-2 text-fg-muted font-sans">Base64 Ed25519 private key (or use EVIDRA_SIGNING_KEY_PATH)</td>
+                        <td className="px-4 py-2 text-fg"><code>--advertise-passthrough</code></td>
+                        <td className="px-4 py-2 text-fg-muted">&mdash;</td>
+                        <td className="px-4 py-2 text-fg-muted/60">false</td>
+                        <td className="px-4 py-2 text-fg-muted font-sans">Advertise relayed capabilities outside the tested profile</td>
                       </tr>
                     </tbody>
                   </table>
@@ -576,7 +576,7 @@ export function Onboarding() {
                     Open Dashboard
                   </button>
                   <a
-                    href="https://github.com/vitas/evidra/blob/main/docs/guides/mcp-setup.md"
+                    href="https://github.com/vitas/evidra/blob/main/docs/getting-started.md"
                     target="_blank"
                     rel="noopener"
                     className="px-4 py-3 rounded-lg text-[0.84rem] font-semibold bg-transparent border border-border text-fg-muted transition-all hover:border-accent hover:text-fg no-underline text-center"

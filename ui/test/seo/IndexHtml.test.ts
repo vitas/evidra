@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 const TITLE = "Evidra — AI Infra Agent Evidence and Benchmarks";
 const DESCRIPTION =
-  "Evidra Bench is open source external regression testing for infrastructure agents and MCP tools, backed by evidence chains, behavioral signals, reliability scorecards, and benchmark reports.";
+  "Evidra is an open-source MCP execution-evidence recorder that keeps agent declarations, proxy observations, and reports separate.";
 const KEYWORDS =
   "AI infrastructure agents, MCP evidence, infrastructure agent benchmarks, MCP regression testing, agent behavior reports, readiness reports, AI SRE benchmarks, evidence recorder";
 
@@ -18,7 +18,7 @@ function metaContent(doc: Document, selector: string) {
 }
 
 describe("index.html SEO metadata", () => {
-  it("reflects the Bench-first root positioning", () => {
+  it("reflects the current root metadata", () => {
     const doc = loadDocument();
 
     expect(doc.title).toBe(TITLE);

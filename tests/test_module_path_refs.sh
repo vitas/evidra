@@ -19,10 +19,10 @@ fi
 grep -Eq '^module samebits.com/evidra$' go.mod \
   || fail "go.mod missing module samebits.com/evidra"
 
-grep -Fq 'samebits.com/evidra/cmd/evidra-mcp@latest' docs/guides/mcp-setup.md \
-  || fail "mcp-setup missing new go install path"
+grep -Fq '"samebits.com/evidra/pkg/proxy"' cmd/evidra-mcp/main.go \
+  || fail "evidra-mcp should import proxy from the current module"
 
-grep -Fq 'samebits.com/evidra/cmd/evidra-mcp@latest' ui/src/pages/Landing.tsx \
-  || fail "landing page missing new go install path"
+grep -Fq 'main: ./cmd/evidra-mcp' .goreleaser.yaml \
+  || fail "release configuration should build the current evidra-mcp command"
 
 echo "PASS: test_module_path_refs"
