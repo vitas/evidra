@@ -73,6 +73,15 @@
   expects a `## v0.4.7 — 2026-03-11` CHANGELOG heading that is absent on `main` too, and
   `test_fixture_snapshot_names` objects to naming in files this branch does not touch.
 
+
+- Follow-up sweep of the same seam: the prune record still carried future-imperative voice
+  ("what leaves the path"; "Delete the v1 evidence shapes … then rewrite
+  `docs/ARCHITECTURE.md`, which still describes the pre-vNext product") and a duplicated,
+  superseded account of §43's precondition. Both are past tense now, with the commit hashes
+  that closed each step, and the §43 story is told once.
+- The implementation report no longer states a commit count at all: it had gone stale three
+  times while being maintained (41 → 47 → 49), so the number is replaced by
+  `git rev-list --count main..HEAD`, with the lesson written next to it.
 ### vNext — the revised §45 bars cannot certify the run set that produced them
 
 - `docs/system-design/gate-a-results.md` adds the mechanical comparison of the official

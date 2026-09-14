@@ -20,7 +20,9 @@ was revised during execution, and the revision is the honest part of this record
 - **Gate C governs the merge/product decision, not the deletion** (`vnext-gate-c-reconciliation-probe.md`,
   not passed). Deletion was never the milestone §43 warned about; it is bookkeeping.
 
-This document is therefore a **record**. The inventory below is what left the branch, in
+This document is therefore a **record**: the ordering, the inventory and the step list
+below are written in the tense of things that happened, and where a step is genuinely still
+open it says so. The inventory below is what left the branch, in
 which commit, and what each removal made impossible to confuse. Nothing here is a to-do.
 
 ## Execution status
@@ -44,7 +46,7 @@ and the full README rewrite, both waiting on Gate C rather than on effort.
 step 2), and the sources are the asset earmarked for a later repo move that this branch
 is instructed not to perform.
 
-## Inventory: what leaves the vNext product path
+## Inventory: what left the vNext product path
 
 Everything below is already outside the CI-supported set except where noted, so the
 prune is mostly `git rm` plus removing exclusions from `.github/workflows/ci-vnext.yml`
@@ -82,7 +84,7 @@ vNext path emits metrics.
 - `.github/workflows/ci-vnext.yml`, with the exclusion regex rewritten so the
   supported set becomes "everything that is left" rather than a list of exemptions.
 
-## Order that keeps CI green on every commit
+## The commit order that was used, and why it kept CI green at every step
 
 1. Delete the unreachable hosted leaf packages (`internal/api`, `internal/db`,
    `internal/auth`, `internal/store`, `internal/analytics*`, `cmd/evidra-api`, `ui/`),
@@ -109,11 +111,17 @@ not move.
 
 ## What unblocked it, and one correction to the order above
 
-The plan's bars were revised from measurement (§45) and §43's precondition was rewritten
-to Gate A + Gate B, with Gate C governing merge/no-merge rather than deletion (§43, §47).
-That decision was taken explicitly by the human directing this work, not inferred from
-convenience, and §43 still forbids using deletion as a milestone: the deletion is
-allowed, not obligatory.
+The precondition was revised twice during execution — see "Ordering" above for the same
+story in one paragraph — and the final rule, now written into §43 itself, is: **the new vertical path is
+the path being measured, and Gate B is green.** Not "Gate A is green" — Gate A's formal
+verdict on the official set is and stays `gate_passed=false`, because §45's revised bars
+were chosen from that same data and cannot certify it. Gate C governs merge and product,
+never deletion (§47).
+
+The decision to prune under that criterion was taken explicitly by the human directing this
+work, not inferred from convenience, and §43 still forbids using deletion as a milestone:
+deletion was allowed, not obligatory, and each step's commit message says what the removal
+made impossible to confuse.
 
 One dependency changes the step order written above. `cmd/evidra` — which must survive as
 `summarize|verify|version` — currently imports `internal/store`, `internal/analytics`,
@@ -137,7 +145,8 @@ of `cmd/evidra` **before** the hosted chain can be deleted, not after:
    material today, so the choice is "re-adding" rather than "deleting".
 7. Delete the v1 evidence shapes (`pkg/evidence/entry.go`, `internal/evidence`,
    `pkg/evlock`, `internal/lifecycle`) once nothing imports them, then rewrite
-   `docs/ARCHITECTURE.md`, which still describes the pre-vNext product.
+   `docs/ARCHITECTURE.md`. Done in `3fadc59` and `bce335f`: `pkg/evidence` is v2-only and
+   the architecture and agent-guidance documents describe the shipped system.
 
 Each step ends with `go build ./...`, `go test -count=1 ./...`,
 `go test -race ./pkg/evidence/... ./pkg/proxy/... ./cmd/evidra-fixture`,
