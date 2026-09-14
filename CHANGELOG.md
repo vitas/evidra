@@ -17,6 +17,23 @@
 - Direction-safe bookkeeping per §28: requests, notifications and responses are classified by method+id shape, per-direction pending tables make a client request id and an upstream server-to-client request id collide harmlessly, and pending client requests are answered with an explicit error when the upstream dies instead of hanging. Framing rejects oversized frames with the session intact.
 - §11 and §32 behavior is live in memory: one open operation per process, `operation_already_open` with `continue_current` / `abandon_and_replace`, `operation_id_mismatch`, `no_open_operation`, and an idempotent `already_reported` for a duplicate close. Durable evidence lands with the v2 store in step 4 behind a narrow recorder seam.
 - 10 endpoint conformance tests in `pkg/proxy/endpoint_test.go` drive the real fixture and the real CLI as child processes, including the direct-vs-wrapped list equivalence that is step 2's exit criterion.
+### vNext experiment — §43 step 6: the analysis engine, prompt contracts and export layer are deleted
+
+- Gone: `internal/{canon,assess,risk,score,detectors,signal,pipeline,sarif,promptfactory}`,
+  `pkg/export` (the anonymized evidence bundle), `pkg/execcontract`, the `prompts/`
+  contract tree it embedded, and their suites (`tests/canon_fixtures`,
+  `tests/signal-validation`, `tests/artifacts`). Makefile loses
+  `canon-fixtures-update`, `prompts-generate`, `prompts-verify`, `test-signals`.
+- §43's remaining lines are all here under different names: risk, score,
+  canonicalization, detectors, behavioral signal engine, SARIF input, prompt generation.
+  What is left of the module is 12 packages: the endpoint, the v2 store, the
+  reconciler, the fixture, the runner, two CLIs, and version.
+- `.github/workflows/ci-vnext.yml` no longer excludes packages, because an empty
+  exclusion regex is a trap: `grep -Ev ''` matches every line, so "test everything
+  left" would have silently become "test nothing" with a green check. The job now
+  lists every package and fails if the graph is smaller than 8, which makes a future
+  mass deletion visible instead of certifying an empty set.
+
 ### vNext experiment — §43 step 5: the pre-vNext relay and `--legacy-proxy` are gone
 
 - Deleted `pkg/proxy/proxy.go` (the auto-recording relay, its mutation heuristics and

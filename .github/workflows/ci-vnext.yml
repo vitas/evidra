@@ -19,11 +19,12 @@ on:
     branches: [vnext/mcp-recorder]
 
 env:
-  # Packages owned by the hosted platform / legacy product path, plus the
-  # tag-gated legacy e2e suite (every real file there is behind `-tags e2e`, so a
-  # plain `go build` of the graph cannot include it). They stay in the tree until
-  # the prune step but are not part of what vNext certifies.
-  VNEXT_UNSUPPORTED: '/(internal|pkg)/(sarif)(/|$)'
+  # Nothing is excluded any more: the hosted platform and legacy product packages were
+  # deleted per §43, so every package in the module is vNext-supported. An empty
+  # exclusion regex would have been a trap - `grep -Ev ''` matches every line, which
+  # turns "test everything left" into "test nothing" while still reporting success.
+  # The guard below is what keeps that from coming back.
+  VNEXT_MIN_PACKAGES: '8'
 
 jobs:
   core:
@@ -42,8 +43,13 @@ jobs:
       - name: Resolve supported package graph
         id: pkgs
         run: |
-          pkgs=$(go list ./... | grep -Ev "$VNEXT_UNSUPPORTED")
-          echo "count=$(printf '%s\n' "$pkgs" | wc -l | tr -d ' ')"
+          pkgs=$(go list ./...)
+          count=$(printf '%s\n' "$pkgs" | grep -c . || true)
+          if [ "$count" -lt "$VNEXT_MIN_PACKAGES" ]; then
+            echo "supported package graph is unexpectedly small ($count packages); refusing to certify nothing" >&2
+            exit 1
+          fi
+          echo "count=$count"
           printf '%s\n' "$pkgs" > "$GITHUB_WORKSPACE/.vnext-packages.txt"
 
       - name: Check formatting
