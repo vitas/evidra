@@ -1,245 +1,117 @@
 # Evidra
 
-> **The README describes the pre-vNext product.** Reliability scoring, risk assessment,
-> the hosted API, and the direct MCP tool surface were removed from this branch per §43
-> of [`docs/system-design/vnext-mcp-recorder.md`](docs/system-design/vnext-mcp-recorder.md).
-> What ships on `vnext/mcp-recorder` today is narrower and is documented in
-> [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): one MCP endpoint that wraps an upstream
-> server, enforces protocol order, and records a signed evidence chain read back with
-> `evidra summarize` and `evidra verify`.
->
-> A full README rewrite waits on the product decision the gates feed (Gate C is not
-> passed yet); until then the gap is stated here rather than left for a newcomer to fall
-> into. The instructions agents read first, [`CLAUDE.md`](CLAUDE.md), do describe the
-> current code.
-
+Evidra is an open-source MCP execution-evidence recorder. It wraps one upstream
+MCP server and records what an agent declared, what the proxy observed, and what
+the agent reported.
 
 [![CI](https://github.com/vitas/evidra/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vitas/evidra/actions/workflows/ci.yml)
 [![Release Pipeline](https://github.com/vitas/evidra/actions/workflows/release.yml/badge.svg?event=push)](https://github.com/vitas/evidra/actions/workflows/release.yml)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-
-**Flight recorder and reliability scoring for infrastructure automation**
-
-Evidra records intent, outcome, and refusal for every infrastructure mutation — across MCP agents, CI pipelines, A2A agents, and scripts. The append-only evidence chain powers behavioral signal detection and reliability scoring. Canonicalization and risk assessment are optional external enrichments, not required core dependencies.
-
-CLI and MCP are the authoritative analytics surfaces today.
-
-**Two ways to use it:**
-
-| | What | How |
-|---|---|---|
-| **DevOps MCP Server** | All-in-one: kubectl/helm/terraform/aws with smart output + auto-evidence | `evidra-mcp` as your agent's MCP server |
-| **Flight Recorder** | Add evidence to any existing workflow — no MCP required | `evidra record`, `evidra import`, webhooks, or proxy mode |
-
-## Quick Start — MCP Server
-
-```json
-{
-  "mcpServers": {
-    "evidra": {
-      "command": "evidra-mcp",
-      "args": ["--evidence-dir", "~/.evidra/evidence"]
-    }
-  }
-}
-```
-
-Your agent gets seven default DevOps tools: `run_command`, `collect_diagnostics`, `write_file`, `describe_tool`, `prescribe_smart`, `report`, and `get_event`. The normal path is still `run_command` with automatic evidence recording for mutations. Use `describe_tool` only when you want the full explicit-control schema for `prescribe_smart` or `report`. Add `--full-prescribe` when you also want artifact-aware `prescribe_full`.
-
-## Quick Start — CLI (No MCP)
-
-```bash
-# Wrap any command — evidence recorded automatically
-evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml
-
-# Import from CI pipelines
-evidra import --input record.json
-
-# View reliability scorecard
-evidra scorecard --period 30d
-```
-
-Works with any agent framework, CI system, or script. No MCP required.
-
-Security boundary: Evidra does not sandbox the wrapped command. Treat it with the same trust model as direct shell execution.
-
-```bash
-# Install
-brew install samebits/tap/evidra
-```
-
-## What Your Agent Gets
-
-### Smart output — fewer tokens, same information
-
-```
-Agent: run_command("kubectl get deployment web -n demo")
-
-# Without evidra-mcp (raw JSON): ~2,400 tokens
-{"apiVersion":"apps/v1","metadata":{"managedFields":[...],...},"spec":{...},"status":{...}}
-
-# With evidra-mcp (smart output): ~40 tokens
-deployment/web (demo): 0/2 ready | image: nginx:99.99 | Available=False
-```
-
-### Auto-evidence for mutations — zero agent code
-
-```
-Agent: run_command("kubectl apply -f fix.yaml")
-  → evidra auto-prescribes (intent recorded)
-  → kubectl executes
-  → evidra auto-reports (outcome recorded)
-  → smart output returned to agent
-```
-
-Read-only commands (`get`, `describe`, `logs`) execute directly — no overhead.
-
-### Skills
-
-Install the [Evidra skill](docs/guides/skill-setup.md) to give your agent
-operational discipline: diagnosis before fix, safety boundaries, domain-specific
-patterns.
-
-### 7 default tools, plus optional Full Prescribe
-
-| Tool | Description |
-|---|---|
-| `run_command` | Execute kubectl, helm, terraform, aws — with smart output |
-| `collect_diagnostics` | Gather pods, describe output, events, and recent logs for one workload |
-| `write_file` | Write config or manifest files under the current workspace or temp directories |
-| `describe_tool` | Show the full schema for deferred protocol tools when you want explicit control |
-| `prescribe_smart` | Smart Prescribe with deferred schema loading; use `describe_tool` first when needed |
-| `report` | Record outcome; full explicit schema available via `describe_tool` |
-| `get_event` | Look up evidence |
-
-Enable `--full-prescribe` to add **Full Prescribe** when your agent has artifact bytes and you want artifact-aware explicit intent capture.
-
-Most agents only need `run_command`. Use `collect_diagnostics` when the model would otherwise spend multiple turns on `get` / `describe` / `events` / `logs`. Use `write_file` for agent-authored manifests or Terraform snippets without leaving the MCP surface. Use `describe_tool` only when you deliberately want the explicit `prescribe_smart` / `report` flow instead of the default auto-evidence path.
-
-## Why Not Just kubectl-mcp-server?
-
-| | kubectl-mcp-server | evidra-mcp |
-|---|---|---|
-| Tools | 270 specialized | 7 default tools + optional Full Prescribe |
-| Output | Raw JSON (~2400 tokens) | Smart summary (~40 tokens) |
-| Evidence | None | Auto prescribe/report for mutations |
-| Security | Open | Command allowlist + blocked subcommands |
-| Skills | None | Installable role guidance |
-| Scoring | None | Reliability scorecards + behavioral signals |
-
-## For Platform Teams
-
-### Self-hosted analytics
-
-```bash
-docker compose up --build -d
-```
-
-Centralize evidence across agents, pipelines, and controllers:
-- Which agents retry the same operation?
-- Which scenarios cause the most failures?
-- How does model X compare to model Y on real infrastructure?
-
-### CI/CD integration
-
-```bash
-# Wrap any command — CLI records prescribe/execute/report
-evidra record -f deploy.yaml -- kubectl apply -f deploy.yaml
-
-# Import completed operations
-evidra import --input record.json
-
-# View reliability scorecard
-evidra scorecard --period 30d
-```
-
-References: [Self-hosted setup](docs/guides/self-hosted-setup.md) · [CLI reference](docs/integrations/cli-reference.md)
-
-## Intelligence Layer
-
-From the evidence chain, Evidra computes:
-
-- **Behavioral signals** — protocol violations, retry loops, blast radius, drift detection
-- **Reliability scorecards** — 0-100 score with band and confidence
-
-Risk assessment can be supplied by an external scanner or policy engine as an optional `assessment` block on prescribe entries. When no assessment is supplied, Evidra still records the intent and outcome and leaves risk fields empty.
-
-Eight behavioral signals. Their specification (`EVIDRA_SIGNAL_SPEC_V1.md`) described the pre-vNext signal engine and was removed in the vNext prune; it remains readable in Git history.
-
-## Explicit Protocol (Advanced)
-
-For agents that want full control over evidence recording:
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
 ```text
-prescribe_smart / prescribe_full  →  record declared intent (+ optional canonical_action/assessment)
-execute    →  run the command (or decline to act)
-report     →  record verdict, exit code, or refusal reason
+Agent / MCP client -> Evidra MCP endpoint -> upstream MCP server
+                              |
+                              v
+                  signed local MCP execution evidence
 ```
 
-Three evidence modes:
+## Why Evidra
 
-| Mode | How | Agent awareness |
-|---|---|---|
-| **Proxy Observed** | Auto prescribe/report via observed mutation-style tool calls | None needed |
-| **Smart Prescribe** | Agent calls `prescribe_smart` + `report` | Minimal (~30 tokens) |
-| **Full Prescribe** | Agent calls `prescribe_full` with artifact | Full artifact (~300 tokens) |
+An MCP response alone does not preserve the difference between intent, activity,
+and the agent's account of the result. Evidra keeps those sources separate:
 
-Most users should use Proxy Observed or the default DevOps surface. Smart Prescribe and Full Prescribe are for teams
-that want explicit prescribe/report control. If an agent needs risk context before executing, run a scanner or policy engine first and include its result as optional assessment enrichment.
+- **Declared** — the objective the agent records before it calls an upstream
+  operational tool.
+- **Observed** — the request and response that pass through the Evidra MCP
+  boundary.
+- **Reported** — the terminal status and explanation the agent records when it
+  closes the operation.
 
-## Proxy Mode — Wrap Mutation-Oriented MCP Servers
+Evidra reconciles these records without treating any one of them as external
+truth. A proxy observation shows traffic at the MCP boundary; an agent declaration
+or report remains an agent-provided claim.
 
-Add evidence to an existing MCP server — zero agent changes:
+## Quick start
 
-```json
-{
-  "mcpServers": {
-    "infra": {
-      "command": "evidra-mcp",
-      "args": ["--proxy", "--", "npx", "-y", "@anthropic/mcp-server-kubernetes"]
-    }
-  }
-}
-```
-
-The proxy records evidence when it sees `run_command` or other mutation-shaped MCP tool calls it can classify heuristically. Unclassified or read-only tool calls pass through without evidence.
-
-## Docs
-
-- [MCP Setup Guide](docs/guides/mcp-setup.md)
-- [Skill Setup Guide](docs/guides/skill-setup.md)
-- [CLI Reference](docs/integrations/cli-reference.md)
-- REST API reference — described the hosted service removed in the vNext prune; see Git history
-- [Architecture](docs/ARCHITECTURE.md) — the vNext shape, current
-- Protocol, data-model, scoring and signal specs described the pre-vNext product and were
-  removed in the vNext prune (`docs/system-design/vnext-prune-record.md`); Git history keeps them.
-- [MCP Registry Publication Guide](docs/guides/mcp-registry-publication.md)
-- [Supported Tools](docs/supported-tools.md)
-
-## Development
+Building from source requires Go 1.26 or later.
 
 ```bash
 make build
-make test
-make lint
+go build -o bin/evidra-fixture ./cmd/evidra-fixture
+mkdir -p evidence
+
+./bin/evidra-mcp --proxy \
+  --evidence-dir ./evidence \
+  --server-name fixture \
+  -- ./bin/evidra-fixture
 ```
 
-### Environment Variables
+The command starts a single stdio MCP endpoint and waits for JSON-RPC input. In
+normal use, an MCP client owns this process and supplies the configuration. See
+[Getting started](docs/getting-started.md) for a complete client configuration
+and an end-to-end operation.
 
-The current build reads two environment variables (`grep -rn "EVIDRA_" --include=*.go cmd pkg`
-is the check for this table):
+## Read the evidence
 
-| Variable | Description |
-|---|---|
-| `EVIDRA_EVIDENCE_DIR` | Default evidence root for the **read side** (`evidra summarize`, `evidra verify`). The endpoint has no default location — recording is chosen per process with `--evidence-dir`. |
-| `EVIDRA_ACTOR_ID` | Default for `evidra-mcp --actor-id`: the actor recorded as accountable. |
+Each endpoint process creates a recorder directory beneath the evidence root.
+Summarize all recorder directories or verify their chains with the reader CLI:
 
-The pre-vNext table listed here also named `EVIDRA_SIGNING_MODE`, `EVIDRA_SIGNING_KEY` and
-`EVIDRA_ENVIRONMENT`. None of the three appears anywhere in the Go sources of this branch:
-signing keys come from the recorder directory, and the environment label went with the hosted
-service. They are left out rather than marked "legacy", because a variable that never existed
-in this build cannot be deprecated by it.
+```bash
+./bin/evidra summarize --dir ./evidence
+./bin/evidra verify --dir ./evidence
+```
 
-## License
+The summary keeps declarations, observations, and reports distinct. Verification
+checks recorder stores rather than deciding whether the operation achieved its
+real-world goal.
 
-Licensed under the [Apache License 2.0](LICENSE).
+## What Evidra verifies
+
+Evidra distinguishes several different statements:
+
+- **Chain integrity** checks that stored records remain in their signed,
+  hash-linked order.
+- **Signature validity** checks records against the public key stored with that
+  recorder. A local recorder key does not independently establish an
+  organizational identity.
+- **Evidence coverage** checks whether expected recorder events exist, including
+  paired execution boundaries.
+- **Proxy observations** attest to requests and responses visible at the Evidra
+  MCP boundary, not to side effects beyond it.
+- **Agent declarations and reports** are preserved as attributed claims; their
+  presence does not make them independently true.
+
+Evidra does not independently prove that the external system reached the agent's
+intended state. It records and reconciles claims and observations available at the
+MCP boundary.
+
+## Current scope
+
+- One stdio upstream MCP server per Evidra endpoint process.
+- Protocol enforcement with `--enforce=all` (the default), or observe-only
+  operation with `--enforce=off`.
+- Local evidence directories, with one recorder directory per process.
+- MCP protocol versions `2025-06-18`, `2025-03-26`, and `2024-11-05`.
+- No required hosted service.
+- No built-in operational tool catalogue; upstream tools are exposed unchanged
+  alongside `evidra_prescribe` and `evidra_report`.
+
+## Documentation
+
+- [Getting started](docs/getting-started.md)
+- [CLI reference](docs/cli-reference.md)
+- [Architecture](docs/architecture.md)
+- [Evidence format and trust model](docs/evidence-format.md)
+- [Validation status and limitations](docs/validation.md)
+
+After the Core documentation, the separate
+[Evidra Bench](https://github.com/vitas/evidra-bench) project provides benchmark
+workflows built around reproducible evidence.
+
+## Contributing and security
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development workflow and
+[SECURITY.md](SECURITY.md) for the vulnerability-reporting process and security
+scope.
+
+Evidra is licensed under the [Apache License 2.0](LICENSE).

@@ -9,19 +9,42 @@ fail() {
   exit 1
 }
 
-grep -Fq "CLI and MCP are the authoritative analytics surfaces today." README.md \
-  || fail "README should make the supported analytics path explicit"
+required_text=(
+  "MCP execution evidence"
+  "Declared"
+  "Observed"
+  "Reported"
+  "evidra-mcp --proxy"
+  "evidra summarize --dir"
+  "evidra verify --dir"
+  "docs/getting-started.md"
+  "docs/architecture.md"
+  "docs/evidence-format.md"
+  "docs/validation.md"
+)
 
-grep -Fq "append-only evidence chain" README.md \
-  || fail "README should describe the evidence-chain core"
+for text in "${required_text[@]}"; do
+  grep -Fq "$text" README.md \
+    || fail "README should contain: $text"
+done
 
-grep -Fq "flight recorder for AI agents that touch infrastructure" docs/guides/mcp-setup.md \
-  || fail "MCP guide should lead with the flight-recorder positioning"
+forbidden_patterns=(
+  "DevOps MCP Server"
+  "reliability scoring"
+  "risk assessment"
+  "hosted API"
+  "scorecard"
+  "webhooks"
+  "built-in.*\\b(kubectl|helm|terraform|aws)\\b"
+  "pre-vNext product"
+  "waits on Gate C"
+  "vnext/mcp-recorder"
+)
 
-grep -Fq "The agent reports voluntarily; Evidra observes, scores, and explains." docs/guides/mcp-setup.md \
-  || fail "MCP guide should explain the non-intercepting model"
-
-grep -Fq "Self-hosted remains supported for centralized evidence collection" docs/guides/self-hosted-setup.md \
-  || fail "self-hosted status should keep the centralized evidence boundary explicit"
+for pattern in "${forbidden_patterns[@]}"; do
+  if grep -Eiq "$pattern" README.md; then
+    fail "README should not contain obsolete product language matching: $pattern"
+  fi
+done
 
 echo "PASS: test_supported_core_positioning"
