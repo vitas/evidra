@@ -82,3 +82,10 @@ experiments/results/
 # /tmp/ and /output/ were already ignored; examples/ was the gap. The history carrying those
 # blobs was scrubbed before the first push - see docs/system-design/vnext-history-scrub.md.
 /examples/
+
+# Committed build outputs. `go build -o <pkg>/<name>` drops the binary next to its
+# sources, and nothing ignored that path: cmd/evidra-gatea/evidra-gatea (9.7 MB) was
+# committed with the Gate A runner, and evidra-exp (9.5 MB) came in with a 0.5.1 version bump.
+# Neither is referenced by any build, test or doc. The Makefile writes to bin/ instead.
+/cmd/evidra-gatea/evidra-gatea
+/evidra-exp
