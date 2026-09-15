@@ -13,12 +13,15 @@ fail() {
 # positioning statement.
 readme_text="$(tr '\n\r\t' '   ' <README.md | tr -s ' ')"
 getting_started_text="$(tr '\n\r\t' '   ' <docs/getting-started.md | tr -s ' ')"
+landing_text="$(tr '\n\r\t' '   ' <ui/src/pages/Landing.tsx | tr -s ' ')"
 
 preview_status="The relaunched Core line is currently an unreleased preview built from main."
 grep -Fq -- "$preview_status" <<<"$readme_text" \
   || fail "README should contain the current Core release status"
 grep -Fq -- "$preview_status" <<<"$getting_started_text" \
   || fail "getting-started should contain the current Core release status"
+grep -Fq -- "$preview_status" <<<"$landing_text" \
+  || fail "landing should contain the current Core release status"
 
 required_text=(
   "MCP execution evidence"
