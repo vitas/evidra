@@ -53,6 +53,9 @@ bash tests/run_guards.sh
 cd ui && npm ci && npm run lint && npm test && npm run build
 ```
 
+`make test` expands to `go test ./cmd/... ./pkg/...`, keeping installed UI
+dependencies outside the Go package traversal.
+
 A single Go case: `go test -run 'TestName' -v ./pkg/proxy/`.
 
 Guards and CI reference things that must exist — make targets, package paths,

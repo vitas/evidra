@@ -20,6 +20,26 @@ fail() {
 
 [[ -f tests/core-packages.txt ]] || fail "tests/core-packages.txt is missing"
 
+grep -Fq 'GO_PACKAGES := ./cmd/... ./pkg/...' Makefile \
+  || fail "Makefile must scope Go checks away from ui/node_modules"
+grep -Fq 'go test $(GO_PACKAGES)' Makefile \
+  || fail "make test must use GO_PACKAGES"
+
+# Ignore comments so examples that explain the prohibited command do not trip
+# the guard. Active CI and contributor commands must stay inside Core packages.
+strip_comments() {
+  sed -E 's/[[:space:]]*#.*$//' "$1"
+}
+
+for command_surface in .github/workflows/ci.yml CONTRIBUTING.md; do
+  grep -Fq 'go test ./cmd/... ./pkg/...' "$command_surface" \
+    || fail "$command_surface must document the literal Core test scope"
+  if strip_comments "$command_surface" \
+    | grep -Eq '(^|[[:space:]`])go[[:space:]]+test([[:space:]]+-[^[:space:]]+)*[[:space:]]+\./\.\.\.([[:space:]`]|$)'; then
+    fail "$command_surface must not run go test against bare ./..."
+  fi
+done
+
 # node_modules is third-party JavaScript that sometimes ships Go source of its own
 # (flatted ships golang/pkg/flatted). That code is not part of this module's graph,
 # and a guard whose verdict depends on which npm package was installed today is not
