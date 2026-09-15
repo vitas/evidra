@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, it, expect, beforeEach } from "vitest";
 import { App } from "../../src/App";
 
@@ -82,12 +82,26 @@ describe("App — Core content contract", () => {
   });
 
   it("separates generated reconciliation from human judgment", () => {
+    const example = document.getElementById("reconciliation-example");
+    expect(example).not.toBeNull();
+    const reconciliation = within(example as HTMLElement);
+
     expect(
-      screen.getByText(/Evidra generates the reconciliation summary/i),
+      reconciliation.getByText(
+        /restart_deployment → success; get_status → success; result fingerprint present/i,
+      ),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/a human judges the external outcome/i),
+      reconciliation.getByText("Reviewer interpretation"),
     ).toBeInTheDocument();
+    expect(
+      reconciliation.getByText(
+        /Evidra generates the reconciliation summary from the recorded chain; a human judges what it means for the external outcome/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      reconciliation.queryByText(/get_status → ready/i),
+    ).not.toBeInTheDocument();
   });
 
   it("shows only current commands", () => {

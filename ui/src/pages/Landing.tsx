@@ -168,14 +168,17 @@ function ReconciliationExample() {
             </div>
             <div className="reconciliation-row">
               <dt>Observed</dt>
-              <dd>restart_deployment &rarr; success; get_status &rarr; ready</dd>
+              <dd>
+                restart_deployment &rarr; success; get_status &rarr; success;
+                result fingerprint present
+              </dd>
             </div>
             <div className="reconciliation-row">
               <dt>Reported</dt>
               <dd>completed / achieved</dd>
             </div>
             <div className="reconciliation-row">
-              <dt>Finding</dt>
+              <dt>Reviewer interpretation</dt>
               <dd>
                 The proxy observed the requested calls and successful
                 responses. External application health was not independently
