@@ -115,7 +115,17 @@ describe("App — Core content contract", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /blocks the call and records a protocol_violation before forwarding or observation/i,
+        /blocks an unprescribed call instead of forwarding it or creating an execution observation/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /when recording is enabled, Evidra attempts to append a protocol_violation/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /if that append fails, the endpoint follows its healthy-boundary failure behavior/i,
       ),
     ).toBeInTheDocument();
     expect(
@@ -124,7 +134,7 @@ describe("App — Core content contract", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.queryByText(/nothing beyond calling the wrapped server/i),
+      screen.queryByText(/blocks the call and records a protocol_violation/i),
     ).not.toBeInTheDocument();
   });
 

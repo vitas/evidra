@@ -343,7 +343,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "What does an agent have to do to be recorded?",
-    a: "By default, --enforce=all requires an open prescribed operation. Without one, Evidra blocks the call and records a protocol_violation before forwarding or observation. With --enforce=off, observe-only mode forwards and records the call with an empty operation ID.",
+    a: "By default, --enforce=all requires an open prescribed operation and blocks an unprescribed call instead of forwarding it or creating an execution observation. When recording is enabled, Evidra attempts to append a protocol_violation; if that append fails, the endpoint follows its healthy-boundary failure behavior rather than claiming the record exists. With --enforce=off, observe-only mode forwards and records the call with an empty operation ID.",
   },
   {
     q: "Where do the keys live?",

@@ -83,6 +83,7 @@ grep -Fq "These are separate conclusions." docs/evidence-format.md \
 for stale_phrase in \
   "agents actually did" \
   "Nothing beyond calling the wrapped server" \
+  "blocks the call and records a protocol_violation" \
   "guarantees is that the execution is recorded" \
   "results are fingerprinted, never stored raw"
 do
@@ -90,5 +91,8 @@ do
     fail "public UI should not contain stale trust wording: $stale_phrase"
   fi
 done
+
+grep -Fq "attempts to append a protocol_violation" ui/src/pages/Landing.tsx \
+  || fail "landing enforcement copy should describe protocol_violation recording as an attempt"
 
 echo "PASS: test_doc_trust_alignment"

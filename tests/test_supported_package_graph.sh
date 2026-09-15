@@ -34,6 +34,12 @@ claude_commands="$({
   awk '/^```/ { in_fence = !in_fence; next } in_fence { print }' CLAUDE.md
 } | sed -E 's/[[:space:]]*#.*$//')"
 
+scoped_core_test='^[[:space:]]*go[[:space:]]+test([[:space:]]+[^[:space:]]+)*[[:space:]]+\./cmd/\.\.\.[[:space:]]+\./pkg/\.\.\.([[:space:]]|$)'
+grep -Eq "$scoped_core_test" <<< "$validation_commands" \
+  || fail "docs/validation.md must include an executable Core-scoped go test command"
+grep -Eq "$scoped_core_test" <<< "$claude_commands" \
+  || fail "CLAUDE.md must include an executable Core-scoped go test command"
+
 grep -Fxq 'GO_PACKAGES := ./cmd/... ./pkg/...' <<< "$active_make" \
   || fail "Makefile must define the exact Core package scope"
 awk '
