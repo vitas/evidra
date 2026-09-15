@@ -38,7 +38,20 @@ describe("index.html SEO metadata", () => {
       "https://evidra.cc/",
     );
     expect(metaContent(doc, 'meta[property="og:type"]')).toBe("website");
-    expect(metaContent(doc, 'meta[name="twitter:card"]')).toBe("summary");
+    expect(metaContent(doc, 'meta[property="og:image"]')).toBe(
+      "https://evidra.cc/og/evidra-core.png",
+    );
+    expect(metaContent(doc, 'meta[property="og:image:width"]')).toBe("1200");
+    expect(metaContent(doc, 'meta[property="og:image:height"]')).toBe("630");
+    expect(metaContent(doc, 'meta[property="og:image:alt"]')).toBe(
+      "Evidra — verifiable MCP execution evidence",
+    );
+    expect(metaContent(doc, 'meta[name="twitter:card"]')).toBe(
+      "summary_large_image",
+    );
+    expect(metaContent(doc, 'meta[name="twitter:image"]')).toBe(
+      "https://evidra.cc/og/evidra-core.png",
+    );
     expect(metaContent(doc, 'meta[name="twitter:title"]')).toBe(TITLE);
     expect(metaContent(doc, 'meta[name="twitter:description"]')).toBe(
       DESCRIPTION,
@@ -49,7 +62,6 @@ describe("index.html SEO metadata", () => {
     const html = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
 
     expect(html).not.toContain("bench.evidra.cc");
-    expect(html).not.toContain("og:image");
     expect(html.toLowerCase()).not.toContain("benchmark");
     expect(html).not.toContain("name=\"keywords\"");
   });
