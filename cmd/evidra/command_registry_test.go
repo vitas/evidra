@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-// TestRegistryIsTheThinCLISurface pins §41: the read side of vNext is two commands
-// plus version. A removed command reappearing in the usage output would mean the CLI
+// TestRegistryIsTheThinCLISurface pins the CLI surface: the read side is two
+// commands plus version. A removed command reappearing in the usage output would mean the CLI
 // advertises behaviour nothing implements any more, which is exactly how the legacy
 // surface was still documented after it stopped being the product.
 func TestRegistryIsTheThinCLISurface(t *testing.T) {

@@ -45,8 +45,11 @@ done
 grep -Fq "actively developed, unreleased" SECURITY.md \
   || fail "SECURITY.md should identify main as the active unreleased Core line"
 
-grep -Fq "pre-vNext" SECURITY.md \
-  || fail "SECURITY.md should label published pre-vNext releases as legacy"
+grep -Fq "legacy releases (0.5.x" SECURITY.md \
+  || fail "SECURITY.md should label the published release series as legacy"
+
+grep -Fq "no implied feature or security support" SECURITY.md \
+  || fail "SECURITY.md should say legacy releases get no implied support from main"
 
 # CLAUDE.md may link only the five canonical documents and the plan corpus.
 while IFS= read -r link; do

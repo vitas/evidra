@@ -24,20 +24,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: vnext-release-refusal
-        # The vNext line has no release path: Gate C has not passed, and the release
-        # pipeline belonged to the pre-vNext product whose API server, e2e suite and prompt
-        # factory were deleted by the §43 prune. Failing here is loud and explains itself;
-        # failing at "make e2e" on a half-deleted pipeline, or after publishing a broken
-        # artifact, is not. Removing this step is a deliberate decision to ship vNext, not a
-        # cleanup - see tests/vnext-workflows.txt, which requires this marker to be present.
+      - name: core-release-refusal
+        # The current Core line has no release path: Gate C has not passed, and the
+        # release pipeline belonged to the legacy hosted product whose API server,
+        # e2e suite and prompt factory were deleted in the legacy prune. Failing
+        # here is loud and explains itself; failing at "make e2e" on a half-deleted
+        # pipeline, or after publishing a broken artifact, is not. Removing this
+        # step is a deliberate decision to ship, not a cleanup - see
+        # tests/core-workflows.txt, which requires this marker to be present.
         run: |
           set -euo pipefail
           if [ -f docs/validation.md ] && [ ! -d cmd/evidra-api ]; then
-            echo "::error::No release path for the current Core line until Gate C passes and a human decides to ship. See docs/validation.md and tests/vnext-workflows.txt."
+            echo "::error::No release path for the current Core line until Gate C passes and a human decides to ship. See docs/validation.md and tests/core-workflows.txt."
             exit 1
           fi
-          echo "Not the vNext shape; continuing to the version alignment checks."
+          echo "Not the current source shape; continuing to the version alignment checks."
 
       - name: Validate tag and version alignment
         run: |

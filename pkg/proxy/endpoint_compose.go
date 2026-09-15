@@ -276,6 +276,6 @@ func epVersionOf() string {
 }
 
 // epBuildVersion is the endpoint's contribution to serverInfo. It tracks the
-// vNext experiment rather than the released server version, because the merged
-// endpoint behaves differently from the legacy direct server.
-const epBuildVersion = "vnext-0"
+// current development line rather than the released server version, because
+// the merged endpoint behaves differently from the legacy direct server.
+const epBuildVersion = "core-0"

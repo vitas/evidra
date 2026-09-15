@@ -1,6 +1,6 @@
 package main
 
-// vNext evidence commands (§59 step 9): read what a recorder stored and say what
+// Read-side evidence commands: read what a recorder stored and say what
 // it means. Both are thin over pkg/evidence and pkg/report on purpose. The
 // reconciliation rules belong to the library, so an agent, a script and a human
 // at a terminal cannot drift into three different definitions of the same metric.

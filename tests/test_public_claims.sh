@@ -29,10 +29,20 @@ if hits="$(grep -RInEi -- "$ui_forbidden" ui/src 2>/dev/null)"; then
 fi
 
 # Stale distribution metadata must not advertise a product that no longer exists.
-[[ ! -e server.json ]] || fail "stale MCP Registry manifest must not advertise the pre-vNext image"
+[[ ! -e server.json ]] || fail "stale MCP Registry manifest must not advertise the legacy image"
 
 if grep -Fq "cd ui && npm install && npm run build" .goreleaser.yaml; then
   fail "binary release must not build an unembedded marketing site"
+fi
+
+# The redesign's research codename is retired vocabulary. Live files say "Core" for
+# the current line and "legacy releases (0.4.x-0.5.x)" for what came before; the
+# codename survives only in history (CHANGELOG, docs/plans) and in the guards that
+# forbid it (whose patterns are split literals, so they stay clean by construction).
+codename='v'"next"
+if hits="$(git grep -in -- "$codename" -- ':!CHANGELOG.md' ':!docs/plans/**' 2>/dev/null)"; then
+  printf '%s\n' "$hits" >&2
+  fail "live files still carry the retired research codename"
 fi
 
 echo "PASS: test_public_claims"

@@ -32,13 +32,13 @@ func lookupCommand(name string) (commandSpec, bool) {
 // set are not part of the current product; docs/cli-reference.md is the canonical public
 // command inventory.
 var orderedCommands = []commandSpec{
-	{name: "summarize", description: "Reconcile vNext MCP evidence: declared vs observed vs reported", run: cmdSummarize},
-	{name: "verify", description: "Verify vNext evidence chains, signatures and coverage per recorder", run: cmdVerifyChain},
+	{name: "summarize", description: "Reconcile MCP execution evidence: declared vs observed vs reported", run: cmdSummarize},
+	{name: "verify", description: "Verify evidence chains, signatures and coverage per recorder", run: cmdVerifyChain},
 	{name: "version", description: "Print version information", run: cmdVersion},
 }
 
 func printUsage(w io.Writer) {
-	fmt.Fprintln(w, "evidra -- read side of the vNext MCP evidence recorder")
+	fmt.Fprintln(w, "evidra -- read side of the MCP execution-evidence recorder")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "COMMANDS:")
 	for _, command := range orderedCommands {

@@ -1,9 +1,10 @@
-// Package-internal note: this file is the vNext merged endpoint (§59 step 2).
-// The older Proxy/EvidenceWriter relay in this package is the pre-vNext tap and
-// is slated for deletion in step 10; nothing here reuses it, and the fixture
-// keeps its own independent framing implementation on purpose — two
-// implementations of newline framing that agree is evidence, one that
-// silently drifts is a bug the endpoint cannot detect.
+// Package-internal note: this file is the merged endpoint — one upstream child
+// process, Evidra's local protocol tools merged into its tool list, evidence
+// written around every forwarded call. The legacy Proxy/EvidenceWriter tap it
+// replaced is deleted; the fixture keeps its own independent framing
+// implementation on purpose — two implementations of newline framing that
+// agree is evidence, one that silently drifts is a bug the endpoint cannot
+// detect.
 package proxy
 
 import (

@@ -6,10 +6,11 @@ The `main` branch is the actively developed, unreleased Evidra Core line: the
 MCP execution-evidence recorder described in [README.md](README.md). Security
 work lands there.
 
-Published pre-vNext releases describe a different, legacy product (the
-all-in-one DevOps surface retired during vNext) and receive no implied feature
-or security support from `main`. If you are affected by a pre-vNext release,
-say so in your report; it will be triaged as legacy.
+Published legacy releases (0.5.x and earlier) describe a different, legacy
+product — the all-in-one hosted surface retired during the redesign — and
+receive no implied feature or security support from `main`. If you are
+affected by a legacy release, say so in your report; it will be triaged as
+legacy.
 
 ## Reporting a Vulnerability
 

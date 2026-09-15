@@ -13,7 +13,7 @@ import (
 
 func openTestStore(t *testing.T) *Store {
 	t.Helper()
-	s, err := OpenStore(Options{Dir: filepath.Join(t.TempDir(), "recorder-test"), UpstreamID: "up-fixture", ServerName: "fixture", EnforceMode: "all", EvidraVersion: "vnext-0"})
+	s, err := OpenStore(Options{Dir: filepath.Join(t.TempDir(), "recorder-test"), UpstreamID: "up-fixture", ServerName: "fixture", EnforceMode: "all", EvidraVersion: "core-0"})
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
@@ -352,7 +352,7 @@ func strPtr(s string) *string {
 func TestVerifyRootFindsStoresByNameOfTheirFiles(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "recorder-original")
-	s, err := OpenStore(Options{Dir: dir, UpstreamID: "up-fixture", EnforceMode: "all", EvidraVersion: "vnext-0"})
+	s, err := OpenStore(Options{Dir: dir, UpstreamID: "up-fixture", EnforceMode: "all", EvidraVersion: "core-0"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -9,7 +9,7 @@ package evidence
 // implementations can satisfy exactly: sort object keys by UTF-16 code unit,
 // write numbers in ECMAScript's shortest form, use only the escapes JSON.stringify
 // uses. It is implemented here rather than taken from a dependency because the
-// vNext build stays stdlib-only.
+// Core build stays stdlib-only.
 
 import (
 	"bytes"

@@ -22,7 +22,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("evidra-mcp", flag.ContinueOnError)
 	fs.SetOutput(stderr)
 	showVersion := fs.Bool("version", false, "Print version information and exit")
-	evidenceFlag := fs.String("evidence-dir", "", "Root for vNext recorder directories (one per process); omit to enforce without recording")
+	evidenceFlag := fs.String("evidence-dir", "", "Root for recorder directories (one per process); omit to enforce without recording")
 	proxyModes := registerProxyFlags(fs)
 	helpFlag := fs.Bool("help", false, "Show help")
 
@@ -109,7 +109,7 @@ type endpointFlags struct {
 	actorID        string
 }
 
-// runEndpointMode serves the vNext merged endpoint (§59 step 2): one upstream
+// runEndpointMode serves the merged endpoint: one upstream
 // child process, Evidra's local protocol tools merged into its tool list, and a
 // client-facing capability set limited to what the supported profile covers.
 func runEndpointMode(ctx context.Context, stderr io.Writer, logger *log.Logger, args []string, flags endpointFlags) int {

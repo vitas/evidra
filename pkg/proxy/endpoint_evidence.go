@@ -1,6 +1,6 @@
 package proxy
 
-// Durable evidence for the merged endpoint (§14-§21 of the vNext plan).
+// Durable evidence for the merged endpoint.
 //
 // The interface exists so the endpoint can state what happened without knowing how
 // it is stored, and so a store failure can change what the endpoint is allowed to

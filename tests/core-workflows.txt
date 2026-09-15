@@ -7,4 +7,4 @@
 # name<TAB>state<TAB>marker-or-reason
 ci.yml	enabled	-
 dco.yml	enabled	-
-release.yml	disabled	vnext-release-refusal
+release.yml	disabled	core-release-refusal

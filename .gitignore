@@ -83,7 +83,7 @@ experiments/results/
 .obsidian/
 
 # Generated when checking the declared supported Go package graph.
-.vnext-packages.txt
+.core-packages.txt
 
 # Gate artifacts: each recorder directory holds an ephemeral signing key and a
 # digest key (§21, §23). They stay out of git by design; the docs reproduce them.

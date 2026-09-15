@@ -241,7 +241,7 @@ func TestBaselineModelSeesOnlyFixtureToolsAndInstructions(t *testing.T) {
 		t.Errorf("instructions = %q, want the fixture's own %q", truncate(instructions, 80), truncate(fixtureInstructions, 80))
 	}
 	// What must be absent is Evidra's protocol surface, not the project's name. The fixture
-	// describes itself as "Fixture MCP server for Evidra vNext conformance tests", which is
+	// describes itself as "Fixture MCP server for Evidra conformance tests", which is
 	// the upstream's own sentence, and rewriting it would change what both arms see. So the
 	// property under test is: no operation vocabulary, and the text is the fixture's rather
 	// than the endpoint's. A reader of the comparison should know the baseline model does see

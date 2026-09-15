@@ -30,9 +30,9 @@ bash tests/run_guards.sh       # every shell guard, no exclusion list
 
 CI references are themselves checked: `tests/test_ci_workflows_resolve.sh` fails if a live
 workflow names a make target, script, package path, config or `-run` pattern that does not
-exist, and `tests/vnext-workflows.txt` declares every workflow as `enabled` or `disabled`
+exist, and `tests/core-workflows.txt` declares every workflow as `enabled` or `disabled`
 (a `disabled` workflow must carry its refusal marker). The package graph is an exact declared
-set in `tests/vnext-packages.txt`, not a count floor.
+set in `tests/core-packages.txt`, not a count floor.
 
 Single case: `go test -run 'TestName' -v ./pkg/proxy/`. Gate artifacts cite tests by name, so
 renaming or deleting one means updating the artifact in the same commit — a checklist row
@@ -72,8 +72,8 @@ which is the mechanism that once put 53 JPGs into this repository's history.
 - `cmd/evidra-mcp/` — the merged endpoint. The only binary that enforces or records.
 - `cmd/evidra/` — read side only: `summarize`, `verify`, `version`. A fourth command needs a
   plan change, not a registry entry.
-- `pkg/proxy/` — endpoint (`endpoint*.go`). The pre-vNext relay and its mutation heuristics
-  are deleted; do not reintroduce content-based classification.
+- `pkg/proxy/` — endpoint (`endpoint*.go`). The legacy hosted relay and its mutation
+  heuristics are deleted; do not reintroduce content-based classification.
 - `pkg/evidence/` — evidence model **v2 only**: `store_v2.go`, `event_v2.go`, `digest_v2.go`,
   `verify_v2.go`, `canon_jcs.go`. One schema, one writer per directory.
 - `pkg/report/` — reconciliation into `summary.json`.
@@ -125,7 +125,7 @@ which is the mechanism that once put 53 JPGs into this repository's history.
   understanding.
 - Do not re-run paid model arms beyond what is already spent; free-tier arms reproduce the
   probe artifacts.
-- A deleted package must be removed from `tests/vnext-packages.txt` in the same commit that
+- A deleted package must be removed from `tests/core-packages.txt` in the same commit that
   deletes it; a workflow step may not outlive its target. Green that checks nothing is worse
   than red that checks something.
 - **Regrade; do not hand-read artifacts.** `--regrade` recomputes verdicts from persisted

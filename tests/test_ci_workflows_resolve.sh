@@ -6,8 +6,9 @@ cd "$ROOT_DIR"
 
 # Every target a CI workflow names must exist.
 #
-# Why this exists: `ci-vnext.yml` ran `go test -race ./internal/lifecycle/...` after that
-# package was deleted in the §43 prune, and `ci.yml` called four Make targets, five shell
+# Why this exists: the retired branch-only workflow ran
+# `go test -race ./internal/lifecycle/...` after that package was deleted in the
+# legacy prune, and `ci.yml` called four Make targets, five shell
 # guards and a prompts directory that no longer exist. Both workflows were edited for pages
 # at a time while their contents drifted, and the first anyone found out was a red check on a
 # pushed branch. A workflow step pointing at a deleted path is the same object as a checklist
@@ -19,7 +20,7 @@ fail() {
   exit 1
 }
 
-[[ -f tests/vnext-workflows.txt ]] || fail "tests/vnext-workflows.txt is missing"
+[[ -f tests/core-workflows.txt ]] || fail "tests/core-workflows.txt is missing"
 
 problems=0
 note() {
@@ -70,7 +71,7 @@ fi
 # --- every workflow on disk is declared ----------------------------------------------------
 while IFS= read -r file; do
   base="$(basename "$file")"
-  grep -q "^${base}	" tests/vnext-workflows.txt || note "$base exists but is not declared in tests/vnext-workflows.txt"
+  grep -q "^${base}	" tests/core-workflows.txt || note "$base exists but is not declared in tests/core-workflows.txt"
 done < <(find .github/workflows -maxdepth 1 -name '*.yml' | sort)
 
 while IFS=$'\t' read -r name state marker; do
@@ -81,7 +82,7 @@ while IFS=$'\t' read -r name state marker; do
     grep -q -- "$marker" ".github/workflows/$name" 2>/dev/null ||
       note "$name is declared disabled but does not contain its refusal marker '$marker'"
   fi
-done < <(grep -v '^#' tests/vnext-workflows.txt)
+done < <(grep -v '^#' tests/core-workflows.txt)
 
 # --- resolve references inside enabled workflows -------------------------------------------
 resolve_go_path() {
@@ -132,7 +133,7 @@ while IFS=$'\t' read -r name state _marker; do
     matches="$(go test -list "$pattern" "$pkg" 2>/dev/null | grep -c '^Test' || true)"
     [[ "${matches:-0}" -gt 0 ]] || note "$wf: -run '$pattern' over $pkg matches no tests (vacuous green)"
   done < <(printf '%s\n' "$body" | grep -oE "\-run +'[^']+' +\./[A-Za-z0-9_./-]+" | sed "s/-run +//" | awk '{print $2" "$1}' | sort -u)
-done < <(grep -v '^#' tests/vnext-workflows.txt)
+done < <(grep -v '^#' tests/core-workflows.txt)
 
 # --- release configuration that is not a workflow but is what a release runs ---------------
 if [[ -f .goreleaser.yaml ]]; then

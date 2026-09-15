@@ -49,7 +49,7 @@ import (
 const (
 	protocolVersionLatest = "2025-06-18"
 	fixtureName           = "evidra-fixture"
-	fixtureVersion        = "vnext-1"
+	fixtureVersion        = "core-1"
 
 	errParse            = -32700
 	errInvalidRequest   = -32600
@@ -570,7 +570,7 @@ func (f *fixture) handleInitialize(req *rpcMessage) {
 		"protocolVersion": version,
 		"capabilities":    f.capabilities(),
 		"serverInfo":      map[string]any{"name": fixtureName, "version": fixtureVersion},
-		"instructions":    "Fixture MCP server for Evidra vNext conformance tests.",
+		"instructions":    "Fixture MCP server for Evidra conformance tests.",
 	})
 }
 

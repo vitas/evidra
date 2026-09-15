@@ -24,13 +24,13 @@ fail() {
 [[ -x tests/run_guards.sh ]] || fail "guard runner should exist and be executable"
 [[ -x tests/test_ci_workflows_resolve.sh ]] || fail "CI reference resolver guard should exist"
 [[ -x tests/test_supported_package_graph.sh ]] || fail "package graph guard should exist"
-[[ -f tests/vnext-workflows.txt ]] || fail "workflow declaration list should exist"
-[[ -f tests/vnext-packages.txt ]] || fail "declared package set should exist"
+[[ -f tests/core-workflows.txt ]] || fail "workflow declaration list should exist"
+[[ -f tests/core-packages.txt ]] || fail "declared package set should exist"
 while IFS=$'\t' read -r wf state _; do
   [[ -n "${wf:-}" && ! "$wf" =~ ^# ]] || continue
-  [[ -f ".github/workflows/$wf" ]] || fail "tests/vnext-workflows.txt declares $wf, which does not exist"
+  [[ -f ".github/workflows/$wf" ]] || fail "tests/core-workflows.txt declares $wf, which does not exist"
   grep -qE "^(enabled|disabled)$" <<<"$state" || fail "$wf has an invalid state: $state"
-done < tests/vnext-workflows.txt
+done < tests/core-workflows.txt
 
 grep -Fq "Developer Certificate of Origin" CONTRIBUTING.md \
   || fail "CONTRIBUTING.md should document the DCO policy"

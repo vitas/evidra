@@ -41,9 +41,10 @@ forbidden_patterns=(
   "scorecard"
   "webhooks"
   "built-in[^.]*[^[:alnum:]_](kubectl|helm|terraform|aws)([^[:alnum:]_]|$)"
-  "pre-vNext product"
   "waits on Gate C"
-  "vnext/mcp-recorder"
+  # The redesign's research codename is retired language: the reader-facing
+  # story is the Core recorder, not its development history.
+  'v'"next"
 )
 
 for pattern in "${forbidden_patterns[@]}"; do

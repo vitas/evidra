@@ -1,6 +1,6 @@
 package evidence
 
-// Evidence model v2 (§14-§18 of the vNext plan).
+// Evidence model v2.
 //
 // One flat envelope, one file per recorder process, a hash chain over that file,
 // and provenance on every event. The shape is deliberately small: the reason v1
