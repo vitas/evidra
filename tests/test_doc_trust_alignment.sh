@@ -80,4 +80,14 @@ grep -Fq "A successful upstream response is not proof of the" docs/cli-reference
 grep -Fq "These are separate conclusions." docs/evidence-format.md \
   || fail "evidence trust model should distinguish chain, signature, and coverage"
 
+for stale_phrase in \
+  "agents actually did" \
+  "guarantees is that the execution is recorded" \
+  "results are fingerprinted, never stored raw"
+do
+  if grep -RInF -- "$stale_phrase" ui/src >/dev/null; then
+    fail "public UI should not contain stale trust wording: $stale_phrase"
+  fi
+done
+
 echo "PASS: test_doc_trust_alignment"

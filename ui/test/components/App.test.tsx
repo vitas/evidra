@@ -12,9 +12,10 @@ describe("App", () => {
     render(<App />);
     expect(
       screen.getByRole("heading", {
-        name: /Evidence for what MCP agents actually did/i,
+        name: /Verifiable evidence from the MCP execution boundary/i,
       }),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/agents actually did/i)).not.toBeInTheDocument();
   });
 
   it("makes Core getting started the primary action", () => {
@@ -70,6 +71,22 @@ describe("App — Core content contract", () => {
   it("states that a successful tool response is not outcome proof", () => {
     expect(
       screen.getByText(/successful tool response is not proof of the external outcome/i),
+    ).toBeInTheDocument();
+  });
+
+  it("states the limits of recording coverage", () => {
+    expect(
+      screen.queryByText(/guarantees is that the execution is recorded/i),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/unknown loss can still exist/i)).toBeInTheDocument();
+  });
+
+  it("separates generated reconciliation from human judgment", () => {
+    expect(
+      screen.getByText(/Evidra generates the reconciliation summary/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/a human judges the external outcome/i),
     ).toBeInTheDocument();
   });
 
