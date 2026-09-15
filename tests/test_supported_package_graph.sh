@@ -76,7 +76,7 @@ fi
 
 # Every declared package must exist as a directory with Go files in it.
 for pkg in $declared; do
-  dir="${pkg#samebits.com/evidra/}"
+  dir="${pkg#github.com/vitas/evidra/}"
   [[ -d "$dir" ]] || fail "declared package $pkg has no directory $dir/"
   comp="$(go list -e -f '{{if .Error}}BAD{{end}}' "$pkg" 2>/dev/null)"
   [[ "$comp" == "BAD" ]] && fail "go list reports an error for $pkg"

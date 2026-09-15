@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"samebits.com/evidra/pkg/proxy"
-	"samebits.com/evidra/pkg/version"
+	"github.com/vitas/evidra/pkg/proxy"
+	"github.com/vitas/evidra/pkg/version"
 )
 
 func main() {

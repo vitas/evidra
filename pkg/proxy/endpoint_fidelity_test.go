@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra/pkg/evidence"
+	"github.com/vitas/evidra/pkg/evidence"
 )
 
 // TestProgressNotificationsSurviveTheWrapper is Gate B's "progress/cancellation

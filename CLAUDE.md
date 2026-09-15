@@ -109,7 +109,7 @@ which is the mechanism that once put 53 JPGs into this repository's history.
    completions stay unadvertised unless `--advertise-passthrough`.
 10. **Out of scope:** generic MCP gateway or multi-upstream multiplexing, HTTP/SSE
     transports, domain verification, risk scoring, policy/HITL, legacy compatibility shims.
-    No repo split, and no module-path change (`samebits.com/evidra`).
+    No repo split or legacy module-path compatibility shims.
 
 ## Measurement discipline
 

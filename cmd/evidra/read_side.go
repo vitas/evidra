@@ -13,8 +13,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"samebits.com/evidra/pkg/evidence"
-	"samebits.com/evidra/pkg/report"
+	"github.com/vitas/evidra/pkg/evidence"
+	"github.com/vitas/evidra/pkg/report"
 )
 
 // evidenceTarget is the resolved input for both commands.

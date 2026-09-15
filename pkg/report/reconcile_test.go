@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra/pkg/evidence"
+	"github.com/vitas/evidra/pkg/evidence"
 )
 
 // testExec is one observed call: the tool, its keyed arguments, the upstream's

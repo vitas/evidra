@@ -3,7 +3,7 @@
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.0.0-dev)
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 BUILD_DATE ?= $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
-LDFLAGS := -X samebits.com/evidra/pkg/version.Version=$(VERSION) -X samebits.com/evidra/pkg/version.Commit=$(COMMIT) -X samebits.com/evidra/pkg/version.Date=$(BUILD_DATE)
+LDFLAGS := -X github.com/vitas/evidra/pkg/version.Version=$(VERSION) -X github.com/vitas/evidra/pkg/version.Commit=$(COMMIT) -X github.com/vitas/evidra/pkg/version.Date=$(BUILD_DATE)
 GO_PACKAGES := ./cmd/... ./pkg/...
 
 build:

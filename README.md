@@ -109,6 +109,11 @@ MCP boundary.
 
 ## Documentation
 
+Go integrations can import the public evidence and reconciliation packages as
+`github.com/vitas/evidra/pkg/evidence` and
+`github.com/vitas/evidra/pkg/report`. The endpoint implementation in
+`pkg/proxy` is not a supported integration API.
+
 - [Getting started](docs/getting-started.md)
 - [CLI reference](docs/cli-reference.md)
 - [Architecture](docs/architecture.md)
