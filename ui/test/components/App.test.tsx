@@ -107,6 +107,27 @@ describe("App — Core content contract", () => {
     expect(screen.getByText(/unknown loss can still exist/i)).toBeInTheDocument();
   });
 
+  it("explains enforcement behavior for unprescribed calls accurately", () => {
+    expect(
+      screen.getByText(
+        /default, --enforce=all requires an open prescribed operation/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /blocks the call and records a protocol_violation before forwarding or observation/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /--enforce=off, observe-only mode forwards and records the call with an empty operation ID/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/nothing beyond calling the wrapped server/i),
+    ).not.toBeInTheDocument();
+  });
+
   it("separates generated reconciliation from human judgment", () => {
     const example = document.getElementById("reconciliation-example");
     expect(example).not.toBeNull();

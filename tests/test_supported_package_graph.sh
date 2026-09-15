@@ -27,6 +27,12 @@ active_ci="$(sed -E 's/[[:space:]]*#.*$//' .github/workflows/ci.yml)"
 contributor_commands="$({
   awk '/^```/ { in_fence = !in_fence; next } in_fence { print }' CONTRIBUTING.md
 } | sed -E 's/[[:space:]]*#.*$//')"
+validation_commands="$({
+  awk '/^```/ { in_fence = !in_fence; next } in_fence { print }' docs/validation.md
+} | sed -E 's/[[:space:]]*#.*$//')"
+claude_commands="$({
+  awk '/^```/ { in_fence = !in_fence; next } in_fence { print }' CLAUDE.md
+} | sed -E 's/[[:space:]]*#.*$//')"
 
 grep -Fxq 'GO_PACKAGES := ./cmd/... ./pkg/...' <<< "$active_make" \
   || fail "Makefile must define the exact Core package scope"
@@ -49,6 +55,12 @@ if grep -Eq "$bare_all_packages_test" <<< "$active_ci"; then
 fi
 if grep -Eq "$bare_all_packages_test" <<< "$contributor_commands"; then
   fail "CONTRIBUTING.md must not run go test against bare ./..."
+fi
+if grep -Eq "$bare_all_packages_test" <<< "$validation_commands"; then
+  fail "docs/validation.md must not run go test against bare ./..."
+fi
+if grep -Eq "$bare_all_packages_test" <<< "$claude_commands"; then
+  fail "CLAUDE.md must not run go test against bare ./..."
 fi
 
 # node_modules is third-party JavaScript that sometimes ships Go source of its own

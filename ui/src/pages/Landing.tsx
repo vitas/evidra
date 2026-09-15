@@ -343,7 +343,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "What does an agent have to do to be recorded?",
-    a: "Nothing beyond calling the wrapped server through the endpoint. Prescribe/report raises the quality of evidence to declared; calls made without an open operation are recorded as observed and counted, and enforcement mode decides whether they are refused or watched.",
+    a: "By default, --enforce=all requires an open prescribed operation. Without one, Evidra blocks the call and records a protocol_violation before forwarding or observation. With --enforce=off, observe-only mode forwards and records the call with an empty operation ID.",
   },
   {
     q: "Where do the keys live?",

@@ -82,6 +82,7 @@ grep -Fq "These are separate conclusions." docs/evidence-format.md \
 
 for stale_phrase in \
   "agents actually did" \
+  "Nothing beyond calling the wrapped server" \
   "guarantees is that the execution is recorded" \
   "results are fingerprinted, never stored raw"
 do

@@ -93,7 +93,7 @@ go build -o bin/evidra-fixture ./cmd/evidra-fixture
 go build -o bin/evidra-gatea ./cmd/evidra-gatea
 
 make lint
-go test ./... -count=1
+go test ./cmd/... ./pkg/... -count=1
 go test -race -count=1 \
   ./pkg/evidence/... \
   ./pkg/proxy/... \
