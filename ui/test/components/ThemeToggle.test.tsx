@@ -15,6 +15,7 @@ describe("ThemeToggle", () => {
       name: "Switch to dark theme",
     });
     expect(button).toHaveAttribute("title", "Switch to dark theme");
+    expect(button).toHaveAttribute("type", "button");
   });
 
   it("describes the next action after switching to the dark theme", async () => {

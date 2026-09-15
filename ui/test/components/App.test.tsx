@@ -71,7 +71,7 @@ describe("App — Core content contract", () => {
   it("exposes the complete runtime topology as one accessible image", () => {
     expect(
       screen.getByRole("img", {
-        name: /Agent.*Evidra MCP endpoint.*Upstream MCP server.*Signed evidence directory/i,
+        name: "Agent connects to the Evidra MCP endpoint, which forwards calls to one upstream MCP server and writes a signed evidence directory.",
       }),
     ).toBeInTheDocument();
   });

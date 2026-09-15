@@ -83,7 +83,7 @@ function RuntimeTopology() {
         <div
           className="topology mt-8"
           role="img"
-          aria-label="Agent to Evidra MCP endpoint to Upstream MCP server and Signed evidence directory"
+          aria-label="Agent connects to the Evidra MCP endpoint, which forwards calls to one upstream MCP server and writes a signed evidence directory."
         >
           <div className="topology-node">Agent</div>
           <div className="topology-arrow" aria-hidden="true">

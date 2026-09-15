@@ -6,7 +6,7 @@ interface LayoutProps {
 
 const NAV_LINKS = [
   { href: "#runtime-topology", label: "Product" },
-  { href: "https://github.com/vitas/evidra/blob/main/docs/getting-started.md", label: "Docs", external: false },
+  { href: "https://github.com/vitas/evidra/blob/main/docs/getting-started.md", label: "Docs" },
 ];
 
 export function Layout({ children }: LayoutProps) {
@@ -38,7 +38,6 @@ function Header() {
               <a
                 key={l.label}
                 href={l.href}
-                {...(l.external ? { target: "_blank", rel: "noopener" } : {})}
                 className="text-[0.85rem] font-medium text-fg-muted no-underline hover:text-fg"
               >
                 {l.label}

@@ -7,6 +7,7 @@ export function ThemeToggle() {
 
   return (
     <button
+      type="button"
       onClick={toggle}
       aria-label={actionLabel}
       title={actionLabel}
