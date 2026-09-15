@@ -68,6 +68,20 @@ describe("App — Core content contract", () => {
     expect(topology).toHaveTextContent(/Upstream MCP server/i);
   });
 
+  it("exposes the complete runtime topology as one accessible image", () => {
+    expect(
+      screen.getByRole("img", {
+        name: /Agent.*Evidra MCP endpoint.*Upstream MCP server.*Signed evidence directory/i,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps Docs navigation in the current tab", () => {
+    expect(screen.getByRole("link", { name: "Docs" })).not.toHaveAttribute(
+      "target",
+    );
+  });
+
   it("states that a successful tool response is not outcome proof", () => {
     expect(
       screen.getByText(/successful tool response is not proof of the external outcome/i),

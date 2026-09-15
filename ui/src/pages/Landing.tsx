@@ -80,7 +80,11 @@ function RuntimeTopology() {
           One endpoint wraps one upstream MCP server; the agent sees a single
           server in its tool list.
         </p>
-        <div className="topology mt-8" aria-label="Runtime topology">
+        <div
+          className="topology mt-8"
+          role="img"
+          aria-label="Agent to Evidra MCP endpoint to Upstream MCP server and Signed evidence directory"
+        >
           <div className="topology-node">Agent</div>
           <div className="topology-arrow" aria-hidden="true">
             &darr; &uarr;
@@ -91,13 +95,17 @@ function RuntimeTopology() {
               merges evidra_prescribe / evidra_report into the tool list
             </span>
           </div>
-          <div className="topology-branches" aria-hidden="true">
+          <div className="topology-branches">
             <div className="topology-branch">
-              <span className="topology-arrow">&rarr;</span>
+              <span className="topology-arrow" aria-hidden="true">
+                &rarr;
+              </span>
               <div className="topology-node">Upstream MCP server</div>
             </div>
             <div className="topology-branch">
-              <span className="topology-arrow">&darr;</span>
+              <span className="topology-arrow" aria-hidden="true">
+                &darr;
+              </span>
               <div className="topology-node">Signed evidence directory</div>
             </div>
           </div>

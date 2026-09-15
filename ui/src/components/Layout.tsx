@@ -6,7 +6,7 @@ interface LayoutProps {
 
 const NAV_LINKS = [
   { href: "#runtime-topology", label: "Product" },
-  { href: "https://github.com/vitas/evidra/blob/main/docs/getting-started.md", label: "Docs", external: true },
+  { href: "https://github.com/vitas/evidra/blob/main/docs/getting-started.md", label: "Docs", external: false },
 ];
 
 export function Layout({ children }: LayoutProps) {
