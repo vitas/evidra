@@ -28,8 +28,10 @@ grep -Fq '"github.com/vitas/evidra/pkg/proxy"' cmd/evidra-mcp/main.go \
   || fail "evidra-mcp should import proxy from the current module"
 
 for public_package in pkg/evidence pkg/report; do
-  git grep -Fq "github.com/vitas/evidra/$public_package" -- README.md docs/architecture.md \
-    || fail "$public_package import path must be documented in README and Architecture"
+  for public_doc in README.md docs/architecture.md; do
+    grep -Fq "$canonical_module/$public_package" "$public_doc" \
+      || fail "$public_doc must document the canonical $public_package import path"
+  done
 done
 
 grep -Fq '`pkg/proxy` is an internal implementation package' docs/architecture.md \
