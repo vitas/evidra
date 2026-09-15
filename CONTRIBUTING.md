@@ -53,8 +53,13 @@ bash tests/run_guards.sh
 cd ui && npm ci && npm run lint && npm test && npm run build
 ```
 
-`make test` expands to `go test ./cmd/... ./pkg/...`, keeping installed UI
-dependencies outside the Go package traversal.
+The standard `make test` target expands to:
+
+```bash
+go test ./cmd/... ./pkg/...
+```
+
+This keeps installed UI dependencies outside the Go package traversal.
 
 A single Go case: `go test -run 'TestName' -v ./pkg/proxy/`.
 

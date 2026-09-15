@@ -20,25 +20,36 @@ fail() {
 
 [[ -f tests/core-packages.txt ]] || fail "tests/core-packages.txt is missing"
 
-grep -Fq 'GO_PACKAGES := ./cmd/... ./pkg/...' Makefile \
-  || fail "Makefile must scope Go checks away from ui/node_modules"
-grep -Fq 'go test $(GO_PACKAGES)' Makefile \
-  || fail "make test must use GO_PACKAGES"
+# Strip comments before checking active command surfaces, then limit Markdown
+# checks to fenced command blocks so explanatory prose cannot satisfy the guard.
+active_make="$(sed -E 's/[[:space:]]*#.*$//' Makefile)"
+active_ci="$(sed -E 's/[[:space:]]*#.*$//' .github/workflows/ci.yml)"
+contributor_commands="$({
+  awk '/^```/ { in_fence = !in_fence; next } in_fence { print }' CONTRIBUTING.md
+} | sed -E 's/[[:space:]]*#.*$//')"
 
-# Ignore comments so examples that explain the prohibited command do not trip
-# the guard. Active CI and contributor commands must stay inside Core packages.
-strip_comments() {
-  sed -E 's/[[:space:]]*#.*$//' "$1"
-}
+grep -Fxq 'GO_PACKAGES := ./cmd/... ./pkg/...' <<< "$active_make" \
+  || fail "Makefile must define the exact Core package scope"
+awk '
+  $0 == "test:" { in_test = 1; next }
+  in_test && /^[^[:space:]#][^:]*:/ { in_test = 0 }
+  in_test && /^\tgo test \$\(GO_PACKAGES\)([[:space:]]|$)/ { found = 1 }
+  END { exit(found ? 0 : 1) }
+' <<< "$active_make" \
+  || fail "the Makefile test recipe must use GO_PACKAGES"
 
-for command_surface in .github/workflows/ci.yml CONTRIBUTING.md; do
-  grep -Fq 'go test ./cmd/... ./pkg/...' "$command_surface" \
-    || fail "$command_surface must document the literal Core test scope"
-  if strip_comments "$command_surface" \
-    | grep -Eq '(^|[[:space:]`])go[[:space:]]+test([[:space:]]+-[^[:space:]]+)*[[:space:]]+\./\.\.\.([[:space:]`]|$)'; then
-    fail "$command_surface must not run go test against bare ./..."
-  fi
-done
+grep -Eq '^[[:space:]]*run:[[:space:]]+go[[:space:]]+test[[:space:]]+\./cmd/\.\.\.[[:space:]]+\./pkg/\.\.\.([[:space:]]|$)' <<< "$active_ci" \
+  || fail "CI must run the literal Core test scope"
+grep -Eq '^[[:space:]]*go[[:space:]]+test[[:space:]]+\./cmd/\.\.\.[[:space:]]+\./pkg/\.\.\.([[:space:]]|$)' <<< "$contributor_commands" \
+  || fail "CONTRIBUTING.md must include the literal Core test command"
+
+bare_all_packages_test='(^|[[:space:]])go[[:space:]]+test([[:space:]]+[^[:space:]]+)*[[:space:]]+\./\.\.\.([[:space:]]|$)'
+if grep -Eq "$bare_all_packages_test" <<< "$active_ci"; then
+  fail ".github/workflows/ci.yml must not run go test against bare ./..."
+fi
+if grep -Eq "$bare_all_packages_test" <<< "$contributor_commands"; then
+  fail "CONTRIBUTING.md must not run go test against bare ./..."
+fi
 
 # node_modules is third-party JavaScript that sometimes ships Go source of its own
 # (flatted ships golang/pkg/flatted). That code is not part of this module's graph,
