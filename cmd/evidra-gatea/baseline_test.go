@@ -41,8 +41,8 @@ func TestMain(m *testing.M) {
 	testFixtureBin = filepath.Join(dir, "evidra-fixture")
 	testMCPBin = filepath.Join(dir, "evidra-mcp")
 	for _, b := range []struct{ out, pkg string }{
-		{testFixtureBin, "samebits.com/evidra/cmd/evidra-fixture"},
-		{testMCPBin, "samebits.com/evidra/cmd/evidra-mcp"},
+		{testFixtureBin, "github.com/vitas/evidra/cmd/evidra-fixture"},
+		{testMCPBin, "github.com/vitas/evidra/cmd/evidra-mcp"},
 	} {
 		cmd := exec.Command("go", "build", "-o", b.out, b.pkg)
 		if out, err := cmd.CombinedOutput(); err != nil {

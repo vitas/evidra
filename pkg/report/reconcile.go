@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"samebits.com/evidra/pkg/evidence"
+	"github.com/vitas/evidra/pkg/evidence"
 )
 
 // Schema names the artifact so a reader can tell which reconciliation rules wrote

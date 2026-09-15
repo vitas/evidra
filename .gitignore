@@ -78,6 +78,7 @@ experiments/results/
 
 # Screenshots from dev/testing
 *.png
+!ui/public/og/evidra-core.png
 
 # obsidian
 .obsidian/

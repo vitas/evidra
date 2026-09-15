@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, it, expect, beforeEach } from "vitest";
 import { App } from "../../src/App";
 
@@ -12,8 +12,21 @@ describe("App", () => {
     render(<App />);
     expect(
       screen.getByRole("heading", {
-        name: /Evidence for what MCP agents actually did/i,
+        name: /Verifiable evidence from the MCP execution boundary/i,
       }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/agents actually did/i)).not.toBeInTheDocument();
+  });
+
+  it("labels the relaunched Core line as an unreleased preview", () => {
+    render(<App />);
+    expect(
+      screen.getByText(
+        "The relaunched Core line is currently an unreleased preview built from main.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Build from source; no hosted service required."),
     ).toBeInTheDocument();
   });
 
@@ -67,10 +80,85 @@ describe("App — Core content contract", () => {
     expect(topology).toHaveTextContent(/Upstream MCP server/i);
   });
 
+  it("exposes the complete runtime topology as one accessible image", () => {
+    expect(
+      screen.getByRole("img", {
+        name: "Agent connects to the Evidra MCP endpoint, which forwards calls to one upstream MCP server and writes a signed evidence directory.",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps Docs navigation in the current tab", () => {
+    expect(screen.getByRole("link", { name: "Docs" })).not.toHaveAttribute(
+      "target",
+    );
+  });
+
   it("states that a successful tool response is not outcome proof", () => {
     expect(
       screen.getByText(/successful tool response is not proof of the external outcome/i),
     ).toBeInTheDocument();
+  });
+
+  it("states the limits of recording coverage", () => {
+    expect(
+      screen.queryByText(/guarantees is that the execution is recorded/i),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText(/unknown loss can still exist/i)).toBeInTheDocument();
+  });
+
+  it("explains enforcement behavior for unprescribed calls accurately", () => {
+    expect(
+      screen.getByText(
+        /default, --enforce=all requires an open prescribed operation/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /blocks an unprescribed call instead of forwarding it or creating an execution observation/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /when recording is enabled, Evidra attempts to append a protocol_violation/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /if that append fails, the endpoint follows its healthy-boundary failure behavior/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /--enforce=off, observe-only mode forwards and records the call with an empty operation ID/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/blocks the call and records a protocol_violation/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("separates generated reconciliation from human judgment", () => {
+    const example = document.getElementById("reconciliation-example");
+    expect(example).not.toBeNull();
+    const reconciliation = within(example as HTMLElement);
+
+    expect(
+      reconciliation.getByText(
+        /restart_deployment → success; get_status → success; result fingerprint present/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      reconciliation.getByText("Reviewer interpretation"),
+    ).toBeInTheDocument();
+    expect(
+      reconciliation.getByText(
+        /Evidra generates the reconciliation summary from the recorded chain; a human judges what it means for the external outcome/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      reconciliation.queryByText(/get_status → ready/i),
+    ).not.toBeInTheDocument();
   });
 
   it("shows only current commands", () => {

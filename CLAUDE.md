@@ -19,7 +19,8 @@ design and implementation plan for active work live under `docs/plans/`.
 
 ```bash
 make build            # bin/evidra, bin/evidra-mcp
-make test             # go test ./... -v -count=1
+make test             # canonical repository test target
+go test ./cmd/... ./pkg/... -v -count=1    # equivalent direct Core scope
 make fmt lint tidy
 go build -o bin/evidra-fixture ./cmd/evidra-fixture/    # conformance upstream
 go build -o bin/evidra-gatea ./cmd/evidra-gatea/        # experiment runner
@@ -109,7 +110,7 @@ which is the mechanism that once put 53 JPGs into this repository's history.
    completions stay unadvertised unless `--advertise-passthrough`.
 10. **Out of scope:** generic MCP gateway or multi-upstream multiplexing, HTTP/SSE
     transports, domain verification, risk scoring, policy/HITL, legacy compatibility shims.
-    No repo split, and no module-path change (`samebits.com/evidra`).
+    No repo split or legacy module-path compatibility shims.
 
 ## Measurement discipline
 

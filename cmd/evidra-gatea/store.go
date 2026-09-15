@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"samebits.com/evidra/pkg/evidence"
+	"github.com/vitas/evidra/pkg/evidence"
 )
 
 // storeFacts is the recorder's account of one run.

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra/pkg/evidence"
+	"github.com/vitas/evidra/pkg/evidence"
 )
 
 // writeRunStore records a minimal session into the layout the runner produces:

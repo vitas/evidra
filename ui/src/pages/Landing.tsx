@@ -36,7 +36,7 @@ function Hero() {
         <div className="hero-copy">
           <Eyebrow>Open-source MCP execution evidence</Eyebrow>
           <h1 className="text-[2.4rem] sm:text-[3rem] leading-tight font-bold text-fg tracking-tight">
-            Evidence for what MCP agents actually did.
+            Verifiable evidence from the MCP execution boundary.
           </h1>
           <p className="mt-4 text-[1.15rem] text-fg-muted">
             Evidra records what an agent declared, what the proxy observed, and
@@ -62,7 +62,13 @@ function Hero() {
             </a>
           </div>
           <p className="mt-4 text-[0.85rem] text-fg-muted">
-            Local-first. Inspectable JSONL. No hosted service required.
+            <span className="block">
+              The relaunched Core line is currently an unreleased preview built
+              from main.
+            </span>
+            <span className="block">
+              Build from source; no hosted service required.
+            </span>
           </p>
         </div>
       </Container>
@@ -80,7 +86,11 @@ function RuntimeTopology() {
           One endpoint wraps one upstream MCP server; the agent sees a single
           server in its tool list.
         </p>
-        <div className="topology mt-8" aria-label="Runtime topology">
+        <div
+          className="topology mt-8"
+          role="img"
+          aria-label="Agent connects to the Evidra MCP endpoint, which forwards calls to one upstream MCP server and writes a signed evidence directory."
+        >
           <div className="topology-node">Agent</div>
           <div className="topology-arrow" aria-hidden="true">
             &darr; &uarr;
@@ -91,13 +101,17 @@ function RuntimeTopology() {
               merges evidra_prescribe / evidra_report into the tool list
             </span>
           </div>
-          <div className="topology-branches" aria-hidden="true">
+          <div className="topology-branches">
             <div className="topology-branch">
-              <span className="topology-arrow">&rarr;</span>
+              <span className="topology-arrow" aria-hidden="true">
+                &rarr;
+              </span>
               <div className="topology-node">Upstream MCP server</div>
             </div>
             <div className="topology-branch">
-              <span className="topology-arrow">&darr;</span>
+              <span className="topology-arrow" aria-hidden="true">
+                &darr;
+              </span>
               <div className="topology-node">Signed evidence directory</div>
             </div>
           </div>
@@ -120,7 +134,7 @@ const BOUNDARIES = [
   },
   {
     title: "Observed",
-    desc: "Tool calls and responses that crossed the Evidra proxy.",
+    desc: "Execution boundaries, status, timing, metadata, and bounded keyed fingerprints recorded by the proxy.",
   },
   {
     title: "Reported",
@@ -168,14 +182,17 @@ function ReconciliationExample() {
             </div>
             <div className="reconciliation-row">
               <dt>Observed</dt>
-              <dd>restart_deployment &rarr; success; get_status &rarr; ready</dd>
+              <dd>
+                restart_deployment &rarr; success; get_status &rarr; success;
+                result fingerprint present
+              </dd>
             </div>
             <div className="reconciliation-row">
               <dt>Reported</dt>
               <dd>completed / achieved</dd>
             </div>
             <div className="reconciliation-row">
-              <dt>Finding</dt>
+              <dt>Reviewer interpretation</dt>
               <dd>
                 The proxy observed the requested calls and successful
                 responses. External application health was not independently
@@ -185,8 +202,8 @@ function ReconciliationExample() {
           </dl>
         </div>
         <p className="mt-4 text-[0.85rem] text-fg-muted">
-          Illustrative example; findings are produced by your own review of a
-          real chain, not by the recorder.
+          Evidra generates the reconciliation summary from the recorded chain;
+          a human judges what it means for the external outcome.
         </p>
       </Container>
     </section>
@@ -194,11 +211,11 @@ function ReconciliationExample() {
 }
 
 const TRUST_BOUNDARIES = [
-  "Evidra is not a sandbox: the upstream server executes with whatever it has. What Evidra guarantees is that the execution is recorded, not that it is safe.",
-  "A successful tool response is not proof of the external outcome. The chain records what crossed the proxy; reconciling that with reality is the human step.",
-  "Declared and reported entries are agent claims. They are stored as claims, verifiable in origin and position, never rewritten into observations.",
-  "Observed arguments leave the recording process only as keyed HMAC digests; observed results are fingerprinted, never stored raw.",
-  "Chain validity, signature validity, and evidence coverage are three separate conclusions. A valid chain can still be incomplete, and that gap is reported.",
+  "Evidra is not a sandbox: the upstream server executes with its existing authority. When recording is healthy, Evidra records the MCP boundary. Known degraded windows are reported, and unknown loss can still exist.",
+  "A successful tool response is not proof of the external outcome. A human judges the external outcome against external state.",
+  "Declared and reported entries are agent claims. Their origin and position are preserved only within the local recorder trust boundary; they do not establish organizational identity.",
+  "Raw observed arguments and response bodies are not stored. Arguments use keyed HMAC digests; results use a bounded fingerprint or an explicit omitted or unavailable status.",
+  "Chain validity, signature validity, and evidence coverage are separate conclusions. A valid chain can still be incomplete.",
 ];
 
 function TrustBoundaries() {
@@ -224,7 +241,7 @@ function Workflow() {
     <section id="workflow" className="py-12 bg-bg-alt">
       <Container>
         <Eyebrow>Workflow</Eyebrow>
-        <h2 className="section-title">Four commands, one protocol order</h2>
+        <h2 className="section-title">One operation, then verify and summarize</h2>
         <div className="grid gap-8 mt-8 lg:grid-cols-2">
           <div>
             <h3 className="step-title">1 &middot; Wrap your MCP server</h3>
@@ -326,7 +343,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "What does an agent have to do to be recorded?",
-    a: "Nothing beyond calling the wrapped server through the endpoint. Prescribe/report raises the quality of evidence to declared; calls made without an open operation are recorded as observed and counted, and enforcement mode decides whether they are refused or watched.",
+    a: "By default, --enforce=all requires an open prescribed operation and blocks an unprescribed call instead of forwarding it or creating an execution observation. When recording is enabled, Evidra attempts to append a protocol_violation; if that append fails, the endpoint follows its healthy-boundary failure behavior rather than claiming the record exists. With --enforce=off, observe-only mode forwards and records the call with an empty operation ID.",
   },
   {
     q: "Where do the keys live?",

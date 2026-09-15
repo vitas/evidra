@@ -9,17 +9,25 @@ describe("ThemeToggle", () => {
     localStorage.clear();
   });
 
-  it("renders a button", () => {
+  it("describes the action available in the light theme", () => {
     render(<ThemeToggle />);
-    expect(
-      screen.getByRole("button", { name: /toggle theme/i }),
-    ).toBeInTheDocument();
+    const button = screen.getByRole("button", {
+      name: "Switch to dark theme",
+    });
+    expect(button).toHaveAttribute("title", "Switch to dark theme");
+    expect(button).toHaveAttribute("type", "button");
   });
 
-  it("toggles theme on click", async () => {
+  it("describes the next action after switching to the dark theme", async () => {
     render(<ThemeToggle />);
-    const btn = screen.getByRole("button", { name: /toggle theme/i });
-    await userEvent.click(btn);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Switch to dark theme" }),
+    );
+
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    const button = screen.getByRole("button", {
+      name: "Switch to light theme",
+    });
+    expect(button).toHaveAttribute("title", "Switch to light theme");
   });
 });

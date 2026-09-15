@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra/pkg/evidence"
+	"github.com/vitas/evidra/pkg/evidence"
 )
 
 // recorderDir finds the single recorder directory the endpoint created under an

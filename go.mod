@@ -1,4 +1,4 @@
-module samebits.com/evidra
+module github.com/vitas/evidra
 
 go 1.26.0
 

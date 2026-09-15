@@ -4,6 +4,8 @@ Evidra is an open-source MCP execution-evidence recorder. It wraps one upstream
 MCP server and records what an agent declared, what the proxy observed, and what
 the agent reported.
 
+> The relaunched Core line is currently an unreleased preview built from main.
+
 [![CI](https://github.com/vitas/evidra/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vitas/evidra/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
@@ -106,6 +108,11 @@ MCP boundary.
   alongside `evidra_prescribe` and `evidra_report`.
 
 ## Documentation
+
+Go integrations can import the public evidence and reconciliation packages as
+`github.com/vitas/evidra/pkg/evidence` and
+`github.com/vitas/evidra/pkg/report`. The endpoint implementation in
+`pkg/proxy` is not a supported integration API.
 
 - [Getting started](docs/getting-started.md)
 - [CLI reference](docs/cli-reference.md)

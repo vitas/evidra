@@ -34,6 +34,11 @@ that a successful MCP response caused the intended real-world state.
 `cmd/evidra-fixture` and `cmd/evidra-gatea` are validation tools, not the runtime
 product path.
 
+The public `pkg/evidence` and `pkg/report` packages are importable as
+`github.com/vitas/evidra/pkg/evidence` and
+`github.com/vitas/evidra/pkg/report`. `pkg/proxy` is an internal implementation package.
+No stability promise extends to its internals beyond documented releases.
+
 ## MCP composition
 
 At startup the endpoint launches the child, initializes it using MCP version

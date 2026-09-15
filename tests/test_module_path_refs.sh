@@ -9,18 +9,33 @@ fail() {
   exit 1
 }
 
-legacy_module="samebits.com/evidra""-benchmark"
+canonical_module="github.com/vitas/evidra"
+legacy_module="samebits.com/evidra"
 
-if git grep -n "$legacy_module" -- . ":(exclude)docs/plans/**" >/tmp/test-module-path-refs.out 2>/dev/null; then
+if git grep -n -F "$legacy_module" -- . \
+  ":(exclude)CHANGELOG.md" \
+  ":(exclude)docs/plans/**" \
+  ":(exclude)tests/test_module_path_refs.sh" >/tmp/test-module-path-refs.out 2>/dev/null; then
   cat /tmp/test-module-path-refs.out >&2
   fail "old module path references remain"
 fi
 
-grep -Eq '^module samebits.com/evidra$' go.mod \
-  || fail "go.mod missing module samebits.com/evidra"
+IFS= read -r module_line <go.mod
+[[ "$module_line" == "module $canonical_module" ]] \
+  || fail "go.mod first line must be: module $canonical_module"
 
-grep -Fq '"samebits.com/evidra/pkg/proxy"' cmd/evidra-mcp/main.go \
+grep -Fq '"github.com/vitas/evidra/pkg/proxy"' cmd/evidra-mcp/main.go \
   || fail "evidra-mcp should import proxy from the current module"
+
+for public_package in pkg/evidence pkg/report; do
+  for public_doc in README.md docs/architecture.md; do
+    grep -Fq "$canonical_module/$public_package" "$public_doc" \
+      || fail "$public_doc must document the canonical $public_package import path"
+  done
+done
+
+grep -Fq '`pkg/proxy` is an internal implementation package' docs/architecture.md \
+  || fail "Architecture must describe the pkg/proxy stability boundary"
 
 grep -Fq 'main: ./cmd/evidra-mcp' .goreleaser.yaml \
   || fail "release configuration should build the current evidra-mcp command"

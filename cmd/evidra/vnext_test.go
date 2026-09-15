@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"samebits.com/evidra/pkg/evidence"
-	"samebits.com/evidra/pkg/report"
+	"github.com/vitas/evidra/pkg/evidence"
+	"github.com/vitas/evidra/pkg/report"
 )
 
 // writeSessionRecorder stores one session that claims success without any

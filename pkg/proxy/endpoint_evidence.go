@@ -16,7 +16,7 @@ import (
 
 	"github.com/oklog/ulid/v2"
 
-	"samebits.com/evidra/pkg/evidence"
+	"github.com/vitas/evidra/pkg/evidence"
 )
 
 // epExecution identifies one forwarded call for its terminal event.

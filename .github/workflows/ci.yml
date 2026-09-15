@@ -36,10 +36,10 @@ jobs:
           fi
 
       - name: Run tests
-        run: go test ./... -count=1
+        run: go test ./cmd/... ./pkg/... -count=1
 
       - name: Run race detector
-        run: go test -race ./... -count=1
+        run: go test -race ./cmd/... ./pkg/... -count=1
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
@@ -71,4 +71,3 @@ jobs:
         # artifact path that the §43 prune deleted - each one a gate that had stopped
         # gating long before anyone pushed to this branch.
         run: bash tests/run_guards.sh
-

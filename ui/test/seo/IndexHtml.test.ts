@@ -11,8 +11,14 @@ function loadDocument() {
   return new DOMParser().parseFromString(html, "text/html");
 }
 
+function uniqueAttribute(doc: Document, selector: string, attribute: string) {
+  const elements = doc.querySelectorAll(selector);
+  expect(elements).toHaveLength(1);
+  return elements[0]?.getAttribute(attribute);
+}
+
 function metaContent(doc: Document, selector: string) {
-  return doc.querySelector(selector)?.getAttribute("content");
+  return uniqueAttribute(doc, selector, "content");
 }
 
 function jsonLdag(doc: Document) {
@@ -27,9 +33,9 @@ describe("index.html SEO metadata", () => {
     expect(doc.title).toBe(TITLE);
     expect(metaContent(doc, 'meta[name="description"]')).toBe(DESCRIPTION);
     expect(metaContent(doc, 'meta[name="robots"]')).toBe("index, follow");
-    expect(
-      doc.querySelector('link[rel="canonical"]')?.getAttribute("href"),
-    ).toBe("https://evidra.cc/");
+    expect(uniqueAttribute(doc, 'link[rel="canonical"]', "href")).toBe(
+      "https://evidra.cc/",
+    );
     expect(metaContent(doc, 'meta[property="og:title"]')).toBe(TITLE);
     expect(metaContent(doc, 'meta[property="og:description"]')).toBe(
       DESCRIPTION,
@@ -38,18 +44,42 @@ describe("index.html SEO metadata", () => {
       "https://evidra.cc/",
     );
     expect(metaContent(doc, 'meta[property="og:type"]')).toBe("website");
-    expect(metaContent(doc, 'meta[name="twitter:card"]')).toBe("summary");
+    expect(metaContent(doc, 'meta[property="og:image"]')).toBe(
+      "https://evidra.cc/og/evidra-core.png",
+    );
+    expect(metaContent(doc, 'meta[property="og:image:width"]')).toBe("1200");
+    expect(metaContent(doc, 'meta[property="og:image:height"]')).toBe("630");
+    expect(metaContent(doc, 'meta[property="og:image:alt"]')).toBe(
+      "Evidra — verifiable MCP execution evidence",
+    );
+    expect(metaContent(doc, 'meta[name="twitter:card"]')).toBe(
+      "summary_large_image",
+    );
+    expect(metaContent(doc, 'meta[name="twitter:image"]')).toBe(
+      "https://evidra.cc/og/evidra-core.png",
+    );
+    expect(metaContent(doc, 'meta[name="twitter:image:alt"]')).toBe(
+      "Evidra — verifiable MCP execution evidence",
+    );
     expect(metaContent(doc, 'meta[name="twitter:title"]')).toBe(TITLE);
     expect(metaContent(doc, 'meta[name="twitter:description"]')).toBe(
       DESCRIPTION,
     );
   });
 
+  it("rejects duplicate metadata selectors", () => {
+    const doc = new DOMParser().parseFromString(
+      '<meta property="og:image" content="one"><meta property="og:image" content="two">',
+      "text/html",
+    );
+
+    expect(() => metaContent(doc, 'meta[property="og:image"]')).toThrow();
+  });
+
   it("lets Core, not Bench, own the metadata", () => {
     const html = readFileSync(resolve(process.cwd(), "index.html"), "utf8");
 
     expect(html).not.toContain("bench.evidra.cc");
-    expect(html).not.toContain("og:image");
     expect(html.toLowerCase()).not.toContain("benchmark");
     expect(html).not.toContain("name=\"keywords\"");
   });
