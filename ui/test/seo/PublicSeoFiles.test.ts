@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -47,6 +47,9 @@ describe("public SEO files", () => {
     expect(
       existsSync(resolve(process.cwd(), "public", "og", "evidra-core.png")),
     ).toBe(true);
+    expect(
+      statSync(resolve(process.cwd(), "public", "og", "evidra-core.png")).size,
+    ).toBeLessThan(500_000);
     expect(existsSync(resolve(process.cwd(), "public", "site.webmanifest"))).toBe(
       false,
     );
