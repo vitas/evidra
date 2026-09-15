@@ -18,6 +18,18 @@ describe("App", () => {
     expect(screen.queryByText(/agents actually did/i)).not.toBeInTheDocument();
   });
 
+  it("labels the relaunched Core line as an unreleased preview", () => {
+    render(<App />);
+    expect(
+      screen.getByText(
+        "The relaunched Core line is currently an unreleased preview built from main.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Build from source; no hosted service required."),
+    ).toBeInTheDocument();
+  });
+
   it("makes Core getting started the primary action", () => {
     render(<App />);
     expect(

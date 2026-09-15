@@ -4,6 +4,8 @@ Evidra is an open-source MCP execution-evidence recorder. It wraps one upstream
 MCP server and records what an agent declared, what the proxy observed, and what
 the agent reported.
 
+> The relaunched Core line is currently an unreleased preview built from main.
+
 [![CI](https://github.com/vitas/evidra/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/vitas/evidra/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 

@@ -62,7 +62,13 @@ function Hero() {
             </a>
           </div>
           <p className="mt-4 text-[0.85rem] text-fg-muted">
-            Local-first. Inspectable JSONL. No hosted service required.
+            <span className="block">
+              The relaunched Core line is currently an unreleased preview built
+              from main.
+            </span>
+            <span className="block">
+              Build from source; no hosted service required.
+            </span>
           </p>
         </div>
       </Container>

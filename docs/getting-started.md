@@ -3,6 +3,8 @@
 This guide builds Evidra from source, wraps the included deterministic MCP
 fixture, completes one recorded operation, and reads the resulting evidence.
 
+> The relaunched Core line is currently an unreleased preview built from main.
+
 ## Prerequisites
 
 - Go 1.26 or later
