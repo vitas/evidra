@@ -8,3 +8,4 @@
 ci.yml	enabled	-
 dco.yml	enabled	-
 release.yml	disabled	core-release-refusal
+landing-image.yml	enabled	-

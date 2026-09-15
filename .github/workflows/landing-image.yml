@@ -1,0 +1,53 @@
+name: Landing Image
+
+# Builds ui/ into a static nginx image and publishes it to GHCR. The landing
+# deploy in evidra-infra pulls this image; publishing is not a product release
+# and is unaffected by the release refusal in release.yml.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ui/**"
+      - "Dockerfile.landing"
+      - ".github/workflows/landing-image.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Guard - a landing build must not depend on removed product code
+        run: |
+          set -euo pipefail
+          [[ -f Dockerfile.landing ]] || { echo "Dockerfile.landing is missing"; exit 1; }
+          [[ -f ui/package.json ]] || { echo "ui/package.json is missing"; exit 1; }
+          [[ ! -e server.json ]] || { echo "stale MCP registry manifest is back"; exit 1; }
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.landing
+          push: true
+          platforms: linux/amd64
+          tags: |
+            ghcr.io/vitas/evidra-landing:latest
+            ghcr.io/vitas/evidra-landing:${{ github.sha }}
