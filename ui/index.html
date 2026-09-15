@@ -3,49 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Evidra — AI Infra Agent Evidence and Benchmarks</title>
+    <title>Evidra — Verifiable Evidence for MCP Operations</title>
     <meta
       name="description"
-      content="Evidra Bench is open source external regression testing for infrastructure agents and MCP tools, backed by evidence chains, behavioral signals, reliability scorecards, and benchmark reports."
-    />
-    <meta
-      name="keywords"
-      content="AI infrastructure agents, MCP evidence, infrastructure agent benchmarks, MCP regression testing, agent behavior reports, readiness reports, AI SRE benchmarks, evidence recorder"
+      content="Open-source MCP execution evidence that reconciles what an agent declared, what the proxy observed, and what the agent reported."
     />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://evidra.cc/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="manifest" href="/site.webmanifest" />
-    <meta name="theme-color" content="#064e3b" />
+    <meta name="theme-color" content="#047857" />
     <meta
       property="og:title"
-      content="Evidra — AI Infra Agent Evidence and Benchmarks"
+      content="Evidra — Verifiable Evidence for MCP Operations"
     />
     <meta
       property="og:description"
-      content="External regression testing for infrastructure agents and MCP tools with evidence-backed readiness reports."
+      content="Open-source MCP execution evidence that reconciles what an agent declared, what the proxy observed, and what the agent reported."
     />
     <meta property="og:url" content="https://evidra.cc/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Evidra" />
-    <meta property="og:image" content="https://bench.evidra.cc/og-bench.png" />
-    <meta property="og:image:type" content="image/png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Evidra infrastructure agent evidence and benchmark report preview" />
-    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:card" content="summary" />
     <meta
       name="twitter:title"
-      content="Evidra — AI Infra Agent Evidence and Benchmarks"
+      content="Evidra — Verifiable Evidence for MCP Operations"
     />
     <meta
       name="twitter:description"
-      content="Run external regression tests for infrastructure agents and MCP tools, then compare evidence-backed reports."
+      content="Open-source MCP execution evidence that reconciles what an agent declared, what the proxy observed, and what the agent reported."
     />
-    <meta name="twitter:image" content="https://bench.evidra.cc/og-bench.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -65,31 +52,17 @@
             "@id": "https://evidra.cc/#software",
             "name": "Evidra",
             "applicationCategory": "DeveloperApplication",
-            "operatingSystem": "Web, Linux, macOS",
+            "operatingSystem": "Linux, macOS",
             "url": "https://evidra.cc/",
-            "description": "Evidra is a flight recorder and reliability scoring system for AI infrastructure agents, MCP tools, CI pipelines, A2A agents, and scripts.",
+            "description": "Evidra is an open-source MCP execution-evidence recorder: it wraps one upstream MCP server and records what an agent declared, what the proxy observed, and what the agent reported.",
+            "license": "https://www.apache.org/licenses/LICENSE-2.0",
+            "codeRepository": "https://github.com/vitas/evidra",
             "creator": {
               "@id": "https://evidra.cc/#organization"
             },
             "sameAs": [
-              "https://github.com/vitas/evidra",
-              "https://bench.evidra.cc/"
+              "https://github.com/vitas/evidra"
             ]
-          },
-          {
-            "@type": "Service",
-            "@id": "https://evidra.cc/#agent-evidence-service",
-            "name": "AI infrastructure agent evidence and readiness reporting",
-            "url": "https://evidra.cc/",
-            "serviceType": "AI infrastructure agent evidence and reliability reporting",
-            "provider": {
-              "@id": "https://evidra.cc/#organization"
-            },
-            "areaServed": "Global",
-            "audience": {
-              "@type": "Audience",
-              "audienceType": "Platform engineering, SRE, AI agent implementation teams, and enterprise infrastructure teams"
-            }
           }
         ]
       }
@@ -98,22 +71,18 @@
   <body>
     <noscript>
       <main style="max-width: 760px; margin: 48px auto; padding: 0 24px; font-family: system-ui, sans-serif; line-height: 1.6;">
-        <h1>Evidra - AI infrastructure agent evidence</h1>
+        <h1>Evidra — MCP execution evidence</h1>
         <p>
-          Evidra records intent, actions, outcomes, and reliability signals for
-          infrastructure automation across MCP agents, CI pipelines, A2A agents,
-          and scripts.
+          Evidra is an open-source execution-evidence recorder for the Model
+          Context Protocol. One endpoint wraps one upstream MCP server and
+          records what an agent declared, what the proxy observed, and what the
+          agent reported, into a signed local evidence chain that a human
+          reconciles afterwards.
         </p>
+        <p>Local-first. Inspectable JSONL. No hosted service required.</p>
         <p>
-          Use Evidra OSS as a flight recorder for infrastructure-agent behavior,
-          and use Evidra Bench for private readiness evaluations and public
-          benchmark reports.
-        </p>
-        <p>
-          <a href="https://bench.evidra.cc/">Evidra Bench</a> |
-          <a href="https://github.com/vitas/evidra">Evidra OSS</a> |
-          <a href="https://github.com/vitas/evidra-bench">Benchmark source</a> |
-          <a href="/docs/api/">API documentation</a>
+          <a href="https://github.com/vitas/evidra/blob/main/docs/getting-started.md">Get started</a> |
+          <a href="https://github.com/vitas/evidra">Evidra on GitHub</a>
         </p>
       </main>
     </noscript>

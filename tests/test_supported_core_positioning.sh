@@ -9,19 +9,47 @@ fail() {
   exit 1
 }
 
-grep -Fq "CLI and MCP are the authoritative analytics surfaces today." README.md \
-  || fail "README should make the supported analytics path explicit"
+# Scan one whitespace-normalized line so Markdown wrapping cannot hide or break a
+# positioning statement.
+readme_text="$(tr '\n\r\t' '   ' <README.md | tr -s ' ')"
 
-grep -Fq "append-only evidence chain" README.md \
-  || fail "README should describe the evidence-chain core"
+required_text=(
+  "MCP execution evidence"
+  "Declared"
+  "Observed"
+  "Reported"
+  "Evidra does not sandbox the wrapped command"
+  "evidra-mcp --proxy"
+  "evidra summarize --dir"
+  "evidra verify --dir"
+  "docs/getting-started.md"
+  "docs/architecture.md"
+  "docs/evidence-format.md"
+  "docs/validation.md"
+)
 
-grep -Fq "flight recorder for AI agents that touch infrastructure" docs/guides/mcp-setup.md \
-  || fail "MCP guide should lead with the flight-recorder positioning"
+for text in "${required_text[@]}"; do
+  grep -Fq -- "$text" <<<"$readme_text" \
+    || fail "README should contain: $text"
+done
 
-grep -Fq "The agent reports voluntarily; Evidra observes, scores, and explains." docs/guides/mcp-setup.md \
-  || fail "MCP guide should explain the non-intercepting model"
+forbidden_patterns=(
+  "DevOps MCP Server"
+  "reliability scoring"
+  "risk assessment"
+  "hosted API"
+  "scorecard"
+  "webhooks"
+  "built-in[^.]*[^[:alnum:]_](kubectl|helm|terraform|aws)([^[:alnum:]_]|$)"
+  "pre-vNext product"
+  "waits on Gate C"
+  "vnext/mcp-recorder"
+)
 
-grep -Fq "Self-hosted remains supported for centralized evidence collection" docs/guides/self-hosted-setup.md \
-  || fail "self-hosted status should keep the centralized evidence boundary explicit"
+for pattern in "${forbidden_patterns[@]}"; do
+  if grep -Eiq -- "$pattern" <<<"$readme_text"; then
+    fail "README should not contain obsolete product language matching: $pattern"
+  fi
+done
 
 echo "PASS: test_supported_core_positioning"

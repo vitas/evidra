@@ -25,19 +25,6 @@ Object.defineProperty(globalThis, "sessionStorage", {
   value: createStorage(),
 });
 
-// Mock SVGElement.getBBox for mermaid (not available in jsdom)
-if (typeof SVGElement !== "undefined") {
-  SVGElement.prototype.getBBox = () => ({
-    x: 0,
-    y: 0,
-    width: 0,
-    height: 0,
-  });
-}
-
-// Suppress mermaid unhandled rejections in jsdom (getBBox-related)
-process.on("unhandledRejection", () => {});
-
 // Mock window.matchMedia for components that check prefers-color-scheme
 Object.defineProperty(window, "matchMedia", {
   writable: true,

@@ -32,7 +32,7 @@ require_file() {
 }
 
 # --------------------------------------------------------------------------------------------
-# The commands named in docs/integrations/cli-reference.md must exist, and the binaries must
+# The commands named in docs/cli-reference.md must exist, and the binaries must
 # still behave the way that file says. A previous version of this script drove
 # `evidra prescribe` and `evidra report` and required README to mention a signing-mode
 # variable; the §43 prune deleted both commands and that variable never existed in the Go
@@ -40,7 +40,7 @@ require_file() {
 # mode every other guard in tests/ was built to prevent.
 # --------------------------------------------------------------------------------------------
 
-require_file "docs/integrations/cli-reference.md"
+require_file "docs/cli-reference.md"
 
 # Every flag documented in the CLI reference has to be one the binary advertises.
 mcp_help="$(go run ./cmd/evidra-mcp --help 2>&1 || true)"
@@ -48,7 +48,7 @@ for flag in --proxy --enforce --evidence-dir --server-name --advertise-passthrou
   # grep without -q: -q closes the pipe early, and under `set -o pipefail` the writer's
   # SIGPIPE becomes the pipeline's status, so the check fails on success.
   printf '%s\n' "$mcp_help" | grep -- "$flag" >/dev/null || fail "docs advertise $flag but --help does not list it"
-  require_pattern "docs/integrations/cli-reference.md" "$flag"
+  require_pattern "docs/cli-reference.md" "$flag"
 done
 
 evidra_help="$(go run ./cmd/evidra --help 2>&1 || true)"
@@ -62,19 +62,17 @@ for flag in -dir -since; do
   printf '%s\n' "$verify_help" | grep -- "$flag" >/dev/null || fail "verify $flag missing"
 done
 
-# A documented environment variable must be one the code actually reads. The table rows are
-# the documented set; the prose around them may name removed variables to explain them.
-# Only the table rows count as documented; the prose under them names removed variables in
-# order to explain why they are gone.
-documented="$(awk -F'|' '/^\| `EVIDRA_[A-Z_]+`/ { gsub(/[ `]/, "", $2); print $2 }' README.md | sort -u)"
+# A documented environment variable must be one the code actually reads. The CLI reference
+# owns that surface, so its table is the documented set.
+documented="$(awk -F'|' '/^\| `EVIDRA_[A-Z_]+`/ { gsub(/[ `]/, "", $2); print $2 }' docs/cli-reference.md | sort -u)"
 in_code="$(grep -rhoE 'EVIDRA_[A-Z_]+' --include=*.go cmd pkg | sort -u || true)"
 for var in $documented; do
-  printf '%s\n' "$in_code" | grep -x -- "$var" >/dev/null || fail "README documents $var, which no Go source reads"
+  printf '%s\n' "$in_code" | grep -x -- "$var" >/dev/null || fail "CLI reference documents $var, which no Go source reads"
 done
 for var in $in_code; do
-  printf '%s\n' "$documented" | grep -x -- "$var" >/dev/null || fail "$var is read by the code but missing from the README table"
+  printf '%s\n' "$documented" | grep -x -- "$var" >/dev/null || fail "$var is read by the code but missing from the CLI reference table"
 done
-[[ -n "$documented" ]] || fail "README documents no environment variables at all"
+[[ -n "$documented" ]] || fail "CLI reference documents no environment variables at all"
 
 # The endpoint records, so it must refuse to start with nothing to wrap.
 if go run ./cmd/evidra-mcp --proxy >/dev/null 2>&1; then

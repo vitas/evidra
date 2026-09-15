@@ -1,4 +1,4 @@
-.PHONY: build test clean docker-mcp docker-cli docker-up docker-down fmt lint tidy 	ui-build docker-hosted
+.PHONY: build test clean docker-mcp docker-cli docker-up docker-down fmt lint tidy ui-build ui-lint docker-hosted
 
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo 0.0.0-dev)
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
@@ -40,5 +40,8 @@ clean:
 	rm -rf bin/
 
 ui-build:
-	cd ui && npm install && npm run build
+	cd ui && npm ci && npm run build
+
+ui-lint:
+	cd ui && npm run lint && npm run typecheck
 

@@ -5,7 +5,6 @@ project_name: evidra
 before:
   hooks:
     - go mod tidy
-    - bash -c "cd ui && npm install && npm run build"
 
 builds:
   - id: evidra

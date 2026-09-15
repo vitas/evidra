@@ -5,7 +5,6 @@
 #               the refusal marker in its marker column, so "disabled" can never rot into
 #               "silently broken but runnable".
 # name<TAB>state<TAB>marker-or-reason
-ci-vnext.yml	enabled	-
 ci.yml	enabled	-
 dco.yml	enabled	-
 release.yml	disabled	vnext-release-refusal

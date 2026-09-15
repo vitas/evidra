@@ -1,5 +1,5 @@
-// Command evidra-fixture is the deterministic MCP fixture server required by
-// the vNext plan (§30, docs/system-design/vnext-mcp-recorder.md).
+// Command evidra-fixture is the deterministic MCP fixture server used for the
+// supported-profile checks in docs/validation.md.
 //
 // It is deliberately implemented directly against JSON-RPC over stdio instead
 // of the official go-sdk, for two reasons the plan's own tests depend on:

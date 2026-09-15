@@ -1,92 +1,110 @@
-import { render, screen, within } from "@testing-library/react";
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import mermaid from "mermaid";
-
-vi.mock("../../src/components/MermaidDiagram", () => ({
-  MermaidDiagram: ({ chart }: { chart: string }) => (
-    <div data-testid="mermaid-diagram">{chart}</div>
-  ),
-}));
-
-vi.mock("../../src/hooks/useHealthCheck", () => ({
-  useHealthCheck: () => "healthy",
-}));
-
+import { render, screen } from "@testing-library/react";
+import { describe, it, expect, beforeEach } from "vitest";
 import { App } from "../../src/App";
-import { SEQUENCE_CHART } from "../../src/pages/Landing";
 
 describe("App", () => {
   beforeEach(() => {
     document.documentElement.setAttribute("data-theme", "light");
     localStorage.clear();
-    // BrowserRouter reads window.location; default to "/".
-    window.history.pushState({}, "", "/");
   });
 
-  it("renders the landing page with hero heading", () => {
+  it("leads with the OSS Core outcome", () => {
     render(<App />);
     expect(
       screen.getByRole("heading", {
-        name: /AI infra agents need evidence, not vibes\./i,
+        name: /Evidence for what MCP agents actually did/i,
       }),
     ).toBeInTheDocument();
   });
 
-  it("renders navigation links", () => {
+  it("makes Core getting started the primary action", () => {
     render(<App />);
-    const nav = screen.getByRole("navigation");
-    expect(nav).toBeInTheDocument();
-    expect(nav.querySelector('a[href="#features"]')).toHaveTextContent(
-      "Features",
-    );
-    expect(nav.querySelector('a[href="#architecture"]')).toHaveTextContent(
-      "Architecture",
-    );
-    expect(nav.querySelector('a[href="#get-started"]')).toHaveTextContent(
-      "Get Started",
-    );
-  });
-
-  it("renders core hero actions", () => {
-    render(<App />);
-
-    const hero = screen
-      .getByRole("heading", {
-        name: /AI infra agents need evidence, not vibes\./i,
-      })
-      .closest("section");
-
-    expect(hero).not.toBeNull();
     expect(
-      within(hero as HTMLElement).getByRole("link", {
-        name: "Start with Bench",
-      }),
-    ).toHaveAttribute("href", "https://bench.evidra.cc/");
+      screen.getByRole("link", { name: /Get started/i }),
+    ).toHaveAttribute(
+      "href",
+      "https://github.com/vitas/evidra/blob/main/docs/getting-started.md",
+    );
+  });
+
+  it("shows the three source boundaries", () => {
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "Declared" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Observed" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Reported" })).toBeInTheDocument();
+  });
+
+  it("does not expose removed hosted-product navigation", () => {
+    render(<App />);
+    expect(screen.queryByText(/Dashboard Access/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Get API Key/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Reliability Dashboard/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps Bench secondary", () => {
+    render(<App />);
+    const bench = screen.getByRole("link", { name: /Evidra Bench/i });
+    expect(bench).toHaveAttribute("href", "https://github.com/vitas/evidra-bench");
+    expect(bench).not.toHaveAttribute("data-primary", "true");
+  });
+});
+
+describe("App — Core content contract", () => {
+  beforeEach(() => {
+    document.documentElement.setAttribute("data-theme", "light");
+    localStorage.clear();
+    render(<App />);
+  });
+
+  it("shows the runtime sequence Agent → Evidra → Upstream MCP server", () => {
     expect(
-      within(hero as HTMLElement).getAllByRole("link", {
-        name: /View Bench source/,
-      })[0],
-    ).toHaveAttribute("href", "https://github.com/vitas/evidra-bench");
+      screen.getByRole("heading", { name: /Runtime topology/i }),
+    ).toBeInTheDocument();
+    const topology = document.getElementById("runtime-topology");
+    expect(topology).not.toBeNull();
+    expect(topology).toHaveTextContent("Agent");
+    expect(topology).toHaveTextContent(/Evidra MCP endpoint/i);
+    expect(topology).toHaveTextContent(/Upstream MCP server/i);
   });
 
-  it("does not expose raw signal weights on the landing page", () => {
-    render(<App />);
-
-    expect(screen.queryByText("0.30")).not.toBeInTheDocument();
-    expect(screen.queryByText("0.25")).not.toBeInTheDocument();
-    expect(screen.queryByText("0.15")).not.toBeInTheDocument();
-    expect(screen.queryByText("−0.05")).not.toBeInTheDocument();
+  it("states that a successful tool response is not outcome proof", () => {
+    expect(
+      screen.getByText(/successful tool response is not proof of the external outcome/i),
+    ).toBeInTheDocument();
   });
 
-  it("describes prescribe output as declared intent with optional enrichment", () => {
-    render(<App />);
-
-    expect(screen.getByText(/declared intent/i)).toBeInTheDocument();
-    expect(screen.getByText(/canonical_action/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/assessment/i).length).toBeGreaterThan(0);
+  it("shows only current commands", () => {
+    expect(screen.getByText(/evidra-mcp --proxy/)).toBeInTheDocument();
+    expect(screen.getByText(/evidra summarize --dir/)).toBeInTheDocument();
+    expect(screen.getByText(/evidra verify --dir/)).toBeInTheDocument();
   });
 
-  it("uses a valid mermaid sequence chart for the default protocol flow", async () => {
-    await expect(mermaid.parse(SEQUENCE_CHART)).resolves.toBeTruthy();
+  it("names the three supported use cases", () => {
+    expect(
+      screen.getByRole("heading", { name: "Incident reconstruction" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Agent evaluation" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Operational review" }),
+    ).toBeInTheDocument();
+  });
+
+  it("has no hosted-product CTAs or features", () => {
+    expect(
+      screen.queryByRole("link", { name: /^Hosted/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Start with Bench/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /Scorecard/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /Signals\b/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/API key/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/database status/i)).not.toBeInTheDocument();
   });
 });

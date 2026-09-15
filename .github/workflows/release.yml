@@ -33,8 +33,8 @@ jobs:
         # cleanup - see tests/vnext-workflows.txt, which requires this marker to be present.
         run: |
           set -euo pipefail
-          if [ -f docs/system-design/vnext-prune-record.md ] && [ ! -d cmd/evidra-api ]; then
-            echo "::error::No release path for the vNext line until Gate C passes and a human decides to ship. See docs/system-design/vnext-implementation-report.md and tests/vnext-workflows.txt."
+          if [ -f docs/validation.md ] && [ ! -d cmd/evidra-api ]; then
+            echo "::error::No release path for the current Core line until Gate C passes and a human decides to ship. See docs/validation.md and tests/vnext-workflows.txt."
             exit 1
           fi
           echo "Not the vNext shape; continuing to the version alignment checks."

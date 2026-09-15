@@ -13,9 +13,8 @@ fail() {
 [[ -f OWNERS ]] || fail "OWNERS should exist"
 [[ -f .github/PULL_REQUEST_TEMPLATE.md ]] || fail "PR template should exist"
 [[ -f .github/workflows/dco.yml ]] || fail "DCO workflow should exist"
-# The corpus promotion and artifact-layout guards were removed together with the
-# pre-vNext acceptance corpus they protected (see docs/system-design/vnext-prune-record.md).
-# What remains as the baseline is the surface that still makes public claims.
+# Historical corpus guards were removed with the obsolete product surface they protected.
+# What remains as the baseline is the surface that still makes current public claims.
 [[ -x tests/test_doc_trust_alignment.sh ]] || fail "doc trust alignment guard should exist"
 [[ -x tests/test_public_claims.sh ]] || fail "public claims guard should exist"
 
