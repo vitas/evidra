@@ -15,6 +15,7 @@ expected="$({
     docs/cli-reference.md \
     docs/evidence-format.md \
     docs/getting-started.md \
+    docs/protocol.md \
     docs/validation.md
 })"
 

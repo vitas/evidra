@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,6 +13,10 @@ import (
 	"samebits.com/evidra/pkg/evidence"
 	"samebits.com/evidra/pkg/report"
 )
+
+type rejectedOutput struct{}
+
+func (rejectedOutput) Write([]byte) (int, error) { return 0, errors.New("output unavailable") }
 
 // writeSessionRecorder stores one session that claims success without any
 // observed execution, then blocks a stray attempt: the smallest evidence set that
@@ -94,6 +99,42 @@ func TestSummarizeWritesJSONAndTerminalFindings(t *testing.T) {
 		}
 	}
 	t.Error("summary.json lost the notes that keep a reader from averaging across modes")
+}
+
+func TestSummarizeOperationPrintsReviewWithoutWritingSummary(t *testing.T) {
+	t.Setenv("EVIDRA_EVIDENCE_DIR", "")
+	root := writeSessionRecorder(t, "all")
+	var out, errOut bytes.Buffer
+	if code := cmdSummarize([]string{"--dir", root, "--operation", "EV-OP-1"}, &out, &errOut); code != 0 {
+		t.Fatalf("operation review exit %d: %s", code, errOut.String())
+	}
+	if !strings.Contains(out.String(), "# Operation review: EV-OP-1") {
+		t.Fatalf("review missing from stdout: %s", out.String())
+	}
+	if _, err := os.Stat(filepath.Join(root, "summary.json")); !os.IsNotExist(err) {
+		t.Fatalf("operation mode wrote summary.json: %v", err)
+	}
+	out.Reset()
+	errOut.Reset()
+	if code := cmdSummarize([]string{"--dir", root, "--operation", "EV-OP-1", "--since", "7d"}, &out, &errOut); code != 2 {
+		t.Fatalf("operation mode accepted --since, exit %d", code)
+	}
+	out.Reset()
+	errOut.Reset()
+	if code := cmdSummarize([]string{"--dir", root, "--operation", ""}, &out, &errOut); code != 2 {
+		t.Fatalf("operation mode accepted empty ID, exit %d", code)
+	}
+}
+
+func TestSummarizeOperationReportsOutputFailure(t *testing.T) {
+	root := writeSessionRecorder(t, "all")
+	var errOut bytes.Buffer
+	if code := cmdSummarize([]string{"--dir", root, "--operation", "EV-OP-1"}, rejectedOutput{}, &errOut); code != 1 {
+		t.Fatalf("output failure exit %d, want 1", code)
+	}
+	if !strings.Contains(errOut.String(), "output unavailable") {
+		t.Fatalf("output failure not reported: %s", errOut.String())
+	}
 }
 
 func TestVerifySeparatesChainValidityFromCoverage(t *testing.T) {

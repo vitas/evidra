@@ -438,6 +438,12 @@ func TestLocalPrescribeReportStateMachine(t *testing.T) {
 	defer h.kill()
 	h.initialize()
 
+	if conflicting, isErr := h.call("evidra_prescribe", map[string]any{
+		"objective": "restore checkout availability", "continue_current": true, "abandon_and_replace": true,
+	}); !isErr || !strings.Contains(fmt.Sprint(conflicting["text"]), "conflicting_choices") {
+		t.Fatalf("conflicting choices opened an operation: %v (isError=%v)", conflicting, isErr)
+	}
+
 	opened, isError := h.call("evidra_prescribe", map[string]any{
 		"objective":        "restore checkout availability",
 		"expected_outcome": "checkout requests succeed",
@@ -691,6 +697,12 @@ func TestInitializeProfileAndInstructions(t *testing.T) {
 	instr, _ := result["instructions"].(string)
 	if !strings.Contains(instr, "evidra_prescribe") {
 		t.Errorf("Evidra protocol instructions missing")
+	}
+	if !strings.Contains(instr, "including read-only tools") {
+		t.Errorf("protocol instructions do not cover read-only upstream calls: %q", instr)
+	}
+	if !strings.Contains(instr, "returned operation_id") {
+		t.Errorf("protocol instructions do not tell the agent how to link its report: %q", instr)
 	}
 	if !strings.Contains(instr, "Fixture MCP server") {
 		t.Errorf("upstream instructions overwritten: %q", instr)

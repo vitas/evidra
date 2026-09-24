@@ -9,7 +9,7 @@ cd "$ROOT_DIR"
 # Why this exists: the retired branch-only workflow ran
 # `go test -race ./internal/lifecycle/...` after that package was deleted in the
 # legacy prune, and `ci.yml` called four Make targets, five shell
-# guards and a prompts directory that no longer exist. Both workflows were edited for pages
+# guards and the old generated-prompt tree that no longer exist. Both workflows were edited for pages
 # at a time while their contents drifted, and the first anyone found out was a red check on a
 # pushed branch. A workflow step pointing at a deleted path is the same object as a checklist
 # row pointing at a function that no longer compiles: it is not evidence of anything, it just

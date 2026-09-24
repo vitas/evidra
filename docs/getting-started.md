@@ -80,18 +80,65 @@ the absolute checkout path:
 The argument order matters: Evidra flags precede `--`; the upstream executable
 and all of its arguments follow it.
 
+## Give the agent protocol guidance
+
+The endpoint puts its core rules in MCP `initialize.instructions` and describes
+`evidra_prescribe` and `evidra_report` in `tools/list`. Clients that pass those
+fields to the model need no extra asset.
+
+For Codex, this repository also includes an optional
+[Evidra skill](../skills/evidra/SKILL.md). From the repository root, install it
+in your personal skills directory:
+
+~~~bash
+mkdir -p ~/.codex/skills/evidra
+cp skills/evidra/SKILL.md ~/.codex/skills/evidra/SKILL.md
+~~~
+
+Restart the client or reload its skills so it discovers the new file. The skill
+applies when work uses an MCP server exposing the two Evidra tools. It does not
+configure or start the MCP server; use the client configuration above for that.
+
+For a client with custom agent instructions but no skills, copy the text from
+[the portable prompt](../prompts/evidra-agent.md) into that client's instruction
+field. Keep the endpoint's tool schemas available to the agent. The prompt is a
+file to copy, not an MCP `prompts/list` entry; the supported default endpoint
+profile does not advertise a prompt capability.
+
 ## Complete one operation
 
 After the client connects, its tool list contains the fixture tools plus two
-local Evidra tools. Complete this sequence through the MCP client:
+local Evidra tools. Complete this sequence through the MCP client. The JSON
+blocks below are `tools/call` parameters; each Evidra response puts its JSON
+object in a text content block.
 
-1. Call `evidra_prescribe` with an objective such as `Read the fixture service
-   status` and expected outcome `The fixture reports status ok`.
-2. Save the returned `operation_id`.
-3. Call the upstream `get_status` tool with `{}`.
-4. Call `evidra_report` once with that `operation_id`, a status from
-   `completed`, `failed`, `cancelled`, or `abandoned`, and an outcome from
-   `achieved`, `not_achieved`, or `unknown`.
+First declare the intended work:
+
+~~~json
+{"name":"evidra_prescribe","arguments":{
+  "objective":"Read the fixture service status",
+  "expected_outcome":"The fixture reports status ok"
+}}
+~~~
+
+Save the `operation_id` in the successful response, for example `EV-...`.
+Then call the upstream tool:
+
+~~~json
+{"name":"get_status","arguments":{}}
+~~~
+
+The fixture returns a `status` of `ok`. After reading that result, close the
+operation with the ID actually returned by your prescription:
+
+~~~json
+{"name":"evidra_report","arguments":{
+  "operation_id":"EV-...",
+  "status":"completed",
+  "outcome":"achieved",
+  "summary":"The fixture returned status ok."
+}}
+~~~
 
 `evidra_prescribe` records the agent's intended work before operational calls.
 `evidra_report` closes that operation with the agent's account of what happened.
@@ -100,6 +147,10 @@ counts are not a verdict about the external outcome.
 
 Only one operation can be open in an endpoint process. A second prescription
 must either continue the current operation or explicitly abandon and replace it.
+Every upstream tool call, including a read-only call such as `get_status`,
+requires an open operation under the default enforcement mode. The full
+[Prescribe and Report protocol](protocol.md) covers fields, state transitions,
+errors, evidence ordering, and recovery.
 
 ## Verify and summarize
 
@@ -172,11 +223,13 @@ side of that collision.
 
 **An upstream tool call is refused.** With `--enforce all`, call
 `evidra_prescribe` first. If the response reports `recorder_unhealthy`, recover
-the evidence storage before retrying the operational call.
+the evidence storage and start a new endpoint process before retrying the
+operational call. Prescribe again in that new session.
 
 ## Next steps
 
 - Read the complete [CLI reference](cli-reference.md).
+- Read the complete [Prescribe and Report protocol](protocol.md).
 - Review the runtime boundaries in [Architecture](architecture.md).
 - Understand keys, fingerprints, and limitations in the
   [evidence trust model](evidence-format.md).

@@ -67,8 +67,7 @@ jobs:
 
       - name: Run shell guards
         # Every tests/test_*.sh, no exclusion list. The steps this replaced called four
-        # Make targets, five guards, a prompts/ directory and a signal-validation
+        # Make targets, five guards, the old generated-prompt tree and a signal-validation
         # artifact path that the §43 prune deleted - each one a gate that had stopped
         # gating long before anyone pushed to this branch.
         run: bash tests/run_guards.sh
-

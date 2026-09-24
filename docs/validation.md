@@ -32,6 +32,11 @@ measurements. Although the historical rows mechanically meet the revised bars,
 data used to choose a threshold cannot also certify that threshold. A fresh set
 would be required for a passing adoption claim.
 
+The expanded protocol instructions and optional agent skill and prompt added
+after those runs have not been evaluated with a fresh model-run set. Endpoint
+tests verify that the instructions are served and the protocol behaves as
+documented; they do not establish adoption by new agents.
+
 Enforcement fired zero times across the 80 runs: the measured agents prescribed
 before acting. Recovery after a protocol refusal was therefore not measurable,
 not successful or unsuccessful. Scripted and endpoint tests exercise the refusal
@@ -53,6 +58,7 @@ canaries, and store-failure behavior.
 Representative cases include:
 
 - `TestInitializeProfileAndInstructions`;
+- `TestPublishedProtocolFieldsMatchAdvertisedToolSchemas`;
 - `TestWrappedToolsListEqualsDirectPlusLocal`;
 - `TestExecutionsPairByIdUnderParallelCalls`;
 - `TestLargeResultPassesThroughAndIsFingerprintedWithinBounds`;

@@ -34,6 +34,10 @@ that a successful MCP response caused the intended real-world state.
 `cmd/evidra-fixture` and `cmd/evidra-gatea` are validation tools, not the runtime
 product path.
 
+The [Prescribe and Report protocol](protocol.md) defines the agent-visible
+tool contract and recovery paths. This page describes the endpoint components
+and their execution boundaries.
+
 ## MCP composition
 
 At startup the endpoint launches the child, initializes it using MCP version
@@ -117,8 +121,9 @@ Failure handling depends on what is already known to have happened:
 - If a report cannot be appended, the operation remains open so the agent can
   retry the report.
 - When the store recovers, it attempts a `recorder_degraded` event describing
-  the known failed-write window. Coverage is reported separately from chain and
-  signature validity.
+  the known failed-write window. The process still refuses further upstream
+  tool calls after a recording failure; resume upstream work in a new endpoint
+  process. Coverage is reported separately from chain and signature validity.
 - Without `--evidence-dir`, an explicit no-op recorder is used: enforcement and
   in-process observation continue, but nothing is persisted.
 

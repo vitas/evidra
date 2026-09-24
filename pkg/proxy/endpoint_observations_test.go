@@ -107,8 +107,42 @@ func TestReportAckStatesAnEmptyWindow(t *testing.T) {
 		t.Fatalf("executions_observed = %d, want 0", got)
 	}
 	note, _ := body["note"].(string)
-	if note == "" || !strings.Contains(note, "No upstream tool execution was observed") {
+	if note == "" || !strings.Contains(note, "No completed upstream tool response") {
 		t.Errorf("empty window is not stated plainly: %q", note)
+	}
+}
+
+func TestReportWhileUpstreamCallIsInFlightDescribesCompletedResponses(t *testing.T) {
+	h := startEndpoint(t, "--enforce=all", fixtureBin)
+	defer h.kill()
+	h.initialize()
+	prescribed, isErr := h.call("evidra_prescribe", map[string]any{"objective": "observe a slow call"})
+	if isErr {
+		t.Fatal("prescribe failed")
+	}
+	opID, _ := prescribed["operation_id"].(string)
+	slowID := h.id()
+	if err := h.sendMsg(slowID, "tools/call", map[string]any{
+		"name": "slow", "arguments": map[string]any{"delay_ms": 1000, "label": "in-flight"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	ack, isErr := h.call("evidra_report", map[string]any{
+		"operation_id": opID, "status": "completed", "outcome": "unknown",
+	})
+	if isErr {
+		t.Fatalf("report rejected: %v", ack)
+	}
+	body := obsOf(t, ack)
+	if got := countOf(t, body, "executions_observed"); got != 0 {
+		t.Fatalf("report counted an in-flight response: %d", got)
+	}
+	note, _ := body["note"].(string)
+	if !strings.Contains(note, "No completed upstream tool response") {
+		t.Fatalf("report incorrectly describes in-flight work as no execution: %q", note)
+	}
+	if _, err := h.response(string(slowID)); err != nil {
+		t.Fatalf("slow response: %v", err)
 	}
 }
 
@@ -171,6 +205,9 @@ func TestReadOnlyObservationsFormAConjunctionThatCannotReopen(t *testing.T) {
 		{"one non-read-only call wins", []*bool{&trueValue, &falseValue}, false},
 		{"order does not matter", []*bool{&falseValue, &trueValue}, false},
 		{"no annotation says nothing", []*bool{nil, nil}, nil},
+		{"unknown after read-only says nothing", []*bool{&trueValue, nil}, nil},
+		{"unknown before read-only says nothing", []*bool{nil, &trueValue}, nil},
+		{"known non-read-only with unknown stays false", []*bool{nil, &falseValue}, false},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -11,6 +11,7 @@ order, and writes a signed evidence chain that a human reconciles afterwards.
 [`docs/architecture.md`](docs/architecture.md) defines the runtime boundaries;
 [`docs/evidence-format.md`](docs/evidence-format.md) defines the event and trust model;
 [`docs/validation.md`](docs/validation.md) records what has and has not been measured;
+[`docs/protocol.md`](docs/protocol.md) defines the agent-facing operation lifecycle;
 [`docs/getting-started.md`](docs/getting-started.md) and
 [`docs/cli-reference.md`](docs/cli-reference.md) are what a user reads. The approved
 design and implementation plan for active work live under `docs/plans/`.
@@ -47,11 +48,17 @@ read is not a record of having found something, only a claim about it. If a clai
 document goes stale, correct it in place and say what changed; do not carry the stale
 sentence forward as though it had been reviewed.
 
-Public documentation is a tested surface: five canonical documents own one topic each
+Public documentation is a tested surface: six canonical documents own one topic each
 (`docs/getting-started.md`, `docs/cli-reference.md`, `docs/architecture.md`,
-`docs/evidence-format.md`, `docs/validation.md`), the guards
+`docs/evidence-format.md`, `docs/protocol.md`, `docs/validation.md`), the guards
 `tests/test_public_docs_structure.sh` and `tests/test_public_claims.sh` hold the line, and
 history is preserved by Git, not by an archive directory.
+
+`skills/evidra/SKILL.md` and `prompts/evidra-agent.md` are optional agent guidance
+for the current two-tool protocol. Their instructions must stay aligned with
+`pkg/proxy/endpoint_compose.go` and `pkg/proxy/endpoint_local.go`. The
+`TestPublishedProtocolFieldsMatchAdvertisedToolSchemas` test checks the public
+field tables against the tool schemas and fails on required-field or enum drift.
 
 Notes written for one reader in another language go in `/local-notes/`, which is gitignored.
 The folder is ignored rather than merely unused so the rule holds without anyone

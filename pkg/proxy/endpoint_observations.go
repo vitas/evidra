@@ -39,11 +39,12 @@ type epOpObs struct {
 	// tools names at most epObsToolCap distinct tools called inside the operation,
 	// so the feedback can say what was touched without echoing arguments.
 	tools []string
-	// readOnly is the conjunction of the upstream's own annotations: true only when
-	// every observed execution was annotated read-only, false when at least one was
-	// not, and nil when no annotation was seen at all. It is upstream-supplied,
-	// unverified by construction (§27), and is never used to decide anything.
-	readOnly *bool
+	// readOnly is the conjunction of the upstream's own annotations. An absent
+	// annotation prevents a true "all declared read-only" statement, while one
+	// explicit false still establishes that not all were declared read-only.
+	// These declarations are unverified and never used for enforcement.
+	readOnly          *bool
+	unknownAnnotation bool
 }
 
 const epObsToolCap = 5
@@ -103,6 +104,7 @@ func (o *epObservations) note(operationID, tool string, ok bool, readOnly *bool)
 	}
 	switch {
 	case readOnly == nil:
+		obs.unknownAnnotation = true
 	case obs.readOnly == nil:
 		obs.readOnly = readOnly
 	case !*readOnly || !*obs.readOnly:
@@ -146,7 +148,7 @@ func epObservationBody(obs *epOpObs, dropped int) map[string]any {
 	if len(obs.tools) > 0 {
 		body["tools_observed"] = obs.tools
 	}
-	if obs.readOnly != nil {
+	if obs.readOnly != nil && (!obs.unknownAnnotation || !*obs.readOnly) {
 		body["all_observed_declared_read_only"] = *obs.readOnly
 		// Stated every time the field appears, because the annotation is a claim by
 		// the upstream server, not a fact Evidra verified (§27).

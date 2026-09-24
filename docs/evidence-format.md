@@ -2,6 +2,8 @@
 
 Evidra stores claims and MCP-boundary observations as a signed, hash-linked event
 stream. This page defines what is written and how far its trust guarantees reach.
+The agent-visible operation lifecycle is defined in the
+[Prescribe and Report protocol](protocol.md).
 
 ## Recorder directory
 
@@ -145,7 +147,9 @@ or try a small candidate set.
 
 The store marks itself unhealthy after an append or flush failure. If storage
 later recovers, the next append first writes `recorder_degraded` with the known
-window start, end, and reason.
+window start, end, and reason. The unhealthy state remains latched for
+operational calls in that process; after repairing storage, start a new
+endpoint process to resume upstream work.
 
 Coverage is therefore a statement about degraded windows the recorder managed
 to describe. `coverage=degraded` can coexist with a valid hash chain and valid

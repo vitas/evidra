@@ -27,11 +27,11 @@ var epReservedTools = map[string]bool{
 // instructions (§27 source boundaries).
 const epProtocolInstructions = `This MCP server is Evidra, an execution-evidence recorder wrapping one upstream server.
 
-Before using any operational tool from this server, call evidra_prescribe with the objective you intend to achieve.
+Before any upstream tools/call, including read-only tools, call evidra_prescribe with a non-empty objective. Include expected_outcome when you can state an observable success condition. Wait for a successful response and keep the returned operation_id.
 
-When the operation is finished, failed, cancelled, or intentionally abandoned, call evidra_report exactly once.
+When the operation is finished, failed, cancelled, or intentionally abandoned, call evidra_report with the returned operation_id, a status, and an outcome. Report what happened; a successful tool response alone does not prove the intended external outcome.
 
-Only one operation may be open in this MCP session. If evidra_prescribe reports operation_already_open, either continue the current operation or call evidra_prescribe again with abandon_and_replace=true.
+Only one operation may be open in this MCP session. If evidra_prescribe reports operation_already_open, report the current operation, continue it with continue_current=true, or replace it with abandon_and_replace=true and a new objective. Both choices still require a non-empty objective.
 
 Tools whose names start with evidra_ are Evidra's own; every other tool is the upstream server's, unchanged.`
 

@@ -15,7 +15,8 @@ evidra-mcp --help
 
 The endpoint initializes one child stdio MCP server, merges
 `evidra_prescribe` and `evidra_report` into its tool list, and relays the
-supported MCP profile.
+supported MCP profile. Tool inputs, outputs, and recovery rules are in the
+[Prescribe and Report protocol](protocol.md).
 
 ### Flags
 
@@ -54,20 +55,37 @@ list. Unknown commands exit `2`.
 
 ```text
 evidra summarize --dir <recorder-root> [--since <duration-or-time>]
+evidra summarize --dir <recorder-root> --operation <operation-id>
 ```
 
 Reads the recorder directories immediately below the root, prints reconciliation
 findings, and writes `<recorder-root>/summary.json` with mode/upstream/digest-key
 comparison domains kept separate.
 
+With `--operation`, the command prints a Markdown review of exactly one operation
+to stdout and does not write `summary.json`. The review keeps the agent's
+declaration and report separate from observed MCP calls, gives a next check for
+the reviewer, and states the evidence's trust limits. Redirect stdout to save
+the review, for example:
+
+```bash
+evidra summarize --dir ./evidence --operation EV-123 > operation-review.md
+```
+
+The operation ID must be unique among recorder directories. `--operation` and
+`--since` cannot be combined because the review uses the full available
+recorder history for integrity statements.
+
 | Flag | Meaning |
 |---|---|
 | `--dir <root>` | Recorder root to read. Defaults to `EVIDRA_EVIDENCE_DIR`. Required if that variable is unset. |
 | `--since <value>` | Include events at or after a relative duration such as `7d` or `36h`, or an RFC 3339 timestamp. |
+| `--operation <id>` | Print a Markdown review of one operation to stdout. Available on `summarize` only. |
 
-The command exits `0` after writing a summary, `2` for invalid flags, an invalid
-`--since`, or a missing input root, and `1` for read, reconciliation, encoding,
-or output-write failures.
+The command exits `0` after writing a summary or printing an operation review,
+`2` for invalid flags, an invalid `--since`, a missing input root, or a missing
+or ambiguous operation ID, and `1` for read, reconciliation, encoding, or
+output-write failures.
 
 ### verify
 

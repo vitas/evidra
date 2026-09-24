@@ -873,10 +873,11 @@ func (e *epEndpoint) recorderUnavailable(msg *epMsg, tool, detail string) error 
 	body := map[string]any{
 		"error":           "recorder_unhealthy",
 		"tool":            tool,
-		"required_action": "retry once evidence storage recovers",
+		"required_action": "start a new endpoint process after evidence storage recovers",
 		"instruction": "Evidra could not persist the start of this execution, so the call was not " +
-			"forwarded and nothing happened. evidra_report stays available; close the current " +
-			"operation and retry the tool call later.",
+			"forwarded and nothing happened. If evidence storage can persist a report, close the " +
+			"current operation with evidra_report. Repair storage and start a new endpoint process; " +
+			"call evidra_prescribe before retrying this tool.",
 		"detail": detail,
 	}
 	return e.writeClient(epResultFrame(msg.ID, map[string]any{

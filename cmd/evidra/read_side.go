@@ -19,8 +19,11 @@ import (
 
 // evidenceTarget is the resolved input for both commands.
 type evidenceTarget struct {
-	dir   string
-	since time.Time
+	dir                string
+	since              time.Time
+	operationID        string
+	operationRequested bool
+	sinceRequested     bool
 }
 
 func parseEvidenceArgs(name string, args []string, stderr io.Writer) (*flag.FlagSet, evidenceTarget, bool) {
@@ -28,6 +31,10 @@ func parseEvidenceArgs(name string, args []string, stderr io.Writer) (*flag.Flag
 	fs.SetOutput(stderr)
 	dirFlag := fs.String("dir", "", "Evidence root holding recorder directories (default: $EVIDRA_EVIDENCE_DIR)")
 	sinceFlag := fs.String("since", "", "Only events recorded after this instant: 7d, 36h, or RFC 3339")
+	var operationFlag *string
+	if name == "summarize" {
+		operationFlag = fs.String("operation", "", "Render a Markdown review for one operation ID")
+	}
 	if err := fs.Parse(args); err != nil {
 		return fs, evidenceTarget{}, false
 	}
@@ -43,7 +50,19 @@ func parseEvidenceArgs(name string, args []string, stderr io.Writer) (*flag.Flag
 		fmt.Fprintf(stderr, "invalid --since: %v\n", err)
 		return fs, evidenceTarget{}, false
 	}
-	return fs, evidenceTarget{dir: dir, since: since}, true
+	target := evidenceTarget{dir: dir, since: since}
+	if operationFlag != nil {
+		target.operationID = *operationFlag
+	}
+	fs.Visit(func(f *flag.Flag) {
+		switch f.Name {
+		case "operation":
+			target.operationRequested = true
+		case "since":
+			target.sinceRequested = true
+		}
+	})
+	return fs, target, true
 }
 
 // cmdSummarize reconciles declared, observed and reported evidence and prints the
@@ -59,10 +78,30 @@ func cmdSummarize(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "summarize: --dir <evidence-root> is required (or set EVIDRA_EVIDENCE_DIR)")
 		return 2
 	}
+	if target.operationRequested && target.operationID == "" {
+		fmt.Fprintln(stderr, "summarize: --operation requires a non-empty operation ID")
+		return 2
+	}
+	if target.operationRequested && target.sinceRequested {
+		fmt.Fprintln(stderr, "summarize: --operation cannot be combined with --since; a review needs the full available recorder history")
+		return 2
+	}
 	sum, err := report.Reconcile(report.Options{Root: target.dir, Since: target.since})
 	if err != nil {
 		fmt.Fprintf(stderr, "summarize: %v\n", err)
 		return 1
+	}
+	if target.operationRequested {
+		review, err := sum.OperationReviewMarkdown(target.operationID)
+		if err != nil {
+			fmt.Fprintf(stderr, "summarize: %v\n", err)
+			return 2
+		}
+		if _, err := io.WriteString(stdout, review); err != nil {
+			fmt.Fprintf(stderr, "summarize: write review: %v\n", err)
+			return 1
+		}
+		return 0
 	}
 	raw, err := sum.JSON()
 	if err != nil {

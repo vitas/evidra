@@ -51,10 +51,10 @@ grep -Fq "legacy releases (0.5.x" SECURITY.md \
 grep -Fq "no implied feature or security support" SECURITY.md \
   || fail "SECURITY.md should say legacy releases get no implied support from main"
 
-# CLAUDE.md may link only the five canonical documents and the plan corpus.
+# CLAUDE.md may link only the six canonical documents and the plan corpus.
 while IFS= read -r link; do
   case "$link" in
-    docs/architecture.md|docs/cli-reference.md|docs/evidence-format.md|docs/getting-started.md|docs/validation.md|docs/plans/*) ;;
+    docs/architecture.md|docs/cli-reference.md|docs/evidence-format.md|docs/getting-started.md|docs/protocol.md|docs/validation.md|docs/plans/*) ;;
     *) fail "CLAUDE.md links outside the canonical document set: $link" ;;
   esac
 done < <(grep -oE '\]\(docs/[^)]+' CLAUDE.md | sed 's/](//')

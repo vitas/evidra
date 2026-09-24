@@ -143,6 +143,11 @@ func (e *epEndpoint) handlePrescribe(raw json.RawMessage) (any, *epError) {
 			Data: map[string]any{"error": "objective_required"}}
 	}
 	replace := in.AbandonAndReplace || in.ReplaceOpen
+	if in.ContinueCurrent && replace {
+		return nil, &epError{Code: epCodeInvalidRequest,
+			Message: "continue_current and abandon_and_replace are mutually exclusive",
+			Data:    map[string]any{"error": "conflicting_choices"}}
+	}
 
 	e.stateMu.Lock()
 	defer e.stateMu.Unlock()
@@ -150,10 +155,6 @@ func (e *epEndpoint) handlePrescribe(raw json.RawMessage) (any, *epError) {
 	if e.state.open != nil {
 		current := *e.state.open
 		switch {
-		case in.ContinueCurrent && replace:
-			return nil, &epError{Code: epCodeInvalidRequest,
-				Message: "continue_current and abandon_and_replace are mutually exclusive",
-				Data:    map[string]any{"error": "conflicting_choices"}}
 		case in.ContinueCurrent:
 			// No new operation, and no second prescribe event (§11).
 			return map[string]any{
@@ -170,19 +171,21 @@ func (e *epEndpoint) handlePrescribe(raw json.RawMessage) (any, *epError) {
 				ExpectedOutcome: strings.TrimSpace(in.ExpectedOutcome),
 				RecordedAt:      time.Now().UTC(),
 			}
-			e.state.replacements++
 			// The old operation gets no synthetic terminal report; its derived
 			// state becomes replaced_without_report (§11).
-			e.state.open = next
-			e.state.prescribes++
 			// Two events, because two facts are claimed: the agent replaced an
 			// operation, and a new one is now open (§11).
 			if err := e.evidence.replaced(e.sessionID, current.ID, "abandon_and_replace", *next); err != nil {
+				e.state.open = nil
 				return nil, e.prescribeDurabilityError(err)
 			}
 			if err := e.evidence.prescribed(e.sessionID, *next, nil); err != nil {
+				e.state.open = nil
 				return nil, e.prescribeDurabilityError(err)
 			}
+			e.state.replacements++
+			e.state.open = next
+			e.state.prescribes++
 			return epPrescribeOpened(next), nil
 		default:
 			return nil, &epError{Code: epCodeInvalidRequest,
@@ -296,8 +299,8 @@ func (e *epEndpoint) handleReport(raw json.RawMessage) (any, *epError) {
 	// this window and nothing about whether the agent's goal was reached.
 	obs, seen := e.obs.renderFor(closed.ID)
 	if !seen {
-		obs["note"] = "No upstream tool execution was observed for this operation. If work " +
-			"was expected to happen, that expectation and this record disagree."
+		obs["note"] = "No completed upstream tool response was observed before this report. " +
+			"A call may still be in flight; reconcile execution events after the session."
 	} else {
 		obs["note"] = "These counts are the proxy's own observations for this operation, not a judgement of your outcome."
 	}
@@ -328,5 +331,5 @@ func (e *epEndpoint) prescribeDurabilityError(err error) *epError {
 	return &epError{Code: epCodeInternalError,
 		Message: "evidence store unavailable: " + err.Error(),
 		Data: map[string]any{"error": "recorder_unhealthy",
-			"instruction": "No operation was recorded, so none is open. Retry evidra_prescribe once evidence storage recovers."}}
+			"instruction": "The new operation was not acknowledged and none is open. Repair evidence storage and start a new endpoint process, then call evidra_prescribe again."}}
 }

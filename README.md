@@ -50,7 +50,10 @@ mkdir -p evidence
 The command starts a single stdio MCP endpoint and waits for JSON-RPC input. In
 normal use, an MCP client owns this process and supplies the configuration. See
 [Getting started](docs/getting-started.md) for a complete client configuration
-and an end-to-end operation.
+and an end-to-end operation. The [Prescribe and Report protocol](docs/protocol.md)
+defines the operation lifecycle and errors in detail. Optional agent guidance
+is provided as an [Evidra skill](skills/evidra/SKILL.md) and a
+[portable prompt](prompts/evidra-agent.md).
 
 Evidra does not sandbox the wrapped command. It starts the supplied upstream
 process with the caller's operating-system authority, so review the command and
@@ -69,6 +72,16 @@ Summarize all recorder directories or verify their chains with the reader CLI:
 The summary keeps declarations, observations, and reports distinct. Verification
 checks recorder stores rather than deciding whether the operation achieved its
 real-world goal.
+
+For a review of one operation, use its ID from the summary:
+
+```bash
+./bin/evidra summarize --dir ./evidence --operation EV-... > operation-review.md
+```
+
+The Markdown review lists the recorded calls, the agent's claims, evidence
+gaps, and a next check for a human reviewer. It does not decide whether the
+external goal was achieved.
 
 ## What Evidra verifies
 
@@ -108,6 +121,7 @@ MCP boundary.
 ## Documentation
 
 - [Getting started](docs/getting-started.md)
+- [Prescribe and Report protocol](docs/protocol.md)
 - [CLI reference](docs/cli-reference.md)
 - [Architecture](docs/architecture.md)
 - [Evidence format and trust model](docs/evidence-format.md)

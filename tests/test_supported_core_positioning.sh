@@ -23,6 +23,7 @@ required_text=(
   "evidra summarize --dir"
   "evidra verify --dir"
   "docs/getting-started.md"
+  "docs/protocol.md"
   "docs/architecture.md"
   "docs/evidence-format.md"
   "docs/validation.md"
